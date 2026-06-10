@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  EVALUATOR
+}
+
+enum SessionStatus {
+  DRAFT
+  IN_PROGRESS
+  CLOSED
+}
+
+enum CriterionType {
+  QUANTITATIVE
+  QUALITATIVE
+}
+
+model User {
+  id           String       @id @default(cuid())
+  username     String       @unique
+  passwordHash String
+  name         String
+  role         Role
+  assignments  Assignment[]
+  scores       Score[]
+  createdAt    DateTime     @default(now())
+}
+
+model EvaluationSession {
+  id          String            @id @default(cuid())
+  name        String
+  description String?
+  eventDate   DateTime?
+  location    String?
+  status      SessionStatus     @default(DRAFT)
+  criteria    Criterion[]
+  subjects    Subject[]
+  assignments Assignment[]
+  scores      Score[]
+  createdAt   DateTime          @default(now())
+}
+
+model Criterion {
+  id          String            @id @default(cuid())
+  sessionId   String
+  session     EvaluationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  type        CriterionType
+  maxScore    Float
+  weight      Float             @default(1)
+  order       Int               @default(0)
+  scores      Score[]
+}
+
+model Subject {
+  id          String            @id @default(cuid())
+  sessionId   String
+  session     EvaluationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  order       Int               @default(0)
+  scores      Score[]
+}
+
+model Assignment {
+  id        String            @id @default(cuid())
+  sessionId String
+  session   EvaluationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, userId])
+}
+
+model Score {
+  id          String            @id @default(cuid())
+  sessionId   String
+  session     EvaluationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  evaluatorId String
+  evaluator   User              @relation(fields: [evaluatorId], references: [id], onDelete: Cascade)
+  subjectId   String
+  subject     Subject           @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  criterionId String
+  criterion   Criterion         @relation(fields: [criterionId], references: [id], onDelete: Cascade)
+  value       Float
+  grade       String?
+  comment     String?
+  updatedAt   DateTime          @updatedAt
+
+  @@unique([evaluatorId, subjectId, criterionId])
+}
