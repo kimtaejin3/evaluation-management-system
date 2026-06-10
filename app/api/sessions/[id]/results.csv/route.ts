@@ -1,7 +1,13 @@
 import { prisma } from '@/lib/db'
 import { computeFinalScores, rankSubjects } from '@/lib/scoring'
+import { getCurrentToken } from '@/lib/session'
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const token = await getCurrentToken()
+  if (!token || token.role !== 'ADMIN') {
+    return new Response('Unauthorized', { status: 401 })
+  }
+
   const { id } = await params
   const subjects = await prisma.subject.findMany({ where: { sessionId: id } })
   const criteria = await prisma.criterion.findMany({ where: { sessionId: id } })
