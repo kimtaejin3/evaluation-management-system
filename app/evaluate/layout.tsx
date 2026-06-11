@@ -1,14 +1,17 @@
-import Link from 'next/link'
+import AppShell from '@/components/AppShell'
 import { logout } from '@/app/login/actions'
+import { getCurrentUser } from '@/lib/session'
 
-export default function EvaluateLayout({ children }: { children: React.ReactNode }) {
+export default async function EvaluateLayout({ children }: { children: React.ReactNode }) {
+  const user = await getCurrentUser()
   return (
-    <div className="min-h-screen">
-      <header className="flex items-center justify-between border-b bg-white px-6 py-3">
-        <Link href="/evaluate" className="font-bold">심사·평가 시스템 · 평가위원</Link>
-        <form action={logout}><button className="text-sm text-gray-500">로그아웃</button></form>
-      </header>
-      <main className="p-6">{children}</main>
-    </div>
+    <AppShell
+      subtitle="평가위원"
+      nav={[{ href: '/evaluate', label: '평가 대상', exact: true }]}
+      user={{ name: user?.name ?? '평가위원', role: '평가위원' }}
+      logoutAction={logout}
+    >
+      {children}
+    </AppShell>
   )
 }

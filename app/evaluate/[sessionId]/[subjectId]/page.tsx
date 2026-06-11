@@ -11,6 +11,7 @@ export default async function ScoreSheet({ params }: { params: Promise<{ session
   if (!user) return null
 
   const subject = await prisma.subject.findUnique({ where: { id: subjectId } })
+  const session = await prisma.evaluationSession.findUnique({ where: { id: sessionId } })
   const criteria = await prisma.criterion.findMany({ where: { sessionId }, orderBy: { order: 'asc' } })
   if (!subject) notFound()
 
@@ -32,9 +33,12 @@ export default async function ScoreSheet({ params }: { params: Promise<{ session
   })
 
   return (
-    <div className="max-w-2xl space-y-6">
-      <Link href="/evaluate" className="text-sm text-blue-600">← 대상 목록</Link>
-      <h1 className="text-2xl font-bold">{subject.name}</h1>
+    <div className="mx-auto max-w-2xl space-y-6">
+      <div>
+        <Link href="/evaluate" className="text-sm text-slate-400 hover:text-slate-600">← 대상 목록</Link>
+        <h1 className="mt-1 text-2xl font-bold">{subject.name}</h1>
+        {session && <p className="text-sm text-slate-500">{session.name}</p>}
+      </div>
       <ScoreForm sessionId={sessionId} subjectId={subjectId} criteria={criteriaView} gradeRatios={GRADE_RATIOS} />
     </div>
   )
