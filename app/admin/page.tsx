@@ -95,62 +95,6 @@ export default async function AdminDashboard({
 
       {/* 모니터링 그리드 */}
       <MonitoringGrid data={p} />
-
-      {/* 대상별 진행 요약 */}
-      <div className="space-y-2.5">
-        <h2 className="text-sm font-semibold text-slate-700">대상별 진행 요약</h2>
-        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-          <table className="w-full text-sm">
-            <thead className="text-left text-slate-500">
-              <tr className="border-b border-slate-100 bg-slate-50/60">
-                <th className="px-4 py-2.5 font-medium">대상</th>
-                <th className="px-4 py-2.5 font-medium">입력 완료 위원</th>
-                <th className="px-4 py-2.5 font-medium">상태</th>
-              </tr>
-            </thead>
-            <tbody>
-              {p.subjectSummary.map((s) => {
-                const complete = s.total > 0 && s.done === s.total;
-                return (
-                  <tr
-                    key={s.id}
-                    className="border-b border-slate-50 last:border-0"
-                  >
-                    <td className="px-4 py-2.5 font-medium text-slate-800">
-                      {s.name}
-                    </td>
-                    <td className="px-4 py-2.5 text-slate-600">
-                      {s.done}/{s.total}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600">
-                        {complete ? (
-                          <span className="h-2.5 w-2.5 rounded-full bg-[var(--gov-primary)]" />
-                        ) : (
-                          <span className="relative h-2.5 w-2.5 rounded-full ring-1 ring-slate-400">
-                            <span className="absolute left-1/2 top-1/2 h-1 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-slate-400" />
-                          </span>
-                        )}
-                        {complete ? "완료" : "진행중"}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-              {p.subjectSummary.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={3}
-                    className="px-5 py-10 text-center text-slate-400"
-                  >
-                    평가 대상이 없습니다.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
     </div>
   );
 }
