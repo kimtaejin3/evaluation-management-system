@@ -42,7 +42,7 @@ export default function SessionPicker({ sessions, currentId }: { sessions: S[]; 
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="group flex items-center gap-2 rounded-md border border-slate-300 bg-white py-1.5 pl-3 pr-2 transition hover:border-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+        className="group -ml-1 flex items-center gap-1.5 rounded-md px-1 py-0.5 transition hover:bg-slate-100 focus:outline-none"
         aria-haspopup="listbox"
         aria-expanded={open}
       >
