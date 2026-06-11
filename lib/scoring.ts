@@ -6,6 +6,15 @@ export const GRADE_RATIOS: Record<string, number> = {
   E: 0.2,
 }
 
+// 정성 등급 라벨 (A~E)
+export const GRADE_LABELS: Record<string, string> = {
+  A: '매우 우수',
+  B: '우수',
+  C: '보통',
+  D: '미흡',
+  E: '매우 미흡',
+}
+
 export function gradeToValue(grade: string, maxScore: number): number {
   const ratio = GRADE_RATIOS[grade] ?? 0
   return maxScore * ratio
