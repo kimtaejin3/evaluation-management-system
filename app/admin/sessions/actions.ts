@@ -94,24 +94,26 @@ export async function removeEvaluator(sessionId: string, userId: string) {
 // ---- 평가 대상 서류 ----
 
 export async function uploadDocument(sessionId: string, subjectId: string, formData: FormData) {
-  const file = formData.get('file')
-  if (!(file instanceof File) || file.size === 0) return
+  const files = formData.getAll('file').filter((f): f is File => f instanceof File && f.size > 0)
+  if (files.length === 0) return
 
   await mkdir(UPLOAD_DIR, { recursive: true })
-  const ext = path.extname(file.name)
-  const storedName = randomUUID() + ext
-  const bytes = Buffer.from(await file.arrayBuffer())
-  await writeFile(path.join(UPLOAD_DIR, storedName), bytes)
+  for (const file of files) {
+    const ext = path.extname(file.name)
+    const storedName = randomUUID() + ext
+    const bytes = Buffer.from(await file.arrayBuffer())
+    await writeFile(path.join(UPLOAD_DIR, storedName), bytes)
 
-  await prisma.document.create({
-    data: {
-      subjectId,
-      originalName: file.name,
-      storedName,
-      mimeType: file.type || 'application/octet-stream',
-      size: file.size,
-    },
-  })
+    await prisma.document.create({
+      data: {
+        subjectId,
+        originalName: file.name,
+        storedName,
+        mimeType: file.type || 'application/octet-stream',
+        size: file.size,
+      },
+    })
+  }
   revalidatePath(`/admin/sessions/${sessionId}/subjects`)
 }
 

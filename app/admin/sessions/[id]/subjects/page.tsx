@@ -65,10 +65,13 @@ export default async function SubjectsPage({ params }: { params: Promise<{ id: s
                 {s.documents.length === 0 && <li className="text-sm text-slate-400">업로드된 서류가 없습니다.</li>}
               </ul>
               {!locked && (
-                <form action={uploadDocument.bind(null, id, s.id)} className="mt-3 flex items-center gap-2">
-                  <input type="file" name="file" required className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:text-slate-700 hover:file:bg-slate-200" />
-                  <button className="shrink-0 rounded-lg bg-slate-800 px-3 py-1.5 text-sm text-white transition hover:bg-slate-900">업로드</button>
-                </form>
+                <>
+                  <form action={uploadDocument.bind(null, id, s.id)} className="mt-3 flex items-center gap-2">
+                    <input type="file" name="file" multiple required className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:text-slate-700 hover:file:bg-slate-200" />
+                    <button className="shrink-0 rounded-lg bg-slate-800 px-3 py-1.5 text-sm text-white transition hover:bg-slate-900">일괄 업로드</button>
+                  </form>
+                  <p className="mt-1 text-xs text-slate-400">여러 파일을 한 번에 선택해 업로드할 수 있습니다. (사업 계획서·발표 자료·증빙 서류 등)</p>
+                </>
               )}
             </div>
           </div>
