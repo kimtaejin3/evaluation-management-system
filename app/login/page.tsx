@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useState } from 'react'
 import { login } from './actions'
 import BrandMark from '@/components/BrandMark'
 
@@ -8,8 +8,16 @@ const inputCls = 'mt-1.5 w-full rounded-md border border-slate-300 px-3 py-2.5 t
 
 const POINTS = ['심사 항목 설정 · 평가 · 결과 집계를 한 곳에서', '위원별 진행 현황 실시간 모니터링', '평가 자료 일괄 업로드 및 권한 보호']
 
+const DEMO_ACCOUNTS = [
+  { role: '관리자', name: '관리자', username: 'admin', password: 'admin1234' },
+  { role: '평가위원', name: '김평가', username: 'kim', password: 'eval1234' },
+  { role: '평가위원', name: '이심사', username: 'lee', password: 'eval1234' },
+]
+
 export default function LoginPage() {
   const [state, formAction] = useActionState(login, null)
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
   return (
     <main className="flex min-h-screen bg-slate-100">
       {/* 좌측 브랜드 패널 */}
@@ -55,11 +63,11 @@ export default function LoginPage() {
           <form action={formAction} className="mt-7 space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-700">아이디</label>
-              <input name="username" className={inputCls} required autoFocus placeholder="아이디 입력" />
+              <input name="username" value={username} onChange={(e) => setUsername(e.target.value)} className={inputCls} required autoFocus placeholder="아이디 입력" />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700">비밀번호</label>
-              <input name="password" type="password" className={inputCls} required placeholder="비밀번호 입력" />
+              <input name="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className={inputCls} required placeholder="비밀번호 입력" />
             </div>
             {state?.error && (
               <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700 ring-1 ring-inset ring-rose-200">{state.error}</p>
@@ -69,9 +77,33 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <p className="mt-6 text-xs text-slate-400">
-            계정 문의는 평가 주관 부서(관리자)에게 요청하세요.
-          </p>
+          {/* 데모 계정 빠른 선택 */}
+          <div className="mt-6 rounded-lg border border-slate-200 bg-white p-3">
+            <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-slate-500">
+              <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-semibold text-amber-700">DEMO</span>
+              데모 계정으로 채우기
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {DEMO_ACCOUNTS.map((a) => {
+                const active = username === a.username
+                return (
+                  <button
+                    key={a.username}
+                    type="button"
+                    onClick={() => { setUsername(a.username); setPassword(a.password) }}
+                    className={`rounded-md border px-3 py-1.5 text-left text-xs transition ${
+                      active ? 'border-indigo-400 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-600 hover:border-indigo-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="font-medium">{a.name}</span>
+                    <span className="ml-1 text-slate-400">{a.role}</span>
+                    <span className="mt-0.5 block text-[11px] text-slate-400">{a.username}</span>
+                  </button>
+                )
+              })}
+            </div>
+            <p className="mt-2 text-[11px] text-slate-400">계정을 누르면 아이디·비밀번호가 채워집니다. 그 후 로그인을 누르세요.</p>
+          </div>
         </div>
       </div>
     </main>
