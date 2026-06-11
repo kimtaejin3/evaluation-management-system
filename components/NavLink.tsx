@@ -17,8 +17,8 @@ export default function NavLink({
   return (
     <Link
       href={href}
-      className={`block rounded-lg px-3 py-2 text-sm transition ${
-        active ? 'bg-indigo-600 text-white font-medium shadow-sm' : 'text-slate-600 hover:bg-slate-100'
+      className={`block rounded-md px-3 py-2 text-sm transition ${
+        active ? 'bg-[var(--gov-primary)] text-white font-semibold' : 'text-slate-300 hover:bg-white/10'
       }`}
     >
       {children}

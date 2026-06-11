@@ -19,7 +19,7 @@ async function main() {
     await ctx.addCookies([{ name: 'auth_token', value: token, domain: 'localhost', path: '/' }])
     const page = await ctx.newPage()
     await page.goto('http://localhost:3000' + path, { waitUntil: 'networkidle' })
-    await page.screenshot({ path: 'screenshots/' + file, fullPage: true })
+    await page.screenshot({ path: 'screenshots/' + file, fullPage: false })
     await ctx.close()
     console.log('  ✓ ' + file + '  (' + path + ')')
   }

@@ -1,8 +1,24 @@
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.min.css");
 @import "tailwindcss";
 
-@theme inline {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* 관공서/공공기관 스타일 토큰 — 관청 블루 + 남색, 각진 폼 */
+@theme {
+  /* indigo 스케일을 정부 블루로 리매핑 → 기존 indigo-* 클래스가 전부 관청 블루로 */
+  --color-indigo-50: #eaf1fb;
+  --color-indigo-100: #d3e2f7;
+  --color-indigo-500: #1f6feb;
+  --color-indigo-600: #0b50d0;
+  --color-indigo-700: #093e9f;
+  /* 더 각진 느낌 */
+  --radius-xl: 0.375rem;
+  --radius-lg: 0.25rem;
+  --radius-md: 0.1875rem;
+}
+
+:root {
+  --gov-primary: #0b50d0;
+  --gov-navy: #122a4e;
+  --gov-navy-hover: #1c3a64;
 }
 
 html {
@@ -10,13 +26,14 @@ html {
 }
 
 body {
-  background: #f8fafc;
+  background: #f1f5f9;
   color: #0f172a;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: Pretendard, "Apple SD Gothic Neo", "Malgun Gothic", Arial, Helvetica, sans-serif;
 }
 
 @media print {
   aside,
+  header,
   .print\:hidden {
     display: none !important;
   }
