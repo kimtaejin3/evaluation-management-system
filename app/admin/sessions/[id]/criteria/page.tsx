@@ -1,75 +1,125 @@
+import Link from 'next/link'
 import { prisma } from '@/lib/db'
 import { deleteCriterion } from '../../actions'
 import { parseGradeOptions, defaultGradeOptions } from '@/lib/scoring'
 import AddCriterionForm from '@/components/AddCriterionForm'
 
-const TYPE_LABEL = { QUANTITATIVE: '정량', QUALITATIVE: '정성' } as const
-
-export default async function CriteriaPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CriteriaPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ tab?: string }>
+}) {
   const { id } = await params
+  const { tab } = await searchParams
+  const activeTab = tab === 'qual' ? 'qual' : 'quant'
   const session = await prisma.evaluationSession.findUnique({ where: { id } })
   const criteria = await prisma.criterion.findMany({ where: { sessionId: id }, orderBy: { order: 'asc' } })
   const locked = session?.status === 'CLOSED'
 
+  const quant = criteria.filter((c) => c.type === 'QUANTITATIVE')
+  const qual = criteria.filter((c) => c.type === 'QUALITATIVE')
+  const rows = activeTab === 'qual' ? qual : quant
+  const subtotal = rows.reduce((s, c) => s + c.maxScore, 0)
+  const totalAll = criteria.reduce((s, c) => s + c.maxScore, 0)
+
+  const tabCls = (on: boolean) =>
+    `rounded-t-lg border-b-2 px-4 py-2 text-sm font-medium transition ${
+      on ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-400 hover:text-slate-600'
+    }`
+
   return (
-    <div className="space-y-6">
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <div className="border-b border-slate-100 px-5 py-4 font-semibold">평가 항목</div>
+    <div className="space-y-5">
+      {/* 탭 */}
+      <div className="flex items-center gap-1 border-b border-slate-200">
+        <Link href={`/admin/sessions/${id}/criteria?tab=quant`} className={tabCls(activeTab === 'quant')}>
+          정량 항목 <span className="ml-0.5 text-xs text-slate-400">{quant.length}</span>
+        </Link>
+        <Link href={`/admin/sessions/${id}/criteria?tab=qual`} className={tabCls(activeTab === 'qual')}>
+          정성 항목 <span className="ml-0.5 text-xs text-slate-400">{qual.length}</span>
+        </Link>
+        <div className="ml-auto pb-1 text-xs text-slate-400">전체 배점 합계 {totalAll}점</div>
+      </div>
+
+      {/* 표 */}
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-sm">
-          <thead className="text-left text-slate-500">
-            <tr className="border-b border-slate-100">
-              <th className="px-5 py-3 font-medium">항목명</th>
-              <th className="px-5 py-3 font-medium">방식</th>
-              <th className="px-5 py-3 font-medium">배점</th>
-              <th className="px-5 py-3 font-medium">가중치</th>
-              <th className="px-5 py-3 font-medium">답(척도)</th>
-              <th className="px-5 py-3"></th>
+          <thead className="bg-slate-50 text-left text-slate-500">
+            <tr className="border-b border-slate-200">
+              <th className="w-px whitespace-nowrap px-4 py-2.5 font-medium">#</th>
+              <th className="px-4 py-2.5 font-medium">항목명 · 평가기준</th>
+              <th className="w-px whitespace-nowrap px-4 py-2.5 text-right font-medium">배점</th>
+              <th className="w-px whitespace-nowrap px-4 py-2.5 text-right font-medium">가중치</th>
+              {activeTab === 'qual' && <th className="px-4 py-2.5 font-medium">등급별 환산점수 (답)</th>}
+              {!locked && <th className="w-px whitespace-nowrap px-4 py-2.5 text-right font-medium">관리</th>}
             </tr>
           </thead>
           <tbody>
-            {criteria.map((c) => {
-              const opts = c.type === 'QUALITATIVE' ? (parseGradeOptions(c.gradeOptions) ?? defaultGradeOptions(c.maxScore)) : null
+            {rows.map((c, i) => {
+              const opts = c.type === 'QUALITATIVE' ? (parseGradeOptions(c.gradeOptions) ?? defaultGradeOptions(c.maxScore)) : []
               return (
-                <tr key={c.id} className="border-b border-slate-50 last:border-0 align-top">
-                  <td className="px-5 py-3">
+                <tr key={c.id} className="border-b border-slate-100 align-top last:border-0">
+                  <td className="px-4 py-3 text-slate-400 tabular-nums">{i + 1}</td>
+                  <td className="px-4 py-3">
                     <div className="font-medium text-slate-800">{c.name}</div>
-                    {c.description && <div className="text-xs text-slate-400">{c.description}</div>}
+                    {c.description && <div className="mt-0.5 text-xs text-slate-400">{c.description}</div>}
                   </td>
-                  <td className="px-5 py-3">
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${c.type === 'QUALITATIVE' ? 'bg-violet-50 text-violet-700' : 'bg-sky-50 text-sky-700'}`}>
-                      {TYPE_LABEL[c.type]}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 text-slate-600">{c.maxScore}</td>
-                  <td className="px-5 py-3 text-slate-600">{c.weight}</td>
-                  <td className="px-5 py-3 text-slate-500">
-                    {c.type === 'QUANTITATIVE' ? (
-                      <span className="text-xs">0 ~ {c.maxScore}점 직접 입력</span>
-                    ) : (
-                      <div className="flex flex-wrap gap-1">
-                        {opts!.map((o, i) => (
-                          <span key={i} className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">
-                            {o.label} <span className="text-slate-400">{o.points}</span>
+                  <td className="px-4 py-3 text-right font-semibold tabular-nums text-slate-800">{c.maxScore}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-slate-500">×{c.weight}</td>
+                  {activeTab === 'qual' && (
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-1.5">
+                        {opts.map((o, k) => (
+                          <span key={k} className="inline-flex items-baseline gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs">
+                            <span className="font-medium text-slate-700">{o.label}</span>
+                            <span className="text-slate-400 tabular-nums">{o.points}</span>
                           </span>
                         ))}
                       </div>
-                    )}
-                  </td>
-                  <td className="px-5 py-3 text-right">
-                    <form action={async () => { 'use server'; await deleteCriterion(id, c.id) }}>
-                      <button disabled={locked} className="text-sm text-rose-600 hover:underline disabled:opacity-30">삭제</button>
-                    </form>
-                  </td>
+                    </td>
+                  )}
+                  {!locked && (
+                    <td className="px-4 py-3 text-right">
+                      <form action={async () => { 'use server'; await deleteCriterion(id, c.id) }}>
+                        <button className="text-sm text-rose-600 hover:underline">삭제</button>
+                      </form>
+                    </td>
+                  )}
                 </tr>
               )
             })}
-            {criteria.length === 0 && (
-              <tr><td colSpan={6} className="px-5 py-10 text-center text-slate-400">등록된 항목이 없습니다.</td></tr>
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={activeTab === 'qual' ? 6 : 5} className="px-4 py-10 text-center text-slate-400">
+                  {activeTab === 'qual' ? '정성' : '정량'} 항목이 없습니다.
+                </td>
+              </tr>
             )}
           </tbody>
+          {rows.length > 0 && (
+            <tfoot>
+              <tr className="border-t border-slate-200 bg-slate-50 font-medium text-slate-700">
+                <td className="px-4 py-2.5" colSpan={2}>합계 ({activeTab === 'qual' ? '정성' : '정량'})</td>
+                <td className="px-4 py-2.5 text-right tabular-nums">{subtotal}</td>
+                <td className="px-4 py-2.5" colSpan={activeTab === 'qual' ? 3 : (locked ? 1 : 2)} />
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
 
+      {/* 점수 기준 안내 */}
+      <div className="rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-500">
+        <div className="mb-1 font-semibold text-slate-600">점수 기준</div>
+        <ul className="space-y-0.5">
+          <li>· 정량: 위원이 0 ~ 배점 사이 점수를 직접 입력합니다.</li>
+          <li>· 정성: 위원이 등급(답)을 선택하면 해당 등급의 환산점수가 부여됩니다.</li>
+          <li>· 최종 점수 = Σ(항목 점수 × 가중치)의 위원 평균입니다.</li>
+        </ul>
+      </div>
+
+      {/* 항목 추가 */}
       {locked ? (
         <p className="text-sm text-slate-400">마감된 회차는 항목을 수정할 수 없습니다.</p>
       ) : (
