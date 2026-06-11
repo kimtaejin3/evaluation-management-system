@@ -1,4 +1,5 @@
-import type { ProgressData, Cell } from "@/lib/progress";
+import type { ProgressData } from "@/lib/progress";
+import MonitoringCell from "@/components/MonitoringCell";
 
 // 와이어프레임 상태 체계
 type WireState = "none" | "partial" | "done" | "locked";
@@ -16,25 +17,6 @@ const LEGEND: { state: WireState; label: string }[] = [
   { state: "done", label: "완료" },
   { state: "locked", label: "제출잠금" },
 ];
-
-function CellBlock({ cell }: { cell: Cell }) {
-  if (cell.total === 0) {
-    return <span className={`mx-auto block h-5 w-24 rounded-[5px] ${SWATCH.none}`} />;
-  }
-  const tip = cell.items
-    .map((it) => `${it.done ? "✓" : "·"} ${it.name}`)
-    .join("\n");
-  return (
-    <span className="mx-auto flex h-5 w-24 gap-1" title={tip}>
-      {cell.items.map((it) => (
-        <span
-          key={it.id}
-          className={`flex-1 rounded-[4px] ${it.done ? SWATCH.done : SWATCH.none}`}
-        />
-      ))}
-    </span>
-  );
-}
 
 export default function MonitoringGrid({ data }: { data: ProgressData }) {
   const totalSub = data.subjects.length;
@@ -84,7 +66,7 @@ export default function MonitoringGrid({ data }: { data: ProgressData }) {
                       key={c.subjectId}
                       className="border-b border-slate-100 px-1.5 py-2 group-last:border-b-0"
                     >
-                      <CellBlock cell={c} />
+                      <MonitoringCell cell={c} />
                     </td>
                   ))}
                   <td className="sticky right-0 z-10 w-px whitespace-nowrap border-b border-l border-slate-100 bg-white px-3 py-2 text-center font-semibold tabular-nums text-slate-700 group-last:border-b-0">
