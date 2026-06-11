@@ -95,6 +95,17 @@ export function computeFinalScores(
   return result
 }
 
+// 최종 점수(환산 100점 기준 비율)로 종합 등급 산정
+export function overallGrade(final: number, maxTotal: number): string {
+  if (maxTotal <= 0) return '-'
+  const r = final / maxTotal
+  if (r >= 0.9) return 'S'
+  if (r >= 0.8) return 'A'
+  if (r >= 0.7) return 'B'
+  if (r >= 0.6) return 'C'
+  return 'D'
+}
+
 export interface RankedSubject {
   subjectId: string
   finalScore: number

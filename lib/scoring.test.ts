@@ -7,6 +7,7 @@ import {
   rankSubjects,
   parseGradeOptions,
   defaultGradeOptions,
+  overallGrade,
 } from './scoring'
 
 describe('gradeToValue', () => {
@@ -108,5 +109,16 @@ describe('defaultGradeOptions', () => {
     expect(opts).toHaveLength(5)
     expect(opts[0].points).toBe(30) // A = 100%
     expect(opts[4].points).toBeCloseTo(6) // E = 20%
+  })
+})
+
+describe('overallGrade', () => {
+  it('환산 비율로 S/A/B/C/D 산정', () => {
+    expect(overallGrade(95, 100)).toBe('S')
+    expect(overallGrade(85, 100)).toBe('A')
+    expect(overallGrade(72, 100)).toBe('B')
+    expect(overallGrade(60, 100)).toBe('C')
+    expect(overallGrade(40, 100)).toBe('D')
+    expect(overallGrade(10, 0)).toBe('-')
   })
 })

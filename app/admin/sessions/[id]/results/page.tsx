@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/db";
-import { computeFinalScores, rankSubjects } from "@/lib/scoring";
+import { computeFinalScores, rankSubjects, overallGrade } from "@/lib/scoring";
+import { getSessionInsights } from "@/lib/progress";
+import CompanyLogo from "@/components/CompanyLogo";
 import PrintButton from "./PrintButton";
+
+const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
 const fmtDate = (d: Date | null) =>
   d ? new Date(d).toLocaleString("ko-KR", { dateStyle: "long", timeStyle: "short" }) : "미정";
@@ -29,6 +33,9 @@ export default async function ResultsPage({
   const ranked = rankSubjects(finalScores);
   const subjectName = new Map(subjects.map((s) => [s.id, s.name]));
   const orderedCriteria = [...criteria].sort((a, b) => a.order - b.order);
+  const maxTotal = criteria.reduce((s, c) => s + c.maxScore * c.weight, 0);
+  const insights = await getSessionInsights(id);
+  const divergent = insights.rows.filter((r) => r.spread !== null && r.spread >= 10);
   // 대상×항목 위원 평균
   const critAvg = (subId: string, critId: string): number | null => {
     const vs = scores.filter((s) => s.subjectId === subId && s.criterionId === critId).map((s) => s.value);
@@ -93,40 +100,82 @@ export default async function ResultsPage({
                   <div className="text-xs font-normal text-slate-400 print:text-black">/{c.maxScore} · 가중 {c.weight}</div>
                 </th>
               ))}
-              <th className="px-5 py-3 text-right font-medium print:border print:border-black">최종 점수</th>
+              <th className="px-4 py-3 text-right font-medium print:border print:border-black">최종 점수<div className="text-xs font-normal text-slate-400 print:text-black">/{fmt(maxTotal)}</div></th>
+              <th className="px-4 py-3 text-right font-medium print:border print:border-black">환산<div className="text-xs font-normal text-slate-400 print:text-black">/100</div></th>
+              <th className="px-4 py-3 text-center font-medium print:border print:border-black">등급</th>
             </tr>
           </thead>
           <tbody>
-            {ranked.map((r) => (
-              <tr key={r.subjectId} className="border-b border-slate-50 last:border-0 print:border-black">
-                <td className="px-5 py-3 print:border print:border-black">
-                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-600 print:bg-transparent print:text-black">
-                    {r.rank}
-                  </span>
-                </td>
-                <td className="whitespace-nowrap px-5 py-3 font-medium text-slate-800 print:border print:border-black">
-                  {subjectName.get(r.subjectId)}
-                </td>
-                {orderedCriteria.map((c) => {
-                  const a = critAvg(r.subjectId, c.id);
-                  return (
-                    <td key={c.id} className="px-4 py-3 text-right tabular-nums text-slate-600 print:border print:border-black">
-                      {a === null ? "—" : a.toFixed(1)}
-                    </td>
-                  );
-                })}
-                <td className="px-5 py-3 text-right text-lg font-bold text-slate-900 print:border print:border-black print:text-base">
-                  {r.finalScore.toFixed(2)}
-                </td>
-              </tr>
-            ))}
+            {ranked.map((r) => {
+              const norm = maxTotal > 0 ? (r.finalScore / maxTotal) * 100 : 0;
+              const grade = overallGrade(r.finalScore, maxTotal);
+              return (
+                <tr key={r.subjectId} className="border-b border-slate-50 last:border-0 print:border-black">
+                  <td className="px-5 py-3 print:border print:border-black">
+                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-600 print:bg-transparent print:text-black">
+                      {r.rank}
+                    </span>
+                  </td>
+                  <td className="whitespace-nowrap px-5 py-3 font-medium text-slate-800 print:border print:border-black">
+                    <span className="inline-flex items-center gap-2">
+                      <CompanyLogo name={subjectName.get(r.subjectId) ?? ''} className="h-6 w-6 print:hidden" />
+                      {subjectName.get(r.subjectId)}
+                    </span>
+                  </td>
+                  {orderedCriteria.map((c) => {
+                    const a = critAvg(r.subjectId, c.id);
+                    return (
+                      <td key={c.id} className="px-4 py-3 text-right tabular-nums text-slate-600 print:border print:border-black">
+                        {a === null ? "—" : a.toFixed(1)}
+                      </td>
+                    );
+                  })}
+                  <td className="px-4 py-3 text-right text-lg font-bold text-slate-900 print:border print:border-black print:text-base">
+                    {r.finalScore.toFixed(2)}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums text-slate-600 print:border print:border-black">{norm.toFixed(1)}</td>
+                  <td className="px-4 py-3 text-center print:border print:border-black">
+                    <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-md bg-[var(--gov-navy)] px-1.5 text-sm font-bold text-white print:bg-transparent print:text-black">{grade}</span>
+                  </td>
+                </tr>
+              );
+            })}
             {ranked.length === 0 && (
               <tr>
-                <td colSpan={orderedCriteria.length + 3} className="px-5 py-12 text-center text-slate-400">집계할 점수가 없습니다.</td>
+                <td colSpan={orderedCriteria.length + 5} className="px-5 py-12 text-center text-slate-400">집계할 점수가 없습니다.</td>
               </tr>
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* 합산 공식 + 위원 간 편차 정보 (화면 전용) */}
+      <div className="grid gap-4 print:hidden lg:grid-cols-2">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-500">
+          <div className="mb-1.5 font-semibold text-slate-600">합산 공식</div>
+          <ul className="space-y-1">
+            <li>· 위원 점수 = Σ(항목 점수 × 가중치)</li>
+            <li>· 최종 점수 = 배정 위원 점수의 평균 (만점 {fmt(maxTotal)}점)</li>
+            <li>· 환산 = 최종 ÷ {fmt(maxTotal)} × 100</li>
+            <li>· 등급 = 환산 90↑ S · 80↑ A · 70↑ B · 60↑ C · 그 외 D</li>
+          </ul>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-500">
+          <div className="mb-1.5 font-semibold text-slate-600">위원 간 편차 정보</div>
+          {divergent.length === 0 ? (
+            <p className="text-slate-400">편차가 큰(±10 이상) 대상이 없습니다.</p>
+          ) : (
+            <ul className="space-y-1">
+              {divergent.map((r) => (
+                <li key={r.subjectId} className="flex items-center justify-between">
+                  <span className="text-slate-600">{r.name}</span>
+                  <span className="font-medium text-amber-700">편차 ±{fmt(r.spread!)} · 재검토 권장</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-2 text-slate-400">완료 위원 2명 이상인 대상 기준 · 최고-최저 차이</p>
+        </div>
       </div>
 
       {/* 인쇄 전용 확인란 */}
