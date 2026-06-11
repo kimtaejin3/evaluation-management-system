@@ -44,9 +44,9 @@ export default function DashboardInsights({ data }: { data: SessionInsights }) {
               {ranking.map((r) => (
                 <tr
                   key={r.subjectId}
-                  className="border-b border-slate-100 last:border-0"
+                  className="h-12 border-b border-slate-100 last:border-0"
                 >
-                  <td className="px-4 py-2 text-left">
+                  <td className="px-4 text-left">
                     {r.rank ? (
                       <span
                         className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-xs font-bold tabular-nums bg-slate-100 text-slate-600
@@ -58,10 +58,10 @@ export default function DashboardInsights({ data }: { data: SessionInsights }) {
                       <span className="text-xs text-slate-300">–</span>
                     )}
                   </td>
-                  <td className="px-4 py-2 font-medium text-slate-800">
+                  <td className="px-4 font-medium text-slate-800">
                     {r.name}
                   </td>
-                  <td className="px-4 py-2 text-right font-semibold tabular-nums text-slate-900">
+                  <td className="px-4 text-right font-semibold tabular-nums text-slate-900">
                     {r.avg !== null ? (
                       fmt(r.avg)
                     ) : (
@@ -70,7 +70,7 @@ export default function DashboardInsights({ data }: { data: SessionInsights }) {
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-2 text-right tabular-nums text-slate-500">
+                  <td className="px-4 text-right tabular-nums text-slate-500">
                     {r.completeCount}명
                   </td>
                 </tr>
@@ -120,19 +120,19 @@ export default function DashboardInsights({ data }: { data: SessionInsights }) {
                 return (
                   <tr
                     key={r.subjectId}
-                    className="border-b border-slate-100 last:border-0"
+                    className="h-12 border-b border-slate-100 last:border-0"
                   >
-                    <td className="px-4 py-2 font-medium text-slate-800">
+                    <td className="px-4 font-medium text-slate-800">
                       {r.name}
                     </td>
-                    <td className="px-4 py-2 text-right font-semibold tabular-nums text-slate-900">
+                    <td className="px-4 text-right font-semibold tabular-nums text-slate-900">
                       {pending ? (
                         <span className="font-normal text-slate-400">집계 전</span>
                       ) : (
                         `±${fmt(r.spread ?? 0)}`
                       )}
                     </td>
-                    <td className="px-4 py-2 text-right">
+                    <td className="px-4 text-right">
                       {pending ? (
                         <span className="text-xs text-slate-300">–</span>
                       ) : (

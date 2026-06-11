@@ -69,7 +69,7 @@ export default function AdminSidebar() {
     <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col bg-[var(--gov-navy)] text-white">
       <div className="flex items-center gap-2.5 border-b border-white/10 px-5 py-5">
         <div>
-          <div className="text-sm font-bold leading-tight">심사·평가</div>
+          <div className="text-sm font-bold leading-tight">사업 심사·평가</div>
           <div className="text-[11px] text-slate-400">종합관리시스템</div>
         </div>
       </div>
