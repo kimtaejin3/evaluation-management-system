@@ -2,6 +2,7 @@ import AdminSidebar from "@/components/AdminSidebar";
 import HeaderTitle from "@/components/HeaderTitle";
 import { getCurrentUser } from "@/lib/session";
 import { logout } from "@/app/login/actions";
+import { prisma } from "@/lib/db";
 
 export default async function AdminLayout({
   children,
@@ -9,9 +10,13 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const user = await getCurrentUser();
+  const sessions = await prisma.evaluationSession.findMany({
+    orderBy: { createdAt: "desc" },
+    select: { id: true, name: true },
+  });
   return (
     <div className="flex min-h-screen bg-slate-100 text-slate-900">
-      <AdminSidebar />
+      <AdminSidebar sessions={sessions} />
       <div className="flex min-h-screen flex-1 flex-col overflow-x-auto">
         <header className="flex items-center justify-between border-b border-slate-200 px-8 py-3">
           <HeaderTitle />
