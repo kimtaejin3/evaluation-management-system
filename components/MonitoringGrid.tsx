@@ -43,31 +43,41 @@ export default function MonitoringGrid({ data }: { data: ProgressData }) {
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-        <table className="w-full text-sm">
+        <table className="w-full border-separate border-spacing-0 text-sm">
           <thead>
-            <tr className="border-b border-slate-200 text-slate-500">
-              <th className="whitespace-nowrap px-4 py-2.5 text-left font-medium">위원 \ 대상</th>
+            <tr className="text-slate-500">
+              <th className="sticky left-0 z-20 w-px whitespace-nowrap border-b border-r border-slate-200 bg-white px-3 py-2.5 text-left font-medium">
+                위원 \ 대상
+              </th>
               {data.subjects.map((s) => (
-                <th key={s.id} className="px-2 py-2.5 text-center font-medium">{s.name}</th>
+                <th
+                  key={s.id}
+                  className="min-w-[80px] max-w-[140px] truncate border-b border-slate-200 px-2 py-2.5 text-center font-medium"
+                  title={s.name}
+                >
+                  {s.name}
+                </th>
               ))}
-              <th className="px-4 py-2.5 text-center font-medium">진행률</th>
+              <th className="sticky right-0 z-20 w-px whitespace-nowrap border-b border-l border-slate-200 bg-white px-3 py-2.5 text-center font-medium">
+                진행률
+              </th>
             </tr>
           </thead>
           <tbody>
             {data.rows.map((r, i) => {
               const done = r.cells.filter((c) => c.state === 'done').length
               return (
-                <tr key={r.userId} className="border-b border-slate-100 last:border-0">
-                  <td className="whitespace-nowrap px-4 py-2 font-medium text-slate-800">
+                <tr key={r.userId} className="group">
+                  <td className="sticky left-0 z-10 w-px whitespace-nowrap border-b border-r border-slate-100 bg-white px-3 py-2 font-medium text-slate-800 group-last:border-b-0">
                     <span className="mr-1.5 text-slate-400">#{i + 1}</span>
                     {r.name}
                   </td>
                   {r.cells.map((c) => (
-                    <td key={c.subjectId} className="px-1.5 py-2">
+                    <td key={c.subjectId} className="border-b border-slate-100 px-1.5 py-2 group-last:border-b-0">
                       <CellBlock cell={c} />
                     </td>
                   ))}
-                  <td className="px-4 py-2 text-center font-semibold tabular-nums text-slate-700">
+                  <td className="sticky right-0 z-10 w-px whitespace-nowrap border-b border-l border-slate-100 bg-white px-3 py-2 text-center font-semibold tabular-nums text-slate-700 group-last:border-b-0">
                     {done}/{totalSub}
                   </td>
                 </tr>
