@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/db'
+import CompanyLogo from '@/components/CompanyLogo'
 import { addSubject, deleteSubject } from '../../actions'
 
 const inputCls = 'rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500'
@@ -82,12 +83,15 @@ export default async function SubjectsPage({ params }: { params: Promise<{ id: s
         {subjects.map((s, i) => (
           <div key={s.id} id={`subject-${s.id}`} className="scroll-mt-20 rounded-xl border border-slate-200 bg-white p-5">
             <div className="flex items-start justify-between">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-500">{i + 1}</span>
-                  <span className="font-semibold text-slate-800">{s.name}</span>
+              <div className="flex items-start gap-3">
+                <CompanyLogo name={s.name} className="h-9 w-9 text-sm" />
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-slate-400">{i + 1}</span>
+                    <span className="font-semibold text-slate-800">{s.name}</span>
+                  </div>
+                  {s.company.description && <p className="mt-1 text-sm text-slate-500">{s.company.description}</p>}
                 </div>
-                {s.company.description && <p className="mt-1 text-sm text-slate-500">{s.company.description}</p>}
               </div>
               {!locked && (
                 <form action={async () => { 'use server'; await deleteSubject(id, s.id) }}>

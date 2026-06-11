@@ -1,4 +1,5 @@
 import Link from "next/link";
+import CompanyLogo from "@/components/CompanyLogo";
 import type { SessionInsights } from "@/lib/progress";
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
@@ -68,8 +69,9 @@ export default function DashboardInsights({
                   <td className="px-4 font-medium text-slate-800">
                     <Link
                       href={`/admin/sessions/${sessionId}/subjects#subject-${r.subjectId}`}
-                      className="hover:text-indigo-700 hover:underline"
+                      className="inline-flex items-center gap-2 hover:text-indigo-700 hover:underline"
                     >
+                      <CompanyLogo name={r.name} className="h-6 w-6 text-[10px]" />
                       {r.name}
                     </Link>
                   </td>

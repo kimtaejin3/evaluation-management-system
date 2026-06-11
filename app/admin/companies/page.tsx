@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db'
+import CompanyLogo from '@/components/CompanyLogo'
 import { createCompany, deleteCompany, uploadCompanyDocument, deleteCompanyDocument } from '../actions'
 
 const inputCls = 'rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500'
@@ -40,12 +41,15 @@ export default async function CompaniesPage() {
         {companies.map((c) => (
           <div key={c.id} className="rounded-lg border border-slate-200 bg-white p-5">
             <div className="flex items-start justify-between">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-slate-800">{c.name}</span>
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">회차 {c._count.subjects}곳 사용</span>
+              <div className="flex items-start gap-3">
+                <CompanyLogo name={c.name} />
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-slate-800">{c.name}</span>
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">회차 {c._count.subjects}곳 사용</span>
+                  </div>
+                  {c.description && <p className="mt-1 text-sm text-slate-500">{c.description}</p>}
                 </div>
-                {c.description && <p className="mt-1 text-sm text-slate-500">{c.description}</p>}
               </div>
               <form action={async () => { 'use server'; await deleteCompany(c.id) }}>
                 <button className="text-sm text-rose-600 hover:underline">삭제</button>

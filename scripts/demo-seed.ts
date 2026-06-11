@@ -7,10 +7,21 @@ import { UPLOAD_DIR } from '../lib/storage'
 
 const prisma = new PrismaClient()
 
+const COMPANY_NAMES = [
+  '(주)미래환경기술',
+  '한솔정보통신',
+  '대원바이오',
+  '그린에너지솔루션',
+  '동방물류시스템',
+  '세종헬스케어',
+  '우성건설',
+  '케이아이티',
+]
+
 async function main() {
   await prisma.evaluationSession.deleteMany({ where: { name: { in: ['2026 상반기 사업 평가', '2026 신규 과제 심사'] } } })
   await prisma.user.deleteMany({ where: { username: { in: ['kim', 'lee', 'park'] } } })
-  await prisma.company.deleteMany({ where: { name: { endsWith: '기업' } } })
+  await prisma.company.deleteMany({ where: { name: { in: COMPANY_NAMES } } })
 
   const pw = await bcrypt.hash('eval1234', 10)
   const kim = await prisma.user.create({ data: { username: 'kim', name: '김평가', role: 'EVALUATOR', passwordHash: pw } })
@@ -27,20 +38,20 @@ async function main() {
   const c1 = await prisma.criterion.create({ data: { sessionId: s1.id, name: '사업 타당성', description: '시장성·실현 가능성', type: 'QUANTITATIVE', maxScore: 40, weight: 1, order: 0 } })
   const c2 = await prisma.criterion.create({ data: { sessionId: s1.id, name: '추진 역량', description: '조직·인력 역량', type: 'QUANTITATIVE', maxScore: 30, weight: 1, order: 1 } })
   const c3 = await prisma.criterion.create({ data: { sessionId: s1.id, name: '발표 평가', description: '전달력·이해도', type: 'QUALITATIVE', maxScore: 30, weight: 1, order: 2 } })
-  const names = ['A기업', 'B기업', 'C기업', 'D기업', 'E기업', 'F기업', 'G기업', 'H기업']
+  const names = COMPANY_NAMES
   // 전역 기업 등록(회차에 묶이지 않음)
   const companies: Record<string, { id: string }> = {}
   for (const n of names) {
     companies[n] = await prisma.company.create({ data: { name: n, description: `${n} 사업 지원 신청` } })
   }
-  // 기업 자료(회차 간 공유) — A기업에 샘플 문서
+  // 기업 자료(회차 간 공유) — 첫 기업에 샘플 문서
   await mkdir(UPLOAD_DIR, { recursive: true })
-  const docBody = 'A기업 사업계획서 (데모 파일)\n시장성·실현 가능성 등 검토 자료\n'
+  const docBody = `${names[0]} 사업계획서 (데모 파일)\n시장성·실현 가능성 등 검토 자료\n`
   await writeFile(path.join(UPLOAD_DIR, 'demo-a-plan.txt'), docBody)
   await prisma.document.create({
     data: {
-      companyId: companies['A기업'].id,
-      originalName: 'A기업_사업계획서.txt',
+      companyId: companies[names[0]].id,
+      originalName: `${names[0]}_사업계획서.txt`,
       storedName: 'demo-a-plan.txt',
       mimeType: 'text/plain',
       size: Buffer.byteLength(docBody),
@@ -54,18 +65,19 @@ async function main() {
   // 모니터링이 완료/입력중/미평가를 두루 보여주도록 위원별 진행 상태를 섞음
   type Mode = 'done' | 'partial' | 'none'
   // leeBias: 이심사 점수에 적용할 편차(기본 -2, 큰 값이면 위원 간 이견 시연)
-  const plan: Record<string, { kim: Mode; lee: Mode; q1: number; q2: number; g: string; leeBias?: number }> = {
-    A기업: { kim: 'done', lee: 'done', q1: 36, q2: 27, g: 'A' },
-    B기업: { kim: 'done', lee: 'done', q1: 30, q2: 24, g: 'B', leeBias: -13 },
-    C기업: { kim: 'done', lee: 'done', q1: 33, q2: 21, g: 'A' },
-    D기업: { kim: 'done', lee: 'partial', q1: 34, q2: 26, g: 'A' },
-    E기업: { kim: 'partial', lee: 'none', q1: 28, q2: 22, g: 'B' },
-    F기업: { kim: 'none', lee: 'none', q1: 0, q2: 0, g: 'C' },
-    G기업: { kim: 'done', lee: 'done', q1: 31, q2: 25, g: 'A' },
-    H기업: { kim: 'none', lee: 'partial', q1: 26, q2: 20, g: 'B' },
-  }
-  for (const sub of subs) {
-    const p = plan[sub.name]
+  // 기업 순서(names)와 동일한 인덱스로 매핑
+  const plan: { kim: Mode; lee: Mode; q1: number; q2: number; g: string; leeBias?: number }[] = [
+    { kim: 'done', lee: 'done', q1: 36, q2: 27, g: 'A' },
+    { kim: 'done', lee: 'done', q1: 30, q2: 24, g: 'B', leeBias: -13 },
+    { kim: 'done', lee: 'done', q1: 33, q2: 21, g: 'A' },
+    { kim: 'done', lee: 'partial', q1: 34, q2: 26, g: 'A' },
+    { kim: 'partial', lee: 'none', q1: 28, q2: 22, g: 'B' },
+    { kim: 'none', lee: 'none', q1: 0, q2: 0, g: 'C' },
+    { kim: 'done', lee: 'done', q1: 31, q2: 25, g: 'A' },
+    { kim: 'none', lee: 'partial', q1: 26, q2: 20, g: 'B' },
+  ]
+  for (const [i, sub] of subs.entries()) {
+    const p = plan[i]
     for (const ev of [kim, lee]) {
       const mode = ev.id === kim.id ? p.kim : p.lee
       const jitter = ev.id === lee.id ? (p.leeBias ?? -2) : 0
