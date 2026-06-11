@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { getSessionProgress } from "@/lib/progress";
-import StatCard from "@/components/StatCard";
 import StatusBadge from "@/components/StatusBadge";
 import MonitoringGrid from "@/components/MonitoringGrid";
 import Clock from "@/components/Clock";
@@ -36,22 +35,21 @@ export default async function AdminDashboard() {
   const p = await getSessionProgress(session.id);
 
   return (
-    <div className="space-y-4">
-      {/* 상태바 */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white px-5 py-3.5">
-        <div className="flex items-center gap-3">
-          <span className="text-lg font-bold">{session.name}</span>
-          <StatusBadge status={session.status} />
-        </div>
-        <div className="flex items-center gap-6 text-sm">
-          <div>
-            <span className="text-slate-400">현재 시각 </span>
-            <span className="font-semibold text-slate-800">
+    <div className="space-y-7">
+      {/* 헤더 (플랫) */}
+      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-4">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl font-bold text-slate-900">{session.name}</h1>
+            <StatusBadge status={session.status} />
+          </div>
+          <p className="mt-1.5 text-sm text-slate-500">
+            <span className="text-slate-400">현재 시각</span>{" "}
+            <span className="font-medium text-slate-700">
               <Clock />
             </span>
-          </div>
-          <div>
-            <span className="text-slate-400">일시 </span>
+            <span className="mx-2 text-slate-300">·</span>
+            <span className="text-slate-400">평가 일시</span>{" "}
             <span className="font-medium text-slate-700">
               {session.eventDate
                 ? new Date(session.eventDate).toLocaleString("ko-KR", {
@@ -60,41 +58,43 @@ export default async function AdminDashboard() {
                   })
                 : "미정"}
             </span>
-          </div>
-          <Link
-            href={`/admin/sessions/${session.id}`}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-slate-600 hover:bg-slate-50"
-          >
-            회차 관리 →
-          </Link>
+          </p>
         </div>
+        <Link
+          href={`/admin/sessions/${session.id}`}
+          className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50"
+        >
+          회차 관리 →
+        </Link>
       </div>
 
-      {/* KPI */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="배정 위원" value={`${p.assignedCount}명`} />
-        <StatCard
-          label="입력 완료 위원"
-          value={`${p.completedEvaluators}/${p.assignedCount}`}
-        />
-        <StatCard
-          label="진행률"
-          value={`${p.pct}%`}
-          accent
-          hint={`${p.doneCells}/${p.totalCells} 칸`}
-        />
-        <StatCard label="평가 대상" value={`${p.subjects.length}개`} />
+      {/* KPI 스탯 스트립 (카드 대신 구분선) */}
+      <div className="grid grid-cols-2 gap-y-5 sm:grid-cols-4 sm:gap-y-0 sm:divide-x sm:divide-slate-200">
+        {[
+          { label: "배정 위원", value: `${p.assignedCount}명` },
+          { label: "입력 완료 위원", value: `${p.completedEvaluators}/${p.assignedCount}` },
+          { label: "진행률", value: `${p.pct}%`, accent: true, hint: `${p.doneCells}/${p.totalCells} 칸` },
+          { label: "평가 대상", value: `${p.subjects.length}개` },
+        ].map((k, i) => (
+          <div key={k.label} className={i === 0 ? "sm:pr-6" : "sm:px-6"}>
+            <div className="text-sm text-slate-500">{k.label}</div>
+            <div className={`mt-1 text-2xl font-bold ${k.accent ? "text-indigo-600" : "text-slate-900"}`}>
+              {k.value}
+            </div>
+            <div className="mt-0.5 text-xs text-slate-400">{k.hint ?? " "}</div>
+          </div>
+        ))}
       </div>
 
       {/* 모니터링 그리드 */}
-      <div className="space-y-2">
-        <h2 className="font-semibold text-slate-700">위원 × 대상 모니터링</h2>
+      <div className="space-y-2.5">
+        <h2 className="text-sm font-semibold text-slate-700">위원 × 대상 모니터링</h2>
         <MonitoringGrid data={p} />
       </div>
 
       {/* 대상별 진행 요약 */}
-      <div className="space-y-2">
-        <h2 className="font-semibold text-slate-700">대상별 진행 요약</h2>
+      <div className="space-y-2.5">
+        <h2 className="text-sm font-semibold text-slate-700">대상별 진행 요약</h2>
         <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
           <table className="w-full text-sm">
             <thead className="text-left text-slate-500">

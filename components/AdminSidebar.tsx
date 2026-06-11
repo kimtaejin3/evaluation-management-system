@@ -9,6 +9,8 @@ import {
   TemplateIcon,
 } from "./icons";
 
+const APP_VERSION = "0.1.0";
+
 function topCls(active: boolean) {
   return `flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition ${
     active
@@ -121,6 +123,9 @@ export default function AdminSidebar() {
           항목 템플릿
         </Link>
       </nav>
+      <div className="border-t border-white/10 px-5 py-3 text-[11px] text-slate-500">
+        심사·평가 종합관리시스템 <span className="text-slate-400">v{APP_VERSION}</span>
+      </div>
     </aside>
   );
 }
