@@ -75,8 +75,7 @@ export default function AdminSidebar() {
       </div>
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
         <Link href="/admin" className={topCls(isExact("/admin"))}>
-          <DashboardIcon />
-          대시보드
+          <DashboardIcon />홈
         </Link>
         <div>
           <Link href="/admin/sessions" className={topCls(sessionsActive)}>
@@ -135,7 +134,7 @@ export default function AdminSidebar() {
             fill="none"
             stroke="currentColor"
             strokeWidth="1.8"
-            className="h-4 w-4 text-[var(--gov-primary)]"
+            className="h-4 w-4 text-sky-300"
             aria-hidden
           >
             <circle cx="12" cy="12" r="9" />

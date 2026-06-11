@@ -1,14 +1,14 @@
 @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.min.css");
 @import "tailwindcss";
 
-/* 관공서/공공기관 스타일 토큰 — 관청 블루 + 남색, 각진 폼 */
+/* 관공서/공공기관 스타일 토큰 — 사이드바 남색(#122A4E) 계열로 통일 */
 @theme {
-  /* indigo 스케일을 정부 블루로 리매핑 → 기존 indigo-* 클래스가 전부 관청 블루로 */
-  --color-indigo-50: #eaf1fb;
-  --color-indigo-100: #d3e2f7;
-  --color-indigo-500: #1f6feb;
-  --color-indigo-600: #0b50d0;
-  --color-indigo-700: #093e9f;
+  /* indigo 스케일을 남색 계열로 리매핑 → 기존 indigo-* 클래스가 전부 남색 톤으로 */
+  --color-indigo-50: #eaedf3;
+  --color-indigo-100: #d3dbe7;
+  --color-indigo-500: #2a4a78;
+  --color-indigo-600: #1c3a64; /* 기본(버튼·진행률 텍스트 등) */
+  --color-indigo-700: #122a4e; /* hover·강조 = 사이드바 남색 */
   /* 약간만 둥글게 — 관공서 톤은 유지하되 너무 각지지 않게 */
   --radius-xl: 0.625rem;
   --radius-lg: 0.5rem;
@@ -17,7 +17,7 @@
 }
 
 :root {
-  --gov-primary: #0b50d0;
+  --gov-primary: #122a4e;
   --gov-navy: #122a4e;
   --gov-navy-hover: #1c3a64;
 }
