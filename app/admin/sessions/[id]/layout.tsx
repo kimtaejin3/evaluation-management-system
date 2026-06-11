@@ -25,12 +25,14 @@ export default async function SessionLayout({
           <StatusBadge status={session.status} />
         </div>
       </div>
-      <div className="flex gap-1 border-b border-slate-200 print:hidden">
+      <div className="flex flex-wrap gap-1 border-b border-slate-200 print:hidden">
         <TabLink href={base} exact>상세</TabLink>
         <TabLink href={`${base}/criteria`}>평가 항목</TabLink>
         <TabLink href={`${base}/subjects`}>평가 대상</TabLink>
         <TabLink href={`${base}/evaluators`}>평가위원</TabLink>
+        <TabLink href={`${base}/progress`}>진행 현황</TabLink>
         <TabLink href={`${base}/results`}>집계 결과</TabLink>
+        <TabLink href={`${base}/breakdown`}>산출 근거</TabLink>
       </div>
       <div>{children}</div>
     </div>
