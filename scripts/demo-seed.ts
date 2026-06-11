@@ -29,9 +29,10 @@ async function main() {
 
   // 모니터링이 완료/입력중/미평가를 두루 보여주도록 위원별 진행 상태를 섞음
   type Mode = 'done' | 'partial' | 'none'
-  const plan: Record<string, { kim: Mode; lee: Mode; q1: number; q2: number; g: string }> = {
+  // leeBias: 이심사 점수에 적용할 편차(기본 -2, 큰 값이면 위원 간 이견 시연)
+  const plan: Record<string, { kim: Mode; lee: Mode; q1: number; q2: number; g: string; leeBias?: number }> = {
     A기업: { kim: 'done', lee: 'done', q1: 36, q2: 27, g: 'A' },
-    B기업: { kim: 'done', lee: 'done', q1: 30, q2: 24, g: 'B' },
+    B기업: { kim: 'done', lee: 'done', q1: 30, q2: 24, g: 'B', leeBias: -13 },
     C기업: { kim: 'done', lee: 'done', q1: 33, q2: 21, g: 'A' },
     D기업: { kim: 'done', lee: 'partial', q1: 34, q2: 26, g: 'A' },
     E기업: { kim: 'partial', lee: 'none', q1: 28, q2: 22, g: 'B' },
@@ -43,7 +44,7 @@ async function main() {
     const p = plan[sub.name]
     for (const ev of [kim, lee]) {
       const mode = ev.id === kim.id ? p.kim : p.lee
-      const jitter = ev.id === lee.id ? -2 : 0
+      const jitter = ev.id === lee.id ? (p.leeBias ?? -2) : 0
       const mk = (criterionId: string, value: number, grade: string | null) =>
         prisma.score.create({ data: { sessionId: s1.id, evaluatorId: ev.id, subjectId: sub.id, criterionId, value, grade } })
       if (mode === 'done') {

@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { getSessionProgress } from "@/lib/progress";
+import { getSessionProgress, getSessionInsights } from "@/lib/progress";
 import StatusBadge from "@/components/StatusBadge";
 import SessionPicker from "@/components/SessionPicker";
 import MonitoringGrid from "@/components/MonitoringGrid";
+import DashboardInsights from "@/components/DashboardInsights";
 import Clock from "@/components/Clock";
 
 export default async function AdminDashboard({
@@ -40,6 +41,7 @@ export default async function AdminDashboard({
     sessions[0];
 
   const p = await getSessionProgress(session.id);
+  const insights = await getSessionInsights(session.id);
 
   return (
     <div className="space-y-7">
@@ -95,6 +97,9 @@ export default async function AdminDashboard({
 
       {/* 모니터링 그리드 */}
       <MonitoringGrid data={p} />
+
+      {/* 잠정 순위 · 위원 간 편차 */}
+      <DashboardInsights data={insights} />
     </div>
   );
 }

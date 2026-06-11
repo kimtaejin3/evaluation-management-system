@@ -1,4 +1,5 @@
 import { prisma } from './db'
+import { computeWeightedScore } from './scoring'
 
 export type CellState = 'done' | 'partial' | 'none'
 
@@ -95,4 +96,78 @@ export async function getSessionProgress(sessionId: string): Promise<ProgressDat
     doneCells,
     totalCells,
   }
+}
+
+// ---- 대시보드 인사이트(잠정 순위 + 위원 간 편차) ----
+
+export interface InsightRow {
+  subjectId: string
+  name: string
+  completeCount: number // 모든 항목을 입력한 위원 수
+  avg: number | null // 완료 위원 가중점수 평균(잠정)
+  rank: number | null // avg 기준 순위(동점 동순위)
+  spread: number | null // 완료 위원 2명 이상일 때 max-min
+}
+
+export interface SessionInsights {
+  rows: InsightRow[] // avg 내림차순, 집계 전(null)은 뒤로
+  hasAnyScore: boolean
+}
+
+export async function getSessionInsights(sessionId: string): Promise<SessionInsights> {
+  const [subjects, criteria, assignments, scores] = await Promise.all([
+    prisma.subject.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } }),
+    prisma.criterion.findMany({ where: { sessionId }, select: { id: true, weight: true } }),
+    prisma.assignment.findMany({ where: { sessionId }, select: { userId: true } }),
+    prisma.score.findMany({ where: { sessionId }, select: { evaluatorId: true, subjectId: true, criterionId: true, value: true } }),
+  ])
+
+  const totalCriteria = criteria.length
+  const evaluatorIds = assignments.map((a) => a.userId)
+
+  // subject -> evaluator -> rows
+  const grouped = new Map<string, Map<string, { criterionId: string; value: number }[]>>()
+  for (const s of scores) {
+    if (!grouped.has(s.subjectId)) grouped.set(s.subjectId, new Map())
+    const byEval = grouped.get(s.subjectId)!
+    if (!byEval.has(s.evaluatorId)) byEval.set(s.evaluatorId, [])
+    byEval.get(s.evaluatorId)!.push({ criterionId: s.criterionId, value: s.value })
+  }
+
+  const base = subjects.map((sub) => {
+    const byEval = grouped.get(sub.id)
+    // 모든 항목을 입력한 위원만 잠정 집계에 포함
+    const totals: number[] = []
+    if (byEval && totalCriteria > 0) {
+      for (const evId of evaluatorIds) {
+        const rows = byEval.get(evId)
+        if (rows && rows.length >= totalCriteria) {
+          totals.push(computeWeightedScore(rows, criteria))
+        }
+      }
+    }
+    const completeCount = totals.length
+    const avg = completeCount > 0 ? totals.reduce((a, b) => a + b, 0) / completeCount : null
+    const spread = completeCount >= 2 ? Math.max(...totals) - Math.min(...totals) : null
+    return { subjectId: sub.id, name: sub.name, completeCount, avg, spread }
+  })
+
+  // 순위(avg 있는 것만, 동점 동순위)
+  const scored = base.filter((r) => r.avg !== null).sort((a, b) => (b.avg ?? 0) - (a.avg ?? 0))
+  const rankMap = new Map<string, number>()
+  scored.forEach((r, i) => {
+    const rank = i > 0 && scored[i - 1].avg === r.avg ? rankMap.get(scored[i - 1].subjectId)! : i + 1
+    rankMap.set(r.subjectId, rank)
+  })
+
+  const rows: InsightRow[] = base
+    .map((r) => ({ ...r, rank: rankMap.get(r.subjectId) ?? null }))
+    .sort((a, b) => {
+      if (a.avg === null && b.avg === null) return 0
+      if (a.avg === null) return 1
+      if (b.avg === null) return -1
+      return b.avg - a.avg
+    })
+
+  return { rows, hasAnyScore: scores.length > 0 }
 }
