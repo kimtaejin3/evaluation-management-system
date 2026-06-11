@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { setSessionStatus, duplicateSession } from '../actions'
@@ -25,7 +26,17 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
     { label: '평가위원', value: `${session._count.assignments}명` },
   ]
 
+  const links: { href: string; label: string; desc: string }[] = [
+    { href: `/admin/sessions/${id}/criteria`, label: '평가 항목', desc: `${session._count.criteria}개 항목 · 배점·등급 설정` },
+    { href: `/admin/sessions/${id}/subjects`, label: '평가 대상', desc: `${session._count.subjects}개 기업 편입·자료` },
+    { href: `/admin/sessions/${id}/evaluators`, label: '평가위원', desc: `${session._count.assignments}명 배정` },
+    { href: `/admin/sessions/${id}/progress`, label: '진행 현황', desc: '위원×대상 입력 모니터링' },
+    { href: `/admin/sessions/${id}/results`, label: '집계 결과', desc: '순위·환산·등급 총괄표' },
+    { href: `/admin/sessions/${id}/breakdown`, label: '산출 근거', desc: '항목 평균×가중치 내역' },
+  ]
+
   return (
+    <div className="space-y-6">
     <div className="grid gap-6 lg:grid-cols-3">
       <div className="rounded-xl border border-slate-200 bg-white p-5 lg:col-span-2">
         <div className="mb-4 flex items-center justify-between">
@@ -88,6 +99,27 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
           </form>
         </div>
       </div>
+    </div>
+
+    {/* 세부 화면 바로가기 */}
+    <div>
+      <h2 className="mb-2 text-sm font-semibold text-slate-700">바로가기</h2>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {links.map((l) => (
+          <Link
+            key={l.href}
+            href={l.href}
+            className="group flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3.5 transition hover:border-indigo-300 hover:bg-indigo-50/30"
+          >
+            <div>
+              <div className="font-medium text-slate-800">{l.label}</div>
+              <div className="mt-0.5 text-xs text-slate-400">{l.desc}</div>
+            </div>
+            <span className="text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-indigo-500">→</span>
+          </Link>
+        ))}
+      </div>
+    </div>
     </div>
   )
 }
