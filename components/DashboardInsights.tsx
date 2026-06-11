@@ -137,7 +137,10 @@ export default function DashboardInsights({
                     className="h-12 border-b border-slate-100 last:border-0"
                   >
                     <td className="px-4 font-medium text-slate-800">
-                      {r.name}
+                      <span className="inline-flex items-center gap-2">
+                        <CompanyLogo name={r.name} className="h-6 w-6 text-[10px]" />
+                        {r.name}
+                      </span>
                     </td>
                     <td className="px-4 text-right font-semibold tabular-nums text-slate-900">
                       {pending ? (

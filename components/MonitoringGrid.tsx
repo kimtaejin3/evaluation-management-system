@@ -19,17 +19,17 @@ const LEGEND: { state: WireState; label: string }[] = [
 
 function CellBlock({ cell }: { cell: Cell }) {
   if (cell.total === 0) {
-    return <span className={`block h-5 w-full rounded-[5px] ${SWATCH.none}`} />;
+    return <span className={`mx-auto block h-5 w-24 rounded-[5px] ${SWATCH.none}`} />;
   }
   const tip = cell.items
     .map((it) => `${it.done ? "✓" : "·"} ${it.name}`)
     .join("\n");
   return (
-    <span className="flex h-5 w-full gap-1" title={tip}>
+    <span className="mx-auto flex h-5 w-24 gap-1" title={tip}>
       {cell.items.map((it) => (
         <span
           key={it.id}
-          className={`flex-1 rounded-[10px] ${it.done ? SWATCH.done : SWATCH.none}`}
+          className={`flex-1 rounded-[4px] ${it.done ? SWATCH.done : SWATCH.none}`}
         />
       ))}
     </span>
@@ -59,10 +59,10 @@ export default function MonitoringGrid({ data }: { data: ProgressData }) {
               {data.subjects.map((s) => (
                 <th
                   key={s.id}
-                  className="min-w-[80px] max-w-[140px] truncate border-b border-slate-200 px-2 py-2.5 text-center font-medium"
+                  className="w-32 border-b border-slate-200 px-2 py-2.5 text-center font-medium"
                   title={s.name}
                 >
-                  {s.name}
+                  <span className="mx-auto block max-w-[120px] truncate">{s.name}</span>
                 </th>
               ))}
               <th className="sticky right-0 z-20 w-px whitespace-nowrap border-b border-l border-slate-200 bg-white px-3 py-2.5 text-center font-medium">

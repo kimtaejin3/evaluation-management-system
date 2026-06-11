@@ -8,14 +8,14 @@ import { UPLOAD_DIR } from '../lib/storage'
 const prisma = new PrismaClient()
 
 const COMPANY_NAMES = [
-  '(주)미래환경기술',
-  '한솔정보통신',
-  '대원바이오',
-  '그린에너지솔루션',
-  '동방물류시스템',
-  '세종헬스케어',
-  '우성건설',
-  '케이아이티',
+  '삼성전자',
+  '네이버',
+  '카카오',
+  '현대자동차',
+  'SK하이닉스',
+  'LG화학',
+  '포스코',
+  '한화',
 ]
 
 async function main() {
