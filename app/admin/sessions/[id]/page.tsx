@@ -92,11 +92,6 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
           {session.status === 'IN_PROGRESS' && !canCloseSession(session.eventDate) && (
             <p className="text-xs text-amber-600">평가 일시({new Date(session.eventDate!).toLocaleDateString('ko-KR')}) 이후에 마감할 수 있습니다.</p>
           )}
-          <form action={async () => { 'use server'; await setSessionStatus(id, 'DRAFT') }}>
-            <button disabled={session.status === 'DRAFT'} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 transition hover:bg-slate-50 disabled:opacity-40">
-              초안으로 되돌리기
-            </button>
-          </form>
         </div>
       </div>
     </div>
