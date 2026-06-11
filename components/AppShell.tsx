@@ -1,4 +1,5 @@
 import NavLink from './NavLink'
+import BrandMark from './BrandMark'
 
 export interface NavItem {
   href: string
@@ -21,15 +22,15 @@ export default function AppShell({
 }) {
   return (
     <div className="flex min-h-screen bg-slate-100 text-slate-900">
-      <aside className="flex w-60 shrink-0 flex-col bg-[var(--gov-navy)] text-white">
-        <div className="flex items-center gap-2 border-b border-white/10 px-5 py-5">
-          <span className="flex h-8 w-8 items-center justify-center rounded bg-white/15 text-sm font-bold">심</span>
+      <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col bg-[var(--gov-navy)] text-white">
+        <div className="flex items-center gap-2.5 border-b border-white/10 px-5 py-5">
+          <BrandMark className="h-8 w-8" />
           <div>
             <div className="text-sm font-bold leading-tight">심사·평가</div>
             <div className="text-[11px] text-slate-400">{subtitle}</div>
           </div>
         </div>
-        <nav className="flex-1 space-y-1 px-3 py-4">
+        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
           {nav.map((n) => (
             <NavLink key={n.href} href={n.href} exact={n.exact}>
               {n.label}
@@ -51,14 +52,14 @@ export default function AppShell({
       <div className="flex min-h-screen flex-1 flex-col overflow-x-auto">
         <header className="flex items-center justify-between border-b border-slate-200 bg-white px-8 py-3">
           <div className="flex items-center gap-2 text-sm text-slate-500">
-            <span className="flex h-5 w-5 items-center justify-center rounded-sm bg-[var(--gov-navy)] text-[10px] font-bold text-white">정</span>
+            <BrandMark variant="solid" className="h-5 w-5" />
             <span>심사·평가 종합관리시스템</span>
           </div>
           <div className="text-sm text-slate-500">
             <span className="font-medium text-slate-700">{user.name}</span> 님 · {user.role}
           </div>
         </header>
-        <main className="mx-auto w-full max-w-6xl flex-1 p-8">{children}</main>
+        <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-6">{children}</main>
       </div>
     </div>
   )

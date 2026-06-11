@@ -2,6 +2,7 @@
 
 import { useActionState } from 'react'
 import { login } from './actions'
+import BrandMark from '@/components/BrandMark'
 
 const inputCls = 'mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500'
 
@@ -11,7 +12,7 @@ export default function LoginPage() {
     <main className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600 text-lg font-bold text-white">심</div>
+          <BrandMark variant="solid" className="mx-auto mb-3 h-12 w-12" />
           <h1 className="text-xl font-bold text-slate-900">심사·평가 시스템</h1>
           <p className="mt-1 text-sm text-slate-500">관리자 · 평가위원 로그인</p>
         </div>

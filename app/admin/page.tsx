@@ -26,14 +26,14 @@ export default async function AdminDashboard() {
   const p = await getSessionProgress(session.id)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold">대시보드</h1>
         <p className="mt-1 text-sm text-slate-500">현재 회차 진행 상황을 한눈에 확인하세요.</p>
       </div>
 
       {/* 상태바 */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-6 py-4 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white px-5 py-3.5 shadow-sm">
         <div className="flex items-center gap-3">
           <span className="text-lg font-bold">{session.name}</span>
           <StatusBadge status={session.status} />
@@ -70,13 +70,13 @@ export default async function AdminDashboard() {
       {/* 대상별 진행 요약 */}
       <div className="space-y-2">
         <h2 className="font-semibold text-slate-700">대상별 진행 요약</h2>
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
           <table className="w-full text-sm">
             <thead className="text-left text-slate-500">
-              <tr className="border-b border-slate-100">
-                <th className="px-5 py-3 font-medium">대상</th>
-                <th className="px-5 py-3 font-medium">입력 완료 위원</th>
-                <th className="px-5 py-3 font-medium">상태</th>
+              <tr className="border-b border-slate-100 bg-slate-50/60">
+                <th className="px-4 py-2.5 font-medium">대상</th>
+                <th className="px-4 py-2.5 font-medium">입력 완료 위원</th>
+                <th className="px-4 py-2.5 font-medium">상태</th>
               </tr>
             </thead>
             <tbody>
@@ -84,9 +84,9 @@ export default async function AdminDashboard() {
                 const complete = s.total > 0 && s.done === s.total
                 return (
                   <tr key={s.id} className="border-b border-slate-50 last:border-0">
-                    <td className="px-5 py-3 font-medium text-slate-800">{s.name}</td>
-                    <td className="px-5 py-3 text-slate-600">{s.done}/{s.total}</td>
-                    <td className="px-5 py-3">
+                    <td className="px-4 py-2.5 font-medium text-slate-800">{s.name}</td>
+                    <td className="px-4 py-2.5 text-slate-600">{s.done}/{s.total}</td>
+                    <td className="px-4 py-2.5">
                       <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${complete ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                         {complete ? '완료' : '진행중'}
                       </span>
