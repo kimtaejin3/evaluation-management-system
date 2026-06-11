@@ -26,7 +26,7 @@ export default async function EvaluateHome({ searchParams }: { searchParams: Pro
   }
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-5xl space-y-6 px-6 py-6">
       {submitted && (
         <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4"><path d="m4 10 4 4 8-9" strokeLinecap="round" strokeLinejoin="round" /></svg>
