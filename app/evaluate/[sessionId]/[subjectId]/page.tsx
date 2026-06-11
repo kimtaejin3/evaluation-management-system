@@ -10,7 +10,10 @@ export default async function ScoreSheet({ params }: { params: Promise<{ session
   const user = await getCurrentUser()
   if (!user) return null
 
-  const subject = await prisma.subject.findUnique({ where: { id: subjectId } })
+  const subject = await prisma.subject.findUnique({
+    where: { id: subjectId },
+    include: { documents: { orderBy: { createdAt: 'asc' } } },
+  })
   const session = await prisma.evaluationSession.findUnique({ where: { id: sessionId } })
   const criteria = await prisma.criterion.findMany({ where: { sessionId }, orderBy: { order: 'asc' } })
   if (!subject) notFound()
@@ -39,6 +42,22 @@ export default async function ScoreSheet({ params }: { params: Promise<{ session
         <h1 className="mt-1 text-2xl font-bold">{subject.name}</h1>
         {session && <p className="text-sm text-slate-500">{session.name}</p>}
       </div>
+      {subject.documents.length > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-2 text-sm font-semibold text-slate-700">심사 서류</div>
+          <ul className="space-y-1">
+            {subject.documents.map((d) => (
+              <li key={d.id}>
+                <a href={`/api/documents/${d.id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm text-indigo-600 hover:underline">
+                  <span>📄</span>{d.originalName}
+                </a>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs text-slate-400">새 탭에서 서류를 열어 검토하며 점수를 입력하세요.</p>
+        </div>
+      )}
+
       <ScoreForm sessionId={sessionId} subjectId={subjectId} criteria={criteriaView} gradeRatios={GRADE_RATIOS} />
     </div>
   )
