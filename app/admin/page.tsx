@@ -119,9 +119,14 @@ export default async function AdminDashboard() {
                       {s.done}/{s.total}
                     </td>
                     <td className="px-4 py-2.5">
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${complete ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}
-                      >
+                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600">
+                        {complete ? (
+                          <span className="h-2.5 w-2.5 rounded-full bg-[var(--gov-primary)]" />
+                        ) : (
+                          <span className="relative h-2.5 w-2.5 rounded-full ring-1 ring-slate-400">
+                            <span className="absolute left-1/2 top-1/2 h-1 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-slate-400" />
+                          </span>
+                        )}
                         {complete ? "완료" : "진행중"}
                       </span>
                     </td>
