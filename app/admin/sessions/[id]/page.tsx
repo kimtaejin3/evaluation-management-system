@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
-import { setSessionStatus } from '../actions'
+import { setSessionStatus, duplicateSession } from '../actions'
 
 const FLOW = [
   { key: 'DRAFT', label: '초안', desc: '항목·대상·위원을 설정합니다.' },
@@ -27,7 +27,12 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
   return (
     <div className="grid gap-6 lg:grid-cols-3">
       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-2">
-        <h2 className="mb-4 font-semibold">회차 정보</h2>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="font-semibold">회차 정보</h2>
+          <form action={async () => { 'use server'; await duplicateSession(id) }}>
+            <button className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50">회차 복사</button>
+          </form>
+        </div>
         {session.description && <p className="mb-4 text-sm text-slate-600">{session.description}</p>}
         <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
           {meta.map((m) => (
