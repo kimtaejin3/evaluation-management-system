@@ -2,12 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  DashboardIcon,
+  SessionsIcon,
+  UsersIcon,
+  TemplateIcon,
+} from "./icons";
 
 function topCls(active: boolean) {
-  return `block rounded-md px-3 py-2 text-sm transition ${
+  return `flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition ${
     active
-      ? "bg-[var(--gov-primary)] text-white font-semibold"
-      : "text-slate-300 hover:bg-white/10"
+      ? "bg-white/10 text-white font-semibold"
+      : "text-slate-300 hover:bg-white/[0.06] hover:text-white"
   }`;
 }
 function subCls(active: boolean) {
@@ -77,10 +83,12 @@ export default function AdminSidebar() {
       </div>
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
         <Link href="/admin" className={topCls(isExact("/admin"))}>
+          <DashboardIcon />
           대시보드
         </Link>
         <div>
           <Link href="/admin/sessions" className={topCls(sessionsActive)}>
+            <SessionsIcon />
             회차 관리
           </Link>
           {sessionItems.length > 0 && (
@@ -102,12 +110,14 @@ export default function AdminSidebar() {
           href="/admin/evaluators"
           className={topCls(pathname.startsWith("/admin/evaluators"))}
         >
+          <UsersIcon />
           평가위원 관리
         </Link>
         <Link
           href="/admin/templates"
           className={topCls(pathname.startsWith("/admin/templates"))}
         >
+          <TemplateIcon />
           항목 템플릿
         </Link>
       </nav>
