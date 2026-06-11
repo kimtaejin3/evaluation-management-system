@@ -1,10 +1,12 @@
 'use server'
 
 import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/session'
 import { isValidScoreValue, parseGradeOptions, defaultGradeOptions } from '@/lib/scoring'
 
+// intent: 'save'(임시저장, 부분 허용) | 'submit'(제출, 전체 필수)
 export async function saveScores(
   sessionId: string,
   subjectId: string,
@@ -13,6 +15,8 @@ export async function saveScores(
 ) {
   const user = await getCurrentUser()
   if (!user) redirect('/login')
+
+  const intent = String(formData.get('intent') ?? 'submit')
 
   const session = await prisma.evaluationSession.findUnique({ where: { id: sessionId } })
   if (!session || session.status !== 'IN_PROGRESS') {
@@ -28,15 +32,20 @@ export async function saveScores(
 
   for (const c of criteria) {
     const raw = formData.get(`c_${c.id}`)
-    if (raw === null || raw === '') return { error: `'${c.name}' 항목이 입력되지 않았습니다.` }
+    if (raw === null || raw === '') {
+      if (intent === 'submit') return { error: `'${c.name}' 항목이 입력되지 않았습니다.` }
+      continue // 임시저장: 비어 있으면 건너뜀
+    }
 
     let value: number
     let grade: string | null = null
     if (c.type === 'QUALITATIVE') {
       const options = parseGradeOptions(c.gradeOptions) ?? defaultGradeOptions(c.maxScore)
-      const idx = Number(raw)
-      const opt = options[idx]
-      if (!opt) return { error: `'${c.name}' 등급을 선택하세요.` }
+      const opt = options[Number(raw)]
+      if (!opt) {
+        if (intent === 'submit') return { error: `'${c.name}' 등급을 선택하세요.` }
+        continue
+      }
       grade = opt.label
       value = opt.points
     } else {
@@ -53,5 +62,23 @@ export async function saveScores(
     })
   }
 
-  redirect('/evaluate')
+  // 종합의견 저장
+  const comment = String(formData.get('comment') ?? '').trim()
+  if (comment) {
+    await prisma.opinion.upsert({
+      where: { evaluatorId_subjectId: { evaluatorId: user.id, subjectId } },
+      update: { text: comment, sessionId },
+      create: { evaluatorId: user.id, subjectId, sessionId, text: comment },
+    })
+  } else {
+    await prisma.opinion.deleteMany({ where: { evaluatorId: user.id, subjectId } })
+  }
+
+  if (intent === 'save') {
+    revalidatePath(`/evaluate/${sessionId}/${subjectId}`)
+    return { saved: true }
+  }
+
+  const subject = await prisma.subject.findUnique({ where: { id: subjectId }, select: { name: true } })
+  redirect(`/evaluate?submitted=${encodeURIComponent(subject?.name ?? '')}`)
 }

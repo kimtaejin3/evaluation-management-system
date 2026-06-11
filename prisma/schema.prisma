@@ -128,6 +128,18 @@ model Assignment {
   @@unique([sessionId, userId])
 }
 
+// 위원이 대상별로 남기는 종합의견
+model Opinion {
+  id          String   @id @default(cuid())
+  sessionId   String
+  evaluatorId String
+  subjectId   String
+  text        String
+  updatedAt   DateTime @updatedAt
+
+  @@unique([evaluatorId, subjectId])
+}
+
 model Score {
   id          String            @id @default(cuid())
   sessionId   String

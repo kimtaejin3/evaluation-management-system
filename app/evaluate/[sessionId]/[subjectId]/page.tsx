@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/session'
@@ -16,15 +15,23 @@ export default async function ScoreSheet({ params }: { params: Promise<{ session
   })
   const session = await prisma.evaluationSession.findUnique({ where: { id: sessionId } })
   const criteria = await prisma.criterion.findMany({ where: { sessionId }, orderBy: { order: 'asc' } })
-  if (!subject) notFound()
+  if (!subject || !session) notFound()
 
   const existing = await prisma.score.findMany({ where: { evaluatorId: user.id, subjectId } })
   const byCriterion = new Map(existing.map((s) => [s.criterionId, s]))
+  const opinion = await prisma.opinion.findUnique({ where: { evaluatorId_subjectId: { evaluatorId: user.id, subjectId } } })
+
+  // 이 회차의 내 진행률(완료 대상 수 / 전체)
+  const subjects = await prisma.subject.findMany({ where: { sessionId }, select: { id: true } })
+  const myScores = await prisma.score.findMany({ where: { evaluatorId: user.id, sessionId }, select: { subjectId: true, criterionId: true } })
+  const totalCriteria = criteria.length
+  const doneCountBySubject = new Map<string, number>()
+  for (const s of myScores) doneCountBySubject.set(s.subjectId, (doneCountBySubject.get(s.subjectId) ?? 0) + 1)
+  const doneSubjects = subjects.filter((s) => totalCriteria > 0 && (doneCountBySubject.get(s.id) ?? 0) >= totalCriteria).length
 
   const criteriaView: CriterionView[] = criteria.map((c) => {
     const cur = byCriterion.get(c.id)
     const options = c.type === 'QUALITATIVE' ? (parseGradeOptions(c.gradeOptions) ?? defaultGradeOptions(c.maxScore)) : null
-    // 기존 입력값을 등급 인덱스로 역매핑(라벨 우선, 없으면 점수)
     let selectedIndex: number | null = null
     if (options && cur) {
       const byLabel = options.findIndex((o) => o.label === cur.grade)
@@ -45,29 +52,17 @@ export default async function ScoreSheet({ params }: { params: Promise<{ session
   })
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <div>
-        <Link href="/evaluate" className="text-sm text-slate-400 hover:text-slate-600">← 대상 목록</Link>
-        <h1 className="mt-1 text-2xl font-bold">{subject.name}</h1>
-        {session && <p className="text-sm text-slate-500">{session.name}</p>}
-      </div>
-      {subject.company.documents.length > 0 && (
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <div className="mb-2 text-sm font-semibold text-slate-700">심사 서류</div>
-          <ul className="space-y-1">
-            {subject.company.documents.map((d) => (
-              <li key={d.id}>
-                <a href={`/api/documents/${d.id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm text-indigo-600 hover:underline">
-                  <span>📄</span>{d.originalName}
-                </a>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-2 text-xs text-slate-400">새 탭에서 서류를 열어 검토하며 점수를 입력하세요.</p>
-        </div>
-      )}
-
-      <ScoreForm sessionId={sessionId} subjectId={subjectId} criteria={criteriaView} />
-    </div>
+    <ScoreForm
+      sessionId={sessionId}
+      subjectId={subjectId}
+      subjectName={subject.name}
+      sessionName={session.name}
+      evaluatorName={user.name}
+      eventDate={session.eventDate ? session.eventDate.toISOString() : null}
+      progress={{ done: doneSubjects, total: subjects.length }}
+      documents={subject.company.documents.map((d) => ({ id: d.id, name: d.originalName }))}
+      criteria={criteriaView}
+      initialComment={opinion?.text ?? ''}
+    />
   )
 }
