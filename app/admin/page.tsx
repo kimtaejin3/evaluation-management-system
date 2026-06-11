@@ -2,20 +2,22 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { getSessionProgress } from "@/lib/progress";
 import StatusBadge from "@/components/StatusBadge";
+import SessionPicker from "@/components/SessionPicker";
 import MonitoringGrid from "@/components/MonitoringGrid";
 import Clock from "@/components/Clock";
 
-export default async function AdminDashboard() {
-  const session =
-    (await prisma.evaluationSession.findFirst({
-      where: { status: "IN_PROGRESS" },
-      orderBy: { createdAt: "desc" },
-    })) ??
-    (await prisma.evaluationSession.findFirst({
-      orderBy: { createdAt: "desc" },
-    }));
+export default async function AdminDashboard({
+  searchParams,
+}: {
+  searchParams: Promise<{ session?: string }>;
+}) {
+  const sp = await searchParams;
+  const sessions = await prisma.evaluationSession.findMany({
+    orderBy: { createdAt: "desc" },
+    select: { id: true, name: true, status: true, eventDate: true },
+  });
 
-  if (!session) {
+  if (sessions.length === 0) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold">대시보드</h1>
@@ -32,6 +34,11 @@ export default async function AdminDashboard() {
     );
   }
 
+  const session =
+    sessions.find((s) => s.id === sp.session) ??
+    sessions.find((s) => s.status === "IN_PROGRESS") ??
+    sessions[0];
+
   const p = await getSessionProgress(session.id);
 
   return (
@@ -40,7 +47,7 @@ export default async function AdminDashboard() {
       <div className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-4">
         <div>
           <div className="flex items-center gap-2.5">
-            <h1 className="text-xl font-bold text-slate-900">{session.name}</h1>
+            <SessionPicker sessions={sessions} currentId={session.id} />
             <StatusBadge status={session.status} />
           </div>
           <p className="mt-1.5 text-sm text-slate-500">
