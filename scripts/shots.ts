@@ -35,6 +35,7 @@ async function main() {
   await shoot(adminTok, '/admin', '02-admin-dashboard.png')
   await shoot(adminTok, '/admin/evaluators', '11-evaluators.png')
   await shoot(adminTok, '/admin/templates', '12-templates.png')
+  await shoot(adminTok, '/admin/sessions/new', '13-new-session.png')
   await shoot(adminTok, `/admin/sessions/${s1!.id}`, '03-session-detail.png')
   await shoot(adminTok, `/admin/sessions/${s1!.id}/criteria`, '04-criteria.png')
   await shoot(adminTok, `/admin/sessions/${s1!.id}/subjects`, '05-subjects-documents.png')

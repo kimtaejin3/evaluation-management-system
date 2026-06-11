@@ -1,7 +1,19 @@
 import type { ProgressData } from '@/lib/progress'
 
-const dot = { done: 'bg-emerald-500', partial: 'bg-amber-400', none: 'bg-slate-200' } as const
-const label = { done: '완료', partial: '입력중', none: '미입력' } as const
+type CellState = 'done' | 'partial' | 'none'
+const label: Record<CellState, string> = { done: '완료', partial: '입력중', none: '미입력' }
+
+function Dot({ state }: { state: CellState }) {
+  if (state === 'partial') {
+    // 입력중: 브랜드 컬러 링 + 작은 중심점(반쯤 채워진 느낌)
+    return (
+      <span className="relative inline-block h-2.5 w-2.5 rounded-full ring-1 ring-[var(--gov-primary)]" title="입력중">
+        <span className="absolute left-1/2 top-1/2 h-1 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--gov-primary)]" />
+      </span>
+    )
+  }
+  return <span className={`inline-block h-2.5 w-2.5 rounded-full ${state === 'done' ? 'bg-[var(--gov-primary)]' : 'bg-slate-200'}`} title={label[state]} />
+}
 
 export default function MonitoringGrid({ data }: { data: ProgressData }) {
   return (
@@ -23,7 +35,7 @@ export default function MonitoringGrid({ data }: { data: ProgressData }) {
                 <td className="px-5 py-3 font-medium text-slate-800">{r.name}</td>
                 {r.cells.map((c) => (
                   <td key={c.subjectId} className="px-3 py-3 text-center">
-                    <span className={`inline-block h-3 w-3 rounded-full ${dot[c.state]}`} title={label[c.state]} />
+                    <Dot state={c.state} />
                   </td>
                 ))}
                 <td className="px-4 py-3 text-center font-medium text-slate-700">{r.donePct}%</td>
@@ -36,9 +48,9 @@ export default function MonitoringGrid({ data }: { data: ProgressData }) {
         </table>
       </div>
       <div className="flex gap-4 text-xs text-slate-500">
-        <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-emerald-500" /> 완료</span>
-        <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-amber-400" /> 입력중</span>
-        <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-slate-200" /> 미입력</span>
+        <span className="inline-flex items-center gap-1.5"><Dot state="done" /> 완료</span>
+        <span className="inline-flex items-center gap-1.5"><Dot state="partial" /> 입력중</span>
+        <span className="inline-flex items-center gap-1.5"><Dot state="none" /> 미입력</span>
       </div>
     </div>
   )
