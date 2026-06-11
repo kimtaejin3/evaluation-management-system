@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 
-// 데모용 실존 기업 → 도메인 매핑 (실제 로고는 Clearbit Logo API에서 로드)
+// 데모용 실존 기업 → 도메인 매핑 (실제 로고는 favicon 서비스에서 로드)
 const DOMAINS: Record<string, string> = {
   '삼성전자': 'samsung.com',
   '네이버': 'naver.com',
@@ -80,7 +80,7 @@ export default function CompanyLogo({ name, className = 'h-10 w-10' }: { name: s
       <span className={`relative flex shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white ring-1 ring-slate-200 ${className}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={`https://logo.clearbit.com/${domain}`}
+          src={`https://www.google.com/s2/favicons?domain=${domain}&sz=128`}
           alt=""
           className="h-full w-full object-contain p-1"
           onLoad={() => setLoaded(true)}

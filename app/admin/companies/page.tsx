@@ -42,7 +42,7 @@ export default async function CompaniesPage() {
           <div key={c.id} className="rounded-lg border border-slate-200 bg-white p-5">
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-3">
-                <CompanyLogo name={c.name} />
+                <CompanyLogo name={c.name} className="h-8 w-8" />
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-slate-800">{c.name}</span>
