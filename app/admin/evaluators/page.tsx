@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
-import { createEvaluator, deleteEvaluator } from "../actions";
+import PasswordCell from "@/components/PasswordCell";
+import { createEvaluator, deleteEvaluator, resetEvaluatorPassword } from "../actions";
 
 const inputCls =
   "rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500";
@@ -34,6 +35,7 @@ export default async function EvaluatorsAdminPage() {
             <tr className="border-b border-slate-100 bg-slate-50/60">
               <th className="px-4 py-2.5 font-medium">이름</th>
               <th className="px-4 py-2.5 font-medium">아이디</th>
+              <th className="px-4 py-2.5 font-medium">임시 비밀번호</th>
               <th className="px-4 py-2.5 font-medium">배정 회차</th>
               <th className="px-4 py-2.5 text-right"></th>
             </tr>
@@ -47,6 +49,9 @@ export default async function EvaluatorsAdminPage() {
                   </span>
                 </td>
                 <td className="px-4 py-2.5 text-slate-600">{u.username}</td>
+                <td className="px-4 py-2.5">
+                  <PasswordCell value={u.tempPassword} />
+                </td>
                 <td className="px-4 py-2.5">
                   {u.assignments.length === 0 ? (
                     <span className="text-xs text-slate-400">배정 없음</span>
@@ -64,23 +69,35 @@ export default async function EvaluatorsAdminPage() {
                   )}
                 </td>
                 <td className="px-4 py-2.5 text-right">
-                  <form
-                    action={async () => {
-                      "use server";
-                      await deleteEvaluator(u.id);
-                    }}
-                  >
-                    <button className="text-sm text-rose-600 hover:underline">
-                      삭제
-                    </button>
-                  </form>
+                  <div className="flex items-center justify-end gap-3">
+                    <form
+                      action={async () => {
+                        "use server";
+                        await resetEvaluatorPassword(u.id);
+                      }}
+                    >
+                      <button className="text-sm text-slate-500 hover:text-indigo-600 hover:underline">
+                        비번 재발급
+                      </button>
+                    </form>
+                    <form
+                      action={async () => {
+                        "use server";
+                        await deleteEvaluator(u.id);
+                      }}
+                    >
+                      <button className="text-sm text-rose-600 hover:underline">
+                        삭제
+                      </button>
+                    </form>
+                  </div>
                 </td>
               </tr>
             ))}
             {evaluators.length === 0 && (
               <tr>
                 <td
-                  colSpan={4}
+                  colSpan={5}
                   className="px-4 py-10 text-center text-slate-400"
                 >
                   등록된 평가위원이 없습니다.

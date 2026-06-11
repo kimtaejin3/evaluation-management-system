@@ -28,6 +28,8 @@ model User {
   id           String       @id @default(cuid())
   username     String       @unique
   passwordHash String
+  // 관리자가 발급한 임시 비밀번호(참조용). 위원이 직접 변경 기능은 없음.
+  tempPassword String?
   name         String
   role         Role
   assignments  Assignment[]

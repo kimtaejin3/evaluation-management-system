@@ -19,13 +19,23 @@ export async function createEvaluator(formData: FormData) {
   await prisma.user.upsert({
     where: { username },
     update: { name },
-    create: { username, name, role: 'EVALUATOR', passwordHash: await hashPassword(password) },
+    create: { username, name, role: 'EVALUATOR', passwordHash: await hashPassword(password), tempPassword: password },
   })
   revalidatePath('/admin/evaluators')
 }
 
 export async function deleteEvaluator(userId: string) {
   await prisma.user.delete({ where: { id: userId } })
+  revalidatePath('/admin/evaluators')
+}
+
+// 임시 비밀번호 재발급(관리자) — 새 임시 비번 생성·저장
+export async function resetEvaluatorPassword(userId: string) {
+  const newPw = randomUUID().replace(/-/g, '').slice(0, 8)
+  await prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash: await hashPassword(newPw), tempPassword: newPw },
+  })
   revalidatePath('/admin/evaluators')
 }
 

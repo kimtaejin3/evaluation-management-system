@@ -23,9 +23,9 @@ async function main() {
   await prisma.company.deleteMany({ where: { name: { in: COMPANY_NAMES } } })
 
   const pw = await bcrypt.hash('eval1234', 10)
-  const kim = await prisma.user.create({ data: { username: 'kim', name: '김평가', role: 'EVALUATOR', passwordHash: pw } })
-  const lee = await prisma.user.create({ data: { username: 'lee', name: '이심사', role: 'EVALUATOR', passwordHash: pw } })
-  await prisma.user.create({ data: { username: 'park', name: '박위원', role: 'EVALUATOR', passwordHash: pw } })
+  const kim = await prisma.user.create({ data: { username: 'kim', name: '김평가', role: 'EVALUATOR', passwordHash: pw, tempPassword: 'eval1234' } })
+  const lee = await prisma.user.create({ data: { username: 'lee', name: '이심사', role: 'EVALUATOR', passwordHash: pw, tempPassword: 'eval1234' } })
+  await prisma.user.create({ data: { username: 'park', name: '박위원', role: 'EVALUATOR', passwordHash: pw, tempPassword: 'eval1234' } })
 
   // 진행중 회차 (점수 포함)
   const s1 = await prisma.evaluationSession.create({

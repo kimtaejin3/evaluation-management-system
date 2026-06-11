@@ -120,7 +120,7 @@ export async function addEvaluator(sessionId: string, formData: FormData) {
   const user = await prisma.user.upsert({
     where: { username },
     update: {},
-    create: { username, name, role: 'EVALUATOR', passwordHash: await hashPassword(password) },
+    create: { username, name, role: 'EVALUATOR', passwordHash: await hashPassword(password), tempPassword: password },
   })
   await prisma.assignment.upsert({
     where: { sessionId_userId: { sessionId, userId: user.id } },
