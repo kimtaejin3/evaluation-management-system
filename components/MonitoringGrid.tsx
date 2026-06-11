@@ -6,7 +6,7 @@ type WireState = 'none' | 'partial' | 'revised' | 'done' | 'locked'
 const SWATCH: Record<WireState, string> = {
   none: 'border border-slate-300 bg-white', // 미평가
   partial: 'border border-dashed border-slate-400 bg-white', // 입력 중
-  revised: 'border border-pink-300 bg-pink-300', // 수정됨(재오픈)
+  revised: 'border border-amber-400 bg-amber-400', // 수정됨(재오픈)
   done: 'border border-slate-900 bg-slate-900', // 완료
   locked: 'border border-slate-300 bg-slate-300', // 제출잠금
 }
@@ -20,12 +20,16 @@ const LEGEND: { state: WireState; label: string }[] = [
 ]
 
 function CellBlock({ cell }: { cell: Cell }) {
-  const tip = cell.total > 0 ? cell.items.map((it) => `${it.done ? '✓' : '·'} ${it.name}`).join('\n') : undefined
+  if (cell.total === 0) {
+    return <span className={`block h-5 w-full rounded-[2px] ${SWATCH.none}`} />
+  }
+  const tip = cell.items.map((it) => `${it.done ? '✓' : '·'} ${it.name}`).join('\n')
   return (
-    <span
-      className={`block h-5 w-full rounded-[2px] ${SWATCH[cell.state as WireState]}`}
-      title={tip}
-    />
+    <span className="flex h-5 w-full gap-1" title={tip}>
+      {cell.items.map((it) => (
+        <span key={it.id} className={`flex-1 rounded-[2px] ${it.done ? SWATCH.done : SWATCH.none}`} />
+      ))}
+    </span>
   )
 }
 
