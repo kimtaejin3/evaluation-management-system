@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { setSessionStatus, duplicateSession } from '../actions'
+import { canCloseSession } from '@/lib/session-rules'
 
 const FLOW = [
   { key: 'DRAFT', label: '초안', desc: '항목·대상·위원을 설정합니다.' },
@@ -73,10 +74,13 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
             </button>
           </form>
           <form action={async () => { 'use server'; await setSessionStatus(id, 'CLOSED') }}>
-            <button disabled={session.status !== 'IN_PROGRESS'} className="w-full rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-40">
+            <button disabled={session.status !== 'IN_PROGRESS' || !canCloseSession(session.eventDate)} className="w-full rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-40">
               마감·잠금
             </button>
           </form>
+          {session.status === 'IN_PROGRESS' && !canCloseSession(session.eventDate) && (
+            <p className="text-xs text-amber-600">평가 일시({new Date(session.eventDate!).toLocaleDateString('ko-KR')}) 이후에 마감할 수 있습니다.</p>
+          )}
           <form action={async () => { 'use server'; await setSessionStatus(id, 'DRAFT') }}>
             <button disabled={session.status === 'DRAFT'} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 transition hover:bg-slate-50 disabled:opacity-40">
               초안으로 되돌리기

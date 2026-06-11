@@ -8,6 +8,7 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { hashPassword } from '@/lib/auth'
 import { UPLOAD_DIR } from '@/lib/storage'
+import { canCloseSession, CLOSE_BLOCKED_MESSAGE } from '@/lib/session-rules'
 
 export async function createSession(formData: FormData) {
   const name = String(formData.get('name') ?? '').trim()
@@ -24,6 +25,12 @@ export async function createSession(formData: FormData) {
 }
 
 export async function setSessionStatus(sessionId: string, status: 'DRAFT' | 'IN_PROGRESS' | 'CLOSED') {
+  if (status === 'CLOSED') {
+    const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { eventDate: true } })
+    if (s && !canCloseSession(s.eventDate)) {
+      throw new Error(CLOSE_BLOCKED_MESSAGE)
+    }
+  }
   await prisma.evaluationSession.update({ where: { id: sessionId }, data: { status } })
   revalidatePath(`/admin/sessions/${sessionId}`)
 }
