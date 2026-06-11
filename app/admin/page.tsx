@@ -87,10 +87,7 @@ export default async function AdminDashboard() {
       </div>
 
       {/* 모니터링 그리드 */}
-      <div className="space-y-2.5">
-        <h2 className="text-sm font-semibold text-slate-700">위원 × 대상 모니터링</h2>
-        <MonitoringGrid data={p} />
-      </div>
+      <MonitoringGrid data={p} />
 
       {/* 대상별 진행 요약 */}
       <div className="space-y-2.5">

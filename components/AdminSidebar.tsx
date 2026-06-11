@@ -152,8 +152,7 @@ export default function AdminSidebar() {
               strokeLinejoin="round"
             />
           </svg>
-          먼저 <span className="font-semibold text-white">회차</span>를 선택해
-          주세요.
+          먼저 회차 관리에서 회차를 선택해주세요.
         </div>
       </div>
     </aside>
