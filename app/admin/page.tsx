@@ -5,7 +5,6 @@ import StatusBadge from "@/components/StatusBadge";
 import SessionPicker from "@/components/SessionPicker";
 import MonitoringGrid from "@/components/MonitoringGrid";
 import DashboardInsights from "@/components/DashboardInsights";
-import Clock from "@/components/Clock";
 
 export default async function AdminDashboard({
   searchParams,
@@ -53,11 +52,6 @@ export default async function AdminDashboard({
             <StatusBadge status={session.status} />
           </div>
           <p className="mt-1.5 text-sm text-slate-500">
-            <span className="text-slate-400">현재 시각</span>{" "}
-            <span className="font-medium text-slate-700">
-              <Clock />
-            </span>
-            <span className="mx-2 text-slate-300">·</span>
             <span className="text-slate-400">평가 일시</span>{" "}
             <span className="font-medium text-slate-700">
               {session.eventDate
@@ -81,13 +75,23 @@ export default async function AdminDashboard({
       <div className="grid grid-cols-2 gap-y-5 sm:grid-cols-4 sm:gap-y-0 sm:divide-x sm:divide-slate-200">
         {[
           { label: "배정 위원", value: `${p.assignedCount}명` },
-          { label: "입력 완료 위원", value: `${p.completedEvaluators}/${p.assignedCount}` },
-          { label: "진행률", value: `${p.pct}%`, accent: true, hint: `${p.doneCells}/${p.totalCells} 칸` },
+          {
+            label: "입력 완료 위원",
+            value: `${p.completedEvaluators}/${p.assignedCount}`,
+          },
+          {
+            label: "진행률",
+            value: `${p.pct}%`,
+            accent: true,
+            hint: `${p.doneCells}/${p.totalCells} 칸`,
+          },
           { label: "평가 대상", value: `${p.subjects.length}개` },
         ].map((k, i) => (
           <div key={k.label} className={i === 0 ? "sm:pr-6" : "sm:px-6"}>
             <div className="text-sm text-slate-500">{k.label}</div>
-            <div className={`mt-1 text-2xl font-bold ${k.accent ? "text-indigo-600" : "text-slate-900"}`}>
+            <div
+              className={`mt-1 text-2xl font-bold ${k.accent ? "text-indigo-600" : "text-slate-900"}`}
+            >
               {k.value}
             </div>
             <div className="mt-0.5 text-xs text-slate-400">{k.hint ?? " "}</div>
