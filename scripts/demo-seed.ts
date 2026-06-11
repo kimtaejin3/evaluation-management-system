@@ -2,7 +2,6 @@ import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { mkdir, writeFile } from 'fs/promises'
 import path from 'path'
-import { gradeToValue } from '../lib/scoring'
 import { UPLOAD_DIR } from '../lib/storage'
 
 const prisma = new PrismaClient()
@@ -35,9 +34,18 @@ async function main() {
       eventDate: new Date('2026-06-20T14:00:00'), status: 'IN_PROGRESS',
     },
   })
-  const c1 = await prisma.criterion.create({ data: { sessionId: s1.id, name: '사업 타당성', description: '시장성·실현 가능성', type: 'QUANTITATIVE', maxScore: 40, weight: 1, order: 0 } })
-  const c2 = await prisma.criterion.create({ data: { sessionId: s1.id, name: '추진 역량', description: '조직·인력 역량', type: 'QUANTITATIVE', maxScore: 30, weight: 1, order: 1 } })
-  const c3 = await prisma.criterion.create({ data: { sessionId: s1.id, name: '발표 평가', description: '전달력·이해도', type: 'QUALITATIVE', maxScore: 30, weight: 1, order: 2 } })
+  const c1 = await prisma.criterion.create({ data: { sessionId: s1.id, name: '사업 타당성', description: '시장 규모·성장성 및 수익모델의 타당성', type: 'QUANTITATIVE', maxScore: 40, weight: 1, order: 0 } })
+  const c2 = await prisma.criterion.create({ data: { sessionId: s1.id, name: '추진 역량', description: '조직·인력 구성과 실행 계획의 구체성', type: 'QUANTITATIVE', maxScore: 30, weight: 1, order: 1 } })
+  // 정성 항목: 등급(답) 옵션 정의
+  const GRADE_OPTS = [
+    { label: '매우 우수', points: 30 },
+    { label: '우수', points: 24 },
+    { label: '보통', points: 18 },
+    { label: '미흡', points: 12 },
+    { label: '매우 미흡', points: 6 },
+  ]
+  const gradeIdx: Record<string, number> = { A: 0, B: 1, C: 2, D: 3, E: 4 }
+  const c3 = await prisma.criterion.create({ data: { sessionId: s1.id, name: '발표 평가', description: '발표 전달력·질의응답 충실도', type: 'QUALITATIVE', maxScore: 30, weight: 1, order: 2, gradeOptions: GRADE_OPTS } })
   const names = COMPANY_NAMES
   // 전역 기업 등록(회차에 묶이지 않음)
   const companies: Record<string, { id: string }> = {}
@@ -86,7 +94,8 @@ async function main() {
       if (mode === 'done') {
         await mk(c1.id, p.q1 + jitter, null)
         await mk(c2.id, p.q2 + jitter, null)
-        await mk(c3.id, gradeToValue(p.g, 30), p.g)
+        const opt = GRADE_OPTS[gradeIdx[p.g] ?? 2]
+        await mk(c3.id, opt.points, opt.label)
       } else if (mode === 'partial') {
         await mk(c1.id, p.q1 + jitter, null) // 항목 1개만 입력 → 입력중
       }

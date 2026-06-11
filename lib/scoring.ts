@@ -15,6 +15,29 @@ export const GRADE_LABELS: Record<string, string> = {
   E: '매우 미흡',
 }
 
+// 정성 항목의 등급(답) 옵션
+export interface GradeOption {
+  label: string
+  points: number
+}
+
+// gradeOptions 미지정 시 기본 5단계(A~E)를 배점 기준으로 환산
+export function defaultGradeOptions(maxScore: number): GradeOption[] {
+  return Object.keys(GRADE_RATIOS).map((g) => ({
+    label: `${g} · ${GRADE_LABELS[g]}`,
+    points: Math.round(maxScore * GRADE_RATIOS[g] * 100) / 100,
+  }))
+}
+
+// Json 컬럼에서 안전하게 GradeOption[] 파싱
+export function parseGradeOptions(raw: unknown): GradeOption[] | null {
+  if (!Array.isArray(raw)) return null
+  const opts = raw
+    .map((o) => (o && typeof o === 'object' ? { label: String((o as { label?: unknown }).label ?? ''), points: Number((o as { points?: unknown }).points) } : null))
+    .filter((o): o is GradeOption => !!o && o.label.length > 0 && Number.isFinite(o.points))
+  return opts.length > 0 ? opts : null
+}
+
 export function gradeToValue(grade: string, maxScore: number): number {
   const ratio = GRADE_RATIOS[grade] ?? 0
   return maxScore * ratio

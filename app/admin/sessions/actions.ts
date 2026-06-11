@@ -32,17 +32,32 @@ export async function setSessionStatus(sessionId: string, status: 'DRAFT' | 'IN_
 }
 
 export async function addCriterion(sessionId: string, formData: FormData) {
+  const name = String(formData.get('name') ?? '').trim()
+  if (!name) return
+  const type = String(formData.get('type')) === 'QUALITATIVE' ? 'QUALITATIVE' : 'QUANTITATIVE'
+  const weight = Number(formData.get('weight') ?? 1)
+  const description = String(formData.get('description') ?? '') || null
+
+  let maxScore: number
+  let gradeOptions: { label: string; points: number }[] | undefined
+
+  if (type === 'QUALITATIVE') {
+    // 등급(답) 옵션: optLabel[] + optPoints[]
+    const labels = formData.getAll('optLabel').map((v) => String(v).trim())
+    const points = formData.getAll('optPoints').map((v) => Number(v))
+    const opts = labels
+      .map((label, i) => ({ label, points: points[i] }))
+      .filter((o) => o.label && Number.isFinite(o.points))
+    if (opts.length === 0) return
+    gradeOptions = opts
+    maxScore = Math.max(...opts.map((o) => o.points))
+  } else {
+    maxScore = Number(formData.get('maxScore') ?? 0)
+  }
+
   const count = await prisma.criterion.count({ where: { sessionId } })
   await prisma.criterion.create({
-    data: {
-      sessionId,
-      name: String(formData.get('name') ?? '').trim(),
-      description: String(formData.get('description') ?? '') || null,
-      type: String(formData.get('type')) === 'QUALITATIVE' ? 'QUALITATIVE' : 'QUANTITATIVE',
-      maxScore: Number(formData.get('maxScore') ?? 0),
-      weight: Number(formData.get('weight') ?? 1),
-      order: count,
-    },
+    data: { sessionId, name, description, type, maxScore, weight, order: count, gradeOptions },
   })
   revalidatePath(`/admin/sessions/${sessionId}/criteria`)
 }

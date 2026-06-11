@@ -58,6 +58,8 @@ model Criterion {
   maxScore    Float
   weight      Float             @default(1)
   order       Int               @default(0)
+  // 정성 항목의 등급(답) 정의: [{ label, points }] — 없으면 기본 A~E 척도
+  gradeOptions Json?
   scores      Score[]
 }
 

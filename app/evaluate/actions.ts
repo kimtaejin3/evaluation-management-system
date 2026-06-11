@@ -3,7 +3,7 @@
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/session'
-import { isValidScoreValue, gradeToValue } from '@/lib/scoring'
+import { isValidScoreValue, parseGradeOptions, defaultGradeOptions } from '@/lib/scoring'
 
 export async function saveScores(
   sessionId: string,
@@ -33,8 +33,12 @@ export async function saveScores(
     let value: number
     let grade: string | null = null
     if (c.type === 'QUALITATIVE') {
-      grade = String(raw)
-      value = gradeToValue(grade, c.maxScore)
+      const options = parseGradeOptions(c.gradeOptions) ?? defaultGradeOptions(c.maxScore)
+      const idx = Number(raw)
+      const opt = options[idx]
+      if (!opt) return { error: `'${c.name}' 등급을 선택하세요.` }
+      grade = opt.label
+      value = opt.points
     } else {
       value = Number(raw)
       if (!isValidScoreValue(value, c.maxScore)) {

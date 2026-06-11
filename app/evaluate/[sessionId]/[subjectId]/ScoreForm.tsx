@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from 'react'
 import { saveScores } from '@/app/evaluate/actions'
-import { GRADE_LABELS } from '@/lib/scoring'
+import type { GradeOption } from '@/lib/scoring'
 
 export interface CriterionView {
   id: string
@@ -12,7 +12,8 @@ export interface CriterionView {
   maxScore: number
   weight: number
   value: number | null
-  grade: string | null
+  options: GradeOption[] | null
+  selectedIndex: number | null
 }
 
 const inputCls = 'mt-2 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500'
@@ -22,30 +23,30 @@ export default function ScoreForm({
   sessionId,
   subjectId,
   criteria,
-  gradeRatios,
 }: {
   sessionId: string
   subjectId: string
   criteria: CriterionView[]
-  gradeRatios: Record<string, number>
 }) {
   const [state, formAction] = useActionState(saveScores.bind(null, sessionId, subjectId), null)
-  const grades = Object.keys(gradeRatios)
 
   const [vals, setVals] = useState<Record<string, string>>(() => {
     const o: Record<string, string> = {}
     for (const c of criteria) {
-      o[c.id] = c.type === 'QUALITATIVE' ? (c.grade ?? '') : c.value != null ? String(c.value) : ''
+      o[c.id] = c.type === 'QUALITATIVE' ? (c.selectedIndex != null ? String(c.selectedIndex) : '') : c.value != null ? String(c.value) : ''
     }
     return o
   })
   const setVal = (id: string, v: string) => setVals((p) => ({ ...p, [id]: v }))
 
-  // 항목별 가중 점수(= 입력 환산 × 가중치)
+  // 항목별 가중 점수
   const contrib = (c: CriterionView): number | null => {
     const raw = vals[c.id]
-    if (!raw) return null
-    if (c.type === 'QUALITATIVE') return c.maxScore * (gradeRatios[raw] ?? 0) * c.weight
+    if (raw === '') return null
+    if (c.type === 'QUALITATIVE') {
+      const opt = c.options?.[Number(raw)]
+      return opt ? opt.points * c.weight : null
+    }
     const n = Number(raw)
     return Number.isFinite(n) ? n * c.weight : null
   }
@@ -56,6 +57,7 @@ export default function ScoreForm({
     <form action={formAction} className="space-y-4">
       {criteria.map((c) => {
         const ct = contrib(c)
+        const sel = c.options?.[Number(vals[c.id])]
         return (
           <div key={c.id} className="rounded-xl border border-slate-200 bg-white p-5">
             <div className="flex items-center justify-between">
@@ -76,9 +78,9 @@ export default function ScoreForm({
                 className={`block ${inputCls}`}
               >
                 <option value="" disabled>등급 선택</option>
-                {grades.map((g) => (
-                  <option key={g} value={g}>
-                    {g} · {GRADE_LABELS[g] ?? ''} ({Math.round(gradeRatios[g] * 100)}%)
+                {(c.options ?? []).map((o, i) => (
+                  <option key={i} value={String(i)}>
+                    {o.label} ({o.points}점)
                   </option>
                 ))}
               </select>
@@ -101,9 +103,7 @@ export default function ScoreForm({
             <div className="mt-2 flex flex-wrap items-center gap-x-2 text-xs text-slate-500">
               <span className="text-slate-400">가중 점수 =</span>
               {c.type === 'QUALITATIVE' ? (
-                <span>
-                  배점 {c.maxScore} × 등급비율{vals[c.id] ? ` ${Math.round((gradeRatios[vals[c.id]] ?? 0) * 100)}%` : ''} × 가중치 {c.weight}
-                </span>
+                <span>등급 점수{sel ? ` ${sel.points}` : ''} × 가중치 {c.weight}</span>
               ) : (
                 <span>입력 점수{vals[c.id] ? ` ${vals[c.id]}` : ''} × 가중치 {c.weight}</span>
               )}
@@ -113,7 +113,6 @@ export default function ScoreForm({
         )
       })}
 
-      {/* 합계 */}
       <div className="flex items-center justify-between rounded-xl border border-indigo-200 bg-indigo-50 px-5 py-3 text-sm">
         <span className="font-medium text-slate-700">가중 합계 (잠정)</span>
         <span className="font-bold text-indigo-700">

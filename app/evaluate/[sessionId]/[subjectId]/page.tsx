@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/session'
-import { GRADE_RATIOS } from '@/lib/scoring'
+import { parseGradeOptions, defaultGradeOptions } from '@/lib/scoring'
 import ScoreForm, { type CriterionView } from './ScoreForm'
 
 export default async function ScoreSheet({ params }: { params: Promise<{ sessionId: string; subjectId: string }> }) {
@@ -23,6 +23,14 @@ export default async function ScoreSheet({ params }: { params: Promise<{ session
 
   const criteriaView: CriterionView[] = criteria.map((c) => {
     const cur = byCriterion.get(c.id)
+    const options = c.type === 'QUALITATIVE' ? (parseGradeOptions(c.gradeOptions) ?? defaultGradeOptions(c.maxScore)) : null
+    // 기존 입력값을 등급 인덱스로 역매핑(라벨 우선, 없으면 점수)
+    let selectedIndex: number | null = null
+    if (options && cur) {
+      const byLabel = options.findIndex((o) => o.label === cur.grade)
+      selectedIndex = byLabel >= 0 ? byLabel : options.findIndex((o) => o.points === cur.value)
+      if (selectedIndex < 0) selectedIndex = null
+    }
     return {
       id: c.id,
       name: c.name,
@@ -31,7 +39,8 @@ export default async function ScoreSheet({ params }: { params: Promise<{ session
       maxScore: c.maxScore,
       weight: c.weight,
       value: cur ? cur.value : null,
-      grade: cur?.grade ?? null,
+      options,
+      selectedIndex,
     }
   })
 
@@ -58,7 +67,7 @@ export default async function ScoreSheet({ params }: { params: Promise<{ session
         </div>
       )}
 
-      <ScoreForm sessionId={sessionId} subjectId={subjectId} criteria={criteriaView} gradeRatios={GRADE_RATIOS} />
+      <ScoreForm sessionId={sessionId} subjectId={subjectId} criteria={criteriaView} />
     </div>
   )
 }

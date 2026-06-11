@@ -28,6 +28,12 @@ export default async function ResultsPage({
   );
   const ranked = rankSubjects(finalScores);
   const subjectName = new Map(subjects.map((s) => [s.id, s.name]));
+  const orderedCriteria = [...criteria].sort((a, b) => a.order - b.order);
+  // 대상×항목 위원 평균
+  const critAvg = (subId: string, critId: string): number | null => {
+    const vs = scores.filter((s) => s.subjectId === subId && s.criterionId === critId).map((s) => s.value);
+    return vs.length ? vs.reduce((a, b) => a + b, 0) / vs.length : null;
+  };
   const printedAt = new Date().toLocaleString("ko-KR", { dateStyle: "long", timeStyle: "short" });
 
   return (
@@ -75,12 +81,18 @@ export default async function ResultsPage({
       </div>
 
       {/* 순위표 (화면 + 인쇄 공용) */}
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white print:mt-4 print:rounded-none print:border-black">
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white print:mt-4 print:overflow-visible print:rounded-none print:border-black">
         <table className="w-full text-sm">
           <thead className="text-left text-slate-500 print:text-black">
             <tr className="border-b border-slate-100 print:border-black">
               <th className="px-5 py-3 font-medium print:border print:border-black">순위</th>
               <th className="px-5 py-3 font-medium print:border print:border-black">대상</th>
+              {orderedCriteria.map((c) => (
+                <th key={c.id} className="px-4 py-3 text-right font-medium print:border print:border-black">
+                  {c.name}
+                  <div className="text-xs font-normal text-slate-400 print:text-black">/{c.maxScore} · 가중 {c.weight}</div>
+                </th>
+              ))}
               <th className="px-5 py-3 text-right font-medium print:border print:border-black">최종 점수</th>
             </tr>
           </thead>
@@ -92,9 +104,17 @@ export default async function ResultsPage({
                     {r.rank}
                   </span>
                 </td>
-                <td className="px-5 py-3 font-medium text-slate-800 print:border print:border-black">
+                <td className="whitespace-nowrap px-5 py-3 font-medium text-slate-800 print:border print:border-black">
                   {subjectName.get(r.subjectId)}
                 </td>
+                {orderedCriteria.map((c) => {
+                  const a = critAvg(r.subjectId, c.id);
+                  return (
+                    <td key={c.id} className="px-4 py-3 text-right tabular-nums text-slate-600 print:border print:border-black">
+                      {a === null ? "—" : a.toFixed(1)}
+                    </td>
+                  );
+                })}
                 <td className="px-5 py-3 text-right text-lg font-bold text-slate-900 print:border print:border-black print:text-base">
                   {r.finalScore.toFixed(2)}
                 </td>
@@ -102,7 +122,7 @@ export default async function ResultsPage({
             ))}
             {ranked.length === 0 && (
               <tr>
-                <td colSpan={3} className="px-5 py-12 text-center text-slate-400">집계할 점수가 없습니다.</td>
+                <td colSpan={orderedCriteria.length + 3} className="px-5 py-12 text-center text-slate-400">집계할 점수가 없습니다.</td>
               </tr>
             )}
           </tbody>
