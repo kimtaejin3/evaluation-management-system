@@ -1,12 +1,11 @@
 import type { ProgressData, Cell } from "@/lib/progress";
 
 // 와이어프레임 상태 체계
-type WireState = "none" | "partial" | "revised" | "done" | "locked";
+type WireState = "none" | "partial" | "done" | "locked";
 
 const SWATCH: Record<WireState, string> = {
   none: "border border-slate-300 bg-white", // 미평가
   partial: "border border-dashed border-slate-400 bg-white", // 입력 중
-  revised: "border border-amber-400 bg-amber-400", // 수정됨(재오픈)
   done: "border border-slate-900 bg-slate-900", // 완료
   locked: "border border-slate-300 bg-slate-300", // 제출잠금
 };
@@ -14,14 +13,13 @@ const SWATCH: Record<WireState, string> = {
 const LEGEND: { state: WireState; label: string }[] = [
   { state: "none", label: "미평가" },
   { state: "partial", label: "입력 중" },
-  { state: "revised", label: "수정됨 (재오픈)" },
   { state: "done", label: "완료" },
   { state: "locked", label: "제출잠금" },
 ];
 
 function CellBlock({ cell }: { cell: Cell }) {
   if (cell.total === 0) {
-    return <span className={`block h-5 w-full rounded-[2px] ${SWATCH.none}`} />;
+    return <span className={`block h-5 w-full rounded-[5px] ${SWATCH.none}`} />;
   }
   const tip = cell.items
     .map((it) => `${it.done ? "✓" : "·"} ${it.name}`)
@@ -31,7 +29,7 @@ function CellBlock({ cell }: { cell: Cell }) {
       {cell.items.map((it) => (
         <span
           key={it.id}
-          className={`flex-1 rounded-[2px] ${it.done ? SWATCH.done : SWATCH.none}`}
+          className={`flex-1 rounded-[10px] ${it.done ? SWATCH.done : SWATCH.none}`}
         />
       ))}
     </span>

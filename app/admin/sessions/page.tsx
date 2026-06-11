@@ -10,21 +10,29 @@ const STATUS_OPTIONS = [
   { value: 'CLOSED', label: '마감' },
 ]
 
+// 회차의 연도(평가 일시 우선, 없으면 생성일)
+function sessionYear(s: { eventDate: Date | null; createdAt: Date }): number {
+  return new Date(s.eventDate ?? s.createdAt).getFullYear()
+}
+
 export default async function SessionListPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string }>
+  searchParams: Promise<{ year?: string; status?: string }>
 }) {
-  const { q, status } = await searchParams
+  const { year, status } = await searchParams
   const where: Prisma.EvaluationSessionWhereInput = {}
-  if (q) where.name = { contains: q, mode: 'insensitive' }
   if (status === 'DRAFT' || status === 'IN_PROGRESS' || status === 'CLOSED') where.status = status
 
-  const sessions = await prisma.evaluationSession.findMany({
+  const all = await prisma.evaluationSession.findMany({
     where,
     orderBy: { createdAt: 'desc' },
     include: { _count: { select: { subjects: true, criteria: true, assignments: true } } },
   })
+
+  // 연도 옵션(전체 회차 기준) + 필터 적용
+  const years = [...new Set(all.map(sessionYear))].sort((a, b) => b - a)
+  const sessions = year ? all.filter((s) => String(sessionYear(s)) === year) : all
 
   return (
     <div className="space-y-5">
@@ -39,16 +47,14 @@ export default async function SessionListPage({
       </div>
 
       <form method="get" className="flex flex-wrap items-center gap-2 rounded-md border border-slate-200 bg-white p-3">
-        <input
-          name="q"
-          defaultValue={q ?? ''}
-          placeholder="회차명 검색"
-          className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-[var(--gov-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--gov-primary)]"
-        />
+        <select name="year" defaultValue={year ?? ''} className="rounded-md border border-slate-300 px-3 py-2 text-sm">
+          <option value="">연도 전체</option>
+          {years.map((y) => <option key={y} value={String(y)}>{y}년</option>)}
+        </select>
         <select name="status" defaultValue={status ?? ''} className="rounded-md border border-slate-300 px-3 py-2 text-sm">
           {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
-        <button className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-700 transition hover:bg-slate-50">검색</button>
+        <button className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-700 transition hover:bg-slate-50">적용</button>
       </form>
 
       <div className="overflow-hidden rounded-md border border-slate-200 bg-white">

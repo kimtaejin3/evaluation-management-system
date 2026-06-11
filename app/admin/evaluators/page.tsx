@@ -7,7 +7,12 @@ export default async function EvaluatorsAdminPage() {
   const evaluators = await prisma.user.findMany({
     where: { role: 'EVALUATOR' },
     orderBy: { createdAt: 'asc' },
-    include: { _count: { select: { assignments: true } } },
+    include: {
+      assignments: {
+        include: { session: { select: { id: true, name: true, status: true } } },
+        orderBy: { session: { createdAt: 'desc' } },
+      },
+    },
   })
 
   return (
@@ -24,7 +29,7 @@ export default async function EvaluatorsAdminPage() {
               <th className="px-4 py-2.5 font-medium">이름</th>
               <th className="px-4 py-2.5 font-medium">아이디</th>
               <th className="px-4 py-2.5 font-medium">배정 회차</th>
-              <th className="px-4 py-2.5"></th>
+              <th className="px-4 py-2.5 text-right"></th>
             </tr>
           </thead>
           <tbody>
@@ -39,7 +44,22 @@ export default async function EvaluatorsAdminPage() {
                   </span>
                 </td>
                 <td className="px-4 py-2.5 text-slate-600">{u.username}</td>
-                <td className="px-4 py-2.5 text-slate-600">{u._count.assignments}개</td>
+                <td className="px-4 py-2.5">
+                  {u.assignments.length === 0 ? (
+                    <span className="text-xs text-slate-400">배정 없음</span>
+                  ) : (
+                    <span className="flex flex-wrap gap-1">
+                      {u.assignments.map((a) => (
+                        <span
+                          key={a.id}
+                          className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600"
+                        >
+                          {a.session.name}
+                        </span>
+                      ))}
+                    </span>
+                  )}
+                </td>
                 <td className="px-4 py-2.5 text-right">
                   <form action={async () => { 'use server'; await deleteEvaluator(u.id) }}>
                     <button className="text-sm text-rose-600 hover:underline">삭제</button>
