@@ -1,11 +1,5 @@
 import { prisma } from '@/lib/db'
-import {
-  addCriterion,
-  deleteCriterion,
-  saveCriteriaTemplate,
-  applyCriteriaTemplate,
-  deleteCriteriaTemplate,
-} from '../../actions'
+import { addCriterion, deleteCriterion } from '../../actions'
 
 const TYPE_LABEL = { QUANTITATIVE: '정량', QUALITATIVE: '정성' } as const
 
@@ -15,10 +9,6 @@ export default async function CriteriaPage({ params }: { params: Promise<{ id: s
   const { id } = await params
   const session = await prisma.evaluationSession.findUnique({ where: { id } })
   const criteria = await prisma.criterion.findMany({ where: { sessionId: id }, orderBy: { order: 'asc' } })
-  const templates = await prisma.criterionTemplate.findMany({
-    orderBy: { createdAt: 'desc' },
-    include: { _count: { select: { items: true } } },
-  })
   const locked = session?.status === 'CLOSED'
 
   return (
@@ -64,53 +54,20 @@ export default async function CriteriaPage({ params }: { params: Promise<{ id: s
       </div>
 
       {!locked && (
-        <div className="grid gap-4 lg:grid-cols-2">
-          {/* 템플릿 불러오기 / 저장 */}
-          <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-5">
-            <div className="text-sm font-semibold text-slate-700">항목 템플릿</div>
-            <form action={applyCriteriaTemplate.bind(null, id)} className="flex gap-2">
-              <select name="templateId" required defaultValue="" className={`flex-1 ${inputCls}`}>
-                <option value="" disabled>불러올 템플릿 선택</option>
-                {templates.map((t) => (
-                  <option key={t.id} value={t.id}>{t.name} ({t._count.items}개 항목)</option>
-                ))}
-              </select>
-              <button className="shrink-0 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50">불러오기</button>
-            </form>
-            <form action={saveCriteriaTemplate.bind(null, id)} className="flex gap-2">
-              <input name="templateName" placeholder="현재 항목을 템플릿으로 저장 (이름)" required className={`flex-1 ${inputCls}`} />
-              <button className="shrink-0 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50">저장</button>
-            </form>
-            {templates.length > 0 && (
-              <ul className="space-y-1 border-t border-slate-100 pt-3">
-                {templates.map((t) => (
-                  <li key={t.id} className="flex items-center justify-between text-sm">
-                    <span className="text-slate-600">{t.name} <span className="text-xs text-slate-400">· {t._count.items}개</span></span>
-                    <form action={async () => { 'use server'; await deleteCriteriaTemplate(id, t.id) }}>
-                      <button className="text-xs text-rose-500 hover:underline">삭제</button>
-                    </form>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          {/* 새 항목 추가 */}
-          <form action={addCriterion.bind(null, id)} className="grid grid-cols-2 gap-3 rounded-xl border border-slate-200 bg-white p-5">
-            <div className="col-span-2 text-sm font-semibold text-slate-700">새 항목 추가</div>
-            <input name="name" placeholder="항목명" required className={inputCls} />
-            <select name="type" className={inputCls}>
-              <option value="QUANTITATIVE">정량 (점수 직접 입력)</option>
-              <option value="QUALITATIVE">정성 (등급 선택)</option>
-            </select>
-            <input name="maxScore" type="number" step="any" placeholder="배점" required className={inputCls} />
-            <input name="weight" type="number" step="any" defaultValue={1} placeholder="가중치" className={inputCls} />
-            <input name="description" placeholder="설명(선택)" className={`col-span-2 ${inputCls}`} />
-            <button className="col-span-2 rounded-lg bg-indigo-600 py-2 text-sm font-medium text-white transition hover:bg-indigo-700">
-              + 항목 추가
-            </button>
-          </form>
-        </div>
+        <form action={addCriterion.bind(null, id)} className="grid max-w-2xl grid-cols-2 gap-3 rounded-xl border border-slate-200 bg-white p-5">
+          <div className="col-span-2 text-sm font-semibold text-slate-700">새 항목 추가</div>
+          <input name="name" placeholder="항목명" required className={inputCls} />
+          <select name="type" className={inputCls}>
+            <option value="QUANTITATIVE">정량 (점수 직접 입력)</option>
+            <option value="QUALITATIVE">정성 (등급 선택)</option>
+          </select>
+          <input name="maxScore" type="number" step="any" placeholder="배점" required className={inputCls} />
+          <input name="weight" type="number" step="any" defaultValue={1} placeholder="가중치" className={inputCls} />
+          <input name="description" placeholder="설명(선택)" className={`col-span-2 ${inputCls}`} />
+          <button className="col-span-2 rounded-lg bg-indigo-600 py-2 text-sm font-medium text-white transition hover:bg-indigo-700">
+            + 항목 추가
+          </button>
+        </form>
       )}
       {locked && <p className="text-sm text-slate-400">마감된 회차는 항목을 수정할 수 없습니다.</p>}
     </div>

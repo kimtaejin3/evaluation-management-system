@@ -24,10 +24,3 @@ export async function deleteEvaluator(userId: string) {
   await prisma.user.delete({ where: { id: userId } })
   revalidatePath('/admin/evaluators')
 }
-
-// ---- 항목 템플릿 관리(전역) ----
-
-export async function deleteTemplate(templateId: string) {
-  await prisma.criterionTemplate.delete({ where: { id: templateId } })
-  revalidatePath('/admin/templates')
-}

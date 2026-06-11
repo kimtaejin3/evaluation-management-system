@@ -7,7 +7,6 @@ const EXACT: Record<string, string> = {
   '/admin/sessions': '회차 관리',
   '/admin/sessions/new': '새 회차 등록',
   '/admin/evaluators': '평가위원 관리',
-  '/admin/templates': '항목 템플릿',
   '/evaluate': '평가 대상',
 }
 

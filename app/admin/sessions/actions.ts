@@ -129,61 +129,6 @@ export async function deleteDocument(sessionId: string, documentId: string) {
   revalidatePath(`/admin/sessions/${sessionId}/subjects`)
 }
 
-// ---- 항목 템플릿 ----
-
-export async function saveCriteriaTemplate(sessionId: string, formData: FormData) {
-  const name = String(formData.get('templateName') ?? '').trim()
-  if (!name) return
-  const criteria = await prisma.criterion.findMany({ where: { sessionId }, orderBy: { order: 'asc' } })
-  if (criteria.length === 0) return
-
-  await prisma.criterionTemplate.create({
-    data: {
-      name,
-      items: {
-        create: criteria.map((c) => ({
-          name: c.name,
-          description: c.description,
-          type: c.type,
-          maxScore: c.maxScore,
-          weight: c.weight,
-          order: c.order,
-        })),
-      },
-    },
-  })
-  revalidatePath(`/admin/sessions/${sessionId}/criteria`)
-}
-
-export async function applyCriteriaTemplate(sessionId: string, formData: FormData) {
-  const templateId = String(formData.get('templateId') ?? '')
-  if (!templateId) return
-  const template = await prisma.criterionTemplate.findUnique({
-    where: { id: templateId },
-    include: { items: { orderBy: { order: 'asc' } } },
-  })
-  if (!template) return
-
-  const existing = await prisma.criterion.count({ where: { sessionId } })
-  await prisma.criterion.createMany({
-    data: template.items.map((it, i) => ({
-      sessionId,
-      name: it.name,
-      description: it.description,
-      type: it.type,
-      maxScore: it.maxScore,
-      weight: it.weight,
-      order: existing + i,
-    })),
-  })
-  revalidatePath(`/admin/sessions/${sessionId}/criteria`)
-}
-
-export async function deleteCriteriaTemplate(sessionId: string, templateId: string) {
-  await prisma.criterionTemplate.delete({ where: { id: templateId } })
-  revalidatePath(`/admin/sessions/${sessionId}/criteria`)
-}
-
 // ---- 회차 복사 ----
 
 export async function duplicateSession(sessionId: string) {
