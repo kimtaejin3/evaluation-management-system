@@ -69,6 +69,37 @@ model Subject {
   description String?
   order       Int               @default(0)
   scores      Score[]
+  documents   Document[]
+}
+
+model Document {
+  id           String   @id @default(cuid())
+  subjectId    String
+  subject      Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  originalName String
+  storedName   String
+  mimeType     String
+  size         Int
+  createdAt    DateTime @default(now())
+}
+
+model CriterionTemplate {
+  id        String                  @id @default(cuid())
+  name      String                  @unique
+  items     CriterionTemplateItem[]
+  createdAt DateTime                @default(now())
+}
+
+model CriterionTemplateItem {
+  id          String            @id @default(cuid())
+  templateId  String
+  template    CriterionTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  type        CriterionType
+  maxScore    Float
+  weight      Float             @default(1)
+  order       Int               @default(0)
 }
 
 model Assignment {
