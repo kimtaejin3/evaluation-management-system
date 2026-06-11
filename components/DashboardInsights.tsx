@@ -1,8 +1,15 @@
+import Link from "next/link";
 import type { SessionInsights } from "@/lib/progress";
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
-export default function DashboardInsights({ data }: { data: SessionInsights }) {
+export default function DashboardInsights({
+  data,
+  sessionId,
+}: {
+  data: SessionInsights;
+  sessionId: string;
+}) {
   const ranking = data.rows;
   // 편차: 모든 대상 표시(편차 큰 순), 2명 미만 완료(집계 전)는 뒤로
   const divergence = [...data.rows].sort((a, b) => {
@@ -59,7 +66,12 @@ export default function DashboardInsights({ data }: { data: SessionInsights }) {
                     )}
                   </td>
                   <td className="px-4 font-medium text-slate-800">
-                    {r.name}
+                    <Link
+                      href={`/admin/sessions/${sessionId}/subjects#subject-${r.subjectId}`}
+                      className="hover:text-indigo-700 hover:underline"
+                    >
+                      {r.name}
+                    </Link>
                   </td>
                   <td className="px-4 text-right font-semibold tabular-nums text-slate-900">
                     {r.avg !== null ? (

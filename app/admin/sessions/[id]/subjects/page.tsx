@@ -29,7 +29,7 @@ export default async function SubjectsPage({ params }: { params: Promise<{ id: s
 
       <div className="space-y-4">
         {subjects.map((s, i) => (
-          <div key={s.id} className="rounded-xl border border-slate-200 bg-white p-5">
+          <div key={s.id} id={`subject-${s.id}`} className="scroll-mt-20 rounded-xl border border-slate-200 bg-white p-5">
             <div className="flex items-start justify-between">
               <div>
                 <div className="flex items-center gap-2">

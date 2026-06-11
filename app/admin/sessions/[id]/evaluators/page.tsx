@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { addEvaluator, removeEvaluator } from "../../actions";
+import { addEvaluator, removeEvaluator, assignEvaluator } from "../../actions";
 
 const inputCls =
   "rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500";
@@ -13,6 +13,12 @@ export default async function EvaluatorsPage({
   const assignments = await prisma.assignment.findMany({
     where: { sessionId: id },
     include: { user: true },
+  });
+  const assignedIds = assignments.map((a) => a.userId);
+  // 이 회차에 아직 배정되지 않은 기존 위원
+  const unassigned = await prisma.user.findMany({
+    where: { role: "EVALUATOR", id: { notIn: assignedIds.length ? assignedIds : [""] } },
+    orderBy: { name: "asc" },
   });
 
   return (
@@ -67,6 +73,29 @@ export default async function EvaluatorsPage({
           </tbody>
         </table>
       </div>
+
+      {unassigned.length > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
+          <div className="mb-3 text-sm font-semibold text-slate-700">기존 위원 배정</div>
+          <div className="flex flex-wrap gap-2">
+            {unassigned.map((u) => (
+              <form
+                key={u.id}
+                action={async () => {
+                  "use server";
+                  await assignEvaluator(id, u.id);
+                }}
+              >
+                <button className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 transition hover:border-indigo-400 hover:bg-indigo-50">
+                  <span className="text-indigo-600">+</span>
+                  {u.name}
+                  <span className="text-xs text-slate-400">{u.username}</span>
+                </button>
+              </form>
+            ))}
+          </div>
+        </div>
+      )}
 
       <form
         action={addEvaluator.bind(null, id)}

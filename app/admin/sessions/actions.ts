@@ -91,6 +91,16 @@ export async function removeEvaluator(sessionId: string, userId: string) {
   revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
 }
 
+// 기존 위원을 이 회차에 (재)배정
+export async function assignEvaluator(sessionId: string, userId: string) {
+  await prisma.assignment.upsert({
+    where: { sessionId_userId: { sessionId, userId } },
+    update: {},
+    create: { sessionId, userId },
+  })
+  revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
+}
+
 // ---- 평가 대상 서류 ----
 
 export async function uploadDocument(sessionId: string, subjectId: string, formData: FormData) {

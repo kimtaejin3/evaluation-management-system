@@ -103,7 +103,7 @@ export default async function AdminDashboard({
       <MonitoringGrid data={p} />
 
       {/* 잠정 순위 · 위원 간 편차 */}
-      <DashboardInsights data={insights} />
+      <DashboardInsights data={insights} sessionId={session.id} />
     </div>
   );
 }
