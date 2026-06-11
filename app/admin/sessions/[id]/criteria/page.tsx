@@ -23,7 +23,7 @@ export default async function CriteriaPage({ params }: { params: Promise<{ id: s
 
   return (
     <div className="space-y-6">
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div className="border-b border-slate-100 px-5 py-4 font-semibold">평가 항목</div>
         <table className="w-full text-sm">
           <thead className="text-left text-slate-500">
@@ -66,7 +66,7 @@ export default async function CriteriaPage({ params }: { params: Promise<{ id: s
       {!locked && (
         <div className="grid gap-4 lg:grid-cols-2">
           {/* 템플릿 불러오기 / 저장 */}
-          <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-5">
             <div className="text-sm font-semibold text-slate-700">항목 템플릿</div>
             <form action={applyCriteriaTemplate.bind(null, id)} className="flex gap-2">
               <select name="templateId" required defaultValue="" className={`flex-1 ${inputCls}`}>
@@ -96,7 +96,7 @@ export default async function CriteriaPage({ params }: { params: Promise<{ id: s
           </div>
 
           {/* 새 항목 추가 */}
-          <form action={addCriterion.bind(null, id)} className="grid grid-cols-2 gap-3 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <form action={addCriterion.bind(null, id)} className="grid grid-cols-2 gap-3 rounded-xl border border-slate-200 bg-white p-5">
             <div className="col-span-2 text-sm font-semibold text-slate-700">새 항목 추가</div>
             <input name="name" placeholder="항목명" required className={inputCls} />
             <select name="type" className={inputCls}>

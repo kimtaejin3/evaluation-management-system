@@ -33,7 +33,7 @@ export default function ScoreForm({
   return (
     <form action={formAction} className="space-y-4">
       {criteria.map((c) => (
-        <div key={c.id} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div key={c.id} className="rounded-xl border border-slate-200 bg-white p-5">
           <div className="flex items-center justify-between">
             <div className="font-medium text-slate-800">{c.name}</div>
             <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${c.type === 'QUALITATIVE' ? 'bg-violet-50 text-violet-700' : 'bg-sky-50 text-sky-700'}`}>

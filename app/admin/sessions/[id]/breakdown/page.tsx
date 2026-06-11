@@ -32,7 +32,7 @@ export default async function BreakdownPage({ params }: { params: Promise<{ id: 
       {/* 위원별 점수표 */}
       <section className="space-y-3">
         <h2 className="font-semibold text-slate-700">위원별 점수</h2>
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
           <table className="w-full text-sm">
             <thead className="text-left text-slate-500">
               <tr className="border-b border-slate-100">
@@ -81,7 +81,7 @@ export default async function BreakdownPage({ params }: { params: Promise<{ id: 
             })
             const total = rows.reduce((sum, r) => sum + r.weighted, 0)
             return (
-              <div key={sub.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+              <div key={sub.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
                 <div className="border-b border-slate-100 px-4 py-3 font-medium text-slate-800">{sub.name}</div>
                 <table className="w-full text-sm">
                   <thead className="text-left text-slate-400">

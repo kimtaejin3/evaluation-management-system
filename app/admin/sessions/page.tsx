@@ -38,7 +38,7 @@ export default async function SessionListPage({
         </Link>
       </div>
 
-      <form method="get" className="flex flex-wrap items-center gap-2 rounded-md border border-slate-200 bg-white p-3 shadow-sm">
+      <form method="get" className="flex flex-wrap items-center gap-2 rounded-md border border-slate-200 bg-white p-3">
         <input
           name="q"
           defaultValue={q ?? ''}
@@ -51,7 +51,7 @@ export default async function SessionListPage({
         <button className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-700 transition hover:bg-slate-50">검색</button>
       </form>
 
-      <div className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-md border border-slate-200 bg-white">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-slate-600">
             <tr className="border-b border-slate-200">

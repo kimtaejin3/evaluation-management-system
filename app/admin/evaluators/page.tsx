@@ -17,7 +17,7 @@ export default async function EvaluatorsAdminPage() {
         <p className="mt-1 text-sm text-slate-500">전체 평가위원 계정을 관리합니다. 회차 배정은 회차별 화면에서 진행하세요.</p>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
         <table className="w-full text-sm">
           <thead className="text-left text-slate-500">
             <tr className="border-b border-slate-100 bg-slate-50/60">
@@ -54,7 +54,7 @@ export default async function EvaluatorsAdminPage() {
         </table>
       </div>
 
-      <form action={createEvaluator} className="grid grid-cols-3 gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <form action={createEvaluator} className="grid grid-cols-3 gap-3 rounded-lg border border-slate-200 bg-white p-4">
         <div className="col-span-3 text-sm font-semibold text-slate-700">위원 계정 추가</div>
         <input name="name" placeholder="이름" required className={inputCls} />
         <input name="username" placeholder="아이디" required className={inputCls} />

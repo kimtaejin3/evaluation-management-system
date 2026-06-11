@@ -24,7 +24,7 @@ export default async function TemplatesPage() {
         {templates.map((t) => {
           const total = t.items.reduce((s, it) => s + it.maxScore, 0)
           return (
-            <div key={t.id} className="rounded-lg border border-slate-200 bg-white shadow-sm">
+            <div key={t.id} className="rounded-lg border border-slate-200 bg-white">
               <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
                 <div>
                   <div className="font-semibold text-slate-800">{t.name}</div>

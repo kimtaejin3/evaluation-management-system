@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { logout } from "@/app/login/actions";
 
 function topCls(active: boolean) {
   return `block rounded-md px-3 py-2 text-sm transition ${
@@ -17,7 +16,7 @@ function subCls(active: boolean) {
   }`;
 }
 
-export default function AdminSidebar({ userName }: { userName: string }) {
+export default function AdminSidebar() {
   const pathname = usePathname();
   const m = pathname.match(/^\/admin\/sessions\/([^/]+)/);
   const sid = m && m[1] !== "new" ? m[1] : null;
@@ -112,17 +111,6 @@ export default function AdminSidebar({ userName }: { userName: string }) {
           항목 템플릿
         </Link>
       </nav>
-      <div className="border-t border-white/10 p-3">
-        <div className="px-2 pb-2">
-          <div className="text-sm font-medium text-white">{userName}</div>
-          <div className="text-xs text-slate-400">관리자</div>
-        </div>
-        <form action={logout}>
-          <button className="w-full rounded-md border border-white/20 px-3 py-2 text-sm text-slate-200 transition hover:bg-white/10">
-            로그아웃
-          </button>
-        </form>
-      </div>
     </aside>
   );
 }

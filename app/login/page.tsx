@@ -16,7 +16,7 @@ export default function LoginPage() {
           <h1 className="text-xl font-bold text-slate-900">심사·평가 시스템</h1>
           <p className="mt-1 text-sm text-slate-500">관리자 · 평가위원 로그인</p>
         </div>
-        <form action={formAction} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+        <form action={formAction} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-8">
           <div>
             <label className="block text-sm font-medium text-slate-700">아이디</label>
             <input name="username" className={inputCls} required autoFocus />

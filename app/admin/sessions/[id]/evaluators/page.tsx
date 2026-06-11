@@ -12,7 +12,7 @@ export default async function EvaluatorsPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="space-y-6">
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div className="border-b border-slate-100 px-5 py-4 font-semibold">배정된 평가위원</div>
         <table className="w-full text-sm">
           <thead className="text-left text-slate-500">
@@ -48,7 +48,7 @@ export default async function EvaluatorsPage({ params }: { params: Promise<{ id:
         </table>
       </div>
 
-      <form action={addEvaluator.bind(null, id)} className="grid grid-cols-3 gap-3 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <form action={addEvaluator.bind(null, id)} className="grid grid-cols-3 gap-3 rounded-xl border border-slate-200 bg-white p-5">
         <div className="col-span-3 text-sm font-semibold text-slate-700">위원 추가·배정</div>
         <input name="name" placeholder="이름" required className={inputCls} />
         <input name="username" placeholder="아이디" required className={inputCls} />

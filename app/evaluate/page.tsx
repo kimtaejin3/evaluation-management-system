@@ -42,7 +42,7 @@ export default async function EvaluateHome() {
                 <Link
                   key={sub.id}
                   href={`/evaluate/${a.session.id}/${sub.id}`}
-                  className="group rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-indigo-300 hover:shadow"
+                  className="group rounded-xl border border-slate-200 bg-white p-5 transition hover:border-indigo-300"
                 >
                   <div className="flex items-center justify-between">
                     <div className="font-medium text-slate-800">{sub.name}</div>

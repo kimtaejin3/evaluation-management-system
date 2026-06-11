@@ -43,7 +43,7 @@ export default async function ScoreSheet({ params }: { params: Promise<{ session
         {session && <p className="text-sm text-slate-500">{session.name}</p>}
       </div>
       {subject.documents.length > 0 && (
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
           <div className="mb-2 text-sm font-semibold text-slate-700">심사 서류</div>
           <ul className="space-y-1">
             {subject.documents.map((d) => (

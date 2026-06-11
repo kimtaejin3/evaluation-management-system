@@ -1,5 +1,6 @@
 import NavLink from './NavLink'
 import BrandMark from './BrandMark'
+import HeaderTitle from './HeaderTitle'
 
 export interface NavItem {
   href: string
@@ -37,26 +38,17 @@ export default function AppShell({
             </NavLink>
           ))}
         </nav>
-        <div className="border-t border-white/10 p-3">
-          <div className="px-2 pb-2">
-            <div className="text-sm font-medium text-white">{user.name}</div>
-            <div className="text-xs text-slate-400">{user.role}</div>
-          </div>
-          <form action={logoutAction}>
-            <button className="w-full rounded-md border border-white/20 px-3 py-2 text-sm text-slate-200 transition hover:bg-white/10">
-              로그아웃
-            </button>
-          </form>
-        </div>
       </aside>
       <div className="flex min-h-screen flex-1 flex-col overflow-x-auto">
         <header className="flex items-center justify-between border-b border-slate-200 bg-white px-8 py-3">
-          <div className="flex items-center gap-2 text-sm text-slate-500">
-            <BrandMark variant="solid" className="h-5 w-5" />
-            <span>심사·평가 종합관리시스템</span>
-          </div>
-          <div className="text-sm text-slate-500">
-            <span className="font-medium text-slate-700">{user.name}</span> 님 · {user.role}
+          <HeaderTitle />
+          <div className="flex items-center gap-4 text-sm text-slate-500">
+            <span><span className="font-medium text-slate-700">{user.name}</span> 님 · {user.role}</span>
+            <form action={logoutAction}>
+              <button className="rounded-md border border-slate-300 px-3 py-1.5 text-slate-600 transition hover:bg-slate-50">
+                로그아웃
+              </button>
+            </form>
           </div>
         </header>
         <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-6">{children}</main>

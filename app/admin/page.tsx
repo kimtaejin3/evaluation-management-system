@@ -38,7 +38,7 @@ export default async function AdminDashboard() {
   return (
     <div className="space-y-4">
       {/* 상태바 */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white px-5 py-3.5 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white px-5 py-3.5">
         <div className="flex items-center gap-3">
           <span className="text-lg font-bold">{session.name}</span>
           <StatusBadge status={session.status} />
@@ -95,7 +95,7 @@ export default async function AdminDashboard() {
       {/* 대상별 진행 요약 */}
       <div className="space-y-2">
         <h2 className="font-semibold text-slate-700">대상별 진행 요약</h2>
-        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
           <table className="w-full text-sm">
             <thead className="text-left text-slate-500">
               <tr className="border-b border-slate-100 bg-slate-50/60">

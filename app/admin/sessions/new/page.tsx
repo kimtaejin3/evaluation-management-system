@@ -11,7 +11,7 @@ export default function NewSessionPage() {
       <h1 className="mt-1 text-2xl font-bold">새 회차 등록</h1>
       <p className="mt-1 text-sm text-slate-500">평가를 진행할 회차의 기본 정보를 입력합니다.</p>
 
-      <form action={createSession} className="mt-5 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+      <form action={createSession} className="mt-5 overflow-hidden rounded-lg border border-slate-200 bg-white">
         <div className="space-y-4 p-5">
           <div>
             <label className={labelCls}>회차명 <span className="text-rose-500">*</span></label>

@@ -29,7 +29,7 @@ export default async function SubjectsPage({ params }: { params: Promise<{ id: s
 
       <div className="space-y-4">
         {subjects.map((s, i) => (
-          <div key={s.id} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div key={s.id} className="rounded-xl border border-slate-200 bg-white p-5">
             <div className="flex items-start justify-between">
               <div>
                 <div className="flex items-center gap-2">
@@ -81,7 +81,7 @@ export default async function SubjectsPage({ params }: { params: Promise<{ id: s
       {locked ? (
         <p className="text-sm text-slate-400">마감된 회차는 대상·서류를 수정할 수 없습니다.</p>
       ) : (
-        <form action={addSubject.bind(null, id)} className="grid grid-cols-2 gap-3 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <form action={addSubject.bind(null, id)} className="grid grid-cols-2 gap-3 rounded-xl border border-slate-200 bg-white p-5">
           <div className="col-span-2 text-sm font-semibold text-slate-700">새 대상 추가</div>
           <input name="name" placeholder="대상명" required className={inputCls} />
           <input name="description" placeholder="설명(선택)" className={inputCls} />

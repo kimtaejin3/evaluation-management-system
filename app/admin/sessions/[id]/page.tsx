@@ -26,7 +26,7 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-2">
+      <div className="rounded-xl border border-slate-200 bg-white p-5 lg:col-span-2">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-semibold">회차 정보</h2>
           <form action={async () => { 'use server'; await duplicateSession(id) }}>
@@ -44,7 +44,7 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
         </dl>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="rounded-xl border border-slate-200 bg-white p-5">
         <h2 className="mb-4 font-semibold">진행 상태</h2>
         <ol className="mb-5 space-y-3">
           {FLOW.map((f) => {

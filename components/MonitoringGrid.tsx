@@ -18,7 +18,7 @@ function Dot({ state }: { state: CellState }) {
 export default function MonitoringGrid({ data }: { data: ProgressData }) {
   return (
     <div className="space-y-3">
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-sm">
           <thead className="text-left text-slate-500">
             <tr className="border-b border-slate-100">

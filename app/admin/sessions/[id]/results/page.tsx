@@ -32,7 +32,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
         <h1 className="mb-1 text-xl font-bold">심사 총괄표 · {session?.name}</h1>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-sm">
           <thead className="text-left text-slate-500">
             <tr className="border-b border-slate-100">
