@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest'
 import {
-  GRADE_RATIOS,
   gradeToValue,
   isValidScoreValue,
   computeWeightedScore,
   computeFinalScores,
   rankSubjects,
+  parseGradeOptions,
+  defaultGradeOptions,
 } from './scoring'
 
 describe('gradeToValue', () => {
@@ -79,5 +80,33 @@ describe('rankSubjects', () => {
       { subjectId: 's2', finalScore: 90, rank: 1 },
       { subjectId: 's3', finalScore: 80, rank: 3 },
     ])
+  })
+})
+
+describe('parseGradeOptions', () => {
+  it('유효한 배열을 GradeOption[]로 복원', () => {
+    const opts = parseGradeOptions([
+      { label: '매우 우수', points: 30 },
+      { label: '우수', points: 24 },
+    ])
+    expect(opts).toEqual([
+      { label: '매우 우수', points: 30 },
+      { label: '우수', points: 24 },
+    ])
+  })
+  it('배열이 아니거나 비어 있으면 null', () => {
+    expect(parseGradeOptions(null)).toBeNull()
+    expect(parseGradeOptions('x')).toBeNull()
+    expect(parseGradeOptions([])).toBeNull()
+    expect(parseGradeOptions([{ label: '', points: 1 }])).toBeNull()
+  })
+})
+
+describe('defaultGradeOptions', () => {
+  it('배점 기준 A~E 5단계 환산', () => {
+    const opts = defaultGradeOptions(30)
+    expect(opts).toHaveLength(5)
+    expect(opts[0].points).toBe(30) // A = 100%
+    expect(opts[4].points).toBeCloseTo(6) // E = 20%
   })
 })
