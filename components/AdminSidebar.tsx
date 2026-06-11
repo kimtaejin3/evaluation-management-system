@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { DashboardIcon, SessionsIcon, UsersIcon } from "./icons";
+import { DashboardIcon, SessionsIcon, UsersIcon, CompanyIcon } from "./icons";
 
 const APP_VERSION = "0.1.0";
 
@@ -113,6 +113,13 @@ export default function AdminSidebar() {
         >
           <UsersIcon />
           평가위원 관리
+        </Link>
+        <Link
+          href="/admin/companies"
+          className={topCls(pathname.startsWith("/admin/companies"))}
+        >
+          <CompanyIcon />
+          기업 관리
         </Link>
       </nav>
       <div className="border-t border-white/10 px-5 py-3 text-[11px] text-slate-500">

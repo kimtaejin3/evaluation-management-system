@@ -1,13 +1,9 @@
 'use server'
 
-import { mkdir, writeFile, unlink } from 'fs/promises'
-import path from 'path'
-import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { hashPassword } from '@/lib/auth'
-import { UPLOAD_DIR } from '@/lib/storage'
 import { canCloseSession, CLOSE_BLOCKED_MESSAGE } from '@/lib/session-rules'
 
 export async function createSession(formData: FormData) {
@@ -56,13 +52,39 @@ export async function deleteCriterion(sessionId: string, criterionId: string) {
   revalidatePath(`/admin/sessions/${sessionId}/criteria`)
 }
 
+// 회차에 평가 대상(기업) 편입 — 기존 기업 선택(companyId) 또는 신규 기업명(newName)
 export async function addSubject(sessionId: string, formData: FormData) {
+  const companyId = String(formData.get('companyId') ?? '').trim()
+  const newName = String(formData.get('newName') ?? '').trim()
+
+  let company: { id: string; name: string; description: string | null } | null = null
+  if (companyId) {
+    company = await prisma.company.findUnique({ where: { id: companyId } })
+  } else if (newName) {
+    company = await prisma.company.upsert({
+      where: { name: newName },
+      update: {},
+      create: { name: newName },
+    })
+  }
+  if (!company) return
+
+  // 같은 회차에 이미 편입된 기업이면 무시(유니크 제약)
+  const exists = await prisma.subject.findUnique({
+    where: { sessionId_companyId: { sessionId, companyId: company.id } },
+  })
+  if (exists) {
+    revalidatePath(`/admin/sessions/${sessionId}/subjects`)
+    return
+  }
+
   const count = await prisma.subject.count({ where: { sessionId } })
   await prisma.subject.create({
     data: {
       sessionId,
-      name: String(formData.get('name') ?? '').trim(),
-      description: String(formData.get('description') ?? '') || null,
+      companyId: company.id,
+      name: company.name,
+      description: company.description,
       order: count,
     },
   })
@@ -108,44 +130,6 @@ export async function assignEvaluator(sessionId: string, userId: string) {
   revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
 }
 
-// ---- 평가 대상 서류 ----
-
-export async function uploadDocument(sessionId: string, subjectId: string, formData: FormData) {
-  const files = formData.getAll('file').filter((f): f is File => f instanceof File && f.size > 0)
-  if (files.length === 0) return
-
-  await mkdir(UPLOAD_DIR, { recursive: true })
-  for (const file of files) {
-    const ext = path.extname(file.name)
-    const storedName = randomUUID() + ext
-    const bytes = Buffer.from(await file.arrayBuffer())
-    await writeFile(path.join(UPLOAD_DIR, storedName), bytes)
-
-    await prisma.document.create({
-      data: {
-        subjectId,
-        originalName: file.name,
-        storedName,
-        mimeType: file.type || 'application/octet-stream',
-        size: file.size,
-      },
-    })
-  }
-  revalidatePath(`/admin/sessions/${sessionId}/subjects`)
-}
-
-export async function deleteDocument(sessionId: string, documentId: string) {
-  const doc = await prisma.document.findUnique({ where: { id: documentId } })
-  if (!doc) return
-  await prisma.document.delete({ where: { id: documentId } })
-  try {
-    await unlink(path.join(UPLOAD_DIR, doc.storedName))
-  } catch {
-    // 파일이 이미 없으면 무시
-  }
-  revalidatePath(`/admin/sessions/${sessionId}/subjects`)
-}
-
 // ---- 회차 복사 ----
 
 export async function duplicateSession(sessionId: string) {
@@ -174,6 +158,7 @@ export async function duplicateSession(sessionId: string) {
       },
       subjects: {
         create: src.subjects.map((s) => ({
+          companyId: s.companyId,
           name: s.name,
           description: s.description,
           order: s.order,

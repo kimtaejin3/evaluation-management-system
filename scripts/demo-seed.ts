@@ -1,12 +1,16 @@
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import { mkdir, writeFile } from 'fs/promises'
+import path from 'path'
 import { gradeToValue } from '../lib/scoring'
+import { UPLOAD_DIR } from '../lib/storage'
 
 const prisma = new PrismaClient()
 
 async function main() {
   await prisma.evaluationSession.deleteMany({ where: { name: { in: ['2026 상반기 사업 평가', '2026 신규 과제 심사'] } } })
   await prisma.user.deleteMany({ where: { username: { in: ['kim', 'lee', 'park'] } } })
+  await prisma.company.deleteMany({ where: { name: { endsWith: '기업' } } })
 
   const pw = await bcrypt.hash('eval1234', 10)
   const kim = await prisma.user.create({ data: { username: 'kim', name: '김평가', role: 'EVALUATOR', passwordHash: pw } })
@@ -24,7 +28,27 @@ async function main() {
   const c2 = await prisma.criterion.create({ data: { sessionId: s1.id, name: '추진 역량', description: '조직·인력 역량', type: 'QUANTITATIVE', maxScore: 30, weight: 1, order: 1 } })
   const c3 = await prisma.criterion.create({ data: { sessionId: s1.id, name: '발표 평가', description: '전달력·이해도', type: 'QUALITATIVE', maxScore: 30, weight: 1, order: 2 } })
   const names = ['A기업', 'B기업', 'C기업', 'D기업', 'E기업', 'F기업', 'G기업', 'H기업']
-  const subs = await Promise.all(names.map((n, i) => prisma.subject.create({ data: { sessionId: s1.id, name: n, order: i } })))
+  // 전역 기업 등록(회차에 묶이지 않음)
+  const companies: Record<string, { id: string }> = {}
+  for (const n of names) {
+    companies[n] = await prisma.company.create({ data: { name: n, description: `${n} 사업 지원 신청` } })
+  }
+  // 기업 자료(회차 간 공유) — A기업에 샘플 문서
+  await mkdir(UPLOAD_DIR, { recursive: true })
+  const docBody = 'A기업 사업계획서 (데모 파일)\n시장성·실현 가능성 등 검토 자료\n'
+  await writeFile(path.join(UPLOAD_DIR, 'demo-a-plan.txt'), docBody)
+  await prisma.document.create({
+    data: {
+      companyId: companies['A기업'].id,
+      originalName: 'A기업_사업계획서.txt',
+      storedName: 'demo-a-plan.txt',
+      mimeType: 'text/plain',
+      size: Buffer.byteLength(docBody),
+    },
+  })
+
+  // 회차에 기업 편입(평가 대상)
+  const subs = await Promise.all(names.map((n, i) => prisma.subject.create({ data: { sessionId: s1.id, companyId: companies[n].id, name: n, order: i } })))
   await prisma.assignment.createMany({ data: [{ sessionId: s1.id, userId: kim.id }, { sessionId: s1.id, userId: lee.id }] })
 
   // 모니터링이 완료/입력중/미평가를 두루 보여주도록 위원별 진행 상태를 섞음

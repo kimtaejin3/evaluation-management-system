@@ -12,7 +12,7 @@ export default async function ScoreSheet({ params }: { params: Promise<{ session
 
   const subject = await prisma.subject.findUnique({
     where: { id: subjectId },
-    include: { documents: { orderBy: { createdAt: 'asc' } } },
+    include: { company: { include: { documents: { orderBy: { createdAt: 'asc' } } } } },
   })
   const session = await prisma.evaluationSession.findUnique({ where: { id: sessionId } })
   const criteria = await prisma.criterion.findMany({ where: { sessionId }, orderBy: { order: 'asc' } })
@@ -42,11 +42,11 @@ export default async function ScoreSheet({ params }: { params: Promise<{ session
         <h1 className="mt-1 text-2xl font-bold">{subject.name}</h1>
         {session && <p className="text-sm text-slate-500">{session.name}</p>}
       </div>
-      {subject.documents.length > 0 && (
+      {subject.company.documents.length > 0 && (
         <div className="rounded-xl border border-slate-200 bg-white p-5">
           <div className="mb-2 text-sm font-semibold text-slate-700">심사 서류</div>
           <ul className="space-y-1">
-            {subject.documents.map((d) => (
+            {subject.company.documents.map((d) => (
               <li key={d.id}>
                 <a href={`/api/documents/${d.id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm text-indigo-600 hover:underline">
                   <span>📄</span>{d.originalName}

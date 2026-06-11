@@ -53,3 +53,15 @@ export function UsersIcon(p: IconProps) {
     </Svg>
   )
 }
+
+// 기업 관리 — 건물
+export function CompanyIcon(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M4 21V5a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v16" />
+      <path d="M13 9h6a1 1 0 0 1 1 1v11" />
+      <path d="M3 21h18" />
+      <path d="M7 8h2M7 12h2M7 16h2M16 13h1M16 17h1" />
+    </Svg>
+  )
+}

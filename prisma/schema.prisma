@@ -61,21 +61,35 @@ model Criterion {
   scores      Score[]
 }
 
+// 전역 기업(평가 대상 원본) — 회차에 묶이지 않으며 자료를 회차 간 공유
+model Company {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  description String?
+  documents   Document[]
+  subjects    Subject[]
+  createdAt   DateTime   @default(now())
+}
+
+// 회차에 편입된 평가 대상 (기업 ↔ 회차 연결)
 model Subject {
   id          String            @id @default(cuid())
   sessionId   String
   session     EvaluationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  companyId   String
+  company     Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name        String
   description String?
   order       Int               @default(0)
   scores      Score[]
-  documents   Document[]
+
+  @@unique([sessionId, companyId])
 }
 
 model Document {
   id           String   @id @default(cuid())
-  subjectId    String
-  subject      Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   originalName String
   storedName   String
   mimeType     String

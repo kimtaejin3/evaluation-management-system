@@ -20,7 +20,6 @@ export default async function AdminDashboard({
   if (sessions.length === 0) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold">대시보드</h1>
         <div className="rounded-xl border border-dashed border-slate-300 bg-white p-12 text-center text-slate-400">
           아직 회차가 없습니다.{" "}
           <Link
