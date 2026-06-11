@@ -79,10 +79,7 @@ export default function LoginPage() {
 
           {/* 데모 계정 빠른 선택 */}
           <div className="mt-6 rounded-lg border border-slate-200 bg-white p-3">
-            <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-slate-500">
-              <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-semibold text-amber-700">DEMO</span>
-              데모 계정으로 채우기
-            </div>
+            <div className="mb-2 text-xs font-medium text-slate-500">데모 계정</div>
             <div className="flex flex-wrap gap-2">
               {DEMO_ACCOUNTS.map((a) => {
                 const active = username === a.username
