@@ -128,9 +128,7 @@ export default async function EvaluateHome({ searchParams }: { searchParams: Pro
                         {docs.map((d) => (
                           <a
                             key={d.id}
-                            href={`/api/documents/${d.id}`}
-                            target="_blank"
-                            rel="noreferrer"
+                            href={`/viewer/${d.id}`}
                             className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-indigo-600 transition hover:bg-slate-100"
                           >
                             📄 {d.originalName}

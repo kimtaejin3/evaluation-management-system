@@ -115,7 +115,7 @@ export default async function SubjectsPage({ params }: { params: Promise<{ id: s
               <ul className="space-y-1">
                 {s.company.documents.map((d) => (
                   <li key={d.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">
-                    <a href={`/api/documents/${d.id}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-indigo-600 hover:underline">
+                    <a href={`/viewer/${d.id}`} className="flex items-center gap-2 text-indigo-600 hover:underline">
                       <span>📄</span>
                       <span>{d.originalName}</span>
                       <span className="text-xs text-slate-400">{formatSize(d.size)}</span>

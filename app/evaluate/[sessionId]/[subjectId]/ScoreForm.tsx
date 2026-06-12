@@ -109,7 +109,7 @@ export default function ScoreForm({
             <div className="mb-2 text-sm font-semibold text-slate-700">심사 서류</div>
             <div className="flex flex-wrap gap-2">
               {documents.map((d) => (
-                <a key={d.id} href={`/api/documents/${d.id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-indigo-600 transition hover:bg-slate-100">
+                <a key={d.id} href={`/viewer/${d.id}`} className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-indigo-600 transition hover:bg-slate-100">
                   📄 {d.name}
                 </a>
               ))}

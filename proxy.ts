@@ -14,9 +14,12 @@ export async function proxy(req: NextRequest) {
     if (!payload) return NextResponse.redirect(new URL('/login', req.url))
     if (payload.role !== 'EVALUATOR') return NextResponse.redirect(new URL('/admin', req.url))
   }
+  if (pathname.startsWith('/viewer')) {
+    if (!payload) return NextResponse.redirect(new URL('/login', req.url))
+  }
   return NextResponse.next()
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/evaluate/:path*'],
+  matcher: ['/admin/:path*', '/evaluate/:path*', '/viewer/:path*'],
 }
