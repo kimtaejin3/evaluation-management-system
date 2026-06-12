@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 
 const EXACT: Record<string, string> = {
   "/admin": "홈",
-  "/admin/sessions": "회차 관리",
+  "/admin/sessions": "심사 관리",
   "/admin/sessions/new": "새 회차 등록",
   "/admin/evaluators": "평가위원 관리",
   "/admin/companies": "기업 관리",

@@ -14,7 +14,21 @@ export default async function EvaluateHome({ searchParams }: { searchParams: Pro
   const assignments = await prisma.assignment.findMany({
     where: { userId: user.id, session: { status: 'IN_PROGRESS' } },
     include: {
-      session: { include: { subjects: { orderBy: { order: 'asc' } }, criteria: true } },
+      session: {
+        include: {
+          subjects: {
+            orderBy: { order: 'asc' },
+            include: {
+              company: {
+                include: {
+                  documents: { orderBy: { createdAt: 'asc' }, select: { id: true, originalName: true, sessionId: true } },
+                },
+              },
+            },
+          },
+          criteria: true,
+        },
+      },
     },
   })
 
@@ -79,35 +93,52 @@ export default async function EvaluateHome({ searchParams }: { searchParams: Pro
                 const complete = total > 0 && done >= total
                 const inProgress = done > 0 && !complete
                 const score = complete ? computeWeightedScore(rows, weights) : null
+                // 이 회차 전용 + 공통 자료
+                const docs = sub.company.documents.filter((d) => d.sessionId === a.session.id || d.sessionId === null)
                 return (
-                  <Link
-                    key={sub.id}
-                    href={`/evaluate/${a.session.id}/${sub.id}`}
-                    className="flex items-center gap-4 border-b border-slate-100 px-5 py-4 transition last:border-0 hover:bg-slate-50"
-                  >
-                    <span className="w-6 shrink-0 text-sm font-semibold text-slate-400 tabular-nums">{String(i + 1).padStart(2, '0')}</span>
-                    <CompanyLogo name={sub.name} className="h-9 w-9" />
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate font-semibold text-slate-800">{sub.name}</div>
-                      {sub.description && <div className="truncate text-xs text-slate-400">{sub.description}</div>}
+                  <div key={sub.id} className="border-b border-slate-100 px-5 py-4 transition last:border-0 hover:bg-slate-50">
+                    <div className="flex items-center gap-4">
+                      <span className="w-6 shrink-0 text-sm font-semibold text-slate-400 tabular-nums">{String(i + 1).padStart(2, '0')}</span>
+                      <CompanyLogo name={sub.name} className="h-9 w-9" />
+                      <Link href={`/evaluate/${a.session.id}/${sub.id}`} className="min-w-0 flex-1">
+                        <div className="truncate font-semibold text-slate-800">{sub.name}</div>
+                        {sub.description && <div className="truncate text-xs text-slate-400">{sub.description}</div>}
+                      </Link>
+                      {complete && (
+                        <div className="text-right">
+                          <div className="text-xs text-slate-400">점수</div>
+                          <div className="text-lg font-bold text-slate-800 tabular-nums">{fmt(score!)}</div>
+                        </div>
+                      )}
+                      <div className="flex w-36 shrink-0 items-center justify-end gap-2.5">
+                        {complete ? (
+                          <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">✓ 완료</span>
+                        ) : inProgress ? (
+                          <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">평가 중</span>
+                        ) : (
+                          <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">미평가</span>
+                        )}
+                        <Link href={`/evaluate/${a.session.id}/${sub.id}`} className="shrink-0 whitespace-nowrap text-sm text-indigo-600">{complete ? '수정' : inProgress ? '이어하기 →' : '평가 시작 →'}</Link>
+                      </div>
                     </div>
-                    {complete && (
-                      <div className="text-right">
-                        <div className="text-xs text-slate-400">점수</div>
-                        <div className="text-lg font-bold text-slate-800 tabular-nums">{fmt(score!)}</div>
+                    {/* 심사 자료 */}
+                    {docs.length > 0 && (
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-[3.5rem]">
+                        <span className="text-xs text-slate-400">심사 서류</span>
+                        {docs.map((d) => (
+                          <a
+                            key={d.id}
+                            href={`/api/documents/${d.id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-indigo-600 transition hover:bg-slate-100"
+                          >
+                            📄 {d.originalName}
+                          </a>
+                        ))}
                       </div>
                     )}
-                    <div className="flex w-36 shrink-0 items-center justify-end gap-2.5">
-                      {complete ? (
-                        <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">✓ 완료</span>
-                      ) : inProgress ? (
-                        <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">평가 중</span>
-                      ) : (
-                        <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">미평가</span>
-                      )}
-                      <span className="shrink-0 whitespace-nowrap text-sm text-indigo-600">{complete ? '수정' : inProgress ? '이어하기 →' : '평가 시작 →'}</span>
-                    </div>
-                  </Link>
+                  </div>
                 )
               })}
               {a.session.subjects.length === 0 && (

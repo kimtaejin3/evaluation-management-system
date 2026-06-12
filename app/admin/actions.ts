@@ -1,12 +1,10 @@
 'use server'
 
-import { mkdir, writeFile, unlink } from 'fs/promises'
-import path from 'path'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
 import { hashPassword } from '@/lib/auth'
-import { UPLOAD_DIR } from '@/lib/storage'
+import { saveUpload, deleteUpload } from '@/lib/storage'
 
 // ---- 평가위원 관리(전역) ----
 
@@ -57,19 +55,21 @@ export async function deleteCompany(companyId: string) {
   revalidatePath('/admin/companies')
 }
 
+// sessionId: 특정 회차용 자료면 회차 id, 비우면(공통) null
 export async function uploadCompanyDocument(companyId: string, formData: FormData) {
   const files = formData.getAll('file').filter((f): f is File => f instanceof File && f.size > 0)
   if (files.length === 0) return
+  const sessionId = String(formData.get('sessionId') ?? '').trim() || null
 
-  await mkdir(UPLOAD_DIR, { recursive: true })
   for (const file of files) {
-    const storedName = randomUUID() + path.extname(file.name)
-    await writeFile(path.join(UPLOAD_DIR, storedName), Buffer.from(await file.arrayBuffer()))
+    const { storedName, url } = await saveUpload(file)
     await prisma.document.create({
       data: {
         companyId,
+        sessionId,
         originalName: file.name,
         storedName,
+        url,
         mimeType: file.type || 'application/octet-stream',
         size: file.size,
       },
@@ -82,10 +82,6 @@ export async function deleteCompanyDocument(documentId: string) {
   const doc = await prisma.document.findUnique({ where: { id: documentId } })
   if (!doc) return
   await prisma.document.delete({ where: { id: documentId } })
-  try {
-    await unlink(path.join(UPLOAD_DIR, doc.storedName))
-  } catch {
-    // 파일이 이미 없으면 무시
-  }
+  await deleteUpload(doc.storedName, doc.url)
   revalidatePath('/admin/companies')
 }

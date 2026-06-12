@@ -48,6 +48,7 @@ model EvaluationSession {
   subjects    Subject[]
   assignments Assignment[]
   scores      Score[]
+  documents   Document[]
   createdAt   DateTime          @default(now())
 }
 
@@ -92,14 +93,18 @@ model Subject {
 }
 
 model Document {
-  id           String   @id @default(cuid())
+  id           String             @id @default(cuid())
   companyId    String
-  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company      Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // 자료가 특정 심사 회차용이면 sessionId 지정, null이면 공통(전 회차)
+  sessionId    String?
+  session      EvaluationSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
   originalName String
   storedName   String
+  url          String? // Vercel Blob URL(있으면 Blob, 없으면 로컬 디스크)
   mimeType     String
   size         Int
-  createdAt    DateTime @default(now())
+  createdAt    DateTime           @default(now())
 }
 
 model CriterionTemplate {

@@ -17,7 +17,14 @@ export default async function SubjectsPage({ params }: { params: Promise<{ id: s
   const subjects = await prisma.subject.findMany({
     where: { sessionId: id },
     orderBy: { order: 'asc' },
-    include: { company: { include: { documents: { orderBy: { createdAt: 'asc' } } } } },
+    // 이 회차 전용 자료 + 공통(sessionId=null) 자료만
+    include: {
+      company: {
+        include: {
+          documents: { where: { OR: [{ sessionId: id }, { sessionId: null }] }, orderBy: { createdAt: 'asc' } },
+        },
+      },
+    },
   })
   const usedCompanyIds = subjects.map((s) => s.companyId)
   const available = await prisma.company.findMany({

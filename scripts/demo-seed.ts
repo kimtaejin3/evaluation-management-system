@@ -52,17 +52,30 @@ async function main() {
   for (const n of names) {
     companies[n] = await prisma.company.create({ data: { name: n, description: `${n} 사업 지원 신청` } })
   }
-  // 기업 자료(회차 간 공유) — 첫 기업에 샘플 문서
+  // 기업 자료 — 첫 기업에 이 회차(s1) 전용 + 공통 샘플 문서
   await mkdir(UPLOAD_DIR, { recursive: true })
   const docBody = `${names[0]} 사업계획서 (데모 파일)\n시장성·실현 가능성 등 검토 자료\n`
   await writeFile(path.join(UPLOAD_DIR, 'demo-a-plan.txt'), docBody)
+  const commonBody = `${names[0]} 회사소개서 (공통 데모 파일)\n`
+  await writeFile(path.join(UPLOAD_DIR, 'demo-a-intro.txt'), commonBody)
   await prisma.document.create({
     data: {
       companyId: companies[names[0]].id,
-      originalName: `${names[0]}_사업계획서.txt`,
+      sessionId: s1.id,
+      originalName: `${names[0]}_사업계획서_2026상반기.txt`,
       storedName: 'demo-a-plan.txt',
       mimeType: 'text/plain',
       size: Buffer.byteLength(docBody),
+    },
+  })
+  await prisma.document.create({
+    data: {
+      companyId: companies[names[0]].id,
+      sessionId: null,
+      originalName: `${names[0]}_회사소개서_공통.txt`,
+      storedName: 'demo-a-intro.txt',
+      mimeType: 'text/plain',
+      size: Buffer.byteLength(commonBody),
     },
   })
 

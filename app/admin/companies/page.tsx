@@ -17,21 +17,26 @@ function formatSize(bytes: number) {
 }
 
 export default async function CompaniesPage() {
-  const companies = await prisma.company.findMany({
-    orderBy: { name: "asc" },
-    include: {
-      documents: { orderBy: { createdAt: "asc" } },
-      _count: { select: { subjects: true } },
-    },
-  });
+  const [companies, sessions] = await Promise.all([
+    prisma.company.findMany({
+      orderBy: { name: "asc" },
+      include: {
+        documents: {
+          orderBy: { createdAt: "asc" },
+          include: { session: { select: { name: true } } },
+        },
+        _count: { select: { subjects: true } },
+      },
+    }),
+    prisma.evaluationSession.findMany({ orderBy: { createdAt: "desc" }, select: { id: true, name: true } }),
+  ]);
 
   return (
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold">기업 관리</h1>
         <p className="mt-1 text-sm text-slate-500">
-          평가 대상 기업과 자료를 전역으로 등록합니다. 자료는 여러 회차에서
-          공유됩니다.
+          평가 대상 기업과 자료를 등록합니다. 자료는 심사 회차별로 구분해 올릴 수 있습니다(공통=전 회차 공유).
         </p>
       </div>
 
@@ -40,115 +45,73 @@ export default async function CompaniesPage() {
         action={createCompany}
         className="grid grid-cols-3 gap-3 rounded-lg border border-slate-200 bg-white p-4"
       >
-        <div className="col-span-3 text-sm font-semibold text-slate-700">
-          기업 등록
-        </div>
+        <div className="col-span-3 text-sm font-semibold text-slate-700">기업 등록</div>
         <input name="name" placeholder="기업명" required className={inputCls} />
-        <input
-          name="description"
-          placeholder="설명(선택)"
-          className={`col-span-2 ${inputCls}`}
-        />
+        <input name="description" placeholder="설명(선택)" className={`col-span-2 ${inputCls}`} />
         <button className="col-span-3 rounded-md bg-indigo-600 py-2 text-sm font-medium text-white transition hover:bg-indigo-700">
           + 기업 등록
         </button>
-        <p className="col-span-3 text-xs text-slate-400">
-          같은 기업명이면 기존 기업을 갱신합니다.
-        </p>
+        <p className="col-span-3 text-xs text-slate-400">같은 기업명이면 기존 기업을 갱신합니다.</p>
       </form>
 
       <div className="space-y-3">
         {companies.map((c) => (
-          <div
-            key={c.id}
-            className="rounded-lg border border-slate-200 bg-white p-5"
-          >
+          <div key={c.id} className="rounded-lg border border-slate-200 bg-white p-5">
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-3">
                 <CompanyLogo name={c.name} className="h-6 w-6" />
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-slate-800">
-                      {c.name}
-                    </span>
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
-                      회차 {c._count.subjects}곳 사용
-                    </span>
+                    <span className="font-semibold text-slate-800">{c.name}</span>
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">회차 {c._count.subjects}곳 사용</span>
                   </div>
-                  {c.description && (
-                    <p className="mt-1 text-sm text-slate-500">
-                      {c.description}
-                    </p>
-                  )}
+                  {c.description && <p className="mt-1 text-sm text-slate-500">{c.description}</p>}
                 </div>
               </div>
-              <form
-                action={async () => {
-                  "use server";
-                  await deleteCompany(c.id);
-                }}
-              >
-                <button className="text-sm text-rose-600 hover:underline">
-                  삭제
-                </button>
+              <form action={async () => { "use server"; await deleteCompany(c.id); }}>
+                <button className="text-sm text-rose-600 hover:underline">삭제</button>
               </form>
             </div>
 
             <div className="mt-4 border-t border-slate-100 pt-4">
-              <div className="mb-2 text-xs font-medium text-slate-500">
-                자료 ({c.documents.length})
-              </div>
+              <div className="mb-2 text-xs font-medium text-slate-500">자료 ({c.documents.length})</div>
               <ul className="space-y-1">
                 {c.documents.map((d) => (
-                  <li
-                    key={d.id}
-                    className="flex items-center justify-between rounded-md bg-slate-50 px-3 py-2 text-sm"
-                  >
-                    <a
-                      href={`/api/documents/${d.id}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center gap-2 text-indigo-600 hover:underline"
-                    >
+                  <li key={d.id} className="flex items-center justify-between rounded-md bg-slate-50 px-3 py-2 text-sm">
+                    <a href={`/api/documents/${d.id}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-indigo-600 hover:underline">
                       <span>📄</span>
                       <span>{d.originalName}</span>
-                      <span className="text-xs text-slate-400">
-                        {formatSize(d.size)}
-                      </span>
+                      <span className="text-xs text-slate-400">{formatSize(d.size)}</span>
                     </a>
-                    <form
-                      action={async () => {
-                        "use server";
-                        await deleteCompanyDocument(d.id);
-                      }}
-                    >
-                      <button className="text-xs text-rose-500 hover:underline">
-                        삭제
-                      </button>
-                    </form>
+                    <div className="flex items-center gap-3">
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${d.session ? "bg-indigo-50 text-indigo-700" : "bg-slate-100 text-slate-500"}`}>
+                        {d.session ? d.session.name : "공통"}
+                      </span>
+                      <form action={async () => { "use server"; await deleteCompanyDocument(d.id); }}>
+                        <button className="text-xs text-rose-500 hover:underline">삭제</button>
+                      </form>
+                    </div>
                   </li>
                 ))}
-                {c.documents.length === 0 && (
-                  <li className="text-sm text-slate-400">
-                    등록된 자료가 없습니다.
-                  </li>
-                )}
+                {c.documents.length === 0 && <li className="text-sm text-slate-400">등록된 자료가 없습니다.</li>}
               </ul>
-              <form
-                action={uploadCompanyDocument.bind(null, c.id)}
-                className="mt-3 flex items-center gap-2"
-              >
+              <form action={uploadCompanyDocument.bind(null, c.id)} className="mt-3 flex flex-wrap items-center gap-2">
+                <select name="sessionId" defaultValue="" className={inputCls}>
+                  <option value="">공통 (전 회차)</option>
+                  {sessions.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
                 <input
                   type="file"
                   name="file"
                   multiple
                   required
-                  className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:text-slate-700 hover:file:bg-slate-200"
+                  className="block flex-1 text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:text-slate-700 hover:file:bg-slate-200"
                 />
-                <button className="shrink-0 rounded-md bg-slate-800 px-3 py-1.5 text-sm text-white transition hover:bg-slate-900">
-                  일괄 업로드
-                </button>
+                <button className="shrink-0 rounded-md bg-slate-800 px-3 py-1.5 text-sm text-white transition hover:bg-slate-900">일괄 업로드</button>
               </form>
+              <p className="mt-1 text-xs text-slate-400">회차를 선택해 해당 심사 회차 전용 자료로 올릴 수 있습니다.</p>
             </div>
           </div>
         ))}

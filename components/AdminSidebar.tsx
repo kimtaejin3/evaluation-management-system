@@ -63,7 +63,7 @@ export default function AdminSidebar({ sessions }: { sessions: { id: string; nam
         <div>
           <Link href="/admin/sessions" className={topCls(sessionsActive)}>
             <SessionsIcon />
-            회차 관리
+            심사 관리
           </Link>
           {/* 회차 리스트 */}
           <div className="mt-1 ml-3 space-y-0.5 border-l border-white/15 pl-2">

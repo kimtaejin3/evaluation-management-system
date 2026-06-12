@@ -11,7 +11,13 @@ export default async function ScoreSheet({ params }: { params: Promise<{ session
 
   const subject = await prisma.subject.findUnique({
     where: { id: subjectId },
-    include: { company: { include: { documents: { orderBy: { createdAt: 'asc' } } } } },
+    include: {
+      company: {
+        include: {
+          documents: { where: { OR: [{ sessionId }, { sessionId: null }] }, orderBy: { createdAt: 'asc' } },
+        },
+      },
+    },
   })
   const session = await prisma.evaluationSession.findUnique({ where: { id: sessionId } })
   const criteria = await prisma.criterion.findMany({ where: { sessionId }, orderBy: { order: 'asc' } })

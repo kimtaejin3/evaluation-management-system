@@ -43,7 +43,7 @@ export default async function SessionListPage({
     <div className="space-y-5">
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-2xl font-bold">회차 관리</h1>
+          <h1 className="text-2xl font-bold">심사 관리</h1>
           <p className="mt-1 text-sm text-slate-500">
             심사 회차 생성 · 편집 · 마감
           </p>
