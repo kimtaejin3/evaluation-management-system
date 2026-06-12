@@ -1,8 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
-import { mkdir, writeFile } from 'fs/promises'
-import path from 'path'
-import { UPLOAD_DIR } from '../lib/storage'
+import { saveUpload } from '../lib/storage'
 
 const prisma = new PrismaClient()
 
@@ -52,18 +50,20 @@ async function main() {
   for (const n of names) {
     companies[n] = await prisma.company.create({ data: { name: n, description: `${n} 사업 지원 신청` } })
   }
-  // 기업 자료 — 첫 기업에 이 회차(s1) 전용 + 공통 샘플 문서
-  await mkdir(UPLOAD_DIR, { recursive: true })
+  // 기업 자료 — 첫 기업에 이 회차(s1) 전용 + 공통 샘플 문서 (storage 어댑터: Blob/로컬)
   const docBody = `${names[0]} 사업계획서 (데모 파일)\n시장성·실현 가능성 등 검토 자료\n`
-  await writeFile(path.join(UPLOAD_DIR, 'demo-a-plan.txt'), docBody)
   const commonBody = `${names[0]} 회사소개서 (공통 데모 파일)\n`
-  await writeFile(path.join(UPLOAD_DIR, 'demo-a-intro.txt'), commonBody)
+  const planName = `${names[0]}_사업계획서_2026상반기.txt`
+  const introName = `${names[0]}_회사소개서_공통.txt`
+  const planSaved = await saveUpload(new File([docBody], planName, { type: 'text/plain' }))
+  const introSaved = await saveUpload(new File([commonBody], introName, { type: 'text/plain' }))
   await prisma.document.create({
     data: {
       companyId: companies[names[0]].id,
       sessionId: s1.id,
-      originalName: `${names[0]}_사업계획서_2026상반기.txt`,
-      storedName: 'demo-a-plan.txt',
+      originalName: planName,
+      storedName: planSaved.storedName,
+      url: planSaved.url,
       mimeType: 'text/plain',
       size: Buffer.byteLength(docBody),
     },
@@ -72,8 +72,9 @@ async function main() {
     data: {
       companyId: companies[names[0]].id,
       sessionId: null,
-      originalName: `${names[0]}_회사소개서_공통.txt`,
-      storedName: 'demo-a-intro.txt',
+      originalName: introName,
+      storedName: introSaved.storedName,
+      url: introSaved.url,
       mimeType: 'text/plain',
       size: Buffer.byteLength(commonBody),
     },
