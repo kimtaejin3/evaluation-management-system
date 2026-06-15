@@ -6,6 +6,54 @@ import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/session'
 import { isValidScoreValue, parseGradeOptions, defaultGradeOptions } from '@/lib/scoring'
 
+// 단일 항목 자동 저장 — 입력/선택 즉시(디바운스) 저장하여 진행 상태가 실시간 반영되게 함.
+// 빈 값이면 해당 점수를 삭제(진행 상태 되돌림). evaluate 경로는 revalidate하지 않음(키 입력마다 리렌더 방지).
+export async function autoSaveScore(
+  sessionId: string,
+  subjectId: string,
+  criterionId: string,
+  raw: string,
+): Promise<{ ok: boolean; cleared?: boolean; error?: string }> {
+  const user = await getCurrentUser()
+  if (!user) return { ok: false, error: 'auth' }
+
+  const session = await prisma.evaluationSession.findUnique({ where: { id: sessionId } })
+  if (!session || session.status !== 'IN_PROGRESS') return { ok: false, error: 'not-active' }
+
+  const assigned = await prisma.assignment.findUnique({
+    where: { sessionId_userId: { sessionId, userId: user.id } },
+  })
+  if (!assigned) return { ok: false, error: 'not-assigned' }
+
+  const c = await prisma.criterion.findUnique({ where: { id: criterionId } })
+  if (!c || c.sessionId !== sessionId) return { ok: false, error: 'bad-criterion' }
+
+  if (raw === '' || raw == null) {
+    await prisma.score.deleteMany({ where: { evaluatorId: user.id, subjectId, criterionId } })
+    return { ok: true, cleared: true }
+  }
+
+  let value: number
+  let grade: string | null = null
+  if (c.type === 'QUALITATIVE') {
+    const options = parseGradeOptions(c.gradeOptions) ?? defaultGradeOptions(c.maxScore)
+    const opt = options[Number(raw)]
+    if (!opt) return { ok: false, error: 'bad-grade' }
+    grade = opt.label
+    value = opt.points
+  } else {
+    value = Number(raw)
+    if (!isValidScoreValue(value, c.maxScore)) return { ok: false, error: 'range' }
+  }
+
+  await prisma.score.upsert({
+    where: { evaluatorId_subjectId_criterionId: { evaluatorId: user.id, subjectId, criterionId } },
+    update: { value, grade, sessionId },
+    create: { evaluatorId: user.id, subjectId, criterionId, sessionId, value, grade },
+  })
+  return { ok: true }
+}
+
 // intent: 'save'(임시저장, 부분 허용) | 'submit'(제출, 전체 필수)
 export async function saveScores(
   sessionId: string,

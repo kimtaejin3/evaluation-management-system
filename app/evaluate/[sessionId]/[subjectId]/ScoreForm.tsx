@@ -1,8 +1,8 @@
 'use client'
 
-import { Fragment, useActionState, useState } from 'react'
+import { Fragment, useActionState, useRef, useState } from 'react'
 import Link from 'next/link'
-import { saveScores } from '@/app/evaluate/actions'
+import { saveScores, autoSaveScore } from '@/app/evaluate/actions'
 import type { GradeOption } from '@/lib/scoring'
 import DocPreviewBoard from '@/components/DocPreviewBoard'
 
@@ -53,7 +53,34 @@ export default function ScoreForm({
     for (const c of criteria) o[c.id] = c.type === 'QUALITATIVE' ? (c.selectedIndex != null ? String(c.selectedIndex) : '') : c.value != null ? String(c.value) : ''
     return o
   })
-  const setVal = (id: string, v: string) => setVals((p) => ({ ...p, [id]: v }))
+
+  // 자동 저장(디바운스) — 입력/선택 즉시 저장되어 진행 상태가 실시간 반영됨
+  const [autoState, setAutoState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+  const pending = useRef(0)
+
+  const runSave = async (criterionId: string, raw: string) => {
+    pending.current += 1
+    setAutoState('saving')
+    try {
+      const res = await autoSaveScore(sessionId, subjectId, criterionId, raw)
+      setAutoState(res?.ok ? 'saved' : 'error')
+    } catch {
+      setAutoState('error')
+    } finally {
+      pending.current -= 1
+    }
+  }
+
+  const setVal = (id: string, v: string, immediate = false) => {
+    setVals((p) => ({ ...p, [id]: v }))
+    if (timers.current[id]) clearTimeout(timers.current[id])
+    if (immediate) {
+      runSave(id, v)
+    } else {
+      timers.current[id] = setTimeout(() => runSave(id, v), 700)
+    }
+  }
 
   const contrib = (c: CriterionView): number | null => {
     const raw = vals[c.id]
@@ -109,7 +136,12 @@ export default function ScoreForm({
             <p className="mt-0.5 text-sm text-slate-500">{sessionName} · 평가 입력</p>
           </div>
           <div className="text-right">
-            <div className="text-xs text-slate-400">현재 점수</div>
+            <div className="flex items-center justify-end gap-1.5 text-xs">
+              <span className={`h-1.5 w-1.5 rounded-full ${autoState === 'saving' ? 'bg-amber-500 animate-pulse' : autoState === 'error' ? 'bg-rose-500' : autoState === 'saved' ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+              <span className="text-slate-400">
+                {autoState === 'saving' ? '저장 중…' : autoState === 'error' ? '저장 실패' : autoState === 'saved' ? '자동 저장됨' : '현재 점수'}
+              </span>
+            </div>
             <div className="text-2xl font-bold text-indigo-700 tabular-nums">{fmt(total)}<span className="text-base font-normal text-slate-400"> / {fmt(maxTotal)}</span></div>
           </div>
         </div>
@@ -155,7 +187,7 @@ export default function ScoreForm({
                         <button
                           key={idx}
                           type="button"
-                          onClick={() => setVal(c.id, String(idx))}
+                          onClick={() => setVal(c.id, String(idx), true)}
                           className={`flex flex-col items-center rounded-lg border px-2 py-3 text-sm transition ${
                             active
                               ? 'border-[var(--gov-navy)] bg-[var(--gov-navy)] text-white'
