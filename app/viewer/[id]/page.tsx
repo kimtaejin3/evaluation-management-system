@@ -49,8 +49,7 @@ export default async function ViewerPage({ params }: { params: Promise<{ id: str
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <a href={src} target="_blank" rel="noreferrer" className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50">새 탭</a>
-          <a href={`${src}?download=1`} className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700">다운로드</a>
+          <a href={src} target="_blank" rel="noreferrer" className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50">새 탭에서 보기</a>
         </div>
       </header>
 
@@ -75,7 +74,7 @@ export default async function ViewerPage({ params }: { params: Promise<{ id: str
         {!isImage && !isPdf && !isText && (
           <div className="rounded-lg border border-dashed border-slate-300 bg-white p-12 text-center">
             <p className="text-sm text-slate-500">이 형식({mime || '알 수 없음'})은 미리보기를 지원하지 않습니다.</p>
-            <a href={`${src}?download=1`} className="mt-3 inline-block rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700">다운로드</a>
+            <p className="mt-2 text-xs text-slate-400">PDF·이미지·텍스트 형식으로 등록하면 화면에서 바로 열람할 수 있습니다.</p>
           </div>
         )}
       </main>

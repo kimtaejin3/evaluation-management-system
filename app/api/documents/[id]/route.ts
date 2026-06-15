@@ -12,7 +12,7 @@ function contentType(mime: string): string {
   return mime
 }
 
-export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const token = await getCurrentToken()
   if (!token) return new Response('Unauthorized', { status: 401 })
 
@@ -20,11 +20,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const doc = await prisma.document.findUnique({ where: { id } })
   if (!doc) return new Response('Not found', { status: 404 })
 
-  const download = new URL(req.url).searchParams.get('download') === '1'
-  const dispType = download ? 'attachment' : 'inline'
+  // 다운로드 기능 없음 — 항상 브라우저 내 인라인 미리보기로만 제공
   const headers = {
     'Content-Type': contentType(doc.mimeType),
-    'Content-Disposition': `${dispType}; filename*=UTF-8''${encodeURIComponent(doc.originalName)}`,
+    'Content-Disposition': `inline; filename*=UTF-8''${encodeURIComponent(doc.originalName)}`,
   }
 
   // Vercel Blob: 인증 통과 후 서버가 받아 스트리밍(URL 노출 없이 권한 유지)

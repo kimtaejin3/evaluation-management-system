@@ -4,6 +4,40 @@ import { saveUpload } from '../lib/storage'
 
 const prisma = new PrismaClient()
 
+// 의존성 없이 멀티페이지 PDF를 생성 — 평가위원 화면에서 PDF·여러 페이지 열람 테스트용
+function buildPdf(pages: string[]): Buffer {
+  const objs: string[] = []
+  const kids: number[] = []
+  let n = 4 // 1=Catalog, 2=Pages, 3=Font
+  const pageObjs: { contentNo: number; pageNo: number; text: string }[] = []
+  for (const text of pages) {
+    const contentNo = n++
+    const pageNo = n++
+    pageObjs.push({ contentNo, pageNo, text })
+    kids.push(pageNo)
+  }
+  objs[1] = `<< /Type /Catalog /Pages 2 0 R >>`
+  objs[2] = `<< /Type /Pages /Kids [${kids.map((k) => `${k} 0 R`).join(' ')}] /Count ${kids.length} >>`
+  objs[3] = `<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>`
+  for (const p of pageObjs) {
+    const stream = `BT /F1 28 Tf 60 740 Td (${p.text}) Tj ET`
+    objs[p.contentNo] = `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`
+    objs[p.pageNo] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents ${p.contentNo} 0 R /Resources << /Font << /F1 3 0 R >> >> >>`
+  }
+  const total = n - 1
+  let body = `%PDF-1.4\n`
+  const offsets: number[] = []
+  for (let i = 1; i <= total; i++) {
+    offsets[i] = Buffer.byteLength(body)
+    body += `${i} 0 obj\n${objs[i]}\nendobj\n`
+  }
+  const xrefStart = Buffer.byteLength(body)
+  body += `xref\n0 ${total + 1}\n0000000000 65535 f \n`
+  for (let i = 1; i <= total; i++) body += `${String(offsets[i]).padStart(10, '0')} 00000 n \n`
+  body += `trailer\n<< /Size ${total + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`
+  return Buffer.from(body, 'latin1')
+}
+
 const COMPANY_NAMES = [
   '삼성전자',
   '네이버',
@@ -79,6 +113,14 @@ async function main() {
   // 공통(전 회차) 서류 — 첫 기업 회사소개서
   await makeDoc(names[0], `${names[0]}_회사소개서_공통.txt`,
     `${names[0]} 회사소개서 (공통 데모 파일)\n\n- 설립연도 및 연혁\n- 주요 사업 분야\n- 조직 및 주요 실적\n`, null)
+
+  // 멀티페이지 PDF 샘플 — PDF·여러 페이지 열람 테스트용 (첫 기업, 이 회차)
+  const pdf = buildPdf(['Page 1 - Business Plan', 'Page 2 - Field Survey', 'Page 3 - Review Sheet'])
+  const pdfName = `${names[0]}_종합심사자료_3페이지.pdf`
+  const pdfSaved = await saveUpload(new File([new Uint8Array(pdf)], pdfName, { type: 'application/pdf' }))
+  await prisma.document.create({
+    data: { companyId: companies[names[0]].id, sessionId: s1.id, originalName: pdfName, storedName: pdfSaved.storedName, url: pdfSaved.url, mimeType: 'application/pdf', size: pdf.length },
+  })
 
   // 회차에 기업 편입(평가 대상)
   const subs = await Promise.all(names.map((n, i) => prisma.subject.create({ data: { sessionId: s1.id, companyId: companies[n].id, name: n, order: i } })))
