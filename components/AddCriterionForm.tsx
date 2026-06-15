@@ -27,17 +27,17 @@ export default function AddCriterionForm({ sessionId, sections = [] }: { session
 
   return (
     <form action={addCriterion.bind(null, sessionId)} className="space-y-3 rounded-xl border border-slate-200 bg-white p-5">
-      <div className="text-sm font-semibold text-slate-700">새 평가 항목</div>
+      <div className="text-sm font-semibold text-slate-700">새 세부항목</div>
 
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2 flex flex-col gap-1 text-xs text-slate-500">
-          대제목(섹션)
+          항목 (예: 사업계획 / 추진역량 / 기대효과)
           <input name="section" list="section-options" placeholder="예: 사업계획 / 추진역량 / 기대효과" className={inputCls} />
           <datalist id="section-options">
             {sectionOptions.map((s) => <option key={s} value={s} />)}
           </datalist>
         </div>
-        <input name="name" placeholder="세부 항목명 (예: 사업 타당성)" required className={`col-span-2 ${inputCls}`} />
+        <input name="name" placeholder="세부항목명 (예: 사업 타당성)" required className={`col-span-2 ${inputCls}`} />
         <input name="description" placeholder="평가 관점 설명 (예: 시장성·수익모델·실현 가능성)" className={`col-span-2 ${inputCls}`} />
         <label className="flex flex-col gap-1 text-xs text-slate-500">
           평가 방식
@@ -94,7 +94,7 @@ export default function AddCriterionForm({ sessionId, sections = [] }: { session
       )}
 
       <button className="w-full rounded-md bg-indigo-600 py-2 text-sm font-medium text-white transition hover:bg-indigo-700">
-        + 항목 추가
+        + 세부항목 추가
       </button>
     </form>
   )

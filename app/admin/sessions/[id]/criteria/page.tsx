@@ -25,7 +25,7 @@ export default async function CriteriaPage({
   const subtotal = rows.reduce((s, c) => s + c.maxScore, 0)
   const totalAll = criteria.reduce((s, c) => s + c.maxScore, 0)
 
-  // 대제목(섹션) 목록 + 현재 탭 행을 섹션별로 묶기
+  // 항목(섹션) 목록 + 현재 탭 행을 항목별로 묶기
   const sectionNames = Array.from(new Set(criteria.map((c) => c.section).filter((s): s is string => !!s)))
   const NO_SECTION = '미분류'
   const grouped = rows.reduce<Record<string, typeof rows>>((acc, c) => {
@@ -61,7 +61,7 @@ export default async function CriteriaPage({
           <thead className="bg-slate-50 text-left text-slate-500">
             <tr className="border-b border-slate-200">
               <th className="w-px whitespace-nowrap px-4 py-2.5 font-medium">#</th>
-              <th className="px-4 py-2.5 font-medium">항목명 · 평가기준</th>
+              <th className="px-4 py-2.5 font-medium">세부항목 · 평가기준</th>
               <th className="w-px whitespace-nowrap px-4 py-2.5 text-right font-medium">배점</th>
               <th className="w-px whitespace-nowrap px-4 py-2.5 text-right font-medium">가중치</th>
               {activeTab === 'qual' && <th className="px-4 py-2.5 font-medium">등급별 환산점수 (답)</th>}
@@ -77,7 +77,7 @@ export default async function CriteriaPage({
                   <tr className="bg-slate-50/70">
                     <td colSpan={colCount} className="px-4 py-2">
                       <div className="flex items-center gap-2">
-                        <span className="rounded bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700">대제목</span>
+                        <span className="rounded bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700">항목</span>
                         <span className="text-sm font-semibold text-slate-700">{sec}</span>
                         <span className="text-xs text-slate-400">세부항목 {groupRows.length} · 배점 {groupSum}</span>
                       </div>

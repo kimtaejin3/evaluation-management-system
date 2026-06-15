@@ -70,7 +70,7 @@ export default function ScoreForm({
   const filledCount = criteria.filter((c) => vals[c.id] !== '').length
   const allFilled = filledCount === criteria.length && criteria.length > 0
 
-  // 대제목(섹션)별 그룹 — 전역 번호(i)는 유지
+  // 항목(섹션)별 그룹 — 전역 번호(i)는 유지
   const groups: { section: string | null; items: { c: CriterionView; i: number }[] }[] = []
   criteria.forEach((c, i) => {
     const key = c.section || null
@@ -117,12 +117,12 @@ export default function ScoreForm({
         {/* 심사 서류 — 여러 창 동시 프리뷰 */}
         <DocPreviewBoard documents={documents} />
 
-        {/* 항목 입력 — 대제목(섹션)별 그룹 */}
+        {/* 항목 입력 — 항목(섹션)별 그룹 */}
         {groups.map((g) => (
           <Fragment key={g.section}>
             {g.section && (
               <div className="flex items-center gap-2 px-1 pt-1">
-                <span className="rounded bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700">대제목</span>
+                <span className="rounded bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700">항목</span>
                 <h2 className="text-base font-bold text-slate-800">{g.section}</h2>
                 <span className="text-xs text-slate-400">세부 {g.items.length}항목</span>
               </div>
