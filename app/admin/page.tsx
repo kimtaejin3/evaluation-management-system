@@ -5,6 +5,7 @@ import StatusBadge from "@/components/StatusBadge";
 import SessionPicker from "@/components/SessionPicker";
 import MonitoringGrid from "@/components/MonitoringGrid";
 import DashboardInsights from "@/components/DashboardInsights";
+import LiveRefresher from "@/components/LiveRefresher";
 
 export default async function AdminDashboard({
   searchParams,
@@ -62,12 +63,15 @@ export default async function AdminDashboard({
             </span>
           </p>
         </div>
-        <Link
-          href={`/admin/sessions/${session.id}`}
-          className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50"
-        >
-          회차 관리 →
-        </Link>
+        <div className="flex items-center gap-3">
+          <LiveRefresher sessionId={session.id} />
+          <Link
+            href={`/admin/sessions/${session.id}`}
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50"
+          >
+            회차 관리 →
+          </Link>
+        </div>
       </div>
 
       {/* KPI 스탯 스트립 (카드 대신 구분선) */}

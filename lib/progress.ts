@@ -98,6 +98,19 @@ export async function getSessionProgress(sessionId: string): Promise<ProgressDat
   }
 }
 
+// 진행 상태 변경 감지용 경량 버전 해시(전체 progress 계산 없이 빠르게 폴링).
+// 점수 개수·최신 수정시각(추가/수정), 배정·대상·항목 개수(구조 변경/삭제)를 조합.
+export async function getProgressVersion(sessionId: string): Promise<string> {
+  const [scoreAgg, assignCount, subjCount, critCount] = await Promise.all([
+    prisma.score.aggregate({ where: { sessionId }, _count: { _all: true }, _max: { updatedAt: true } }),
+    prisma.assignment.count({ where: { sessionId } }),
+    prisma.subject.count({ where: { sessionId } }),
+    prisma.criterion.count({ where: { sessionId } }),
+  ])
+  const ts = scoreAgg._max.updatedAt ? scoreAgg._max.updatedAt.getTime() : 0
+  return `${scoreAgg._count._all}:${ts}:${assignCount}:${subjCount}:${critCount}`
+}
+
 // ---- 대시보드 인사이트(잠정 순위 + 위원 간 편차) ----
 
 export interface InsightRow {
