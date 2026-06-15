@@ -150,6 +150,15 @@ model Opinion {
   @@unique([evaluatorId, subjectId])
 }
 
+// 평가위원이 현재 입력 중인 항목(실시간 표시용). 위원당 1개 활성 항목, updatedAt 신선도로 만료 판단.
+model EditingPresence {
+  evaluatorId String   @id
+  sessionId   String
+  subjectId   String
+  criterionId String
+  updatedAt   DateTime
+}
+
 model Score {
   id          String            @id @default(cuid())
   sessionId   String

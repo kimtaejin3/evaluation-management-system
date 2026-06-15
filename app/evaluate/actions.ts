@@ -6,6 +6,24 @@ import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/session'
 import { isValidScoreValue, parseGradeOptions, defaultGradeOptions } from '@/lib/scoring'
 
+// 평가위원이 현재 포커스(입력 중)한 항목을 기록 — 대시보드에서 '실제 입력 중' 항목만 애니메이션.
+export async function pingEditing(sessionId: string, subjectId: string, criterionId: string) {
+  const user = await getCurrentUser()
+  if (!user) return
+  await prisma.editingPresence.upsert({
+    where: { evaluatorId: user.id },
+    update: { sessionId, subjectId, criterionId, updatedAt: new Date() },
+    create: { evaluatorId: user.id, sessionId, subjectId, criterionId, updatedAt: new Date() },
+  })
+}
+
+// 입력 종료(블러/제출/이탈) — 현재 입력 중 표시 해제
+export async function clearEditing() {
+  const user = await getCurrentUser()
+  if (!user) return
+  await prisma.editingPresence.deleteMany({ where: { evaluatorId: user.id } })
+}
+
 // 단일 항목 자동 저장 — 입력/선택 즉시(디바운스) 저장하여 진행 상태가 실시간 반영되게 함.
 // 빈 값이면 해당 점수를 삭제(진행 상태 되돌림). evaluate 경로는 revalidate하지 않음(키 입력마다 리렌더 방지).
 export async function autoSaveScore(

@@ -7,6 +7,7 @@ export interface CellItem {
   id: string
   name: string
   done: boolean
+  editingAt?: number | null // 위원이 현재 입력 중이면 그 시각(ms), 아니면 null
 }
 
 export interface Cell {
@@ -37,24 +38,32 @@ export interface ProgressData {
 }
 
 export async function getSessionProgress(sessionId: string): Promise<ProgressData> {
-  const [subjects, criteria, assignments, scores] = await Promise.all([
+  const [subjects, criteria, assignments, scores, editing] = await Promise.all([
     prisma.subject.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } }),
     prisma.criterion.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } }),
     prisma.assignment.findMany({ where: { sessionId }, include: { user: true } }),
     prisma.score.findMany({ where: { sessionId }, select: { evaluatorId: true, subjectId: true, criterionId: true } }),
+    prisma.editingPresence.findMany({ where: { sessionId }, select: { evaluatorId: true, subjectId: true, criterionId: true, updatedAt: true } }),
   ])
 
   const totalCriteria = criteria.length
   // 입력된 (위원:대상:항목) 집합
   const filled = new Set<string>()
   for (const s of scores) filled.add(`${s.evaluatorId}:${s.subjectId}:${s.criterionId}`)
+  // 현재 입력 중 (위원:대상:항목) → 시각(ms)
+  const editingAtOf = new Map<string, number>()
+  for (const e of editing) editingAtOf.set(`${e.evaluatorId}:${e.subjectId}:${e.criterionId}`, e.updatedAt.getTime())
 
   const cellOf = (evId: string, subId: string): Cell => {
-    const items: CellItem[] = criteria.map((c) => ({
-      id: c.id,
-      name: c.name,
-      done: filled.has(`${evId}:${subId}:${c.id}`),
-    }))
+    const items: CellItem[] = criteria.map((c) => {
+      const done = filled.has(`${evId}:${subId}:${c.id}`)
+      return {
+        id: c.id,
+        name: c.name,
+        done,
+        editingAt: done ? null : (editingAtOf.get(`${evId}:${subId}:${c.id}`) ?? null),
+      }
+    })
     const done = items.filter((it) => it.done).length
     const state: CellState = totalCriteria > 0 && done >= totalCriteria ? 'done' : done > 0 ? 'partial' : 'none'
     return { subjectId: subId, state, items, done, total: totalCriteria }
@@ -101,14 +110,17 @@ export async function getSessionProgress(sessionId: string): Promise<ProgressDat
 // 진행 상태 변경 감지용 경량 버전 해시(전체 progress 계산 없이 빠르게 폴링).
 // 점수 개수·최신 수정시각(추가/수정), 배정·대상·항목 개수(구조 변경/삭제)를 조합.
 export async function getProgressVersion(sessionId: string): Promise<string> {
-  const [scoreAgg, assignCount, subjCount, critCount] = await Promise.all([
+  const [scoreAgg, assignCount, subjCount, critCount, editAgg] = await Promise.all([
     prisma.score.aggregate({ where: { sessionId }, _count: { _all: true }, _max: { updatedAt: true } }),
     prisma.assignment.count({ where: { sessionId } }),
     prisma.subject.count({ where: { sessionId } }),
     prisma.criterion.count({ where: { sessionId } }),
+    // 입력 중(포커스) 변화도 감지해 대시보드 애니메이션이 실시간 반영되게 함
+    prisma.editingPresence.aggregate({ where: { sessionId }, _count: { _all: true }, _max: { updatedAt: true } }),
   ])
   const ts = scoreAgg._max.updatedAt ? scoreAgg._max.updatedAt.getTime() : 0
-  return `${scoreAgg._count._all}:${ts}:${assignCount}:${subjCount}:${critCount}`
+  const ets = editAgg._max.updatedAt ? editAgg._max.updatedAt.getTime() : 0
+  return `${scoreAgg._count._all}:${ts}:${assignCount}:${subjCount}:${critCount}:${editAgg._count._all}:${ets}`
 }
 
 // ---- 대시보드 인사이트(잠정 순위 + 위원 간 편차) ----

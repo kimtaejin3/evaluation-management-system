@@ -1,8 +1,8 @@
 'use client'
 
-import { Fragment, useActionState, useRef, useState } from 'react'
+import { Fragment, useActionState, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { saveScores, autoSaveScore } from '@/app/evaluate/actions'
+import { saveScores, autoSaveScore, pingEditing, clearEditing } from '@/app/evaluate/actions'
 import type { GradeOption } from '@/lib/scoring'
 import DocPreviewBoard from '@/components/DocPreviewBoard'
 
@@ -81,6 +81,37 @@ export default function ScoreForm({
       timers.current[id] = setTimeout(() => runSave(id, v), 700)
     }
   }
+
+  // 현재 입력 중 항목(포커스) 추적 — 대시보드에서 '실제 입력 중'만 애니메이션
+  const editingId = useRef<string | null>(null)
+  const heartbeat = useRef<ReturnType<typeof setInterval> | null>(null)
+  const startEditing = (criterionId: string) => {
+    editingId.current = criterionId
+    void pingEditing(sessionId, subjectId, criterionId)
+    if (heartbeat.current) clearInterval(heartbeat.current)
+    heartbeat.current = setInterval(() => {
+      if (editingId.current) void pingEditing(sessionId, subjectId, editingId.current)
+    }, 4000)
+  }
+  const stopEditing = () => {
+    editingId.current = null
+    if (heartbeat.current) {
+      clearInterval(heartbeat.current)
+      heartbeat.current = null
+    }
+    void clearEditing()
+  }
+  // 페이지 이탈/언마운트 시 입력 중 해제
+  useEffect(() => {
+    const onHide = () => { if (document.visibilityState === 'hidden') void clearEditing() }
+    document.addEventListener('visibilitychange', onHide)
+    return () => {
+      document.removeEventListener('visibilitychange', onHide)
+      if (heartbeat.current) clearInterval(heartbeat.current)
+      void clearEditing()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const contrib = (c: CriterionView): number | null => {
     const raw = vals[c.id]
@@ -180,7 +211,11 @@ export default function ScoreForm({
               {c.type === 'QUALITATIVE' ? (
                 <>
                   <input type="hidden" name={`c_${c.id}`} value={vals[c.id]} />
-                  <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+                  <div
+                    className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5"
+                    onFocusCapture={() => startEditing(c.id)}
+                    onBlurCapture={stopEditing}
+                  >
                     {(c.options ?? []).map((o, idx) => {
                       const active = vals[c.id] === String(idx)
                       return (
@@ -211,6 +246,8 @@ export default function ScoreForm({
                     max={c.maxScore}
                     value={vals[c.id]}
                     onChange={(e) => setVal(c.id, e.target.value)}
+                    onFocus={() => startEditing(c.id)}
+                    onBlur={stopEditing}
                     placeholder={`0 ~ ${c.maxScore}`}
                     className="w-40 rounded-lg border border-slate-300 px-3 py-2.5 text-lg font-semibold text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
