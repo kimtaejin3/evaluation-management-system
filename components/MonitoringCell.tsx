@@ -19,13 +19,16 @@ export default function MonitoringCell({ cell }: { cell: Cell }) {
     if (r) setPos({ x: r.left + r.width / 2, y: r.top })
   }
 
+  const partial = cell.state === 'partial'
+
   return (
     <>
       <span
         ref={ref}
         onMouseEnter={show}
         onMouseLeave={() => setPos(null)}
-        className="mx-auto flex h-5 w-24 gap-1"
+        className={`mx-auto flex h-5 w-24 gap-1 rounded-[5px] ${partial ? 'ants p-[2px]' : ''}`}
+        title={partial ? '입력 중' : undefined}
       >
         {cell.items.map((it) => (
           <span key={it.id} className={`flex-1 rounded-[4px] ${it.done ? DONE : NONE}`} />

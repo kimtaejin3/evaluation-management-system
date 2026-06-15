@@ -6,7 +6,7 @@ type WireState = "none" | "partial" | "done" | "locked";
 
 const SWATCH: Record<WireState, string> = {
   none: "border border-slate-300 bg-white", // 미평가
-  partial: "border border-dashed border-slate-400 bg-white", // 입력 중
+  partial: "ants", // 입력 중 — 움직이는 점선
   done: "border border-slate-900 bg-slate-900", // 완료
   locked: "border border-slate-300 bg-slate-300", // 제출잠금
 };
