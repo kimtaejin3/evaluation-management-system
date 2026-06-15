@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { hashPassword } from '@/lib/auth'
+import { saveUpload, deleteUpload } from '@/lib/storage'
 import { canCloseSession, CLOSE_BLOCKED_MESSAGE } from '@/lib/session-rules'
 
 export async function createSession(formData: FormData) {
@@ -37,6 +38,7 @@ export async function addCriterion(sessionId: string, formData: FormData) {
   const type = String(formData.get('type')) === 'QUALITATIVE' ? 'QUALITATIVE' : 'QUANTITATIVE'
   const weight = Number(formData.get('weight') ?? 1)
   const description = String(formData.get('description') ?? '') || null
+  const section = String(formData.get('section') ?? '').trim() || null
 
   let maxScore: number
   let gradeOptions: { label: string; points: number }[] | undefined
@@ -57,7 +59,7 @@ export async function addCriterion(sessionId: string, formData: FormData) {
 
   const count = await prisma.criterion.count({ where: { sessionId } })
   await prisma.criterion.create({
-    data: { sessionId, name, description, type, maxScore, weight, order: count, gradeOptions },
+    data: { sessionId, section, name, description, type, maxScore, weight, order: count, gradeOptions },
   })
   revalidatePath(`/admin/sessions/${sessionId}/criteria`)
 }
@@ -108,6 +110,35 @@ export async function addSubject(sessionId: string, formData: FormData) {
 
 export async function deleteSubject(sessionId: string, subjectId: string) {
   await prisma.subject.delete({ where: { id: subjectId } })
+  revalidatePath(`/admin/sessions/${sessionId}/subjects`)
+}
+
+// 평가 대상(기업) 자료 업로드 — 이 회차 전용(sessionId)으로 저장. 사업계획/현장실태조사서/사전검토표 등
+export async function uploadSubjectDocument(sessionId: string, companyId: string, formData: FormData) {
+  const files = formData.getAll('file').filter((f): f is File => f instanceof File && f.size > 0)
+  if (files.length === 0) return
+  for (const file of files) {
+    const { storedName, url } = await saveUpload(file)
+    await prisma.document.create({
+      data: {
+        companyId,
+        sessionId,
+        originalName: file.name,
+        storedName,
+        url,
+        mimeType: file.type || 'application/octet-stream',
+        size: file.size,
+      },
+    })
+  }
+  revalidatePath(`/admin/sessions/${sessionId}/subjects`)
+}
+
+export async function deleteSubjectDocument(sessionId: string, documentId: string) {
+  const doc = await prisma.document.findUnique({ where: { id: documentId } })
+  if (!doc) return
+  await prisma.document.delete({ where: { id: documentId } })
+  await deleteUpload(doc.storedName, doc.url)
   revalidatePath(`/admin/sessions/${sessionId}/subjects`)
 }
 
@@ -165,12 +196,14 @@ export async function duplicateSession(sessionId: string) {
       status: 'DRAFT',
       criteria: {
         create: src.criteria.map((c) => ({
+          section: c.section,
           name: c.name,
           description: c.description,
           type: c.type,
           maxScore: c.maxScore,
           weight: c.weight,
           order: c.order,
+          gradeOptions: c.gradeOptions ?? undefined,
         })),
       },
       subjects: {

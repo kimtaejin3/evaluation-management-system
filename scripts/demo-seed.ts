@@ -32,8 +32,8 @@ async function main() {
       eventDate: new Date('2026-06-20T14:00:00'), status: 'IN_PROGRESS',
     },
   })
-  const c1 = await prisma.criterion.create({ data: { sessionId: s1.id, name: '사업 타당성', description: '시장 규모·성장성 및 수익모델의 타당성', type: 'QUANTITATIVE', maxScore: 40, weight: 1, order: 0 } })
-  const c2 = await prisma.criterion.create({ data: { sessionId: s1.id, name: '추진 역량', description: '조직·인력 구성과 실행 계획의 구체성', type: 'QUANTITATIVE', maxScore: 30, weight: 1, order: 1 } })
+  const c1 = await prisma.criterion.create({ data: { sessionId: s1.id, section: '사업계획', name: '사업 타당성', description: '시장 규모·성장성 및 수익모델의 타당성', type: 'QUANTITATIVE', maxScore: 40, weight: 1, order: 0 } })
+  const c2 = await prisma.criterion.create({ data: { sessionId: s1.id, section: '추진역량', name: '추진 역량', description: '조직·인력 구성과 실행 계획의 구체성', type: 'QUANTITATIVE', maxScore: 30, weight: 1, order: 1 } })
   // 정성 항목: 등급(답) 옵션 정의
   const GRADE_OPTS = [
     { label: '매우 우수', points: 30 },
@@ -43,42 +43,42 @@ async function main() {
     { label: '매우 미흡', points: 6 },
   ]
   const gradeIdx: Record<string, number> = { A: 0, B: 1, C: 2, D: 3, E: 4 }
-  const c3 = await prisma.criterion.create({ data: { sessionId: s1.id, name: '발표 평가', description: '발표 전달력·질의응답 충실도', type: 'QUALITATIVE', maxScore: 30, weight: 1, order: 2, gradeOptions: GRADE_OPTS } })
+  const c3 = await prisma.criterion.create({ data: { sessionId: s1.id, section: '기대효과', name: '발표 평가', description: '발표 전달력·질의응답 충실도', type: 'QUALITATIVE', maxScore: 30, weight: 1, order: 2, gradeOptions: GRADE_OPTS } })
   const names = COMPANY_NAMES
   // 전역 기업 등록(회차에 묶이지 않음)
   const companies: Record<string, { id: string }> = {}
   for (const n of names) {
     companies[n] = await prisma.company.create({ data: { name: n, description: `${n} 사업 지원 신청` } })
   }
-  // 기업 자료 — 첫 기업에 이 회차(s1) 전용 + 공통 샘플 문서 (storage 어댑터: Blob/로컬)
-  const docBody = `${names[0]} 사업계획서 (데모 파일)\n시장성·실현 가능성 등 검토 자료\n`
-  const commonBody = `${names[0]} 회사소개서 (공통 데모 파일)\n`
-  const planName = `${names[0]}_사업계획서_2026상반기.txt`
-  const introName = `${names[0]}_회사소개서_공통.txt`
-  const planSaved = await saveUpload(new File([docBody], planName, { type: 'text/plain' }))
-  const introSaved = await saveUpload(new File([commonBody], introName, { type: 'text/plain' }))
-  await prisma.document.create({
-    data: {
-      companyId: companies[names[0]].id,
-      sessionId: s1.id,
-      originalName: planName,
-      storedName: planSaved.storedName,
-      url: planSaved.url,
-      mimeType: 'text/plain',
-      size: Buffer.byteLength(docBody),
-    },
-  })
-  await prisma.document.create({
-    data: {
-      companyId: companies[names[0]].id,
-      sessionId: null,
-      originalName: introName,
-      storedName: introSaved.storedName,
-      url: introSaved.url,
-      mimeType: 'text/plain',
-      size: Buffer.byteLength(commonBody),
-    },
-  })
+  // 기업 자료 — 회차(s1) 전용 + 공통 샘플 문서 (storage 어댑터: Blob/로컬)
+  // 평가위원 화면의 다중 프리뷰 테스트를 위해 앞 기업 몇 곳에 여러 종류의 서류를 넣음
+  const makeDoc = async (companyName: string, fileName: string, body: string, sessionId: string | null) => {
+    const saved = await saveUpload(new File([body], fileName, { type: 'text/plain' }))
+    await prisma.document.create({
+      data: {
+        companyId: companies[companyName].id,
+        sessionId,
+        originalName: fileName,
+        storedName: saved.storedName,
+        url: saved.url,
+        mimeType: 'text/plain',
+        size: Buffer.byteLength(body),
+      },
+    })
+  }
+
+  // 회차 전용 서류 세트(사업계획서·현장실태조사서·사전검토표)를 앞 3개 기업에 부여
+  for (const cn of names.slice(0, 3)) {
+    await makeDoc(cn, `${cn}_사업계획서_2026상반기.txt`,
+      `${cn} 사업계획서 (데모 파일)\n\n1. 사업 개요\n   - 시장 규모와 성장성, 수익모델의 타당성\n2. 추진 전략\n   - 단계별 실행 계획 및 일정\n3. 기대 효과\n   - 매출·고용 창출 등 정량 효과\n`, s1.id)
+    await makeDoc(cn, `${cn}_현장실태조사서_2026상반기.txt`,
+      `${cn} 현장실태 조사서 (데모 파일)\n\n- 조사일자: 2026-06-10\n- 사업장 위치 및 시설 현황\n- 인력 운영 실태\n- 특이사항: 없음\n`, s1.id)
+    await makeDoc(cn, `${cn}_사전검토표_2026상반기.txt`,
+      `${cn} 사전검토표 (데모 파일)\n\n[ 적격 여부 ] 적격\n[ 제출 서류 ] 사업계획서, 재무제표, 사업자등록증 — 모두 제출\n[ 검토자 의견 ] 형식 요건 충족, 본심사 대상 적합\n`, s1.id)
+  }
+  // 공통(전 회차) 서류 — 첫 기업 회사소개서
+  await makeDoc(names[0], `${names[0]}_회사소개서_공통.txt`,
+    `${names[0]} 회사소개서 (공통 데모 파일)\n\n- 설립연도 및 연혁\n- 주요 사업 분야\n- 조직 및 주요 실적\n`, null)
 
   // 회차에 기업 편입(평가 대상)
   const subs = await Promise.all(names.map((n, i) => prisma.subject.create({ data: { sessionId: s1.id, companyId: companies[n].id, name: n, order: i } })))

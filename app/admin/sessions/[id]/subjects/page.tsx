@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/db'
 import CompanyLogo from '@/components/CompanyLogo'
-import { addSubject, deleteSubject } from '../../actions'
+import { addSubject, deleteSubject, uploadSubjectDocument, deleteSubjectDocument } from '../../actions'
 
 const inputCls = 'rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500'
 
@@ -119,11 +119,27 @@ export default async function SubjectsPage({ params }: { params: Promise<{ id: s
                       <span>📄</span>
                       <span>{d.originalName}</span>
                       <span className="text-xs text-slate-400">{formatSize(d.size)}</span>
+                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${d.sessionId ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-200 text-slate-500'}`}>
+                        {d.sessionId ? '이 회차' : '공통'}
+                      </span>
                     </a>
+                    {!locked && (
+                      <form action={async () => { 'use server'; await deleteSubjectDocument(id, d.id) }}>
+                        <button className="ml-2 shrink-0 text-xs text-rose-600 hover:underline">삭제</button>
+                      </form>
+                    )}
                   </li>
                 ))}
-                {s.company.documents.length === 0 && <li className="text-sm text-slate-400">등록된 자료가 없습니다. (기업 관리에서 업로드)</li>}
+                {s.company.documents.length === 0 && <li className="text-sm text-slate-400">등록된 자료가 없습니다. 아래에서 업로드하세요.</li>}
               </ul>
+
+              {!locked && (
+                <form action={uploadSubjectDocument.bind(null, id, s.companyId)} className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-slate-300 p-3">
+                  <input type="file" name="file" multiple required className="text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-indigo-700 hover:file:bg-indigo-100" />
+                  <button className="shrink-0 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700">업로드</button>
+                  <span className="basis-full text-xs text-slate-400">예: 사업계획서 · 현장실태 조사서 · 사전검토표 (이 회차 전용으로 저장)</span>
+                </form>
+              )}
             </div>
           </div>
         ))}

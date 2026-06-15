@@ -2,7 +2,7 @@ import { chromium } from 'playwright-core'
 import { prisma } from '../lib/db'
 import { signToken } from '../lib/auth'
 
-const EXEC = process.env.HOME + '/Library/Caches/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-mac-arm64/chrome-headless-shell'
+const EXEC = process.env.HOME + '/Library/Caches/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-mac-arm64/chrome-headless-shell'
 
 async function main() {
   const admin = await prisma.user.findUnique({ where: { username: 'admin' } })

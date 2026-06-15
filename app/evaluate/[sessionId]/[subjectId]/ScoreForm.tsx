@@ -1,12 +1,14 @@
 'use client'
 
-import { useActionState, useState } from 'react'
+import { Fragment, useActionState, useState } from 'react'
 import Link from 'next/link'
 import { saveScores } from '@/app/evaluate/actions'
 import type { GradeOption } from '@/lib/scoring'
+import DocPreviewBoard from '@/components/DocPreviewBoard'
 
 export interface CriterionView {
   id: string
+  section: string | null
   name: string
   description: string | null
   type: 'QUANTITATIVE' | 'QUALITATIVE'
@@ -39,7 +41,7 @@ export default function ScoreForm({
   evaluatorName: string
   eventDate: string | null
   progress: { done: number; total: number }
-  documents: { id: string; name: string }[]
+  documents: { id: string; name: string; mimeType: string }[]
   criteria: CriterionView[]
   initialComment: string
 }) {
@@ -67,6 +69,15 @@ export default function ScoreForm({
   const maxTotal = criteria.reduce((s, c) => s + c.maxScore * c.weight, 0)
   const filledCount = criteria.filter((c) => vals[c.id] !== '').length
   const allFilled = filledCount === criteria.length && criteria.length > 0
+
+  // 대제목(섹션)별 그룹 — 전역 번호(i)는 유지
+  const groups: { section: string | null; items: { c: CriterionView; i: number }[] }[] = []
+  criteria.forEach((c, i) => {
+    const key = c.section || null
+    const last = groups[groups.length - 1]
+    if (last && last.section === key) last.items.push({ c, i })
+    else groups.push({ section: key, items: [{ c, i }] })
+  })
 
   const deadline = eventDate
     ? new Date(eventDate).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -103,22 +114,20 @@ export default function ScoreForm({
           </div>
         </div>
 
-        {/* 심사 서류 */}
-        {documents.length > 0 && (
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <div className="mb-2 text-sm font-semibold text-slate-700">심사 서류</div>
-            <div className="flex flex-wrap gap-2">
-              {documents.map((d) => (
-                <a key={d.id} href={`/viewer/${d.id}`} className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-indigo-600 transition hover:bg-slate-100">
-                  📄 {d.name}
-                </a>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* 심사 서류 — 여러 창 동시 프리뷰 */}
+        <DocPreviewBoard documents={documents} />
 
-        {/* 항목 입력 */}
-        {criteria.map((c, i) => {
+        {/* 항목 입력 — 대제목(섹션)별 그룹 */}
+        {groups.map((g) => (
+          <Fragment key={g.section}>
+            {g.section && (
+              <div className="flex items-center gap-2 px-1 pt-1">
+                <span className="rounded bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700">대제목</span>
+                <h2 className="text-base font-bold text-slate-800">{g.section}</h2>
+                <span className="text-xs text-slate-400">세부 {g.items.length}항목</span>
+              </div>
+            )}
+            {g.items.map(({ c, i }) => {
           const ct = contrib(c)
           return (
             <div key={c.id} className="rounded-xl border border-slate-200 bg-white p-5">
@@ -182,7 +191,9 @@ export default function ScoreForm({
               </div>
             </div>
           )
-        })}
+            })}
+          </Fragment>
+        ))}
 
         {/* 종합의견 */}
         <div className="rounded-xl border border-slate-200 bg-white p-5">

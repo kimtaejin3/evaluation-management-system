@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import Link from 'next/link'
 import { prisma } from '@/lib/db'
 import { deleteCriterion } from '../../actions'
@@ -23,6 +24,18 @@ export default async function CriteriaPage({
   const rows = activeTab === 'qual' ? qual : quant
   const subtotal = rows.reduce((s, c) => s + c.maxScore, 0)
   const totalAll = criteria.reduce((s, c) => s + c.maxScore, 0)
+
+  // 대제목(섹션) 목록 + 현재 탭 행을 섹션별로 묶기
+  const sectionNames = Array.from(new Set(criteria.map((c) => c.section).filter((s): s is string => !!s)))
+  const NO_SECTION = '미분류'
+  const grouped = rows.reduce<Record<string, typeof rows>>((acc, c) => {
+    const key = c.section || NO_SECTION
+    ;(acc[key] ??= []).push(c)
+    return acc
+  }, {})
+  const groupOrder = Object.keys(grouped).sort((a, b) => (a === NO_SECTION ? 1 : b === NO_SECTION ? -1 : 0))
+  const colCount = (activeTab === 'qual' ? 5 : 4) + (locked ? 0 : 1)
+  let rowNo = 0
 
   const tabCls = (on: boolean) =>
     `rounded-t-lg border-b-2 px-4 py-2 text-sm font-medium transition ${
@@ -56,42 +69,60 @@ export default async function CriteriaPage({
             </tr>
           </thead>
           <tbody>
-            {rows.map((c, i) => {
-              const opts = c.type === 'QUALITATIVE' ? (parseGradeOptions(c.gradeOptions) ?? defaultGradeOptions(c.maxScore)) : []
+            {groupOrder.map((sec) => {
+              const groupRows = grouped[sec]
+              const groupSum = groupRows.reduce((s, c) => s + c.maxScore, 0)
               return (
-                <tr key={c.id} className="border-b border-slate-100 align-top last:border-0">
-                  <td className="px-4 py-3 text-slate-400 tabular-nums">{i + 1}</td>
-                  <td className="px-4 py-3">
-                    <div className="font-medium text-slate-800">{c.name}</div>
-                    {c.description && <div className="mt-0.5 text-xs text-slate-400">{c.description}</div>}
-                  </td>
-                  <td className="px-4 py-3 text-right font-semibold tabular-nums text-slate-800">{c.maxScore}</td>
-                  <td className="px-4 py-3 text-right tabular-nums text-slate-500">×{c.weight}</td>
-                  {activeTab === 'qual' && (
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1.5">
-                        {opts.map((o, k) => (
-                          <span key={k} className="inline-flex items-baseline gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs">
-                            <span className="font-medium text-slate-700">{o.label}</span>
-                            <span className="text-slate-400 tabular-nums">{o.points}</span>
-                          </span>
-                        ))}
+                <Fragment key={sec}>
+                  <tr className="bg-slate-50/70">
+                    <td colSpan={colCount} className="px-4 py-2">
+                      <div className="flex items-center gap-2">
+                        <span className="rounded bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700">대제목</span>
+                        <span className="text-sm font-semibold text-slate-700">{sec}</span>
+                        <span className="text-xs text-slate-400">세부항목 {groupRows.length} · 배점 {groupSum}</span>
                       </div>
                     </td>
-                  )}
-                  {!locked && (
-                    <td className="px-4 py-3 text-right">
-                      <form action={async () => { 'use server'; await deleteCriterion(id, c.id) }}>
-                        <button className="text-sm text-rose-600 hover:underline">삭제</button>
-                      </form>
-                    </td>
-                  )}
-                </tr>
+                  </tr>
+                  {groupRows.map((c) => {
+                    rowNo += 1
+                    const opts = c.type === 'QUALITATIVE' ? (parseGradeOptions(c.gradeOptions) ?? defaultGradeOptions(c.maxScore)) : []
+                    return (
+                      <tr key={c.id} className="border-b border-slate-100 align-top last:border-0">
+                        <td className="px-4 py-3 text-slate-400 tabular-nums">{rowNo}</td>
+                        <td className="px-4 py-3">
+                          <div className="pl-3 font-medium text-slate-800">{c.name}</div>
+                          {c.description && <div className="mt-0.5 pl-3 text-xs text-slate-400">{c.description}</div>}
+                        </td>
+                        <td className="px-4 py-3 text-right font-semibold tabular-nums text-slate-800">{c.maxScore}</td>
+                        <td className="px-4 py-3 text-right tabular-nums text-slate-500">×{c.weight}</td>
+                        {activeTab === 'qual' && (
+                          <td className="px-4 py-3">
+                            <div className="flex flex-wrap gap-1.5">
+                              {opts.map((o, k) => (
+                                <span key={k} className="inline-flex items-baseline gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs">
+                                  <span className="font-medium text-slate-700">{o.label}</span>
+                                  <span className="text-slate-400 tabular-nums">{o.points}</span>
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                        )}
+                        {!locked && (
+                          <td className="px-4 py-3 text-right">
+                            <form action={async () => { 'use server'; await deleteCriterion(id, c.id) }}>
+                              <button className="text-sm text-rose-600 hover:underline">삭제</button>
+                            </form>
+                          </td>
+                        )}
+                      </tr>
+                    )
+                  })}
+                </Fragment>
               )
             })}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={activeTab === 'qual' ? 6 : 5} className="px-4 py-10 text-center text-slate-400">
+                <td colSpan={colCount} className="px-4 py-10 text-center text-slate-400">
                   {activeTab === 'qual' ? '정성' : '정량'} 항목이 없습니다.
                 </td>
               </tr>
@@ -102,7 +133,7 @@ export default async function CriteriaPage({
               <tr className="border-t border-slate-200 bg-slate-50 font-medium text-slate-700">
                 <td className="px-4 py-2.5" colSpan={2}>합계 ({activeTab === 'qual' ? '정성' : '정량'})</td>
                 <td className="px-4 py-2.5 text-right tabular-nums">{subtotal}</td>
-                <td className="px-4 py-2.5" colSpan={activeTab === 'qual' ? 3 : (locked ? 1 : 2)} />
+                <td className="px-4 py-2.5" colSpan={colCount - 3} />
               </tr>
             </tfoot>
           )}
@@ -124,7 +155,7 @@ export default async function CriteriaPage({
         <p className="text-sm text-slate-400">마감된 회차는 항목을 수정할 수 없습니다.</p>
       ) : (
         <div className="max-w-2xl">
-          <AddCriterionForm sessionId={id} />
+          <AddCriterionForm sessionId={id} sections={sectionNames} />
         </div>
       )}
     </div>

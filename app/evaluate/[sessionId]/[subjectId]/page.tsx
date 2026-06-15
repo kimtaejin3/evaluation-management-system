@@ -46,6 +46,7 @@ export default async function ScoreSheet({ params }: { params: Promise<{ session
     }
     return {
       id: c.id,
+      section: c.section,
       name: c.name,
       description: c.description,
       type: c.type,
@@ -66,7 +67,7 @@ export default async function ScoreSheet({ params }: { params: Promise<{ session
       evaluatorName={user.name}
       eventDate={session.eventDate ? session.eventDate.toISOString() : null}
       progress={{ done: doneSubjects, total: subjects.length }}
-      documents={subject.company.documents.map((d) => ({ id: d.id, name: d.originalName }))}
+      documents={subject.company.documents.map((d) => ({ id: d.id, name: d.originalName, mimeType: d.mimeType }))}
       criteria={criteriaView}
       initialComment={opinion?.text ?? ''}
     />

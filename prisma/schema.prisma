@@ -56,6 +56,8 @@ model Criterion {
   id          String            @id @default(cuid())
   sessionId   String
   session     EvaluationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  // 대제목(섹션): 사업계획/추진역량/기대효과 등. 이 아래의 세부항목이 곧 Criterion.
+  section     String?
   name        String
   description String?
   type        CriterionType
