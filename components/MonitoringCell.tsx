@@ -27,11 +27,14 @@ export default function MonitoringCell({ cell }: { cell: Cell }) {
         ref={ref}
         onMouseEnter={show}
         onMouseLeave={() => setPos(null)}
-        className={`mx-auto flex h-5 w-24 gap-1 rounded-[5px] ${partial ? 'ants p-[2px]' : ''}`}
+        className="mx-auto flex h-5 w-24 gap-1"
         title={partial ? '입력 중' : undefined}
       >
         {cell.items.map((it) => (
-          <span key={it.id} className={`flex-1 rounded-[4px] ${it.done ? DONE : NONE}`} />
+          <span
+            key={it.id}
+            className={`flex-1 rounded-[4px] ${it.done ? DONE : partial ? 'ants' : NONE}`}
+          />
         ))}
       </span>
       {pos && (
