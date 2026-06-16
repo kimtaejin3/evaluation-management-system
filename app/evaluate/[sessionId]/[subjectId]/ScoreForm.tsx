@@ -199,9 +199,6 @@ export default function ScoreForm({
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-slate-400">{i + 1}</span>
                     <span className="font-semibold text-slate-800">{c.name}</span>
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${c.type === 'QUALITATIVE' ? 'bg-violet-50 text-violet-700' : 'bg-sky-50 text-sky-700'}`}>
-                      {c.type === 'QUALITATIVE' ? '정성' : '정량'}
-                    </span>
                   </div>
                   {c.description && <p className="mt-1 text-xs text-slate-400">{c.description}</p>}
                 </div>

@@ -8,13 +8,13 @@ import { SessionsIcon, UsersIcon, CompanyIcon } from "./icons";
 const APP_VERSION = "0.1.0";
 
 const SUB_ITEMS = [
-  { suffix: "", label: "상세" },
-  { suffix: "/criteria", label: "평가 항목" },
-  { suffix: "/subjects", label: "평가 대상" },
-  { suffix: "/evaluators", label: "평가위원" },
-  { suffix: "/progress", label: "진행 현황" },
-  { suffix: "/results", label: "집계 결과" },
-  { suffix: "/breakdown", label: "산출 근거" },
+  { suffix: "", label: "상세", desc: "심사 정보·모니터링" },
+  { suffix: "/criteria", label: "평가 항목", desc: "배점·등급 설정" },
+  { suffix: "/subjects", label: "평가 대상", desc: "기업 편입·자료" },
+  { suffix: "/evaluators", label: "평가위원", desc: "위원 배정·위원장" },
+  { suffix: "/progress", label: "진행 현황", desc: "위원×대상 입력 모니터링" },
+  { suffix: "/results", label: "집계 결과", desc: "순위·환산·등급 총괄표" },
+  { suffix: "/breakdown", label: "산출 근거", desc: "항목 평균×가중치 내역" },
 ] as const;
 
 const STATUS: Record<string, { label: string; cls: string }> = {
@@ -38,8 +38,8 @@ function sessionCls(active: boolean) {
   }`;
 }
 function leafCls(active: boolean) {
-  return `block rounded px-3 py-1.5 text-[13px] transition ${
-    active ? "bg-white/10 text-white font-semibold" : "text-slate-400 hover:bg-white/[0.06] hover:text-white"
+  return `block rounded px-3 py-1.5 transition ${
+    active ? "bg-white/10 text-white" : "text-slate-300 hover:bg-white/[0.06] hover:text-white"
   }`;
 }
 
@@ -145,11 +145,15 @@ export default function AdminSidebar({ sessions }: { sessions: Session[] }) {
               <div className="text-[11px] text-slate-400">심사 메뉴</div>
             </div>
             <div className="space-y-0.5">
-              {SUB_ITEMS.map((it) => (
-                <Link key={it.suffix} href={`/admin/sessions/${sid}${it.suffix}`} className={leafCls(leafActive(it.suffix))}>
-                  {it.label}
-                </Link>
-              ))}
+              {SUB_ITEMS.map((it) => {
+                const active = leafActive(it.suffix);
+                return (
+                  <Link key={it.suffix} href={`/admin/sessions/${sid}${it.suffix}`} className={leafCls(active)}>
+                    <span className={`block text-[13px] ${active ? "font-semibold" : "font-medium"}`}>{it.label}</span>
+                    <span className={`mt-0.5 block text-[11px] ${active ? "text-slate-300" : "text-slate-500"}`}>{it.desc}</span>
+                  </Link>
+                );
+              })}
             </div>
           </nav>
           <div className="border-t border-white/10 px-3 py-3">

@@ -24,7 +24,7 @@ export default async function CriteriaPage({
     return acc
   }, {})
   const groupOrder = Object.keys(grouped).sort((a, b) => (a === NO_SECTION ? 1 : b === NO_SECTION ? -1 : 0))
-  const colCount = 6 + (locked ? 0 : 1)
+  const colCount = 5 + (locked ? 0 : 1)
   let rowNo = 0
 
   return (
@@ -41,7 +41,6 @@ export default async function CriteriaPage({
             <tr className="border-b border-slate-200">
               <th className="w-px whitespace-nowrap px-4 py-2.5 font-medium">#</th>
               <th className="px-4 py-2.5 font-medium">세부항목 · 평가기준</th>
-              <th className="w-px whitespace-nowrap px-4 py-2.5 font-medium">방식</th>
               <th className="w-px whitespace-nowrap px-4 py-2.5 text-right font-medium">배점</th>
               <th className="w-px whitespace-nowrap px-4 py-2.5 text-right font-medium">가중치</th>
               <th className="px-4 py-2.5 font-medium">등급별 환산점수 (답)</th>
@@ -73,11 +72,6 @@ export default async function CriteriaPage({
                         <td className="px-4 py-3">
                           <div className="pl-3 font-medium text-slate-800">{c.name}</div>
                           {c.description && <div className="mt-0.5 pl-3 text-xs text-slate-400">{c.description}</div>}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${isQual ? 'bg-violet-50 text-violet-700' : 'bg-sky-50 text-sky-700'}`}>
-                            {isQual ? '정성' : '정량'}
-                          </span>
                         </td>
                         <td className="px-4 py-3 text-right font-semibold tabular-nums text-slate-800">{c.maxScore}</td>
                         <td className="px-4 py-3 text-right tabular-nums text-slate-500">×{c.weight}</td>
@@ -119,9 +113,9 @@ export default async function CriteriaPage({
           {criteria.length > 0 && (
             <tfoot>
               <tr className="border-t border-slate-200 bg-slate-50 font-medium text-slate-700">
-                <td className="px-4 py-2.5" colSpan={3}>합계</td>
+                <td className="px-4 py-2.5" colSpan={2}>합계</td>
                 <td className="px-4 py-2.5 text-right tabular-nums">{totalAll}</td>
-                <td className="px-4 py-2.5" colSpan={colCount - 4} />
+                <td className="px-4 py-2.5" colSpan={colCount - 3} />
               </tr>
             </tfoot>
           )}
