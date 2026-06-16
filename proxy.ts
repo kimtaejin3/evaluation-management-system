@@ -4,7 +4,6 @@ import { verifyToken, type Role } from './lib/auth'
 // 역할별 기본 홈
 function homeFor(role: Role): string {
   if (role === 'ADMIN') return '/admin/sessions'
-  if (role === 'SECRETARY') return '/secretary'
   return '/evaluate'
 }
 
@@ -27,10 +26,6 @@ export async function proxy(req: NextRequest) {
     const r = requireRole('EVALUATOR')
     if (r) return r
   }
-  if (pathname.startsWith('/secretary')) {
-    const r = requireRole('SECRETARY')
-    if (r) return r
-  }
   if (pathname.startsWith('/viewer')) {
     if (!payload) return NextResponse.redirect(new URL('/login', req.url))
   }
@@ -38,5 +33,5 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/evaluate/:path*', '/secretary/:path*', '/viewer/:path*'],
+  matcher: ['/admin/:path*', '/evaluate/:path*', '/viewer/:path*'],
 }

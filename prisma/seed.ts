@@ -10,14 +10,7 @@ async function main() {
     update: {},
     create: { username: 'admin', passwordHash, name: '관리자', role: 'ADMIN' },
   })
-  // 간사(전 심사 조회 권한)
-  const gansaHash = await bcrypt.hash('gansa1234', 10)
-  await prisma.user.upsert({
-    where: { username: 'gansa' },
-    update: { role: 'SECRETARY' },
-    create: { username: 'gansa', passwordHash: gansaHash, name: '간사', role: 'SECRETARY' },
-  })
-  console.log('Seeded admin (admin / admin1234), 간사 (gansa / gansa1234)')
+  console.log('Seeded admin (admin / admin1234)')
 }
 
 main().finally(() => prisma.$disconnect())
