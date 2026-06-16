@@ -1,0 +1,31 @@
+import SecretarySidebar from '@/components/SecretarySidebar'
+import { getCurrentUser } from '@/lib/session'
+import { logout } from '@/app/login/actions'
+import { prisma } from '@/lib/db'
+
+export default async function SecretaryLayout({ children }: { children: React.ReactNode }) {
+  const user = await getCurrentUser()
+  const sessions = await prisma.evaluationSession.findMany({
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, name: true, status: true },
+  })
+  return (
+    <div className="flex min-h-screen bg-slate-100 text-slate-900">
+      <SecretarySidebar sessions={sessions} />
+      <div className="flex min-h-screen flex-1 flex-col overflow-x-auto">
+        <header className="flex items-center justify-between border-b border-slate-200 px-8 py-3">
+          <span className="text-base font-semibold text-slate-800">간사 콘솔</span>
+          <div className="flex items-center gap-4 text-sm text-slate-500">
+            <span>
+              <span className="font-medium text-slate-700">{user?.name ?? '간사'}</span> 님 · 간사
+            </span>
+            <form action={logout}>
+              <button className="rounded-md border border-slate-300 px-3 py-1.5 text-slate-600 transition hover:bg-slate-50">로그아웃</button>
+            </form>
+          </div>
+        </header>
+        <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-6">{children}</main>
+      </div>
+    </div>
+  )
+}

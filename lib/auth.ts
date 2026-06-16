@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs'
 import { SignJWT, jwtVerify } from 'jose'
 
-export type Role = 'ADMIN' | 'EVALUATOR'
+export type Role = 'ADMIN' | 'EVALUATOR' | 'SECRETARY'
 
 export interface TokenPayload {
   userId: string

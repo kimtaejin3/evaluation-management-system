@@ -19,7 +19,7 @@ export async function login(_prev: unknown, formData: FormData) {
   const store = await cookies()
   store.set(AUTH_COOKIE, token, { httpOnly: true, sameSite: 'lax', path: '/' })
 
-  redirect(user.role === 'ADMIN' ? '/admin/sessions' : '/evaluate')
+  redirect(user.role === 'ADMIN' ? '/admin/sessions' : user.role === 'SECRETARY' ? '/secretary' : '/evaluate')
 }
 
 export async function logout() {

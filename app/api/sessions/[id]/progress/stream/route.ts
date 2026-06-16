@@ -27,7 +27,7 @@ function wait(ms: number, signal: AbortSignal): Promise<void> {
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const token = await getCurrentToken()
-  if (!token || token.role !== 'ADMIN') return new Response('Unauthorized', { status: 401 })
+  if (!token || (token.role !== 'ADMIN' && token.role !== 'SECRETARY')) return new Response('Unauthorized', { status: 401 })
 
   const { id } = await params
   const encoder = new TextEncoder()

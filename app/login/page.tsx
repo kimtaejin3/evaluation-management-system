@@ -10,6 +10,7 @@ const POINTS = ['심사 항목 설정 · 평가 · 결과 집계를 한 곳에�
 
 const DEMO_ACCOUNTS = [
   { role: '관리자', name: '관리자', username: 'admin', password: 'admin1234' },
+  { role: '간사', name: '간사', username: 'gansa', password: 'gansa1234' },
   { role: '평가위원', name: '김평가', username: 'kim', password: 'eval1234' },
   { role: '평가위원', name: '이심사', username: 'lee', password: 'eval1234' },
 ]
@@ -58,7 +59,7 @@ export default function LoginPage() {
           </div>
 
           <h1 className="text-2xl font-bold text-slate-900">로그인</h1>
-          <p className="mt-1.5 text-sm text-slate-500">관리자 · 평가위원 계정으로 로그인하세요.</p>
+          <p className="mt-1.5 text-sm text-slate-500">관리자 · 간사 · 평가위원 계정으로 로그인하세요.</p>
 
           <form action={formAction} className="mt-7 space-y-4">
             <div>
