@@ -4,8 +4,31 @@ import { prisma } from '@/lib/db'
 import { getCurrentToken } from '@/lib/session'
 import { UPLOAD_DIR } from '@/lib/storage'
 
-// text/* 등 텍스트 계열은 charset 미지정 시 한글이 깨지므로 UTF-8 명시
-function contentType(mime: string): string {
+const EXT_MIME: Record<string, string> = {
+  pdf: 'application/pdf',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  svg: 'image/svg+xml',
+  bmp: 'image/bmp',
+  txt: 'text/plain; charset=utf-8',
+  csv: 'text/csv; charset=utf-8',
+  json: 'application/json; charset=utf-8',
+  xml: 'application/xml; charset=utf-8',
+  md: 'text/plain; charset=utf-8',
+  log: 'text/plain; charset=utf-8',
+}
+
+// mimeType이 비었거나 octet-stream이면 확장자로 보강. 텍스트류는 charset=utf-8(한글 깨짐 방지)
+function contentType(mime: string, name: string): string {
+  const generic = !mime || /octet-stream/i.test(mime)
+  if (generic) {
+    const ext = name.toLowerCase().split('.').pop() ?? ''
+    if (EXT_MIME[ext]) return EXT_MIME[ext]
+    return mime || 'application/octet-stream'
+  }
   if (/^text\//i.test(mime) || /(json|xml|csv|javascript)/i.test(mime)) {
     return /charset/i.test(mime) ? mime : `${mime}; charset=utf-8`
   }
@@ -22,7 +45,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   // 다운로드 기능 없음 — 항상 브라우저 내 인라인 미리보기로만 제공
   const headers = {
-    'Content-Type': contentType(doc.mimeType),
+    'Content-Type': contentType(doc.mimeType, doc.originalName),
     'Content-Disposition': `inline; filename*=UTF-8''${encodeURIComponent(doc.originalName)}`,
   }
 

@@ -277,7 +277,7 @@ export default function DocPreviewBoard({
               className="min-h-50 min-w-65 bg-slate-50"
             >
               <iframe
-                src={`/api/documents/${pane.id}`}
+                src={`/viewer/${pane.id}?embed=1`}
                 title={pane.name}
                 className="h-full w-full border-0"
               />
