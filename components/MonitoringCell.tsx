@@ -39,12 +39,12 @@ export default function MonitoringCell({ cell }: { cell: Cell }) {
         ref={ref}
         onMouseEnter={show}
         onMouseLeave={() => setPos(null)}
-        className="mx-auto flex h-5 w-24 gap-1"
+        className="mx-auto flex h-5 w-fit gap-1"
       >
         {cell.items.map((it) => (
           <span
             key={it.id}
-            className={`flex-1 rounded-[4px] ${it.done ? DONE : isEditing(it) ? 'ants' : NONE}`}
+            className={`w-2.5 rounded-[3px] ${it.done ? DONE : isEditing(it) ? 'ants' : NONE}`}
           />
         ))}
       </span>

@@ -32,7 +32,7 @@ export default function MonitoringGrid({ data }: { data: ProgressData }) {
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-        <table className="w-full border-separate border-spacing-0 text-sm">
+        <table className="w-auto border-separate border-spacing-0 text-sm">
           <thead>
             <tr className="text-slate-500">
               <th className="sticky left-0 z-20 w-px whitespace-nowrap border-b border-r border-slate-200 bg-white px-3 py-2.5 text-left font-medium">
