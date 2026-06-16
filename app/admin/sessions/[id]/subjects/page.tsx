@@ -17,7 +17,7 @@ export default async function SubjectsPage({ params }: { params: Promise<{ id: s
   const subjects = await prisma.subject.findMany({
     where: { sessionId: id },
     orderBy: { order: 'asc' },
-    // 이 회차 전용 자료 + 공통(sessionId=null) 자료만
+    // 이 심사 전용 자료 + 공통(sessionId=null) 자료만
     include: {
       company: {
         include: {
@@ -37,7 +37,7 @@ export default async function SubjectsPage({ params }: { params: Promise<{ id: s
     <div className="space-y-6">
       {/* 대상 추가 (상단) */}
       {locked ? (
-        <p className="text-sm text-slate-400">마감된 회차는 평가 대상을 수정할 수 없습니다.</p>
+        <p className="text-sm text-slate-400">마감된 심사는 평가 대상을 수정할 수 없습니다.</p>
       ) : (
         <div className="grid gap-3 rounded-xl border border-slate-200 bg-white p-5 sm:grid-cols-2">
           <div className="sm:col-span-2 text-sm font-semibold text-slate-700">평가 대상 추가</div>
@@ -59,7 +59,7 @@ export default async function SubjectsPage({ params }: { params: Promise<{ id: s
             </button>
           </form>
           <p className="sm:col-span-2 text-xs text-slate-400">
-            기업·자료는 <Link href="/admin/companies" className="text-indigo-600 hover:underline">기업 관리</Link>에서 전역으로 관리되며 회차 간 공유됩니다.
+            기업·자료는 <Link href="/admin/companies" className="text-indigo-600 hover:underline">기업 관리</Link>에서 전역으로 관리되며 심사 간 공유됩니다.
           </p>
         </div>
       )}
@@ -102,7 +102,7 @@ export default async function SubjectsPage({ params }: { params: Promise<{ id: s
               </div>
               {!locked && (
                 <form action={async () => { 'use server'; await deleteSubject(id, s.id) }}>
-                  <button className="text-sm text-rose-600 hover:underline">회차에서 제외</button>
+                  <button className="text-sm text-rose-600 hover:underline">심사에서 제외</button>
                 </form>
               )}
             </div>
@@ -120,7 +120,7 @@ export default async function SubjectsPage({ params }: { params: Promise<{ id: s
                       <span>{d.originalName}</span>
                       <span className="text-xs text-slate-400">{formatSize(d.size)}</span>
                       <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${d.sessionId ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-200 text-slate-500'}`}>
-                        {d.sessionId ? '이 회차' : '공통'}
+                        {d.sessionId ? '이 심사' : '공통'}
                       </span>
                     </a>
                     {!locked && (
@@ -137,7 +137,7 @@ export default async function SubjectsPage({ params }: { params: Promise<{ id: s
                 <form action={uploadSubjectDocument.bind(null, id, s.companyId)} className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-slate-300 p-3">
                   <input type="file" name="file" multiple required className="text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-indigo-700 hover:file:bg-indigo-100" />
                   <button className="shrink-0 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700">업로드</button>
-                  <span className="basis-full text-xs text-slate-400">예: 사업계획서 · 현장실태 조사서 · 사전검토표 (이 회차 전용으로 저장)</span>
+                  <span className="basis-full text-xs text-slate-400">예: 사업계획서 · 현장실태 조사서 · 사전검토표 (이 심사 전용으로 저장)</span>
                 </form>
               )}
             </div>

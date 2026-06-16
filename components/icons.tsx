@@ -30,7 +30,7 @@ export function DashboardIcon(p: IconProps) {
   )
 }
 
-// 회차 관리 — 캘린더(체크)
+// 심사 관리 — 캘린더(체크)
 export function SessionsIcon(p: IconProps) {
   return (
     <Svg {...p}>

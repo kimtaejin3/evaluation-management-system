@@ -86,13 +86,13 @@ export async function saveScores(
 
   const session = await prisma.evaluationSession.findUnique({ where: { id: sessionId } })
   if (!session || session.status !== 'IN_PROGRESS') {
-    return { error: '진행 중인 회차에서만 입력할 수 있습니다.' }
+    return { error: '진행 중인 심사에서만 입력할 수 있습니다.' }
   }
 
   const assigned = await prisma.assignment.findUnique({
     where: { sessionId_userId: { sessionId, userId: user.id } },
   })
-  if (!assigned) return { error: '배정되지 않은 회차입니다.' }
+  if (!assigned) return { error: '배정되지 않은 심사입니다.' }
 
   const criteria = await prisma.criterion.findMany({ where: { sessionId } })
 

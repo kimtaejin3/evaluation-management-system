@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { DashboardIcon, SessionsIcon, UsersIcon, CompanyIcon } from "./icons";
+import { SessionsIcon, UsersIcon, CompanyIcon } from "./icons";
 
 const APP_VERSION = "0.1.0";
 
@@ -55,20 +55,15 @@ export default function AdminSidebar({ sessions }: { sessions: { id: string; nam
         </div>
       </div>
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-        <Link href="/admin" className={topCls(isExact("/admin"))}>
-          <DashboardIcon />
-          대시보드
-        </Link>
-
         <div>
           <Link href="/admin/sessions" className={topCls(sessionsActive)}>
             <SessionsIcon />
             심사 관리
           </Link>
-          {/* 회차 리스트 */}
+          {/* 심사 리스트 */}
           <div className="mt-1 ml-3 space-y-0.5 border-l border-white/15 pl-2">
             {sessions.length === 0 && (
-              <div className="px-3 py-1.5 text-xs text-slate-500">등록된 회차 없음</div>
+              <div className="px-3 py-1.5 text-xs text-slate-500">등록된 심사 없음</div>
             )}
             {sessions.map((s) => {
               const active = s.id === sid;

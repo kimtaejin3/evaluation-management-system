@@ -27,7 +27,7 @@ export default async function ScoreSheet({ params }: { params: Promise<{ session
   const byCriterion = new Map(existing.map((s) => [s.criterionId, s]))
   const opinion = await prisma.opinion.findUnique({ where: { evaluatorId_subjectId: { evaluatorId: user.id, subjectId } } })
 
-  // 이 회차의 내 진행률(완료 대상 수 / 전체)
+  // 이 심사의 내 진행률(완료 대상 수 / 전체)
   const subjects = await prisma.subject.findMany({ where: { sessionId }, select: { id: true } })
   const myScores = await prisma.score.findMany({ where: { evaluatorId: user.id, sessionId }, select: { subjectId: true, criterionId: true } })
   const totalCriteria = criteria.length

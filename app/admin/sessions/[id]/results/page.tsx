@@ -68,7 +68,7 @@ export default async function ResultsPage({
         <table className="mt-5 w-full border border-black text-sm">
           <tbody>
             <tr>
-              <th className="w-28 border border-black bg-slate-100 px-3 py-1.5 text-left font-medium">회차명</th>
+              <th className="w-28 border border-black bg-slate-100 px-3 py-1.5 text-left font-medium">심사명</th>
               <td className="border border-black px-3 py-1.5">{session?.name}</td>
               <th className="w-28 border border-black bg-slate-100 px-3 py-1.5 text-left font-medium">평가 일시</th>
               <td className="border border-black px-3 py-1.5">{fmtDate(session?.eventDate ?? null)}</td>

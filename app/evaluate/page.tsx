@@ -55,7 +55,7 @@ export default async function EvaluateHome({ searchParams }: { searchParams: Pro
 
       {assignments.length === 0 && (
         <div className="rounded-xl border border-dashed border-slate-300 bg-white p-12 text-center text-slate-400">
-          진행 중인 배정 회차가 없습니다.
+          진행 중인 배정 심사가 없습니다.
         </div>
       )}
 
@@ -93,7 +93,7 @@ export default async function EvaluateHome({ searchParams }: { searchParams: Pro
                 const complete = total > 0 && done >= total
                 const inProgress = done > 0 && !complete
                 const score = complete ? computeWeightedScore(rows, weights) : null
-                // 이 회차 전용 + 공통 자료
+                // 이 심사 전용 + 공통 자료
                 const docs = sub.company.documents.filter((d) => d.sessionId === a.session.id || d.sessionId === null)
                 return (
                   <div key={sub.id} className="border-b border-slate-100 px-5 py-4 transition last:border-0 hover:bg-slate-50">

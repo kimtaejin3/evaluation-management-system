@@ -36,7 +36,7 @@ export default async function CompaniesPage() {
       <div>
         <h1 className="text-2xl font-bold">기업 관리</h1>
         <p className="mt-1 text-sm text-slate-500">
-          평가 대상 기업과 자료를 등록합니다. 자료는 심사 회차별로 구분해 올릴 수 있습니다(공통=전 회차 공유).
+          평가 대상 기업과 자료를 등록합니다. 자료는 심사별로 구분해 올릴 수 있습니다(공통=전 심사 공유).
         </p>
       </div>
 
@@ -63,7 +63,7 @@ export default async function CompaniesPage() {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-slate-800">{c.name}</span>
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">회차 {c._count.subjects}곳 사용</span>
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">심사 {c._count.subjects}곳 사용</span>
                   </div>
                   {c.description && <p className="mt-1 text-sm text-slate-500">{c.description}</p>}
                 </div>
@@ -97,7 +97,7 @@ export default async function CompaniesPage() {
               </ul>
               <form action={uploadCompanyDocument.bind(null, c.id)} className="mt-3 flex flex-wrap items-center gap-2">
                 <select name="sessionId" defaultValue="" className={inputCls}>
-                  <option value="">공통 (전 회차)</option>
+                  <option value="">공통 (전 심사)</option>
                   {sessions.map((s) => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
@@ -111,7 +111,7 @@ export default async function CompaniesPage() {
                 />
                 <button className="shrink-0 rounded-md bg-slate-800 px-3 py-1.5 text-sm text-white transition hover:bg-slate-900">일괄 업로드</button>
               </form>
-              <p className="mt-1 text-xs text-slate-400">회차를 선택해 해당 심사 회차 전용 자료로 올릴 수 있습니다.</p>
+              <p className="mt-1 text-xs text-slate-400">심사를 선택해 해당 심사 전용 자료로 올릴 수 있습니다.</p>
             </div>
           </div>
         ))}

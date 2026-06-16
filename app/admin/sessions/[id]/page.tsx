@@ -3,6 +3,10 @@ import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { setSessionStatus, duplicateSession } from '../actions'
 import { canCloseSession } from '@/lib/session-rules'
+import { getSessionProgress, getSessionInsights } from '@/lib/progress'
+import MonitoringGrid from '@/components/MonitoringGrid'
+import DashboardInsights from '@/components/DashboardInsights'
+import LiveRefresher from '@/components/LiveRefresher'
 
 const FLOW = [
   { key: 'DRAFT', label: '초안', desc: '항목·대상·위원을 설정합니다.' },
@@ -17,6 +21,9 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
     include: { _count: { select: { criteria: true, subjects: true, assignments: true } } },
   })
   if (!session) notFound()
+
+  const p = await getSessionProgress(id)
+  const insights = await getSessionInsights(id)
 
   const meta: { label: string; value: string }[] = [
     { label: '일시', value: session.eventDate ? new Date(session.eventDate).toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }) : '—' },
@@ -40,9 +47,9 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
     <div className="grid gap-6 lg:grid-cols-3">
       <div className="rounded-xl border border-slate-200 bg-white p-5 lg:col-span-2">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-semibold">회차 정보</h2>
+          <h2 className="font-semibold">심사 정보</h2>
           <form action={async () => { 'use server'; await duplicateSession(id) }}>
-            <button className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50">회차 복사</button>
+            <button className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50">심사 복사</button>
           </form>
         </div>
         {session.description && <p className="mb-4 text-sm text-slate-600">{session.description}</p>}
@@ -95,6 +102,33 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
         </div>
       </div>
     </div>
+
+    {/* 실시간 모니터링 대시보드 */}
+    <section className="space-y-5 rounded-xl border border-slate-200 bg-white p-5">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+        <h2 className="font-semibold">실시간 모니터링</h2>
+        <LiveRefresher sessionId={id} />
+      </div>
+
+      {/* KPI 스탯 스트립 */}
+      <div className="grid grid-cols-2 gap-y-5 sm:grid-cols-4 sm:gap-y-0 sm:divide-x sm:divide-slate-200">
+        {[
+          { label: '배정 위원', value: `${p.assignedCount}명` },
+          { label: '입력 완료 위원', value: `${p.completedEvaluators}/${p.assignedCount}` },
+          { label: '진행률', value: `${p.pct}%`, accent: true, hint: `${p.doneCells}/${p.totalCells} 칸` },
+          { label: '평가 대상', value: `${p.subjects.length}개` },
+        ].map((k, i) => (
+          <div key={k.label} className={i === 0 ? 'sm:pr-6' : 'sm:px-6'}>
+            <div className="text-sm text-slate-500">{k.label}</div>
+            <div className={`mt-1 text-2xl font-bold ${k.accent ? 'text-indigo-600' : 'text-slate-900'}`}>{k.value}</div>
+            <div className="mt-0.5 text-xs text-slate-400">{k.hint ?? ' '}</div>
+          </div>
+        ))}
+      </div>
+
+      <MonitoringGrid data={p} />
+      <DashboardInsights data={insights} sessionId={id} />
+    </section>
 
     {/* 세부 화면 바로가기 */}
     <div>

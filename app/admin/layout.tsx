@@ -19,7 +19,7 @@ export default async function AdminLayout({
       <AdminSidebar sessions={sessions} />
       <div className="flex min-h-screen flex-1 flex-col overflow-x-auto">
         <header className="flex items-center justify-between border-b border-slate-200 px-8 py-3">
-          <HeaderTitle />
+          <HeaderTitle sessions={sessions} />
           <div className="flex items-center gap-4 text-sm text-slate-500">
             <span>
               <span className="font-medium text-slate-700">

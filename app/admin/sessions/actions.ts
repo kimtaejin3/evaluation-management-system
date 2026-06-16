@@ -69,7 +69,7 @@ export async function deleteCriterion(sessionId: string, criterionId: string) {
   revalidatePath(`/admin/sessions/${sessionId}/criteria`)
 }
 
-// 회차에 평가 대상(기업) 편입 — 기존 기업 선택(companyId) 또는 신규 기업명(newName)
+// 심사에 평가 대상(기업) 편입 — 기존 기업 선택(companyId) 또는 신규 기업명(newName)
 export async function addSubject(sessionId: string, formData: FormData) {
   const companyId = String(formData.get('companyId') ?? '').trim()
   const newName = String(formData.get('newName') ?? '').trim()
@@ -86,7 +86,7 @@ export async function addSubject(sessionId: string, formData: FormData) {
   }
   if (!company) return
 
-  // 같은 회차에 이미 편입된 기업이면 무시(유니크 제약)
+  // 같은 심사에 이미 편입된 기업이면 무시(유니크 제약)
   const exists = await prisma.subject.findUnique({
     where: { sessionId_companyId: { sessionId, companyId: company.id } },
   })
@@ -113,7 +113,7 @@ export async function deleteSubject(sessionId: string, subjectId: string) {
   revalidatePath(`/admin/sessions/${sessionId}/subjects`)
 }
 
-// 평가 대상(기업) 자료 업로드 — 이 회차 전용(sessionId)으로 저장. 사업계획/현장실태조사서/사전검토표 등
+// 평가 대상(기업) 자료 업로드 — 이 심사 전용(sessionId)으로 저장. 사업계획/현장실태조사서/사전검토표 등
 export async function uploadSubjectDocument(sessionId: string, companyId: string, formData: FormData) {
   const files = formData.getAll('file').filter((f): f is File => f instanceof File && f.size > 0)
   if (files.length === 0) return
@@ -166,7 +166,7 @@ export async function removeEvaluator(sessionId: string, userId: string) {
   revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
 }
 
-// 평가위원 관리에서 등록한 기존 위원을 이 회차에 배정(폼: userId)
+// 평가위원 관리에서 등록한 기존 위원을 이 심사에 배정(폼: userId)
 export async function assignEvaluator(sessionId: string, formData: FormData) {
   const userId = String(formData.get('userId') ?? '').trim()
   if (!userId) return
@@ -178,7 +178,7 @@ export async function assignEvaluator(sessionId: string, formData: FormData) {
   revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
 }
 
-// ---- 회차 복사 ----
+// ---- 심사 복사 ----
 
 export async function duplicateSession(sessionId: string) {
   const src = await prisma.evaluationSession.findUnique({

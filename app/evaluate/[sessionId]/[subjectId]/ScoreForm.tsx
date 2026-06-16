@@ -143,7 +143,7 @@ export default function ScoreForm({
 
   return (
     <form action={formAction}>
-      {/* 컨텍스트 줄: 뒤로 + 회차/위원 + 진행/마감 */}
+      {/* 컨텍스트 줄: 뒤로 + 심사/위원 + 진행/마감 */}
       <div className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3 px-6 py-2.5 text-sm">
           <div className="flex items-center gap-3">

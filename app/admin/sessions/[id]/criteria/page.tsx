@@ -152,7 +152,7 @@ export default async function CriteriaPage({
 
       {/* 항목 추가 */}
       {locked ? (
-        <p className="text-sm text-slate-400">마감된 회차는 항목을 수정할 수 없습니다.</p>
+        <p className="text-sm text-slate-400">마감된 심사는 항목을 수정할 수 없습니다.</p>
       ) : (
         <div className="max-w-2xl">
           <AddCriterionForm sessionId={id} sections={sectionNames} />

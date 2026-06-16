@@ -55,7 +55,7 @@ export async function deleteCompany(companyId: string) {
   revalidatePath('/admin/companies')
 }
 
-// sessionId: 특정 회차용 자료면 회차 id, 비우면(공통) null
+// sessionId: 특정 심사용 자료면 심사 id, 비우면(공통) null
 export async function uploadCompanyDocument(companyId: string, formData: FormData) {
   const files = formData.getAll('file').filter((f): f is File => f instanceof File && f.size > 0)
   if (files.length === 0) return
