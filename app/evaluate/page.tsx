@@ -75,8 +75,16 @@ export default async function EvaluateHome({ searchParams }: { searchParams: Pro
               <div className="flex items-center gap-3">
                 <span className="font-semibold">{a.session.name}</span>
                 <span className="text-xs text-slate-300">{user.name} 위원</span>
+                {a.session.chairId === user.id && (
+                  <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs font-medium text-white">위원장</span>
+                )}
               </div>
               <div className="flex items-center gap-4 text-sm">
+                {a.session.chairId === user.id && (
+                  <Link href={`/evaluate/${a.session.id}/chair`} className="rounded-md border border-white/40 px-2.5 py-1 text-xs font-medium text-white transition hover:bg-white/10">
+                    총괄평가 →
+                  </Link>
+                )}
                 <span className="text-slate-200">{doneSubjects}/{a.session.subjects.length} 완료</span>
                 <div className="h-1.5 w-28 overflow-hidden rounded-full bg-white/20">
                   <div className="h-full rounded-full bg-white" style={{ width: `${pct}%` }} />

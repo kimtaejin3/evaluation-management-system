@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { addEvaluator, removeEvaluator, assignEvaluator } from "../../actions";
+import { addEvaluator, removeEvaluator, assignEvaluator, setChair } from "../../actions";
 
 const inputCls =
   "rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500";
@@ -61,32 +61,55 @@ export default async function EvaluatorsPage({
 
       {/* 배정된 평가위원 */}
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <div className="border-b border-slate-100 px-5 py-4 font-semibold">배정된 평가위원 ({assignments.length})</div>
+        <div className="border-b border-slate-100 px-5 py-4 font-semibold">
+          배정된 평가위원 ({assignments.length})
+          <span className="ml-2 text-xs font-normal text-slate-400">· 위원장 1인 지정 시 총괄평가/타 위원 점수 열람 권한 부여</span>
+        </div>
         <table className="w-full text-sm">
           <thead className="text-left text-slate-500">
             <tr className="border-b border-slate-100">
               <th className="px-5 py-3 font-medium">이름</th>
               <th className="px-5 py-3 font-medium">아이디</th>
+              <th className="px-5 py-3 font-medium">위원장</th>
               {!locked && <th className="px-5 py-3"></th>}
             </tr>
           </thead>
           <tbody>
-            {assignments.map((a) => (
-              <tr key={a.id} className="border-b border-slate-50 last:border-0">
-                <td className="px-5 py-3 font-medium text-slate-800">{a.user.name}</td>
-                <td className="px-5 py-3 text-slate-600">{a.user.username}</td>
-                {!locked && (
-                  <td className="px-5 py-3 text-right">
-                    <form action={async () => { "use server"; await removeEvaluator(id, a.userId); }}>
-                      <button className="text-sm text-rose-600 hover:underline">배정 해제</button>
-                    </form>
+            {assignments.map((a) => {
+              const isChair = session?.chairId === a.userId;
+              return (
+                <tr key={a.id} className="border-b border-slate-50 last:border-0">
+                  <td className="px-5 py-3 font-medium text-slate-800">
+                    {a.user.name}
+                    {isChair && <span className="ml-2 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">위원장</span>}
                   </td>
-                )}
-              </tr>
-            ))}
+                  <td className="px-5 py-3 text-slate-600">{a.user.username}</td>
+                  <td className="px-5 py-3">
+                    {locked ? (
+                      isChair ? "위원장" : "—"
+                    ) : isChair ? (
+                      <form action={async () => { "use server"; const fd = new FormData(); fd.set("userId", ""); await setChair(id, fd); }}>
+                        <button className="text-xs text-slate-500 hover:underline">위원장 해제</button>
+                      </form>
+                    ) : (
+                      <form action={async () => { "use server"; const fd = new FormData(); fd.set("userId", a.userId); await setChair(id, fd); }}>
+                        <button className="rounded-md border border-slate-300 px-2.5 py-1 text-xs text-slate-700 transition hover:bg-slate-50">위원장 지정</button>
+                      </form>
+                    )}
+                  </td>
+                  {!locked && (
+                    <td className="px-5 py-3 text-right">
+                      <form action={async () => { "use server"; await removeEvaluator(id, a.userId); }}>
+                        <button className="text-sm text-rose-600 hover:underline">배정 해제</button>
+                      </form>
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
             {assignments.length === 0 && (
               <tr>
-                <td colSpan={locked ? 2 : 3} className="px-5 py-10 text-center text-slate-400">
+                <td colSpan={locked ? 3 : 4} className="px-5 py-10 text-center text-slate-400">
                   배정된 위원이 없습니다. 위에서 평가위원을 선택해 배정하세요.
                 </td>
               </tr>

@@ -163,6 +163,23 @@ export async function addEvaluator(sessionId: string, formData: FormData) {
 
 export async function removeEvaluator(sessionId: string, userId: string) {
   await prisma.assignment.delete({ where: { sessionId_userId: { sessionId, userId } } })
+  // 배정 해제된 위원이 위원장이었다면 위원장 해제
+  const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { chairId: true } })
+  if (s?.chairId === userId) {
+    await prisma.evaluationSession.update({ where: { id: sessionId }, data: { chairId: null } })
+  }
+  revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
+}
+
+// 평가위원장 지정/해제 — 배정된 위원 중 1인. userId 비우면 해제.
+export async function setChair(sessionId: string, formData: FormData) {
+  const userId = String(formData.get('userId') ?? '').trim()
+  if (userId) {
+    // 배정된 위원만 위원장이 될 수 있음
+    const assigned = await prisma.assignment.findUnique({ where: { sessionId_userId: { sessionId, userId } } })
+    if (!assigned) return
+  }
+  await prisma.evaluationSession.update({ where: { id: sessionId }, data: { chairId: userId || null } })
   revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
 }
 

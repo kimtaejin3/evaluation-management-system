@@ -6,6 +6,18 @@ import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/session'
 import { isValidScoreValue, parseGradeOptions, defaultGradeOptions } from '@/lib/scoring'
 
+// 평가위원장이 심사 전체 총평(1건)을 저장 — 위원장 본인만 가능.
+export async function saveChairSummary(sessionId: string, formData: FormData): Promise<{ ok: boolean; error?: string }> {
+  const user = await getCurrentUser()
+  if (!user) return { ok: false, error: 'auth' }
+  const session = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { chairId: true } })
+  if (!session || session.chairId !== user.id) return { ok: false, error: '위원장만 작성할 수 있습니다.' }
+  const text = String(formData.get('summary') ?? '').trim()
+  await prisma.evaluationSession.update({ where: { id: sessionId }, data: { chairSummary: text || null } })
+  revalidatePath(`/evaluate/${sessionId}/chair`)
+  return { ok: true }
+}
+
 // 평가위원이 현재 포커스(입력 중)한 항목을 기록 — 대시보드에서 '실제 입력 중' 항목만 애니메이션.
 export async function pingEditing(sessionId: string, subjectId: string, criterionId: string) {
   const user = await getCurrentUser()

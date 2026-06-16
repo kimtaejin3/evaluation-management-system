@@ -44,6 +44,10 @@ model EvaluationSession {
   eventDate   DateTime?
   location    String?
   status      SessionStatus     @default(DRAFT)
+  // 평가위원장(배정 위원 중 1인)의 userId — 총괄평가/타 위원 점수 열람 권한
+  chairId      String?
+  // 위원장이 작성하는 심사 전체 총평(1건)
+  chairSummary String?
   criteria    Criterion[]
   subjects    Subject[]
   assignments Assignment[]
