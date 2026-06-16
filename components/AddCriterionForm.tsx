@@ -13,12 +13,9 @@ const DEFAULT_OPTS = [
   { label: '매우 미흡', points: 6 },
 ]
 
-const SECTION_TEMPLATE = ['사업계획', '추진역량', '기대효과']
-
-export default function AddCriterionForm({ sessionId, sections = [] }: { sessionId: string; sections?: string[] }) {
+export default function AddCriterionForm({ sessionId }: { sessionId: string }) {
   const [type, setType] = useState<'QUANTITATIVE' | 'QUALITATIVE'>('QUANTITATIVE')
   const [opts, setOpts] = useState(DEFAULT_OPTS)
-  const sectionOptions = Array.from(new Set([...sections, ...SECTION_TEMPLATE]))
 
   const setOpt = (i: number, key: 'label' | 'points', v: string) =>
     setOpts((p) => p.map((o, idx) => (idx === i ? { ...o, [key]: key === 'points' ? Number(v) : v } : o)))
@@ -32,10 +29,7 @@ export default function AddCriterionForm({ sessionId, sections = [] }: { session
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2 flex flex-col gap-1 text-xs text-slate-500">
           항목 (예: 사업계획 / 추진역량 / 기대효과)
-          <input name="section" list="section-options" placeholder="예: 사업계획 / 추진역량 / 기대효과" className={inputCls} />
-          <datalist id="section-options">
-            {sectionOptions.map((s) => <option key={s} value={s} />)}
-          </datalist>
+          <input name="section" placeholder="예: 사업계획 / 추진역량 / 기대효과" className={inputCls} />
         </div>
         <input name="name" placeholder="세부항목명 (예: 사업 타당성)" required className={`col-span-2 ${inputCls}`} />
         <input name="description" placeholder="평가 관점 설명 (예: 시장성·수익모델·실현 가능성)" className={`col-span-2 ${inputCls}`} />

@@ -17,7 +17,6 @@ export default async function CriteriaPage({
   const totalAll = criteria.reduce((s, c) => s + c.maxScore, 0)
 
   // 항목(섹션)별로 묶기 — 정량·정성 구분 없이 하나의 표로
-  const sectionNames = Array.from(new Set(criteria.map((c) => c.section).filter((s): s is string => !!s)))
   const NO_SECTION = '미분류'
   const grouped = criteria.reduce<Record<string, typeof criteria>>((acc, c) => {
     const key = c.section || NO_SECTION
@@ -144,7 +143,7 @@ export default async function CriteriaPage({
         <p className="text-sm text-slate-400">마감된 심사는 항목을 수정할 수 없습니다.</p>
       ) : (
         <div className="max-w-2xl">
-          <AddCriterionForm sessionId={id} sections={sectionNames} />
+          <AddCriterionForm sessionId={id} />
         </div>
       )}
     </div>
