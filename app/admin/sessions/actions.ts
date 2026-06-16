@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db'
 import { hashPassword } from '@/lib/auth'
 import { saveUpload, deleteUpload } from '@/lib/storage'
 import { canCloseSession, CLOSE_BLOCKED_MESSAGE } from '@/lib/session-rules'
+import { getCriteriaTemplate } from '@/lib/criteria-templates'
 
 export async function createSession(formData: FormData) {
   const name = String(formData.get('name') ?? '').trim()
@@ -66,6 +67,39 @@ export async function addCriterion(sessionId: string, formData: FormData) {
 
 export async function deleteCriterion(sessionId: string, criterionId: string) {
   await prisma.criterion.delete({ where: { id: criterionId } })
+  revalidatePath(`/admin/sessions/${sessionId}/criteria`)
+}
+
+// 평가표 템플릿 일괄 적용 — 항목(대제목)·세부항목·등급을 한 번에 구성.
+// 점수 입력이 시작된 심사는 안전을 위해 덮어쓰지 않음. 그 외에는 기존 항목을 대체.
+export async function applyCriteriaTemplate(sessionId: string, key: string): Promise<{ error?: string } | void> {
+  const tpl = getCriteriaTemplate(key)
+  if (!tpl) return { error: '알 수 없는 템플릿입니다.' }
+
+  const scoreCount = await prisma.score.count({ where: { sessionId } })
+  if (scoreCount > 0) return { error: '이미 점수가 입력된 심사에는 템플릿을 적용할 수 없습니다.' }
+
+  await prisma.criterion.deleteMany({ where: { sessionId } })
+
+  let order = 0
+  for (const sec of tpl.sections) {
+    for (const it of sec.items) {
+      const maxScore = Math.max(...it.grades.map((g) => g.points))
+      await prisma.criterion.create({
+        data: {
+          sessionId,
+          section: sec.section,
+          name: it.name,
+          description: it.description ?? null,
+          type: 'QUALITATIVE',
+          maxScore,
+          weight: 1,
+          order: order++,
+          gradeOptions: it.grades,
+        },
+      })
+    }
+  }
   revalidatePath(`/admin/sessions/${sessionId}/criteria`)
 }
 

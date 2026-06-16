@@ -4,6 +4,8 @@ import { prisma } from '@/lib/db'
 import { deleteCriterion } from '../../actions'
 import { parseGradeOptions, defaultGradeOptions } from '@/lib/scoring'
 import AddCriterionForm from '@/components/AddCriterionForm'
+import ApplyTemplateButton from '@/components/ApplyTemplateButton'
+import { CRITERIA_TEMPLATES } from '@/lib/criteria-templates'
 
 export default async function CriteriaPage({
   params,
@@ -150,12 +152,31 @@ export default async function CriteriaPage({
         </ul>
       </div>
 
-      {/* 항목 추가 */}
+      {/* 평가표 템플릿 + 항목 추가 */}
       {locked ? (
         <p className="text-sm text-slate-400">마감된 심사는 항목을 수정할 수 없습니다.</p>
       ) : (
-        <div className="max-w-2xl">
-          <AddCriterionForm sessionId={id} sections={sectionNames} />
+        <div className="space-y-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <div className="text-sm font-semibold text-slate-700">평가표 템플릿</div>
+            <p className="mt-0.5 text-xs text-slate-400">
+              표준 평가표를 한 번에 구성합니다. 항목(대제목)·세부항목·등급이 자동 생성되며, 적용 후 개별 항목을 추가·수정할 수 있습니다. (점수 입력 전에만 적용 가능)
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {CRITERIA_TEMPLATES.map((t) => (
+                <ApplyTemplateButton
+                  key={t.key}
+                  sessionId={id}
+                  templateKey={t.key}
+                  label={t.name}
+                  hasExisting={criteria.length > 0}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="max-w-2xl">
+            <AddCriterionForm sessionId={id} sections={sectionNames} />
+          </div>
         </div>
       )}
     </div>
