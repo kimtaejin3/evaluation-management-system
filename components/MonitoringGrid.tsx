@@ -44,7 +44,7 @@ export default function MonitoringGrid({ data }: { data: ProgressData }) {
                   className="w-32 border-b border-slate-200 px-2 py-2.5 text-center font-medium"
                   title={s.name}
                 >
-                  <span className="mx-auto block max-w-[120px] truncate">{s.name}</span>
+                  <span className="mx-auto block max-w-30 truncate">{s.name}</span>
                 </th>
               ))}
               <th className="sticky right-0 z-20 w-px whitespace-nowrap border-b border-l border-slate-200 bg-white px-3 py-2.5 text-center font-medium">
@@ -92,7 +92,7 @@ export default function MonitoringGrid({ data }: { data: ProgressData }) {
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-500">
         {LEGEND.map((l) => (
           <span key={l.state} className="inline-flex items-center gap-1.5">
-            <span className={`h-3.5 w-4 rounded-[2px] ${SWATCH[l.state]}`} />
+            <span className={`h-3.5 w-4 rounded-xs ${SWATCH[l.state]}`} />
             {l.label}
           </span>
         ))}
