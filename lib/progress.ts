@@ -25,6 +25,7 @@ export interface ProgressData {
   rows: {
     userId: string
     name: string
+    isChair: boolean
     cells: Cell[]
     doneItems: number
     totalItems: number
@@ -38,13 +39,15 @@ export interface ProgressData {
 }
 
 export async function getSessionProgress(sessionId: string): Promise<ProgressData> {
-  const [subjects, criteria, assignments, scores, editing] = await Promise.all([
+  const [session, subjects, criteria, assignments, scores, editing] = await Promise.all([
+    prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { chairId: true } }),
     prisma.subject.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } }),
     prisma.criterion.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } }),
     prisma.assignment.findMany({ where: { sessionId }, include: { user: true } }),
     prisma.score.findMany({ where: { sessionId }, select: { evaluatorId: true, subjectId: true, criterionId: true } }),
     prisma.editingPresence.findMany({ where: { sessionId }, select: { evaluatorId: true, subjectId: true, criterionId: true, updatedAt: true } }),
   ])
+  const chairId = session?.chairId ?? null
 
   const totalCriteria = criteria.length
   // 입력된 (위원:대상:항목) 집합
@@ -69,12 +72,17 @@ export async function getSessionProgress(sessionId: string): Promise<ProgressDat
     return { subjectId: subId, state, items, done, total: totalCriteria }
   }
 
-  const rows = assignments.map((a) => {
+  // 위원장을 맨 앞으로
+  const orderedAssignments = [...assignments].sort(
+    (a, b) => (b.userId === chairId ? 1 : 0) - (a.userId === chairId ? 1 : 0),
+  )
+  const rows = orderedAssignments.map((a) => {
     const cells = subjects.map((s) => cellOf(a.userId, s.id))
     const doneItems = cells.reduce((sum, c) => sum + c.done, 0)
     return {
       userId: a.userId,
       name: a.user.name,
+      isChair: a.userId === chairId,
       cells,
       doneItems,
       totalItems: subjects.length * totalCriteria,

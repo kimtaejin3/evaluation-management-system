@@ -6,6 +6,7 @@ import { getCurrentUser } from '@/lib/session'
 import { UPLOAD_DIR } from '@/lib/storage'
 import BackButton from '@/components/BackButton'
 import HwpViewer from '@/components/HwpViewer'
+import PdfViewer from '@/components/PdfViewer'
 
 function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`
@@ -61,9 +62,7 @@ export default async function ViewerPage({
           <img src={src} alt={doc.originalName} className="max-h-[85vh] w-auto object-contain" />
         </div>
       )}
-      {kind === 'pdf' && (
-        <iframe src={src} title={doc.originalName} className={`w-full rounded-lg border border-slate-200 bg-white ${isEmbed ? 'h-[calc(100vh-1rem)]' : 'h-[82vh]'}`} />
-      )}
+      {kind === 'pdf' && <PdfViewer id={doc.id} embed={isEmbed} />}
       {kind === 'text' &&
         (textContent !== null ? (
           <pre className="overflow-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-white p-5 text-sm leading-relaxed text-slate-800">{textContent}</pre>

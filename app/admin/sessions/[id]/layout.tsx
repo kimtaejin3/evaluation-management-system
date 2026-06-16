@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
-import StatusBadge from '@/components/StatusBadge'
+import SessionStatusControl from '@/components/SessionStatusControl'
 
 export default async function SessionLayout({
   children,
@@ -20,7 +20,11 @@ export default async function SessionLayout({
         <Link href="/admin/sessions" className="text-sm text-slate-400 hover:text-slate-600">← 심사 목록</Link>
         <div className="mt-1 flex items-center gap-3">
           <h1 className="text-2xl font-bold">{session.name}</h1>
-          <StatusBadge status={session.status} />
+          <SessionStatusControl
+            sessionId={session.id}
+            status={session.status}
+            eventDate={session.eventDate ? session.eventDate.toISOString() : null}
+          />
         </div>
       </div>
       <div>{children}</div>

@@ -13,6 +13,12 @@ export interface StoredFile {
   url: string | null
 }
 
+// 업로드 허용 형식: PDF만. 확장자(.pdf) 또는 MIME(application/pdf)로 판별.
+export function isPdf(file: File): boolean {
+  const ext = path.extname(file.name).toLowerCase()
+  return ext === '.pdf' || file.type === 'application/pdf'
+}
+
 export async function saveUpload(file: File): Promise<StoredFile> {
   const ext = path.extname(file.name)
   const storedName = `${randomUUID()}${ext}`

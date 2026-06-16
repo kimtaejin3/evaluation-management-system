@@ -12,7 +12,7 @@ export default async function AdminLayout({
   const user = await getCurrentUser();
   const sessions = await prisma.evaluationSession.findMany({
     orderBy: { createdAt: "desc" },
-    select: { id: true, name: true },
+    select: { id: true, name: true, status: true },
   });
   return (
     <div className="flex min-h-screen bg-slate-100 text-slate-900">

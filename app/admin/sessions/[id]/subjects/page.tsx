@@ -135,9 +135,9 @@ export default async function SubjectsPage({ params }: { params: Promise<{ id: s
 
               {!locked && (
                 <form action={uploadSubjectDocument.bind(null, id, s.companyId)} className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-slate-300 p-3">
-                  <input type="file" name="file" multiple required className="text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-indigo-700 hover:file:bg-indigo-100" />
+                  <input type="file" name="file" multiple required accept="application/pdf,.pdf" className="text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-indigo-700 hover:file:bg-indigo-100" />
                   <button className="shrink-0 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700">업로드</button>
-                  <span className="basis-full text-xs text-slate-400">예: 사업계획서 · 현장실태 조사서 · 사전검토표 (이 심사 전용으로 저장)</span>
+                  <span className="basis-full text-xs text-slate-400">예: 사업계획서 · 현장실태 조사서 · 사전검토표 (이 심사 전용으로 저장) · <span className="font-medium text-slate-500">PDF만 업로드</span></span>
                 </form>
               )}
             </div>

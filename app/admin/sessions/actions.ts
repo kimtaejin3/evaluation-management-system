@@ -3,8 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/db'
-import { hashPassword } from '@/lib/auth'
-import { saveUpload, deleteUpload } from '@/lib/storage'
+import { saveUpload, deleteUpload, isPdf } from '@/lib/storage'
 import { canCloseSession, CLOSE_BLOCKED_MESSAGE } from '@/lib/session-rules'
 
 export async function createSession(formData: FormData) {
@@ -19,6 +18,21 @@ export async function createSession(formData: FormData) {
     },
   })
   redirect(`/admin/sessions/${session.id}`)
+}
+
+// 심사 삭제 — criteria/subjects/assignments/scores는 Cascade.
+// 이 심사 전용 자료(sessionId 지정)는 파일까지 함께 삭제, 공통 자료(sessionId=null)는 보존.
+// Opinion·EditingPresence는 관계가 없어 별도 정리.
+export async function deleteSession(sessionId: string) {
+  const docs = await prisma.document.findMany({ where: { sessionId } })
+  for (const d of docs) {
+    await deleteUpload(d.storedName, d.url)
+  }
+  await prisma.document.deleteMany({ where: { sessionId } })
+  await prisma.opinion.deleteMany({ where: { sessionId } })
+  await prisma.editingPresence.deleteMany({ where: { sessionId } })
+  await prisma.evaluationSession.delete({ where: { id: sessionId } })
+  revalidatePath('/admin/sessions')
 }
 
 export async function setSessionStatus(sessionId: string, status: 'DRAFT' | 'IN_PROGRESS' | 'CLOSED') {
@@ -115,7 +129,8 @@ export async function deleteSubject(sessionId: string, subjectId: string) {
 
 // 평가 대상(기업) 자료 업로드 — 이 심사 전용(sessionId)으로 저장. 사업계획/현장실태조사서/사전검토표 등
 export async function uploadSubjectDocument(sessionId: string, companyId: string, formData: FormData) {
-  const files = formData.getAll('file').filter((f): f is File => f instanceof File && f.size > 0)
+  // PDF만 허용
+  const files = formData.getAll('file').filter((f): f is File => f instanceof File && f.size > 0 && isPdf(f))
   if (files.length === 0) return
   for (const file of files) {
     const { storedName, url } = await saveUpload(file)
@@ -140,25 +155,6 @@ export async function deleteSubjectDocument(sessionId: string, documentId: strin
   await prisma.document.delete({ where: { id: documentId } })
   await deleteUpload(doc.storedName, doc.url)
   revalidatePath(`/admin/sessions/${sessionId}/subjects`)
-}
-
-export async function addEvaluator(sessionId: string, formData: FormData) {
-  const username = String(formData.get('username') ?? '').trim()
-  const name = String(formData.get('name') ?? '').trim()
-  const password = String(formData.get('password') ?? '')
-  if (!username || !name || !password) return
-
-  const user = await prisma.user.upsert({
-    where: { username },
-    update: {},
-    create: { username, name, role: 'EVALUATOR', passwordHash: await hashPassword(password), tempPassword: password },
-  })
-  await prisma.assignment.upsert({
-    where: { sessionId_userId: { sessionId, userId: user.id } },
-    update: {},
-    create: { sessionId, userId: user.id },
-  })
-  revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
 }
 
 export async function removeEvaluator(sessionId: string, userId: string) {

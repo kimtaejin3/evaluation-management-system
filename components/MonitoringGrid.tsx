@@ -60,6 +60,7 @@ export default function MonitoringGrid({ data }: { data: ProgressData }) {
                   <td className="sticky left-0 z-10 w-px whitespace-nowrap border-b border-r border-slate-100 bg-white px-3 py-2 font-medium text-slate-800 group-last:border-b-0">
                     <span className="mr-1.5 text-slate-400">#{i + 1}</span>
                     {r.name}
+                    {r.isChair && <span className="ml-1.5 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">위원장</span>}
                   </td>
                   {r.cells.map((c) => (
                     <td

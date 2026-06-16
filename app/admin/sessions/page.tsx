@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import type { Prisma } from "@prisma/client";
 import StatusBadge from "@/components/StatusBadge";
+import DeleteSessionButton from "@/components/DeleteSessionButton";
 
 const STATUS_OPTIONS = [
   { value: "", label: "상태 전체" },
@@ -131,12 +132,15 @@ export default async function SessionListPage({
                     : "—"}
                 </td>
                 <td className="px-5 py-3">
-                  <Link
-                    href={`/admin/sessions/${s.id}`}
-                    className="text-[var(--gov-primary)] hover:underline"
-                  >
-                    관리
-                  </Link>
+                  <div className="flex items-center gap-3">
+                    <Link
+                      href={`/admin/sessions/${s.id}`}
+                      className="text-[var(--gov-primary)] hover:underline"
+                    >
+                      관리
+                    </Link>
+                    <DeleteSessionButton sessionId={s.id} sessionName={s.name} />
+                  </div>
                 </td>
               </tr>
             ))}

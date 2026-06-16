@@ -107,11 +107,12 @@ export default async function CompaniesPage() {
                   name="file"
                   multiple
                   required
+                  accept="application/pdf,.pdf"
                   className="block flex-1 text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:text-slate-700 hover:file:bg-slate-200"
                 />
                 <button className="shrink-0 rounded-md bg-slate-800 px-3 py-1.5 text-sm text-white transition hover:bg-slate-900">일괄 업로드</button>
               </form>
-              <p className="mt-1 text-xs text-slate-400">심사를 선택해 해당 심사 전용 자료로 올릴 수 있습니다.</p>
+              <p className="mt-1 text-xs text-slate-400">심사를 선택해 해당 심사 전용 자료로 올릴 수 있습니다. · <span className="font-medium text-slate-500">PDF 파일만 업로드</span>됩니다.</p>
             </div>
           </div>
         ))}

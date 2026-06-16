@@ -3,12 +3,14 @@ import { computeWeightedScore } from '@/lib/scoring'
 
 export default async function BreakdownPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const [subjects, criteria, assignments, scores] = await Promise.all([
+  const [session, subjects, criteria, assignments, scores] = await Promise.all([
+    prisma.evaluationSession.findUnique({ where: { id }, select: { chairId: true } }),
     prisma.subject.findMany({ where: { sessionId: id }, orderBy: { order: 'asc' } }),
     prisma.criterion.findMany({ where: { sessionId: id }, orderBy: { order: 'asc' } }),
     prisma.assignment.findMany({ where: { sessionId: id }, include: { user: true } }),
     prisma.score.findMany({ where: { sessionId: id } }),
   ])
+  const chairId = session?.chairId ?? null
 
   const weightedCriteria = criteria.map((c) => ({ id: c.id, weight: c.weight }))
   // (ev, sub) -> rows
@@ -25,7 +27,10 @@ export default async function BreakdownPage({ params }: { params: Promise<{ id: 
     return computeWeightedScore(rows, weightedCriteria)
   }
 
-  const evaluators = assignments.map((a) => a.user)
+  // 위원장을 맨 앞으로
+  const evaluators = [...assignments]
+    .sort((a, b) => (b.userId === chairId ? 1 : 0) - (a.userId === chairId ? 1 : 0))
+    .map((a) => a.user)
 
   return (
     <div className="space-y-8">
@@ -38,7 +43,10 @@ export default async function BreakdownPage({ params }: { params: Promise<{ id: 
               <tr className="border-b border-slate-100">
                 <th className="px-5 py-3 font-medium">대상</th>
                 {evaluators.map((e) => (
-                  <th key={e.id} className="px-4 py-3 text-right font-medium">{e.name}</th>
+                  <th key={e.id} className="px-4 py-3 text-right font-medium">
+                    {e.name}
+                    {e.id === chairId && <span className="ml-1.5 rounded-full bg-indigo-50 px-1.5 py-0.5 text-[11px] font-medium text-indigo-700">위원장</span>}
+                  </th>
                 ))}
                 <th className="px-5 py-3 text-right font-medium">평균(최종)</th>
               </tr>

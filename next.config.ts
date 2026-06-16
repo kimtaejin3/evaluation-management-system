@@ -12,6 +12,11 @@ const nextConfig: NextConfig = {
         stream: false,
         crypto: false,
       };
+      // react-pdf(pdf.js)는 브라우저에서 canvas 네이티브 모듈을 요구하지 않으므로 stub
+      config.resolve.alias = {
+        ...(config.resolve.alias || {}),
+        canvas: false,
+      };
     }
     return config;
   },
