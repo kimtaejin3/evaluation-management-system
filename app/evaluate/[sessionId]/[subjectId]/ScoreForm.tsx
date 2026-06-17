@@ -192,15 +192,11 @@ export default function ScoreForm({
       })
     : null;
 
-  const navChip = (active: boolean, st: "done" | "partial" | "none") =>
-    `relative flex h-8 min-w-8 items-center justify-center rounded-md px-2 text-sm font-semibold transition ${
+  const navChip = (active: boolean) =>
+    `relative flex h-8 items-center justify-center gap-1 rounded-md px-2.5 text-sm font-semibold transition ${
       active
         ? "bg-[var(--gov-navy)] text-white"
-        : st === "done"
-          ? "bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
-          : st === "partial"
-            ? "bg-indigo-50/60 text-indigo-500 hover:bg-indigo-100"
-            : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
     }`;
 
   return (
@@ -235,17 +231,22 @@ export default function ScoreForm({
           </span>
           {sections.map((g, i) => {
             const d = sectionDone(g);
-            const st: "done" | "partial" | "none" =
-              d >= g.items.length ? "done" : d > 0 ? "partial" : "none";
+            const active = step === i;
+            const done = d >= g.items.length;
             return (
               <button
                 key={g.no}
                 type="button"
                 onClick={() => setStep(i)}
-                className={navChip(step === i, st)}
+                className={navChip(active)}
                 title={g.name ?? `항목 ${g.no}`}
               >
                 {g.no}
+                <span
+                  className={`text-xs font-normal ${active ? "text-white/80" : done ? "text-slate-500" : "text-slate-400"}`}
+                >
+                  {done ? "완료" : `${d}/${g.items.length}`}
+                </span>
               </button>
             );
           })}
