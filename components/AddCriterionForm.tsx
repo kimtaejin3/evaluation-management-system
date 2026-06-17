@@ -33,16 +33,12 @@ export default function AddCriterionForm({ sessionId }: { sessionId: string }) {
         </div>
         <input name="name" placeholder="세부항목명 (예: 사업 타당성)" required className={`col-span-2 ${inputCls}`} />
         <input name="description" placeholder="평가 관점 설명 (예: 시장성·수익모델·실현 가능성)" className={`col-span-2 ${inputCls}`} />
-        <label className="flex flex-col gap-1 text-xs text-slate-500">
+        <label className="col-span-2 flex flex-col gap-1 text-xs text-slate-500">
           평가 방식
           <select value={type} name="type" onChange={(e) => setType(e.target.value as 'QUANTITATIVE' | 'QUALITATIVE')} className={inputCls}>
             <option value="QUANTITATIVE">정량 (점수 직접 입력)</option>
             <option value="QUALITATIVE">정성 (등급 선택)</option>
           </select>
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-slate-500">
-          가중치
-          <input name="weight" type="number" step="any" defaultValue={1} className={inputCls} />
         </label>
       </div>
 

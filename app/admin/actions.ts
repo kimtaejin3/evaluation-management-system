@@ -42,10 +42,14 @@ export async function resetEvaluatorPassword(userId: string) {
 export async function createCompany(formData: FormData) {
   const name = String(formData.get('name') ?? '').trim()
   if (!name) return
+  const businessNo = String(formData.get('businessNo') ?? '').trim() || null
   await prisma.company.upsert({
     where: { name },
-    update: { description: String(formData.get('description') ?? '') || undefined },
-    create: { name, description: String(formData.get('description') ?? '') || null },
+    update: {
+      description: String(formData.get('description') ?? '') || undefined,
+      businessNo: businessNo ?? undefined,
+    },
+    create: { name, businessNo, description: String(formData.get('description') ?? '') || null },
   })
   revalidatePath('/admin/companies')
 }

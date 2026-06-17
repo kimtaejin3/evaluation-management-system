@@ -127,7 +127,7 @@ export default async function ChairPage({ params }: { params: Promise<{ sessionI
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-slate-400">· 각 칸은 위원별 가중 합계 점수(모든 항목 입력 완료 시 표시) · 평균/순위는 완료 위원 기준 잠정값입니다.</p>
+      <p className="text-xs text-slate-400">· 각 칸은 위원별 합계 점수(모든 항목 입력 완료 시 표시) · 평균/순위는 완료 위원 기준 잠정값입니다.</p>
 
       {/* 총괄평가 작성 */}
       <ChairSummaryForm sessionId={sessionId} initial={session.chairSummary ?? ''} />

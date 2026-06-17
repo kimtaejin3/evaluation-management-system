@@ -1,121 +1,93 @@
 import { prisma } from "@/lib/db";
 import CompanyLogo from "@/components/CompanyLogo";
-import {
-  createCompany,
-  deleteCompany,
-  uploadCompanyDocument,
-  deleteCompanyDocument,
-} from "../actions";
+import { createCompany, deleteCompany } from "../actions";
 
 const inputCls =
   "rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500";
 
-function formatSize(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
+const STATUS: Record<string, { label: string; cls: string }> = {
+  DRAFT: { label: "초안", cls: "bg-slate-100 text-slate-600" },
+  IN_PROGRESS: { label: "진행중", cls: "bg-indigo-50 text-indigo-700" },
+  CLOSED: { label: "마감", cls: "bg-slate-200 text-slate-600" },
+};
 
 export default async function CompaniesPage() {
-  const [companies, sessions] = await Promise.all([
-    prisma.company.findMany({
-      orderBy: { name: "asc" },
-      include: {
-        documents: {
-          orderBy: { createdAt: "asc" },
-          include: { session: { select: { name: true } } },
-        },
-        _count: { select: { subjects: true } },
-      },
-    }),
-    prisma.evaluationSession.findMany({ orderBy: { createdAt: "desc" }, select: { id: true, name: true } }),
-  ]);
+  const companies = await prisma.company.findMany({
+    orderBy: { name: "asc" },
+    include: {
+      subjects: { select: { session: { select: { id: true, name: true, status: true } } } },
+    },
+  });
 
   return (
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold">기업 관리</h1>
         <p className="mt-1 text-sm text-slate-500">
-          평가 대상 기업과 자료를 등록합니다. 자료는 심사별로 구분해 올릴 수 있습니다(공통=전 심사 공유).
+          평가 대상 기업을 등록·관리합니다. 심사 자료 업로드는 <span className="font-medium text-slate-600">심사 관리 &gt; 평가 대상</span>에서 합니다.
         </p>
       </div>
 
       {/* 신규 기업 등록 (상단) */}
       <form
         action={createCompany}
-        className="grid grid-cols-3 gap-3 rounded-lg border border-slate-200 bg-white p-4"
+        className="grid grid-cols-2 gap-3 rounded-lg border border-slate-200 bg-white p-4"
       >
-        <div className="col-span-3 text-sm font-semibold text-slate-700">기업 등록</div>
+        <div className="col-span-2 text-sm font-semibold text-slate-700">기업 등록</div>
         <input name="name" placeholder="기업명" required className={inputCls} />
+        <input name="businessNo" placeholder="사업자등록번호 (예: 123-45-67890)" className={inputCls} />
         <input name="description" placeholder="설명(선택)" className={`col-span-2 ${inputCls}`} />
-        <button className="col-span-3 rounded-md bg-indigo-600 py-2 text-sm font-medium text-white transition hover:bg-indigo-700">
+        <button className="col-span-2 rounded-md bg-indigo-600 py-2 text-sm font-medium text-white transition hover:bg-indigo-700">
           + 기업 등록
         </button>
-        <p className="col-span-3 text-xs text-slate-400">같은 기업명이면 기존 기업을 갱신합니다.</p>
+        <p className="col-span-2 text-xs text-slate-400">같은 기업명이면 기존 기업을 갱신합니다.</p>
       </form>
 
       <div className="space-y-3">
-        {companies.map((c) => (
-          <div key={c.id} className="rounded-lg border border-slate-200 bg-white p-5">
-            <div className="flex items-start justify-between">
-              <div className="flex items-start gap-3">
-                <CompanyLogo name={c.name} className="h-6 w-6" />
-                <div>
-                  <div className="flex items-center gap-2">
+        {companies.map((c) => {
+          // 이 기업이 참여 중인 심사(중복 제거)
+          const sessions = Array.from(
+            new Map(c.subjects.map((s) => [s.session.id, s.session])).values(),
+          );
+          return (
+            <div key={c.id} className="rounded-lg border border-slate-200 bg-white p-5">
+              <div className="flex items-start justify-between">
+                <div className="flex items-start gap-3">
+                  <CompanyLogo name={c.name} className="h-6 w-6" />
+                  <div>
                     <span className="font-semibold text-slate-800">{c.name}</span>
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">심사 {c._count.subjects}곳 사용</span>
-                  </div>
-                  {c.description && <p className="mt-1 text-sm text-slate-500">{c.description}</p>}
-                </div>
-              </div>
-              <form action={async () => { "use server"; await deleteCompany(c.id); }}>
-                <button className="text-sm text-rose-600 hover:underline">삭제</button>
-              </form>
-            </div>
-
-            <div className="mt-4 border-t border-slate-100 pt-4">
-              <div className="mb-2 text-xs font-medium text-slate-500">자료 ({c.documents.length})</div>
-              <ul className="space-y-1">
-                {c.documents.map((d) => (
-                  <li key={d.id} className="flex items-center justify-between rounded-md bg-slate-50 px-3 py-2 text-sm">
-                    <a href={`/viewer/${d.id}`} className="flex items-center gap-2 text-indigo-600 hover:underline">
-                      <span>📄</span>
-                      <span>{d.originalName}</span>
-                      <span className="text-xs text-slate-400">{formatSize(d.size)}</span>
-                    </a>
-                    <div className="flex items-center gap-3">
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${d.session ? "bg-indigo-50 text-indigo-700" : "bg-slate-100 text-slate-500"}`}>
-                        {d.session ? d.session.name : "공통"}
-                      </span>
-                      <form action={async () => { "use server"; await deleteCompanyDocument(d.id); }}>
-                        <button className="text-xs text-rose-500 hover:underline">삭제</button>
-                      </form>
+                    <div className="mt-0.5 text-xs text-slate-500">
+                      사업자등록번호 <span className="font-medium text-slate-700">{c.businessNo || "—"}</span>
                     </div>
-                  </li>
-                ))}
-                {c.documents.length === 0 && <li className="text-sm text-slate-400">등록된 자료가 없습니다.</li>}
-              </ul>
-              <form action={uploadCompanyDocument.bind(null, c.id)} className="mt-3 flex flex-wrap items-center gap-2">
-                <select name="sessionId" defaultValue="" className={inputCls}>
-                  <option value="">공통 (전 심사)</option>
-                  {sessions.map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-                <input
-                  type="file"
-                  name="file"
-                  multiple
-                  required
-                  accept="application/pdf,.pdf"
-                  className="block flex-1 text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:text-slate-700 hover:file:bg-slate-200"
-                />
-                <button className="shrink-0 rounded-md bg-slate-800 px-3 py-1.5 text-sm text-white transition hover:bg-slate-900">일괄 업로드</button>
-              </form>
-              <p className="mt-1 text-xs text-slate-400">심사를 선택해 해당 심사 전용 자료로 올릴 수 있습니다. · <span className="font-medium text-slate-500">PDF 파일만 업로드</span>됩니다.</p>
+                    {c.description && <p className="mt-1 text-sm text-slate-500">{c.description}</p>}
+                  </div>
+                </div>
+                <form action={async () => { "use server"; await deleteCompany(c.id); }}>
+                  <button className="text-sm text-rose-600 hover:underline">삭제</button>
+                </form>
+              </div>
+
+              <div className="mt-4 border-t border-slate-100 pt-4">
+                <div className="mb-2 text-xs font-medium text-slate-500">참여 심사 ({sessions.length})</div>
+                {sessions.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {sessions.map((s) => {
+                      const st = STATUS[s.status] ?? { label: s.status, cls: "bg-slate-100 text-slate-600" };
+                      return (
+                        <span key={s.id} className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-sm text-slate-700">
+                          {s.name}
+                          <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${st.cls}`}>{st.label}</span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-400">참여 중인 심사가 없습니다.</p>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         {companies.length === 0 && (
           <div className="rounded-lg border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-400">
             등록된 기업이 없습니다. 위에서 먼저 기업을 등록하세요.

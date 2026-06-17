@@ -24,7 +24,7 @@ export default async function CriteriaPage({
     return acc
   }, {})
   const groupOrder = Object.keys(grouped).sort((a, b) => (a === NO_SECTION ? 1 : b === NO_SECTION ? -1 : 0))
-  const colCount = 5 + (locked ? 0 : 1)
+  const colCount = 4 + (locked ? 0 : 1)
   let rowNo = 0
 
   return (
@@ -42,7 +42,6 @@ export default async function CriteriaPage({
               <th className="w-px whitespace-nowrap px-4 py-2.5 font-medium">#</th>
               <th className="px-4 py-2.5 font-medium">세부항목 · 평가기준</th>
               <th className="w-px whitespace-nowrap px-4 py-2.5 text-right font-medium">배점</th>
-              <th className="w-px whitespace-nowrap px-4 py-2.5 text-right font-medium">가중치</th>
               <th className="px-4 py-2.5 font-medium">등급별 환산점수 (답)</th>
               {!locked && <th className="w-px whitespace-nowrap px-4 py-2.5 text-right font-medium">관리</th>}
             </tr>
@@ -74,7 +73,6 @@ export default async function CriteriaPage({
                           {c.description && <div className="mt-0.5 pl-3 text-xs text-slate-400">{c.description}</div>}
                         </td>
                         <td className="px-4 py-3 text-right font-semibold tabular-nums text-slate-800">{c.maxScore}</td>
-                        <td className="px-4 py-3 text-right tabular-nums text-slate-500">×{c.weight}</td>
                         <td className="px-4 py-3">
                           {isQual ? (
                             <div className="flex flex-wrap gap-1.5">
@@ -128,7 +126,7 @@ export default async function CriteriaPage({
         <ul className="space-y-0.5">
           <li>· 정량: 위원이 0 ~ 배점 사이 점수를 직접 입력합니다.</li>
           <li>· 정성: 위원이 등급(답)을 선택하면 해당 등급의 환산점수가 부여됩니다.</li>
-          <li>· 최종 점수 = Σ(항목 점수 × 가중치)의 위원 평균입니다.</li>
+          <li>· 최종 점수 = Σ(항목 점수)의 위원 평균입니다.</li>
         </ul>
       </div>
 

@@ -73,7 +73,7 @@ export default async function ResultsPage({
     <div className="space-y-5">
       {/* 화면 전용 컨트롤 */}
       <div className="flex items-center justify-between print:hidden">
-        <p className="text-sm text-slate-500">위원 평균 가중 점수 기준 순위입니다.</p>
+        <p className="text-sm text-slate-500">위원 평균 점수 기준 순위입니다.</p>
         <div className="flex gap-2">
           <a
             href={`/api/sessions/${id}/results.csv`}
@@ -225,7 +225,7 @@ export default async function ResultsPage({
         <div className="rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-500">
           <div className="mb-1.5 font-semibold text-slate-600">합산 공식</div>
           <ul className="space-y-1">
-            <li>· 위원 점수 = Σ(항목 점수 × 가중치)</li>
+            <li>· 위원 점수 = Σ(항목 점수)</li>
             <li>· 최종 점수 = 배정 위원 점수의 평균 (만점 {fmt(maxTotal)}점)</li>
             <li>· 환산 = 최종 ÷ {fmt(maxTotal)} × 100</li>
             <li>· 등급 = 환산 90↑ S · 80↑ A · 70↑ B · 60↑ C · 그 외 D</li>

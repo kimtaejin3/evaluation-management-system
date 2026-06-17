@@ -78,7 +78,7 @@ export default async function BreakdownPage({ params }: { params: Promise<{ id: 
 
       {/* 산출 근거표 */}
       <section className="space-y-3">
-        <h2 className="font-semibold text-slate-700">산출 근거 (대상별 항목 평균 × 가중치)</h2>
+        <h2 className="font-semibold text-slate-700">산출 근거 (대상별 항목 평균)</h2>
         <div className="grid gap-4 lg:grid-cols-2">
           {subjects.map((sub) => {
             // 항목별 위원 평균 점수
@@ -96,8 +96,7 @@ export default async function BreakdownPage({ params }: { params: Promise<{ id: 
                     <tr className="border-b border-slate-100">
                       <th className="px-4 py-2 font-medium">항목</th>
                       <th className="px-3 py-2 text-right font-medium">평균/배점</th>
-                      <th className="px-3 py-2 text-right font-medium">가중치</th>
-                      <th className="px-4 py-2 text-right font-medium">가중점수</th>
+                      <th className="px-4 py-2 text-right font-medium">점수</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -105,12 +104,11 @@ export default async function BreakdownPage({ params }: { params: Promise<{ id: 
                       <tr key={i} className="border-b border-slate-50 last:border-0">
                         <td className="px-4 py-2 text-slate-700">{r.name}</td>
                         <td className="px-3 py-2 text-right text-slate-500">{r.avg.toFixed(1)} / {r.maxScore}</td>
-                        <td className="px-3 py-2 text-right text-slate-500">×{r.weight}</td>
                         <td className="px-4 py-2 text-right font-medium text-slate-800">{r.weighted.toFixed(1)}</td>
                       </tr>
                     ))}
                     <tr className="bg-slate-50">
-                      <td className="px-4 py-2 font-semibold text-slate-700" colSpan={3}>최종 점수</td>
+                      <td className="px-4 py-2 font-semibold text-slate-700" colSpan={2}>최종 점수</td>
                       <td className="px-4 py-2 text-right font-bold text-indigo-600">{total.toFixed(2)}</td>
                     </tr>
                   </tbody>

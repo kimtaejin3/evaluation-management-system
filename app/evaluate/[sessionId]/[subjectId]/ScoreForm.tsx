@@ -202,7 +202,7 @@ export default function ScoreForm({
                   </div>
                   {c.description && <p className="mt-1 text-xs text-slate-400">{c.description}</p>}
                 </div>
-                <div className="shrink-0 text-right text-xs text-slate-400">배점 {c.maxScore}<br />가중치 {c.weight}</div>
+                <div className="shrink-0 text-right text-xs text-slate-400">배점 {c.maxScore}</div>
               </div>
 
               {c.type === 'QUALITATIVE' ? (
@@ -253,7 +253,7 @@ export default function ScoreForm({
               )}
 
               <div className="mt-2.5 text-right text-xs text-slate-500">
-                가중 점수 <span className="font-semibold text-slate-700">{ct != null ? fmt(ct) : '–'}</span>점
+                점수 <span className="font-semibold text-slate-700">{ct != null ? fmt(ct) : '–'}</span>점
               </div>
             </div>
           )
