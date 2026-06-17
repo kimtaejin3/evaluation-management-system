@@ -1,6 +1,8 @@
+import { Suspense } from "react";
 import { prisma } from "@/lib/db";
 import CompanyLogo from "@/components/CompanyLogo";
 import { createCompany, deleteCompany } from "../actions";
+import { SkeletonCardGrid } from "@/components/Skeletons";
 
 const inputCls =
   "rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500";
@@ -11,14 +13,7 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   CLOSED: { label: "마감", cls: "bg-slate-200 text-slate-600" },
 };
 
-export default async function CompaniesPage() {
-  const companies = await prisma.company.findMany({
-    orderBy: { name: "asc" },
-    include: {
-      subjects: { select: { session: { select: { id: true, name: true, status: true } } } },
-    },
-  });
-
+export default function CompaniesPage() {
   return (
     <div className="space-y-4">
       <div>
@@ -43,7 +38,23 @@ export default async function CompaniesPage() {
         <p className="col-span-2 text-xs text-slate-400">같은 기업명이면 기존 기업을 갱신합니다.</p>
       </form>
 
-      <div className="space-y-3">
+      <Suspense fallback={<SkeletonCardGrid count={3} lines={2} cols="" />}>
+        <CompanyList />
+      </Suspense>
+    </div>
+  );
+}
+
+async function CompanyList() {
+  const companies = await prisma.company.findMany({
+    orderBy: { name: "asc" },
+    include: {
+      subjects: { select: { session: { select: { id: true, name: true, status: true } } } },
+    },
+  });
+
+  return (
+    <div className="space-y-3">
         {companies.map((c) => {
           // 이 기업이 참여 중인 심사(중복 제거)
           const sessions = Array.from(
@@ -93,7 +104,6 @@ export default async function CompaniesPage() {
             등록된 기업이 없습니다. 위에서 먼저 기업을 등록하세요.
           </div>
         )}
-      </div>
     </div>
   );
 }

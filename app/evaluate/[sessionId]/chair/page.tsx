@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { prisma } from '@/lib/db'
@@ -5,6 +6,7 @@ import { getCurrentUser } from '@/lib/session'
 import { computeWeightedScore } from '@/lib/scoring'
 import ChairSummaryForm from '@/components/ChairSummaryForm'
 import ChairScoreCell from '@/components/ChairScoreCell'
+import { SkeletonTable } from '@/components/Skeletons'
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1))
 
@@ -18,6 +20,27 @@ export default async function ChairPage({ params }: { params: Promise<{ sessionI
   // 위원장 본인만 접근
   if (session.chairId !== user.id) redirect('/evaluate')
 
+  return (
+    <div className="mx-auto max-w-5xl space-y-6 px-6 py-6">
+      <div className="flex items-center gap-3">
+        <Link href="/evaluate" className="rounded-md border border-slate-300 px-2.5 py-1 text-sm text-slate-600 transition hover:bg-slate-50">← 대상 목록</Link>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">{session.name}</h1>
+          <p className="mt-0.5 text-sm text-slate-500">위원장 총괄평가 · 위원별 점수 열람</p>
+        </div>
+      </div>
+
+      <Suspense fallback={<SkeletonTable rows={5} cols={5} />}>
+        <ChairTable sessionId={sessionId} chairId={session.chairId} />
+      </Suspense>
+      <p className="text-xs text-slate-400">· 각 칸: 입력전 / 입력중 / 합계 점수(모든 항목 완료 시) — 칸을 클릭하면 항목별 입력 현황을 볼 수 있습니다. · 평균/순위는 완료 위원 기준 잠정값입니다.</p>
+
+      <ChairSummaryForm sessionId={sessionId} initial={session.chairSummary ?? ''} />
+    </div>
+  )
+}
+
+async function ChairTable({ sessionId, chairId }: { sessionId: string; chairId: string | null }) {
   const [subjects, criteria, assignments, scores, opinions] = await Promise.all([
     prisma.subject.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } }),
     prisma.criterion.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true, maxScore: true, weight: true } }),
@@ -31,7 +54,7 @@ export default async function ChairPage({ params }: { params: Promise<{ sessionI
 
   // 위원장을 컬럼 맨 앞으로
   const orderedAssignments = [...assignments].sort(
-    (a, b) => (b.userId === session.chairId ? 1 : 0) - (a.userId === session.chairId ? 1 : 0),
+    (a, b) => (b.userId === chairId ? 1 : 0) - (a.userId === chairId ? 1 : 0),
   )
 
   // (evaluator, subject) → rows
@@ -75,16 +98,6 @@ export default async function ChairPage({ params }: { params: Promise<{ sessionI
   })
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 px-6 py-6">
-      <div className="flex items-center gap-3">
-        <Link href="/evaluate" className="rounded-md border border-slate-300 px-2.5 py-1 text-sm text-slate-600 transition hover:bg-slate-50">← 대상 목록</Link>
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">{session.name}</h1>
-          <p className="mt-0.5 text-sm text-slate-500">위원장 총괄평가 · 위원별 점수 열람</p>
-        </div>
-      </div>
-
-      {/* 위원별 점수 열람 (행=대상, 열=위원) */}
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-slate-500">
@@ -93,7 +106,7 @@ export default async function ChairPage({ params }: { params: Promise<{ sessionI
               {orderedAssignments.map((a) => (
                 <th key={a.userId} className="px-4 py-2.5 text-right font-medium whitespace-nowrap">
                   {a.user.name}
-                  {a.userId === session.chairId && <span className="ml-1 text-xs text-indigo-600">(위원장)</span>}
+                  {a.userId === chairId && <span className="ml-1 text-xs text-indigo-600">(위원장)</span>}
                 </th>
               ))}
               <th className="px-4 py-2.5 text-right font-medium">평균</th>
@@ -114,7 +127,7 @@ export default async function ChairPage({ params }: { params: Promise<{ sessionI
                         <ChairScoreCell
                           evaluatorName={a.user.name}
                           subjectName={sub.name}
-                          isChair={a.userId === session.chairId}
+                          isChair={a.userId === chairId}
                           state={c.state}
                           score={c.score}
                           items={itemsOf(a.userId, sub.id)}
@@ -144,10 +157,5 @@ export default async function ChairPage({ params }: { params: Promise<{ sessionI
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-slate-400">· 각 칸: 입력전 / 입력중 / 합계 점수(모든 항목 완료 시) — 칸을 클릭하면 항목별 입력 현황을 볼 수 있습니다. · 평균/순위는 완료 위원 기준 잠정값입니다.</p>
-
-      {/* 총괄평가 작성 */}
-      <ChairSummaryForm sessionId={sessionId} initial={session.chairSummary ?? ''} />
-    </div>
   )
 }

@@ -1,9 +1,26 @@
+import { Suspense } from 'react'
 import { getSessionProgress } from '@/lib/progress'
 import StatCard from '@/components/StatCard'
 import MonitoringGrid from '@/components/MonitoringGrid'
+import { SkeletonStats, SkeletonTable } from '@/components/Skeletons'
 
 export default async function ProgressPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-6">
+          <SkeletonStats count={3} colsClass="lg:grid-cols-3" />
+          <SkeletonTable rows={5} cols={5} />
+        </div>
+      }
+    >
+      <ProgressContent id={id} />
+    </Suspense>
+  )
+}
+
+async function ProgressContent({ id }: { id: string }) {
   const p = await getSessionProgress(id)
 
   return (

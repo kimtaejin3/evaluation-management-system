@@ -1,8 +1,10 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import type { Prisma } from "@prisma/client";
 import StatusBadge from "@/components/StatusBadge";
 import DeleteSessionButton from "@/components/DeleteSessionButton";
+import { SkeletonTable } from "@/components/Skeletons";
 
 const STATUS_OPTIONS = [
   { value: "", label: "상태 전체" },
@@ -16,7 +18,36 @@ function sessionYear(s: { eventDate: Date | null; createdAt: Date }): number {
   return new Date(s.eventDate ?? s.createdAt).getFullYear();
 }
 
-export default async function SessionListPage({
+export default function SessionListPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ year?: string; status?: string }>;
+}) {
+  return (
+    <div className="space-y-5">
+      <div className="flex items-end justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">심사 관리</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            심사 생성 · 편집 · 마감
+          </p>
+        </div>
+        <Link
+          href="/admin/sessions/new"
+          className="rounded-md bg-[var(--gov-primary)] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-95"
+        >
+          + 새 심사
+        </Link>
+      </div>
+
+      <Suspense fallback={<SkeletonTable rows={6} cols={7} />}>
+        <SessionList searchParams={searchParams} />
+      </Suspense>
+    </div>
+  );
+}
+
+async function SessionList({
   searchParams,
 }: {
   searchParams: Promise<{ year?: string; status?: string }>;
@@ -41,23 +72,8 @@ export default async function SessionListPage({
     : all;
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-end justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">심사 관리</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            심사 생성 · 편집 · 마감
-          </p>
-        </div>
-        <Link
-          href="/admin/sessions/new"
-          className="rounded-md bg-[var(--gov-primary)] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-95"
-        >
-          + 새 심사
-        </Link>
-      </div>
-
-      <form method="get" className="flex flex-wrap items-center gap-2">
+    <>
+      <form method="get" className="mb-5 flex flex-wrap items-center gap-2">
         <select
           name="year"
           defaultValue={year ?? ""}
@@ -159,6 +175,6 @@ export default async function SessionListPage({
           </tbody>
         </table>
       </div>
-    </div>
+    </>
   );
 }

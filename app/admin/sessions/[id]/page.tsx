@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { duplicateSession } from '../actions'
@@ -6,17 +7,37 @@ import MonitoringGrid from '@/components/MonitoringGrid'
 import DashboardInsights from '@/components/DashboardInsights'
 import LiveRefresher from '@/components/LiveRefresher'
 import SessionStatusControl from '@/components/SessionStatusControl'
+import { SkeletonCard, SkeletonStats, SkeletonTable } from '@/components/Skeletons'
 
 export default async function SessionDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
+  return (
+    <div className="space-y-6">
+      <Suspense fallback={<SkeletonCard lines={4} />}>
+        <SessionInfo id={id} />
+      </Suspense>
+
+      <Suspense
+        fallback={
+          <div className="space-y-5 rounded-xl border border-slate-200 bg-white p-5">
+            <SkeletonStats count={4} colsClass="sm:grid-cols-4" />
+            <SkeletonTable rows={4} cols={4} />
+          </div>
+        }
+      >
+        <MonitoringSection id={id} />
+      </Suspense>
+    </div>
+  )
+}
+
+// 심사 정보 카드 (단일 쿼리)
+async function SessionInfo({ id }: { id: string }) {
   const session = await prisma.evaluationSession.findUnique({
     where: { id },
     include: { _count: { select: { criteria: true, subjects: true, assignments: true } } },
   })
   if (!session) notFound()
-
-  const p = await getSessionProgress(id)
-  const insights = await getSessionInsights(id)
 
   const meta: { label: string; value: string }[] = [
     { label: '일시', value: session.eventDate ? new Date(session.eventDate).toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }) : '—' },
@@ -27,34 +48,39 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
   ]
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-xl border border-slate-200 bg-white p-5">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-semibold">심사 정보</h2>
-          <form action={async () => { 'use server'; await duplicateSession(id) }}>
-            <button className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50">심사 복사</button>
-          </form>
-        </div>
-        {session.description && <p className="mb-4 text-sm text-slate-600">{session.description}</p>}
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3 lg:grid-cols-5">
-          {meta.map((m) => (
-            <div key={m.label}>
-              <dt className="text-slate-400">{m.label}</dt>
-              <dd className="mt-0.5 font-medium text-slate-800">{m.value}</dd>
-            </div>
-          ))}
-        </dl>
-        <div className="mt-4 flex items-center gap-2 border-t border-slate-100 pt-4">
-          <span className="text-sm text-slate-400">진행 상태</span>
-          <SessionStatusControl
-            sessionId={session.id}
-            status={session.status}
-            eventDate={session.eventDate ? session.eventDate.toISOString() : null}
-          />
-        </div>
+    <div className="rounded-xl border border-slate-200 bg-white p-5">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="font-semibold">심사 정보</h2>
+        <form action={async () => { 'use server'; await duplicateSession(id) }}>
+          <button className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50">심사 복사</button>
+        </form>
       </div>
+      {session.description && <p className="mb-4 text-sm text-slate-600">{session.description}</p>}
+      <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3 lg:grid-cols-5">
+        {meta.map((m) => (
+          <div key={m.label}>
+            <dt className="text-slate-400">{m.label}</dt>
+            <dd className="mt-0.5 font-medium text-slate-800">{m.value}</dd>
+          </div>
+        ))}
+      </dl>
+      <div className="mt-4 flex items-center gap-2 border-t border-slate-100 pt-4">
+        <span className="text-sm text-slate-400">진행 상태</span>
+        <SessionStatusControl
+          sessionId={session.id}
+          status={session.status}
+          eventDate={session.eventDate ? session.eventDate.toISOString() : null}
+        />
+      </div>
+    </div>
+  )
+}
 
-    {/* 실시간 모니터링 대시보드 */}
+// 실시간 모니터링 대시보드 (진행률 집계 — 무거운 쿼리)
+async function MonitoringSection({ id }: { id: string }) {
+  const [p, insights] = await Promise.all([getSessionProgress(id), getSessionInsights(id)])
+
+  return (
     <section className="space-y-5 rounded-xl border border-slate-200 bg-white p-5">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
         <h2 className="font-semibold">실시간 모니터링</h2>
@@ -80,6 +106,5 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
       <MonitoringGrid data={p} />
       <DashboardInsights data={insights} sessionId={id} />
     </section>
-    </div>
   )
 }

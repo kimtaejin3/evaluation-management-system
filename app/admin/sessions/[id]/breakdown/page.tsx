@@ -1,8 +1,25 @@
+import { Suspense } from 'react'
 import { prisma } from '@/lib/db'
 import { computeWeightedScore } from '@/lib/scoring'
+import { SkeletonTable } from '@/components/Skeletons'
 
 export default async function BreakdownPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-8">
+          <SkeletonTable rows={5} cols={5} />
+          <SkeletonTable rows={4} cols={4} />
+        </div>
+      }
+    >
+      <BreakdownContent id={id} />
+    </Suspense>
+  )
+}
+
+async function BreakdownContent({ id }: { id: string }) {
   const [session, subjects, criteria, assignments, scores] = await Promise.all([
     prisma.evaluationSession.findUnique({ where: { id }, select: { chairId: true } }),
     prisma.subject.findMany({ where: { sessionId: id }, orderBy: { order: 'asc' } }),

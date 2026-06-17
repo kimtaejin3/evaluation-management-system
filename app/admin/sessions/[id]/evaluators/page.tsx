@@ -1,6 +1,8 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { removeEvaluator, assignEvaluator, setChair } from "../../actions";
+import { SkeletonCard, SkeletonTable } from "@/components/Skeletons";
 
 const inputCls =
   "rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500";
@@ -11,6 +13,21 @@ export default async function EvaluatorsPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-6">
+          <SkeletonCard lines={2} />
+          <SkeletonTable rows={4} cols={4} />
+        </div>
+      }
+    >
+      <EvaluatorsContent id={id} />
+    </Suspense>
+  );
+}
+
+async function EvaluatorsContent({ id }: { id: string }) {
   const session = await prisma.evaluationSession.findUnique({ where: { id } });
   const assignments = await prisma.assignment.findMany({
     where: { sessionId: id },

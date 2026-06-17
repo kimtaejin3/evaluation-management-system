@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import CompanyLogo from "@/components/CompanyLogo";
@@ -8,6 +9,7 @@ import {
   deleteSubjectDocument,
 } from "../../actions";
 import SubjectUploadForm from "@/components/SubjectUploadForm";
+import { SkeletonCard, SkeletonCardGrid } from "@/components/Skeletons";
 
 const inputCls =
   "rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500";
@@ -24,6 +26,21 @@ export default async function SubjectsPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-6">
+          <SkeletonCard lines={2} />
+          <SkeletonCardGrid count={3} lines={3} cols="" />
+        </div>
+      }
+    >
+      <SubjectsContent id={id} />
+    </Suspense>
+  );
+}
+
+async function SubjectsContent({ id }: { id: string }) {
   const session = await prisma.evaluationSession.findUnique({ where: { id } });
   const subjects = await prisma.subject.findMany({
     where: { sessionId: id },

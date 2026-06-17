@@ -1,8 +1,10 @@
+import { Suspense } from "react";
 import { prisma } from "@/lib/db";
 import { computeFinalScores, rankSubjects, overallGrade } from "@/lib/scoring";
 import { getSessionInsights } from "@/lib/progress";
 import PrintButton from "./PrintButton";
 import ResultCell from "@/components/ResultCell";
+import { SkeletonCard, SkeletonTable } from "@/components/Skeletons";
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
@@ -15,6 +17,22 @@ export default async function ResultsPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-5">
+          <SkeletonTable rows={6} cols={4} />
+          <SkeletonCard lines={4} />
+          <SkeletonCard lines={4} />
+        </div>
+      }
+    >
+      <ResultsContent id={id} />
+    </Suspense>
+  );
+}
+
+async function ResultsContent({ id }: { id: string }) {
   const session = await prisma.evaluationSession.findUnique({ where: { id } });
   const subjects = await prisma.subject.findMany({ where: { sessionId: id } });
   const criteria = await prisma.criterion.findMany({ where: { sessionId: id } });

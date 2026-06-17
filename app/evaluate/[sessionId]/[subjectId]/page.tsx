@@ -1,13 +1,38 @@
+import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/session'
 import { parseGradeOptions, defaultGradeOptions } from '@/lib/scoring'
 import ScoreForm, { type CriterionView } from './ScoreForm'
+import { SkeletonCard } from '@/components/Skeletons'
 
 export default async function ScoreSheet({ params }: { params: Promise<{ sessionId: string; subjectId: string }> }) {
-  const { sessionId, subjectId } = await params
   const user = await getCurrentUser()
   if (!user) return null
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-5xl space-y-5 px-6 py-6">
+          <SkeletonCard lines={2} />
+          <SkeletonCard lines={5} />
+        </div>
+      }
+    >
+      <ScoreSheetContent params={params} userId={user.id} userName={user.name} />
+    </Suspense>
+  )
+}
+
+async function ScoreSheetContent({
+  params,
+  userId,
+  userName,
+}: {
+  params: Promise<{ sessionId: string; subjectId: string }>
+  userId: string
+  userName: string
+}) {
+  const { sessionId, subjectId } = await params
 
   const subject = await prisma.subject.findUnique({
     where: { id: subjectId },
@@ -23,13 +48,13 @@ export default async function ScoreSheet({ params }: { params: Promise<{ session
   const criteria = await prisma.criterion.findMany({ where: { sessionId }, orderBy: { order: 'asc' } })
   if (!subject || !session) notFound()
 
-  const existing = await prisma.score.findMany({ where: { evaluatorId: user.id, subjectId } })
+  const existing = await prisma.score.findMany({ where: { evaluatorId: userId, subjectId } })
   const byCriterion = new Map(existing.map((s) => [s.criterionId, s]))
-  const opinion = await prisma.opinion.findUnique({ where: { evaluatorId_subjectId: { evaluatorId: user.id, subjectId } } })
+  const opinion = await prisma.opinion.findUnique({ where: { evaluatorId_subjectId: { evaluatorId: userId, subjectId } } })
 
   // 이 심사의 내 진행률(완료 대상 수 / 전체) + 대상 전환 드롭다운용
   const subjects = await prisma.subject.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } })
-  const myScores = await prisma.score.findMany({ where: { evaluatorId: user.id, sessionId }, select: { subjectId: true, criterionId: true, value: true } })
+  const myScores = await prisma.score.findMany({ where: { evaluatorId: userId, sessionId }, select: { subjectId: true, criterionId: true, value: true } })
   const totalCriteria = criteria.length
   const doneCountBySubject = new Map<string, number>()
   for (const s of myScores) doneCountBySubject.set(s.subjectId, (doneCountBySubject.get(s.subjectId) ?? 0) + 1)
@@ -80,8 +105,8 @@ export default async function ScoreSheet({ params }: { params: Promise<{ session
       subjectId={subjectId}
       subjectName={subject.name}
       sessionName={session.name}
-      evaluatorName={user.name}
-      isChair={session.chairId === user.id}
+      evaluatorName={userName}
+      isChair={session.chairId === userId}
       eventDate={session.eventDate ? session.eventDate.toISOString() : null}
       progress={{ done: doneSubjects, total: subjects.length }}
       documents={subject.company.documents.map((d) => ({ id: d.id, name: d.originalName, mimeType: d.mimeType }))}

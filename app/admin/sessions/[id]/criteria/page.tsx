@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, Suspense } from "react";
 import { prisma } from "@/lib/db";
 import { deleteCriterion } from "../../actions";
 import { parseGradeOptions, defaultGradeOptions } from "@/lib/scoring";
@@ -6,6 +6,7 @@ import AddCriterionButton from "@/components/AddCriterionButton";
 import EditCriterionButton from "@/components/EditCriterionButton";
 import EditSectionButton from "@/components/EditSectionButton";
 import { TrashIcon } from "@/components/icons";
+import { SkeletonTable } from "@/components/Skeletons";
 
 export default async function CriteriaPage({
   params,
@@ -13,6 +14,14 @@ export default async function CriteriaPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  return (
+    <Suspense fallback={<SkeletonTable rows={6} cols={4} />}>
+      <CriteriaContent id={id} />
+    </Suspense>
+  );
+}
+
+async function CriteriaContent({ id }: { id: string }) {
   const session = await prisma.evaluationSession.findUnique({ where: { id } });
   const criteria = await prisma.criterion.findMany({
     where: { sessionId: id },
