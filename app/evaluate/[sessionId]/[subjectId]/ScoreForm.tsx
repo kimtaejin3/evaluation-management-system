@@ -158,7 +158,7 @@ export default function ScoreForm({
 
       {/* 헤더 (네비게이션) */}
       <div className="sticky top-0 z-20 border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-2 px-6 pt-2.5 text-sm">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 px-6 pt-2.5 text-sm">
           <div className="flex items-center gap-2">
             <Link href="/evaluate" className="rounded-md border border-slate-300 px-2.5 py-1 text-slate-600 transition hover:bg-slate-50">← 목록</Link>
             <span className="text-slate-500">{sessionName}</span>
@@ -172,7 +172,7 @@ export default function ScoreForm({
           </div>
         </div>
         {/* 네비: 회사 선택 · 위원장 배지 | 평가 항목 번호 · 총괄심사표 · (위원장) 다른 위원 평가 */}
-        <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-1.5 px-6 py-2">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-1.5 px-6 py-2">
           {subjects.length > 0 ? (
             <SubjectPicker sessionId={sessionId} currentId={subjectId} subjects={subjects} />
           ) : (
@@ -203,7 +203,7 @@ export default function ScoreForm({
         </div>
       </div>
 
-      <div className="mx-auto max-w-3xl space-y-5 px-6 py-6">
+      <div className="mx-auto max-w-5xl space-y-5 px-6 py-6">
         {/* 심사 서류 */}
         <DocPreviewBoard documents={documents} />
 
