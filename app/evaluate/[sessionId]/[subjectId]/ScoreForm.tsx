@@ -150,9 +150,16 @@ export default function ScoreForm({
     const n = Number(raw);
     return Number.isFinite(n) ? n * c.weight : null;
   };
+  // 입력 완료 판정 — 정량 0점은 '미입력'으로 간주(빈 값과 동일). 정성은 선택(인덱스 0 포함) 인정
+  const isFilled = (c: CriterionView): boolean => {
+    const raw = vals[c.id];
+    if (raw === "") return false;
+    if (c.type === "QUANTITATIVE") return Number(raw) !== 0;
+    return true;
+  };
   const total = criteria.reduce((s, c) => s + (contrib(c) ?? 0), 0);
   const maxTotal = criteria.reduce((s, c) => s + c.maxScore * c.weight, 0);
-  const filledCount = criteria.filter((c) => vals[c.id] !== "").length;
+  const filledCount = criteria.filter((c) => isFilled(c)).length;
   const allFilled = filledCount === criteria.length && criteria.length > 0;
 
   // 항목(섹션)별 그룹 + 번호 체계(1 / 1-1)
@@ -168,7 +175,7 @@ export default function ScoreForm({
     g.items.push({ c, code: `${g.no}-${g.items.length + 1}` });
   });
   const sectionDone = (g: (typeof sections)[number]) =>
-    g.items.filter((it) => vals[it.c.id] !== "").length;
+    g.items.filter((it) => isFilled(it.c)).length;
 
   // step: 섹션 인덱스 | 'summary' — 회사 전환 시 URL(?step=)로 현재 보던 화면 유지
   const searchParams = useSearchParams();
@@ -354,6 +361,7 @@ export default function ScoreForm({
                       </tr>
                       {g.items.map((it) => {
                         const ct = contrib(it.c);
+                        const filled = isFilled(it.c);
                         return (
                           <tr
                             key={it.c.id}
@@ -369,8 +377,8 @@ export default function ScoreForm({
                               {it.c.maxScore}
                             </td>
                             <td className="px-3 py-2 text-right font-semibold tabular-nums text-slate-800">
-                              {ct != null ? (
-                                fmt(ct)
+                              {filled ? (
+                                fmt(ct ?? 0)
                               ) : (
                                 <span className="text-rose-500">미입력</span>
                               )}
@@ -553,7 +561,7 @@ export default function ScoreForm({
                       <div className="mt-2.5 text-right text-xs text-slate-500">
                         점수{" "}
                         <span className="font-semibold text-slate-700">
-                          {ct != null ? fmt(ct) : "–"}
+                          {isFilled(c) ? fmt(ct ?? 0) : "–"}
                         </span>
                         점
                       </div>
