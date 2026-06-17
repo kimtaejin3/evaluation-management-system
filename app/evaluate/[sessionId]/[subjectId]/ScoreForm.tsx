@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable react-hooks/refs -- 디바운스 타이머·입력중 heartbeat용 ref는 이벤트 핸들러/이펙트에서만 접근(렌더 중 접근 아님). 규칙이 ref를 닫는 핸들러를 과하게 잡는 false-positive */
+
 import { Fragment, useActionState, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -165,10 +167,6 @@ export default function ScoreForm({
     }
     g.items.push({ c, code: `${g.no}-${g.items.length + 1}` });
   });
-  const codeOf = new Map<string, string>();
-  sections.forEach((g) =>
-    g.items.forEach((it) => codeOf.set(it.c.id, it.code)),
-  );
   const sectionDone = (g: (typeof sections)[number]) =>
     g.items.filter((it) => vals[it.c.id] !== "").length;
 
