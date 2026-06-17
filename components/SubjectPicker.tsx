@@ -8,10 +8,12 @@ export default function SubjectPicker({
   sessionId,
   currentId,
   subjects,
+  step,
 }: {
   sessionId: string
   currentId: string
   subjects: { id: string; name: string }[]
+  step?: string
 }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -35,7 +37,10 @@ export default function SubjectPicker({
 
   const select = (id: string) => {
     setOpen(false)
-    if (id !== currentId) router.push(`/evaluate/${sessionId}/${id}`)
+    if (id !== currentId) {
+      const q = step ? `?step=${encodeURIComponent(step)}` : ''
+      router.push(`/evaluate/${sessionId}/${id}${q}`)
+    }
   }
 
   return (

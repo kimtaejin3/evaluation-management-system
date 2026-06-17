@@ -2,6 +2,7 @@
 
 import { Fragment, useActionState, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { saveScores, autoSaveScore, pingEditing, clearEditing } from '@/app/evaluate/actions'
 import type { GradeOption } from '@/lib/scoring'
 import DocPreviewBoard from '@/components/DocPreviewBoard'
@@ -134,8 +135,16 @@ export default function ScoreForm({
   sections.forEach((g) => g.items.forEach((it) => codeOf.set(it.c.id, it.code)))
   const sectionDone = (g: (typeof sections)[number]) => g.items.filter((it) => vals[it.c.id] !== '').length
 
-  // step: 섹션 인덱스 | 'summary'
-  const [step, setStep] = useState<number | 'summary'>(0)
+  // step: 섹션 인덱스 | 'summary' — 회사 전환 시 URL(?step=)로 현재 보던 화면 유지
+  const searchParams = useSearchParams()
+  const stepParam = searchParams.get('step')
+  const initialStep: number | 'summary' =
+    stepParam === 'summary'
+      ? 'summary'
+      : stepParam != null && Number.isFinite(Number(stepParam))
+        ? Math.max(0, Math.min(Number(stepParam), Math.max(0, sections.length - 1)))
+        : 0
+  const [step, setStep] = useState<number | 'summary'>(initialStep)
   const deadline = eventDate ? new Date(eventDate).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : null
 
   const navChip = (active: boolean, st: 'done' | 'partial' | 'none') =>
@@ -156,25 +165,12 @@ export default function ScoreForm({
         <input key={c.id} type="hidden" name={`c_${c.id}`} value={vals[c.id]} />
       ))}
 
-      {/* 헤더 (네비게이션) */}
+      {/* 헤더 (네비게이션만) */}
       <div className="sticky top-0 z-20 border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 px-6 pt-2.5 text-sm">
-          <div className="flex items-center gap-2">
-            <Link href="/evaluate" className="rounded-md border border-slate-300 px-2.5 py-1 text-slate-600 transition hover:bg-slate-50">← 목록</Link>
-            <span className="text-slate-500">{sessionName}</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5 text-xs">
-              <span className={`h-1.5 w-1.5 rounded-full ${autoState === 'saving' ? 'bg-amber-500 animate-pulse' : autoState === 'error' ? 'bg-rose-500' : autoState === 'saved' ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-              <span className="text-slate-400">{autoState === 'saving' ? '저장 중' : autoState === 'error' ? '저장 실패' : '자동 저장'}</span>
-            </span>
-            <span className="text-sm">현재 <b className="text-indigo-700 tabular-nums">{fmt(total)}</b><span className="text-slate-400">/{fmt(maxTotal)}</span></span>
-          </div>
-        </div>
         {/* 네비: 회사 선택 · 위원장 배지 | 평가 항목 번호 · 총괄심사표 · (위원장) 다른 위원 평가 */}
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-1.5 px-6 py-2">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-1.5 px-6 py-2.5">
           {subjects.length > 0 ? (
-            <SubjectPicker sessionId={sessionId} currentId={subjectId} subjects={subjects} />
+            <SubjectPicker sessionId={sessionId} currentId={subjectId} subjects={subjects} step={String(step)} />
           ) : (
             <span className="font-semibold text-slate-800">{subjectName}</span>
           )}
@@ -204,6 +200,21 @@ export default function ScoreForm({
       </div>
 
       <div className="mx-auto max-w-5xl space-y-5 px-6 py-6">
+        {/* 목록·심사 이름·자동 저장·현재 점수 (문항 위) */}
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+          <div className="flex items-center gap-2">
+            <Link href="/evaluate" className="rounded-md border border-slate-300 px-2.5 py-1 text-slate-600 transition hover:bg-slate-50">← 목록</Link>
+            <span className="text-slate-500">{sessionName}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="flex items-center gap-1.5 text-xs">
+              <span className={`h-1.5 w-1.5 rounded-full ${autoState === 'saving' ? 'bg-amber-500 animate-pulse' : autoState === 'error' ? 'bg-rose-500' : autoState === 'saved' ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+              <span className="text-slate-400">{autoState === 'saving' ? '저장 중' : autoState === 'error' ? '저장 실패' : '자동 저장'}</span>
+            </span>
+            <span>현재 <b className="text-indigo-700 tabular-nums">{fmt(total)}</b><span className="text-slate-400">/{fmt(maxTotal)}</span></span>
+          </div>
+        </div>
+
         {/* 심사 서류 */}
         <DocPreviewBoard documents={documents} />
 
