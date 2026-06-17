@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/session'
 import { computeWeightedScore } from '@/lib/scoring'
 import CompanyLogo from '@/components/CompanyLogo'
-import CriteriaPreviewButton from '@/components/CriteriaPreviewButton'
+import CriteriaAccordion from '@/components/CriteriaAccordion'
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1))
 
@@ -81,13 +81,6 @@ export default async function EvaluateHome({ searchParams }: { searchParams: Pro
                 )}
               </div>
               <div className="flex items-center gap-3 text-sm">
-                <CriteriaPreviewButton
-                  sessionName={a.session.name}
-                  criteria={a.session.criteria
-                    .slice()
-                    .sort((x, y) => x.order - y.order)
-                    .map((c) => ({ id: c.id, section: c.section, name: c.name, description: c.description, type: c.type, maxScore: c.maxScore, gradeOptions: c.gradeOptions }))}
-                />
                 {a.session.chairId === user.id && (
                   <Link href={`/evaluate/${a.session.id}/chair`} className="rounded-md border border-white/40 px-2.5 py-1 text-xs font-medium text-white transition hover:bg-white/10">
                     총괄평가 →
@@ -100,6 +93,14 @@ export default async function EvaluateHome({ searchParams }: { searchParams: Pro
                 {deadline && <span className="text-xs text-slate-300">마감 {deadline}</span>}
               </div>
             </div>
+
+            {/* 평가 항목 (아코디언) */}
+            <CriteriaAccordion
+              criteria={a.session.criteria
+                .slice()
+                .sort((x, y) => x.order - y.order)
+                .map((c) => ({ id: c.id, section: c.section, name: c.name, description: c.description, type: c.type, maxScore: c.maxScore, gradeOptions: c.gradeOptions }))}
+            />
 
             {/* 대상 카드 리스트 */}
             <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
