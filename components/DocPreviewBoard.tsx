@@ -49,7 +49,8 @@ export default function DocPreviewBoard({
         );
       }
       const i = p.length;
-      const w = 440;
+      // 기본 프리뷰 창 너비(기존 440 → 1.5배). 화면이 좁으면 화면폭에 맞춤
+      const w = typeof window !== "undefined" ? Math.min(660, window.innerWidth - 32) : 660;
       // 왼쪽 서류함을 가리지 않도록 화면 오른쪽에서 계단식으로 띄움
       const baseX =
         typeof window !== "undefined"
