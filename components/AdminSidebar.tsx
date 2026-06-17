@@ -8,7 +8,7 @@ import { SessionsIcon, UsersIcon, CompanyIcon } from "./icons";
 const APP_VERSION = "0.1.0";
 
 const SUB_ITEMS = [
-  { suffix: "", label: "상세", desc: "심사 정보·모니터링" },
+  { suffix: "", label: "상세", desc: "심사 정보· 실시간 모니터링" },
   { suffix: "/criteria", label: "평가 항목", desc: "배점·등급 설정" },
   { suffix: "/subjects", label: "평가 대상", desc: "기업 편입·자료" },
   { suffix: "/evaluators", label: "평가위원", desc: "위원 배정·위원장" },
@@ -17,7 +17,10 @@ const SUB_ITEMS = [
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   DRAFT: { label: "초안", cls: "bg-slate-100 text-slate-600 ring-slate-200" },
-  IN_PROGRESS: { label: "진행중", cls: "bg-indigo-50 text-indigo-700 ring-indigo-200" },
+  IN_PROGRESS: {
+    label: "진행중",
+    cls: "bg-indigo-50 text-indigo-700 ring-indigo-200",
+  },
   CLOSED: { label: "마감", cls: "bg-slate-200 text-slate-600 ring-slate-300" },
 };
 
@@ -32,17 +35,27 @@ function topCls(active: boolean) {
 }
 function sessionCls(active: boolean) {
   return `block truncate rounded px-3 py-1.5 text-sm transition ${
-    active ? "bg-white/10 text-white font-semibold" : "text-slate-400 hover:text-white"
+    active
+      ? "bg-white/10 text-white font-semibold"
+      : "text-slate-400 hover:text-white"
   }`;
 }
 function leafCls(active: boolean) {
   return `block rounded px-3 py-1.5 transition ${
-    active ? "bg-white/10 text-white" : "text-slate-300 hover:bg-white/[0.06] hover:text-white"
+    active
+      ? "bg-white/10 text-white"
+      : "text-slate-300 hover:bg-white/[0.06] hover:text-white"
   }`;
 }
 
 // 세션 모드 하단의 심사 전환 드롭다운
-function SessionSwitcher({ sessions, currentId }: { sessions: Session[]; currentId: string | null }) {
+function SessionSwitcher({
+  sessions,
+  currentId,
+}: {
+  sessions: Session[];
+  currentId: string | null;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -50,7 +63,8 @@ function SessionSwitcher({ sessions, currentId }: { sessions: Session[]; current
 
   useEffect(() => {
     function onDoc(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") setOpen(false);
@@ -78,16 +92,33 @@ function SessionSwitcher({ sessions, currentId }: { sessions: Session[]; current
         aria-expanded={open}
       >
         <span className="truncate">{current?.name ?? "심사 선택"}</span>
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden>
+        <svg
+          viewBox="0 0 20 20"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`}
+          aria-hidden
+        >
           <path d="m5 8 5 5 5-5" />
         </svg>
       </button>
       {open && (
-        <div className="absolute bottom-full left-0 z-30 mb-1.5 max-h-72 w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg" role="listbox">
-          <div className="px-3 pb-1 pt-1.5 text-[11px] font-medium uppercase tracking-wide text-slate-400">심사 전환</div>
+        <div
+          className="absolute bottom-full left-0 z-30 mb-1.5 max-h-72 w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
+          role="listbox"
+        >
+          <div className="px-3 pb-1 pt-1.5 text-[11px] font-medium uppercase tracking-wide text-slate-400">
+            심사 전환
+          </div>
           {sessions.map((s) => {
             const active = s.id === currentId;
-            const st = STATUS[s.status] ?? { label: s.status, cls: "bg-slate-100 text-slate-600 ring-slate-200" };
+            const st = STATUS[s.status] ?? {
+              label: s.status,
+              cls: "bg-slate-100 text-slate-600 ring-slate-200",
+            };
             return (
               <button
                 key={s.id}
@@ -97,12 +128,24 @@ function SessionSwitcher({ sessions, currentId }: { sessions: Session[]; current
                 onClick={() => select(s.id)}
                 className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition hover:bg-slate-50 ${active ? "bg-indigo-50/60" : ""}`}
               >
-                <span className={`flex-1 truncate ${active ? "font-semibold text-indigo-700" : "text-slate-700"}`}>{s.name}</span>
-                <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${st.cls}`}>{st.label}</span>
+                <span
+                  className={`flex-1 truncate ${active ? "font-semibold text-indigo-700" : "text-slate-700"}`}
+                >
+                  {s.name}
+                </span>
+                <span
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${st.cls}`}
+                >
+                  {st.label}
+                </span>
               </button>
             );
           })}
-          {sessions.length === 0 && <div className="px-3 py-2 text-sm text-slate-400">등록된 심사 없음</div>}
+          {sessions.length === 0 && (
+            <div className="px-3 py-2 text-sm text-slate-400">
+              등록된 심사 없음
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -116,7 +159,8 @@ export default function AdminSidebar({ sessions }: { sessions: Session[] }) {
   const current = sid ? sessions.find((s) => s.id === sid) : null;
 
   const isExact = (p: string) => pathname === p;
-  const sessionsActive = pathname === "/admin/sessions" || pathname === "/admin/sessions/new";
+  const sessionsActive =
+    pathname === "/admin/sessions" || pathname === "/admin/sessions/new";
   const leafActive = (suffix: string) =>
     suffix === ""
       ? isExact(`/admin/sessions/${sid}`)
@@ -135,20 +179,40 @@ export default function AdminSidebar({ sessions }: { sessions: Session[] }) {
         /* ── 세션 모드: 이 심사의 메뉴만 ── */
         <>
           <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-            <Link href="/admin/sessions" className="mb-1 flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-400 transition hover:text-white">
+            <Link
+              href="/admin/sessions"
+              className="mb-1 flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-400 transition hover:text-white"
+            >
               <span aria-hidden>←</span> 전체 메뉴
             </Link>
             <div className="px-3 pb-2">
-              <div className="truncate text-sm font-bold text-white" title={current?.name}>{current?.name ?? "심사"}</div>
+              <div
+                className="truncate text-sm font-bold text-white"
+                title={current?.name}
+              >
+                {current?.name ?? "심사"}
+              </div>
               <div className="text-[11px] text-slate-400">심사 메뉴</div>
             </div>
             <div className="space-y-0.5">
               {SUB_ITEMS.map((it) => {
                 const active = leafActive(it.suffix);
                 return (
-                  <Link key={it.suffix} href={`/admin/sessions/${sid}${it.suffix}`} className={leafCls(active)}>
-                    <span className={`block text-[13px] ${active ? "font-semibold" : "font-medium"}`}>{it.label}</span>
-                    <span className={`mt-0.5 block text-[11px] ${active ? "text-slate-300" : "text-slate-500"}`}>{it.desc}</span>
+                  <Link
+                    key={it.suffix}
+                    href={`/admin/sessions/${sid}${it.suffix}`}
+                    className={leafCls(active)}
+                  >
+                    <span
+                      className={`block text-[13px] ${active ? "font-semibold" : "font-medium"}`}
+                    >
+                      {it.label}
+                    </span>
+                    <span
+                      className={`mt-0.5 block text-[11px] ${active ? "text-slate-300" : "text-slate-500"}`}
+                    >
+                      {it.desc}
+                    </span>
                   </Link>
                 );
               })}
@@ -167,20 +231,35 @@ export default function AdminSidebar({ sessions }: { sessions: Session[] }) {
               심사 관리
             </Link>
             <div className="mt-1 ml-3 space-y-0.5 border-l border-white/15 pl-2">
-              {sessions.length === 0 && <div className="px-3 py-1.5 text-xs text-slate-500">등록된 심사 없음</div>}
+              {sessions.length === 0 && (
+                <div className="px-3 py-1.5 text-xs text-slate-500">
+                  등록된 심사 없음
+                </div>
+              )}
               {sessions.map((s) => (
-                <Link key={s.id} href={`/admin/sessions/${s.id}`} className={sessionCls(false)} title={s.name}>
+                <Link
+                  key={s.id}
+                  href={`/admin/sessions/${s.id}`}
+                  className={sessionCls(false)}
+                  title={s.name}
+                >
                   {s.name}
                 </Link>
               ))}
             </div>
           </div>
 
-          <Link href="/admin/evaluators" className={topCls(pathname.startsWith("/admin/evaluators"))}>
+          <Link
+            href="/admin/evaluators"
+            className={topCls(pathname.startsWith("/admin/evaluators"))}
+          >
             <UsersIcon />
             평가위원 관리
           </Link>
-          <Link href="/admin/companies" className={topCls(pathname.startsWith("/admin/companies"))}>
+          <Link
+            href="/admin/companies"
+            className={topCls(pathname.startsWith("/admin/companies"))}
+          >
             <CompanyIcon />
             기업 관리
           </Link>
@@ -188,7 +267,8 @@ export default function AdminSidebar({ sessions }: { sessions: Session[] }) {
       )}
 
       <div className="border-t border-white/10 px-5 py-3 text-[11px] text-slate-500">
-        심사·평가 종합관리시스템 <span className="text-slate-400">v{APP_VERSION}</span>
+        심사·평가 종합관리시스템{" "}
+        <span className="text-slate-400">v{APP_VERSION}</span>
       </div>
     </aside>
   );

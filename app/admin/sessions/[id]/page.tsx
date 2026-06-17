@@ -5,6 +5,7 @@ import { getSessionProgress, getSessionInsights } from '@/lib/progress'
 import MonitoringGrid from '@/components/MonitoringGrid'
 import DashboardInsights from '@/components/DashboardInsights'
 import LiveRefresher from '@/components/LiveRefresher'
+import SessionStatusControl from '@/components/SessionStatusControl'
 
 export default async function SessionDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -43,7 +44,14 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
             </div>
           ))}
         </dl>
-        <p className="mt-4 text-xs text-slate-400">진행 상태 변경은 상단 제목 옆의 상태 배지를 클릭하세요.</p>
+        <div className="mt-4 flex items-center gap-2 border-t border-slate-100 pt-4">
+          <span className="text-sm text-slate-400">진행 상태</span>
+          <SessionStatusControl
+            sessionId={session.id}
+            status={session.status}
+            eventDate={session.eventDate ? session.eventDate.toISOString() : null}
+          />
+        </div>
       </div>
 
     {/* 실시간 모니터링 대시보드 */}
