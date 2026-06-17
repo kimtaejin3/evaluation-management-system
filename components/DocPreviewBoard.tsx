@@ -29,6 +29,7 @@ export default function DocPreviewBoard({
   const [railOpen, setRailOpen] = useState(true);
   const zTop = useRef(50);
   const drag = useRef<{ id: string; dx: number; dy: number } | null>(null);
+  const resize = useRef<{ id: string; sx: number; sy: number; w0: number; h0: number } | null>(null);
 
   if (documents.length === 0) return null;
 
@@ -112,6 +113,24 @@ export default function DocPreviewBoard({
   };
   const onPointerUp = () => {
     drag.current = null;
+  };
+
+  // 창 자체 리사이즈(우측 하단 핸들)
+  const onResizeDown = (e: React.PointerEvent, pane: PaneState) => {
+    e.stopPropagation();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    resize.current = { id: pane.id, sx: e.clientX, sy: e.clientY, w0: pane.w, h0: pane.h };
+    bringFront(pane.id);
+  };
+  const onResizeMove = (e: React.PointerEvent) => {
+    const r = resize.current;
+    if (!r) return;
+    const w = Math.max(280, r.w0 + (e.clientX - r.sx));
+    const h = Math.max(200, r.h0 + (e.clientY - r.sy));
+    setPanes((p) => p.map((pane) => (pane.id === r.id ? { ...pane, w, h } : pane)));
+  };
+  const onResizeUp = () => {
+    resize.current = null;
   };
 
   const openIds = new Set(panes.map((p) => p.id));
@@ -271,17 +290,29 @@ export default function DocPreviewBoard({
             </div>
           </div>
 
-          {/* 내용 (리사이즈 가능) */}
+          {/* 내용 */}
           {!pane.minimized && (
-            <div
-              style={{ height: pane.h, resize: "both", overflow: "auto" }}
-              className="min-h-50 min-w-65 bg-slate-50"
-            >
+            <div style={{ height: pane.h }} className="relative bg-slate-50">
               <iframe
                 src={`/viewer/${pane.id}?embed=1`}
                 title={pane.name}
                 className="h-full w-full border-0"
               />
+              {/* 창 리사이즈 핸들(우측 하단) */}
+              <div
+                onPointerDown={(e) => onResizeDown(e, pane)}
+                onPointerMove={onResizeMove}
+                onPointerUp={onResizeUp}
+                className="absolute bottom-0 right-0 z-10 h-5 w-5 cursor-se-resize touch-none"
+                title="창 크기 조절"
+              >
+                <svg viewBox="0 0 10 10" className="h-full w-full text-slate-400" fill="currentColor" aria-hidden>
+                  <path d="M9 1v8H1z" opacity="0.25" />
+                  <circle cx="8" cy="8" r="0.9" />
+                  <circle cx="5.5" cy="8" r="0.9" />
+                  <circle cx="8" cy="5.5" r="0.9" />
+                </svg>
+              </div>
             </div>
           )}
         </div>
