@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/session'
 import { computeWeightedScore } from '@/lib/scoring'
 import CompanyLogo from '@/components/CompanyLogo'
+import CriteriaPreviewButton from '@/components/CriteriaPreviewButton'
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1))
 
@@ -79,7 +80,14 @@ export default async function EvaluateHome({ searchParams }: { searchParams: Pro
                   <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs font-medium text-white">위원장</span>
                 )}
               </div>
-              <div className="flex items-center gap-4 text-sm">
+              <div className="flex items-center gap-3 text-sm">
+                <CriteriaPreviewButton
+                  sessionName={a.session.name}
+                  criteria={a.session.criteria
+                    .slice()
+                    .sort((x, y) => x.order - y.order)
+                    .map((c) => ({ id: c.id, section: c.section, name: c.name, description: c.description, type: c.type, maxScore: c.maxScore, gradeOptions: c.gradeOptions }))}
+                />
                 {a.session.chairId === user.id && (
                   <Link href={`/evaluate/${a.session.id}/chair`} className="rounded-md border border-white/40 px-2.5 py-1 text-xs font-medium text-white transition hover:bg-white/10">
                     총괄평가 →
