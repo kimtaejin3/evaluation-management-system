@@ -12,9 +12,7 @@ const SUB_ITEMS = [
   { suffix: "/criteria", label: "평가 항목", desc: "배점·등급 설정" },
   { suffix: "/subjects", label: "평가 대상", desc: "기업 편입·자료" },
   { suffix: "/evaluators", label: "평가위원", desc: "위원 배정·위원장" },
-  { suffix: "/progress", label: "진행 현황", desc: "위원×대상 입력 모니터링" },
   { suffix: "/results", label: "집계 결과", desc: "순위·환산·등급 총괄표" },
-  { suffix: "/breakdown", label: "산출 근거", desc: "항목 평균×가중치 내역" },
 ] as const;
 
 const STATUS: Record<string, { label: string; cls: string }> = {

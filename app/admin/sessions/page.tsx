@@ -103,9 +103,11 @@ export default async function SessionListPage({
             {sessions.map((s) => (
               <tr
                 key={s.id}
-                className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
+                className="relative border-b border-slate-100 last:border-0 hover:bg-slate-50"
               >
                 <td className="px-5 py-3 font-medium text-slate-800">
+                  {/* 행 전체 클릭 → 관리 진입 */}
+                  <Link href={`/admin/sessions/${s.id}`} aria-label={`${s.name} 관리`} className="absolute inset-0" />
                   {s.name}
                   {s.location && (
                     <div className="text-xs text-slate-400">{s.location}</div>
@@ -132,7 +134,7 @@ export default async function SessionListPage({
                     : "—"}
                 </td>
                 <td className="px-5 py-3">
-                  <div className="flex items-center gap-3">
+                  <div className="relative z-10 flex items-center gap-3">
                     <Link
                       href={`/admin/sessions/${s.id}`}
                       className="text-[var(--gov-primary)] hover:underline"
