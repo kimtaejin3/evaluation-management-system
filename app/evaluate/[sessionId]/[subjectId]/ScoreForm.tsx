@@ -197,9 +197,9 @@ export default function ScoreForm({
       active
         ? "bg-[var(--gov-navy)] text-white"
         : st === "done"
-          ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+          ? "bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
           : st === "partial"
-            ? "bg-amber-50 text-amber-700 hover:bg-amber-100"
+            ? "bg-indigo-50/60 text-indigo-500 hover:bg-indigo-100"
             : "bg-slate-100 text-slate-500 hover:bg-slate-200"
     }`;
 
