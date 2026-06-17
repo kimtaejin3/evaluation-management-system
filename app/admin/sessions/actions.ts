@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { saveUpload, deleteUpload, isPdf } from '@/lib/storage'
 import { canCloseSession, CLOSE_BLOCKED_MESSAGE } from '@/lib/session-rules'
@@ -74,6 +75,44 @@ export async function addCriterion(sessionId: string, formData: FormData) {
   const count = await prisma.criterion.count({ where: { sessionId } })
   await prisma.criterion.create({
     data: { sessionId, section, name, description, type, maxScore, weight, order: count, gradeOptions },
+  })
+  revalidatePath(`/admin/sessions/${sessionId}/criteria`)
+}
+
+export async function updateCriterion(sessionId: string, criterionId: string, formData: FormData) {
+  const name = String(formData.get('name') ?? '').trim()
+  if (!name) return
+  const type = String(formData.get('type')) === 'QUALITATIVE' ? 'QUALITATIVE' : 'QUANTITATIVE'
+  const description = String(formData.get('description') ?? '') || null
+  const section = String(formData.get('section') ?? '').trim() || null
+
+  let maxScore: number
+  let gradeOptions: { label: string; points: number }[] | null = null
+
+  if (type === 'QUALITATIVE') {
+    const labels = formData.getAll('optLabel').map((v) => String(v).trim())
+    const points = formData.getAll('optPoints').map((v) => Number(v))
+    const opts = labels
+      .map((label, i) => ({ label, points: points[i] }))
+      .filter((o) => o.label && Number.isFinite(o.points))
+    if (opts.length === 0) return
+    gradeOptions = opts
+    maxScore = Math.max(...opts.map((o) => o.points))
+  } else {
+    maxScore = Number(formData.get('maxScore') ?? 0)
+  }
+
+  await prisma.criterion.update({
+    where: { id: criterionId },
+    data: {
+      section,
+      name,
+      description,
+      type,
+      maxScore,
+      // 정성이면 등급 옵션 저장, 정량으로 바꾸면 등급 옵션 제거
+      gradeOptions: gradeOptions ?? Prisma.DbNull,
+    },
   })
   revalidatePath(`/admin/sessions/${sessionId}/criteria`)
 }
