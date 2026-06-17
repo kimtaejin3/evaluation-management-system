@@ -122,6 +122,16 @@ export async function deleteCriterion(sessionId: string, criterionId: string) {
   revalidatePath(`/admin/sessions/${sessionId}/criteria`)
 }
 
+// 항목(대제목/섹션) 이름 일괄 변경 — 해당 항목의 모든 세부항목에 적용. from=null이면 '미분류' 그룹.
+export async function renameSection(sessionId: string, from: string | null, to: string) {
+  const next = to.trim() || null
+  await prisma.criterion.updateMany({
+    where: { sessionId, section: from },
+    data: { section: next },
+  })
+  revalidatePath(`/admin/sessions/${sessionId}/criteria`)
+}
+
 // 심사에 평가 대상(기업) 편입 — 기존 기업 선택(companyId) 또는 신규 기업명(newName)
 export async function addSubject(sessionId: string, formData: FormData) {
   const companyId = String(formData.get('companyId') ?? '').trim()

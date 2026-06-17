@@ -4,6 +4,7 @@ import { deleteCriterion } from "../../actions";
 import { parseGradeOptions, defaultGradeOptions } from "@/lib/scoring";
 import CriterionForm from "@/components/CriterionForm";
 import EditCriterionButton from "@/components/EditCriterionButton";
+import EditSectionButton from "@/components/EditSectionButton";
 
 export default async function CriteriaPage({
   params,
@@ -87,6 +88,15 @@ export default async function CriteriaPage({
                         <span className="text-xs text-slate-400">
                           세부항목 {groupRows.length} · 배점 {groupSum}
                         </span>
+                        {!locked && (
+                          <span className="ml-1">
+                            <EditSectionButton
+                              sessionId={id}
+                              current={sec === NO_SECTION ? null : sec}
+                              label={sec}
+                            />
+                          </span>
+                        )}
                       </div>
                     </td>
                   </tr>
