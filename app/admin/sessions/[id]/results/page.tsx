@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { computeFinalScores, rankSubjects, overallGrade } from "@/lib/scoring";
 import { getSessionInsights } from "@/lib/progress";
 import PrintButton from "./PrintButton";
+import ResultCell from "@/components/ResultCell";
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
@@ -18,7 +19,7 @@ export default async function ResultsPage({
   const subjects = await prisma.subject.findMany({ where: { sessionId: id } });
   const criteria = await prisma.criterion.findMany({ where: { sessionId: id } });
   const scores = await prisma.score.findMany({ where: { sessionId: id } });
-  const assignments = await prisma.assignment.findMany({ where: { sessionId: id } });
+  const assignments = await prisma.assignment.findMany({ where: { sessionId: id }, include: { user: { select: { id: true, name: true } } } });
 
   const finalScores = computeFinalScores(
     scores.map((s) => ({
@@ -40,6 +41,11 @@ export default async function ResultsPage({
     const vs = scores.filter((s) => s.subjectId === subId && s.criterionId === critId).map((s) => s.value);
     return vs.length ? vs.reduce((a, b) => a + b, 0) / vs.length : null;
   };
+  // (위원:대상:항목) → 점수, hover 툴팁용 위원별 점수
+  const scoreVal = new Map<string, number>();
+  for (const s of scores) scoreVal.set(`${s.evaluatorId}:${s.subjectId}:${s.criterionId}`, s.value);
+  const perEvaluator = (subId: string, critId: string) =>
+    assignments.map((a) => ({ name: a.user.name, value: scoreVal.get(`${a.userId}:${subId}:${critId}`) ?? null }));
   const printedAt = new Date().toLocaleString("ko-KR", { dateStyle: "long", timeStyle: "short" });
   const chair = session?.chairId ? await prisma.user.findUnique({ where: { id: session.chairId }, select: { name: true } }) : null;
 
@@ -118,95 +124,78 @@ export default async function ResultsPage({
           집계할 항목·대상이 없습니다.
         </div>
       ) : (
-        <>
-          {/* (A) 평가 항목 표 — 번호 체계(1 / 1-1) */}
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white print:mt-4 print:rounded-none print:border-black">
-            <div className="border-b border-slate-100 px-5 py-3 text-sm font-semibold text-slate-700 print:border-black">평가 항목</div>
-            <table className="w-full text-sm">
-              <thead className="text-slate-500 print:text-black">
-                <tr className="border-b border-slate-200 bg-slate-50 print:border-black print:bg-transparent">
-                  <th className="px-3 py-2 text-left font-medium print:border print:border-black">구분</th>
-                  <th className="w-px whitespace-nowrap px-3 py-2 text-center font-medium print:border print:border-black">번호</th>
-                  <th className="px-3 py-2 text-left font-medium print:border print:border-black">평가 항목</th>
-                  <th className="w-px whitespace-nowrap px-3 py-2 text-center font-medium print:border print:border-black">배점</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sectionGroups.map((g) =>
-                  g.items.map((c, idx) => (
-                    <tr key={c.id} className="border-b border-slate-100 last:border-0 print:border-black">
-                      {idx === 0 && (
-                        <td rowSpan={g.items.length} className="px-3 py-2 align-middle text-xs font-semibold text-slate-600 print:border print:border-black">
-                          <span className="mr-1 text-indigo-600 print:text-black">{sectionNo.get(g.section)}</span>
-                          {g.section}
-                        </td>
-                      )}
-                      <td className="px-3 py-2 text-center font-semibold tabular-nums text-indigo-600 print:border print:border-black print:text-black">{itemCode.get(c.id)}</td>
-                      <td className="px-3 py-2 text-left font-medium text-slate-800 print:border print:border-black">
-                        {c.name}
-                        {c.weight !== 1 && <span className="ml-1 text-xs font-normal text-slate-400">×{c.weight}</span>}
+        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white print:mt-4 print:overflow-visible print:rounded-none print:border-black">
+          <table className="w-full text-sm">
+            <thead className="text-slate-500 print:text-black">
+              <tr className="border-b border-slate-200 bg-slate-50 print:border-black print:bg-transparent">
+                <th className="px-3 py-2 text-left font-medium print:border print:border-black">구분</th>
+                <th className="w-px whitespace-nowrap px-3 py-2 text-center font-medium print:border print:border-black">번호</th>
+                <th className="px-3 py-2 text-left font-medium print:border print:border-black">평가 항목</th>
+                <th className="w-px whitespace-nowrap px-3 py-2 text-center font-medium print:border print:border-black">배점</th>
+                {orderedSubjects.map((s) => (
+                  <th key={s.id} className="w-px whitespace-nowrap px-4 py-2 text-center font-medium print:border print:border-black" title={s.name}>
+                    {s.rank != null && <span className="mr-1 text-indigo-600 print:text-black">{s.rank}위</span>}
+                    {s.name}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {sectionGroups.map((g) =>
+                g.items.map((c, idx) => (
+                  <tr key={c.id} className="border-b border-slate-100 last:border-0 print:border-black">
+                    {idx === 0 && (
+                      <td rowSpan={g.items.length} className="px-3 py-2 align-middle text-xs font-semibold text-slate-600 print:border print:border-black">
+                        <span className="mr-1 text-indigo-600 print:text-black">{sectionNo.get(g.section)}</span>
+                        {g.section}
                       </td>
-                      <td className="px-3 py-2 text-center tabular-nums text-slate-500 print:border print:border-black print:text-black">{c.maxScore}</td>
-                    </tr>
-                  )),
-                )}
-              </tbody>
-              <tfoot>
-                <tr className="border-t border-slate-200 bg-slate-50 font-semibold text-slate-700 print:border-black print:bg-transparent">
-                  <td colSpan={3} className="px-3 py-2 text-right print:border print:border-black">배점 합계</td>
-                  <td className="px-3 py-2 text-center tabular-nums print:border print:border-black">{fmt(criteria.reduce((s, c) => s + c.maxScore, 0))}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-
-          {/* (B) 기업별 결과 카드 — 순위순 */}
-          <div className="space-y-4">
-            {orderedSubjects.map((s) => {
-              const pct = maxTotal > 0 ? (s.finalScore / maxTotal) * 100 : 0;
-              return (
-                <div key={s.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white print:break-inside-avoid print:rounded-none print:border-black">
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/60 px-5 py-3 print:border-black print:bg-transparent">
-                    <div className="flex items-center gap-2.5">
-                      {s.rank != null && (
-                        <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-[var(--gov-navy)] px-2 text-sm font-bold text-white print:bg-transparent print:text-black">{s.rank}위</span>
-                      )}
-                      <span className="text-base font-semibold text-slate-800">{s.name}</span>
-                    </div>
-                    <div className="flex items-center gap-4 text-sm">
-                      <span className="text-slate-500">최종 <span className="ml-0.5 text-base font-bold text-slate-900 tabular-nums">{s.finalScore.toFixed(2)}</span> <span className="text-xs text-slate-400">/{fmt(maxTotal)}</span></span>
-                      <span className="text-slate-500">환산 <span className="font-semibold text-slate-700 tabular-nums">{pct.toFixed(1)}</span></span>
-                      <span className={gradeBadge}>{overallGrade(s.finalScore, maxTotal)}</span>
-                    </div>
-                  </div>
-                  <table className="w-full text-sm">
-                    <thead className="text-slate-400 print:text-black">
-                      <tr className="border-b border-slate-100 print:border-black">
-                        <th className="w-px whitespace-nowrap px-3 py-2 text-center font-medium print:border print:border-black">번호</th>
-                        <th className="px-3 py-2 text-left font-medium print:border print:border-black">평가 항목</th>
-                        <th className="w-px whitespace-nowrap px-4 py-2 text-right font-medium print:border print:border-black">위원 평균</th>
-                        <th className="w-px whitespace-nowrap px-4 py-2 text-right font-medium print:border print:border-black">배점</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {orderedCriteria.map((c) => {
-                        const a = critAvg(s.id, c.id);
-                        return (
-                          <tr key={c.id} className="border-b border-slate-50 last:border-0 print:border-black">
-                            <td className="px-3 py-2 text-center font-medium tabular-nums text-indigo-600 print:border print:border-black print:text-black">{itemCode.get(c.id)}</td>
-                            <td className="px-3 py-2 text-left text-slate-700 print:border print:border-black">{c.name}</td>
-                            <td className="px-4 py-2 text-right font-semibold tabular-nums text-slate-800 print:border print:border-black">{a === null ? "—" : a.toFixed(1)}</td>
-                            <td className="px-4 py-2 text-right tabular-nums text-slate-400 print:border print:border-black print:text-black">{c.maxScore}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              );
-            })}
-          </div>
-        </>
+                    )}
+                    <td className="px-3 py-2 text-center font-semibold tabular-nums text-indigo-600 print:border print:border-black print:text-black">{itemCode.get(c.id)}</td>
+                    <td className="px-3 py-2 text-left font-medium text-slate-800 print:border print:border-black">{c.name}</td>
+                    <td className="px-3 py-2 text-center tabular-nums text-slate-400 print:border print:border-black print:text-black">{c.maxScore}</td>
+                    {orderedSubjects.map((s) => {
+                      const a = critAvg(s.id, c.id);
+                      return (
+                        <td key={s.id} className="px-4 py-2 text-center font-semibold text-slate-800 print:border print:border-black">
+                          <ResultCell avg={a} scores={perEvaluator(s.id, c.id)} />
+                        </td>
+                      );
+                    })}
+                  </tr>
+                )),
+              )}
+            </tbody>
+            <tfoot className="text-slate-700 print:text-black">
+              <tr className="border-t border-slate-200 bg-slate-50 font-semibold print:border-black print:bg-transparent">
+                <td colSpan={3} className="px-3 py-2.5 text-right print:border print:border-black">최종 점수</td>
+                <td className="px-3 py-2.5 text-center text-xs font-normal text-slate-400 print:border print:border-black print:text-black">/{fmt(maxTotal)}</td>
+                {orderedSubjects.map((s) => (
+                  <td key={s.id} className="px-4 py-2.5 text-center text-base font-bold text-slate-900 tabular-nums print:border print:border-black">{s.finalScore.toFixed(2)}</td>
+                ))}
+              </tr>
+              <tr className="border-t border-slate-100 print:border-black">
+                <td colSpan={4} className="px-3 py-2 text-right text-slate-500 print:border print:border-black print:text-black">환산 (/100)</td>
+                {orderedSubjects.map((s) => (
+                  <td key={s.id} className="px-4 py-2 text-center tabular-nums text-slate-600 print:border print:border-black">{maxTotal > 0 ? ((s.finalScore / maxTotal) * 100).toFixed(1) : "0.0"}</td>
+                ))}
+              </tr>
+              <tr className="border-t border-slate-100 print:border-black">
+                <td colSpan={4} className="px-3 py-2 text-right text-slate-500 print:border print:border-black print:text-black">등급</td>
+                {orderedSubjects.map((s) => (
+                  <td key={s.id} className="px-4 py-2 text-center print:border print:border-black">
+                    <span className={gradeBadge}>{overallGrade(s.finalScore, maxTotal)}</span>
+                  </td>
+                ))}
+              </tr>
+              <tr className="border-t border-slate-100 print:border-black">
+                <td colSpan={4} className="px-3 py-2 text-right text-slate-500 print:border print:border-black print:text-black">순위</td>
+                {orderedSubjects.map((s) => (
+                  <td key={s.id} className="px-4 py-2 text-center font-medium tabular-nums text-slate-700 print:border print:border-black">{s.rank != null ? `${s.rank}위` : "—"}</td>
+                ))}
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       )}
 
       {/* 위원장 총괄평가 */}
