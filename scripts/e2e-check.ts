@@ -8,6 +8,7 @@ import {
   isValidScoreValue,
 } from '../lib/scoring'
 import { canCloseSession } from '../lib/session-rules'
+import { evaluatorLoginError, EVALUATOR_NO_ACTIVE_SESSION_MESSAGE } from '../lib/login-rules'
 import { hashPassword, verifyPassword, signToken, verifyToken } from '../lib/auth'
 import { getSessionProgress, getSessionInsights } from '../lib/progress'
 
@@ -20,11 +21,13 @@ function assert(cond: boolean, msg: string) {
   console.log('  ✓ ' + msg)
 }
 
+const E2E_USERNAMES = ['e2e_eval1', 'e2e_eval2', 'e2e_eval3', 'e2e_login_active', 'e2e_login_inactive', 'e2e_login_none']
+
 async function cleanup() {
-  const users = await prisma.user.findMany({ where: { username: { in: ['e2e_eval1', 'e2e_eval2', 'e2e_eval3'] } }, select: { id: true } })
+  const users = await prisma.user.findMany({ where: { username: { in: E2E_USERNAMES } }, select: { id: true } })
   await prisma.opinion.deleteMany({ where: { evaluatorId: { in: users.map((u) => u.id) } } })
   await prisma.evaluationSession.deleteMany({ where: { name: { startsWith: 'E2E ' } } })
-  await prisma.user.deleteMany({ where: { username: { in: ['e2e_eval1', 'e2e_eval2', 'e2e_eval3'] } } })
+  await prisma.user.deleteMany({ where: { username: { in: E2E_USERNAMES } } })
   await prisma.company.deleteMany({ where: { name: { startsWith: 'E2E ' } } })
 }
 
@@ -157,6 +160,26 @@ async function main() {
   await prisma.company.delete({ where: { id: coB.id } })
   const subBStill = await prisma.subject.findUnique({ where: { id: subB.id } })
   assert(subBStill === null, 'C4 기업 삭제 시 편입 Subject도 cascade 삭제')
+
+  console.log('\n[8] 평가위원 로그인 게이트(진행중 심사 필요)')
+  const sActive = await prisma.evaluationSession.create({ data: { name: 'E2E 로그인 진행중', status: 'IN_PROGRESS' } })
+  const sDraft = await prisma.evaluationSession.create({ data: { name: 'E2E 로그인 초안', status: 'DRAFT' } })
+  const sClosed = await prisma.evaluationSession.create({ data: { name: 'E2E 로그인 마감', status: 'CLOSED' } })
+  const gActive = await prisma.user.create({ data: { username: 'e2e_login_active', name: 'E2E진행위원', role: 'EVALUATOR', passwordHash: hash } })
+  const gInactive = await prisma.user.create({ data: { username: 'e2e_login_inactive', name: 'E2E비활성위원', role: 'EVALUATOR', passwordHash: hash } })
+  const gNone = await prisma.user.create({ data: { username: 'e2e_login_none', name: 'E2E미배정위원', role: 'EVALUATOR', passwordHash: hash } })
+  await prisma.assignment.create({ data: { sessionId: sActive.id, userId: gActive.id } })
+  await prisma.assignment.createMany({ data: [{ sessionId: sDraft.id, userId: gInactive.id }, { sessionId: sClosed.id, userId: gInactive.id }] })
+
+  // 로그인 액션과 동일한 쿼리(진행중 배정 심사 수) → 게이트 판정
+  const activeCount = (uid: string) => prisma.assignment.count({ where: { userId: uid, session: { status: 'IN_PROGRESS' } } })
+  assert(evaluatorLoginError('EVALUATOR', await activeCount(gActive.id)) === null, 'L1 진행중 배정 위원 → 로그인 허용')
+  assert(evaluatorLoginError('EVALUATOR', await activeCount(gInactive.id)) === EVALUATOR_NO_ACTIVE_SESSION_MESSAGE, 'L2 초안/마감만 배정 위원 → 로그인 차단(메시지)')
+  assert(evaluatorLoginError('EVALUATOR', await activeCount(gNone.id)) === EVALUATOR_NO_ACTIVE_SESSION_MESSAGE, 'L3 미배정 위원 → 로그인 차단')
+  // 진행중 심사가 마감되면 다시 차단되는지
+  await prisma.evaluationSession.update({ where: { id: sActive.id }, data: { status: 'CLOSED' } })
+  assert(evaluatorLoginError('EVALUATOR', await activeCount(gActive.id)) === EVALUATOR_NO_ACTIVE_SESSION_MESSAGE, 'L4 진행중→마감 전환 시 로그인 차단')
+  assert(evaluatorLoginError('ADMIN', 0) === null, 'L5 관리자는 진행중 심사 없어도 허용')
 
   await cleanup()
   console.log(`\n✅ 통합 E2E 통과 — 단언 ${passed}건`)
