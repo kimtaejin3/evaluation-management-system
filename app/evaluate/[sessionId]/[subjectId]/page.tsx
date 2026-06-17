@@ -27,8 +27,8 @@ export default async function ScoreSheet({ params }: { params: Promise<{ session
   const byCriterion = new Map(existing.map((s) => [s.criterionId, s]))
   const opinion = await prisma.opinion.findUnique({ where: { evaluatorId_subjectId: { evaluatorId: user.id, subjectId } } })
 
-  // 이 심사의 내 진행률(완료 대상 수 / 전체)
-  const subjects = await prisma.subject.findMany({ where: { sessionId }, select: { id: true } })
+  // 이 심사의 내 진행률(완료 대상 수 / 전체) + 대상 전환 드롭다운용
+  const subjects = await prisma.subject.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } })
   const myScores = await prisma.score.findMany({ where: { evaluatorId: user.id, sessionId }, select: { subjectId: true, criterionId: true } })
   const totalCriteria = criteria.length
   const doneCountBySubject = new Map<string, number>()
@@ -65,11 +65,13 @@ export default async function ScoreSheet({ params }: { params: Promise<{ session
       subjectName={subject.name}
       sessionName={session.name}
       evaluatorName={user.name}
+      isChair={session.chairId === user.id}
       eventDate={session.eventDate ? session.eventDate.toISOString() : null}
       progress={{ done: doneSubjects, total: subjects.length }}
       documents={subject.company.documents.map((d) => ({ id: d.id, name: d.originalName, mimeType: d.mimeType }))}
       criteria={criteriaView}
       initialComment={opinion?.text ?? ''}
+      subjects={subjects}
     />
   )
 }
