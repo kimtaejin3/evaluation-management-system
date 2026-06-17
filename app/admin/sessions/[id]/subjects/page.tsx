@@ -55,8 +55,8 @@ export default async function SubjectsPage({
           마감된 심사는 평가 대상을 수정할 수 없습니다.
         </p>
       ) : (
-        <div className="grid gap-3 rounded-xl border border-slate-200 bg-white p-5 sm:grid-cols-2">
-          <div className="sm:col-span-2 text-sm font-semibold text-slate-700">
+        <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-5">
+          <div className="text-sm font-semibold text-slate-700">
             평가 대상 추가
           </div>
           {/* 기존 기업에서 선택 */}
@@ -78,23 +78,12 @@ export default async function SubjectsPage({
             </select>
             <button
               disabled={available.length === 0}
-              className="shrink-0 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50 disabled:opacity-40"
+              className="shrink-0 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-40"
             >
               추가
             </button>
           </form>
-          {/* 신규 기업 등록 후 추가 */}
-          <form action={addSubject.bind(null, id)} className="flex gap-2">
-            <input
-              name="newName"
-              placeholder="신규 기업명 입력"
-              className={`flex-1 ${inputCls}`}
-            />
-            <button className="shrink-0 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-indigo-700">
-              등록·추가
-            </button>
-          </form>
-          <p className="sm:col-span-2 text-xs text-slate-400">
+          <p className="text-xs text-slate-400">
             기업·자료는{" "}
             <Link
               href="/admin/companies"
@@ -102,7 +91,7 @@ export default async function SubjectsPage({
             >
               기업 관리
             </Link>
-            에서 전역으로 관리되며 심사 간 공유됩니다.
+            에서 전역으로 관리되며 심사 간 공유됩니다. 신규 기업은 기업 관리에서 먼저 등록하세요.
           </p>
         </div>
       )}

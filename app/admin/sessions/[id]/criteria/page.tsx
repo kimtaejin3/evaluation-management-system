@@ -2,9 +2,10 @@ import { Fragment } from "react";
 import { prisma } from "@/lib/db";
 import { deleteCriterion } from "../../actions";
 import { parseGradeOptions, defaultGradeOptions } from "@/lib/scoring";
-import CriterionForm from "@/components/CriterionForm";
+import AddCriterionButton from "@/components/AddCriterionButton";
 import EditCriterionButton from "@/components/EditCriterionButton";
 import EditSectionButton from "@/components/EditSectionButton";
+import { TrashIcon } from "@/components/icons";
 
 export default async function CriteriaPage({
   params,
@@ -45,8 +46,15 @@ export default async function CriteriaPage({
             {criteria.length}개
           </span>
         </h2>
-        <div className="text-xs text-slate-400">
-          전체 배점 합계 {totalAll}점
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-slate-400">
+            전체 배점 합계 {totalAll}점
+          </span>
+          {locked ? (
+            <span className="text-xs text-slate-400">마감되어 수정할 수 없습니다</span>
+          ) : (
+            <AddCriterionButton sessionId={id} />
+          )}
         </div>
       </div>
 
@@ -171,8 +179,12 @@ export default async function CriteriaPage({
                                   await deleteCriterion(id, c.id);
                                 }}
                               >
-                                <button className="text-sm text-rose-600 hover:underline">
-                                  삭제
+                                <button
+                                  className="rounded-md p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                                  title="삭제"
+                                  aria-label="삭제"
+                                >
+                                  <TrashIcon className="h-4 w-4" />
                                 </button>
                               </form>
                             </div>
@@ -210,17 +222,6 @@ export default async function CriteriaPage({
           )}
         </table>
       </div>
-
-      {/* 항목 추가 */}
-      {locked ? (
-        <p className="text-sm text-slate-400">
-          마감된 심사는 항목을 수정할 수 없습니다.
-        </p>
-      ) : (
-        <div className="max-w-2xl rounded-xl border border-slate-200 bg-white p-5">
-          <CriterionForm sessionId={id} />
-        </div>
-      )}
     </div>
   );
 }

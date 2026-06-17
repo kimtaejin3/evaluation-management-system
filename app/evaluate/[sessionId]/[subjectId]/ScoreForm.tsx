@@ -51,6 +51,7 @@ export default function ScoreForm({
   initialComment,
   subjects = [],
   otherScores = {},
+  otherPending = {},
 }: {
   sessionId: string;
   subjectId: string;
@@ -65,6 +66,7 @@ export default function ScoreForm({
   initialComment: string;
   subjects?: { id: string; name: string }[];
   otherScores?: Record<string, { name: string; value: number }[]>;
+  otherPending?: Record<string, string[]>;
 }) {
   const [state, formAction, isPending] = useActionState(
     saveScores.bind(null, sessionId, subjectId),
@@ -169,10 +171,18 @@ export default function ScoreForm({
     const key = c.section || null;
     let g = sections.find((x) => x.name === key);
     if (!g) {
-      g = { no: sections.length + 1, name: key, items: [] };
+      g = { no: 0, name: key, items: [] };
       sections.push(g);
     }
-    g.items.push({ c, code: `${g.no}-${g.items.length + 1}` });
+    g.items.push({ c, code: "" });
+  });
+  // 미분류(섹션 없음)는 항상 맨 끝 — 관리자 화면과 동일한 순서. 이후 번호·코드 부여
+  sections.sort((a, b) => (a.name === null ? 1 : b.name === null ? -1 : 0));
+  sections.forEach((g, gi) => {
+    g.no = gi + 1;
+    g.items.forEach((it, ii) => {
+      it.code = `${g.no}-${ii + 1}`;
+    });
   });
   const sectionDone = (g: (typeof sections)[number]) =>
     g.items.filter((it) => isFilled(it.c)).length;
@@ -227,11 +237,7 @@ export default function ScoreForm({
           ) : (
             <span className="font-semibold text-slate-800">{subjectName}</span>
           )}
-          {isChair && (
-            <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
-              위원장
-            </span>
-          )}
+         
           <span className="mx-1 h-5 w-px bg-slate-200" />
           <span className="mr-1 text-xs font-medium text-slate-400">
             평가 항목
@@ -265,13 +271,19 @@ export default function ScoreForm({
           >
             총괄심사표
           </button>
+           <span className="mx-1 h-5 w-px bg-slate-200" />
           {isChair && (
-            <Link
-              href={`/evaluate/${sessionId}/chair`}
-              className="rounded-md bg-[var(--gov-navy)] px-3 py-1.5 text-xs font-medium text-white transition hover:opacity-90"
-            >
-              다른 위원 평가 · 총평 →
-            </Link>
+            <>
+              <span className="rounded-full bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700">
+                위원장
+              </span>
+              <Link
+                href={`/evaluate/${sessionId}/chair`}
+                className="rounded-md px-3 py-1.5 text-xs font-medium bg-slate-100 text-slate-600 transition hover:opacity-90"
+                >
+                다른 위원 평가 · 총평 →
+              </Link>
+              </>
           )}
           {deadline && (
             <span className="ml-auto text-xs text-slate-400">
@@ -367,16 +379,23 @@ export default function ScoreForm({
                             key={it.c.id}
                             className="border-b border-slate-50 last:border-0"
                           >
-                            <td className="px-3 py-2 text-center tabular-nums text-indigo-600">
+                            <td className="px-3 py-2 text-center align-top tabular-nums text-indigo-600">
                               {it.code}
                             </td>
                             <td className="px-3 py-2 text-slate-700">
-                              {it.c.name}
+                              <div className="font-medium text-slate-800">
+                                {it.c.name}
+                              </div>
+                              {it.c.description && (
+                                <div className="mt-0.5 text-xs leading-snug text-slate-400">
+                                  {it.c.description}
+                                </div>
+                              )}
                             </td>
-                            <td className="px-3 py-2 text-right tabular-nums text-slate-400">
+                            <td className="px-3 py-2 text-right align-top tabular-nums text-slate-400">
                               {it.c.maxScore}
                             </td>
-                            <td className="px-3 py-2 text-right font-semibold tabular-nums text-slate-800">
+                            <td className="px-3 py-2 text-right align-top font-semibold tabular-nums text-slate-800">
                               {filled ? (
                                 fmt(ct ?? 0)
                               ) : (
@@ -486,7 +505,6 @@ export default function ScoreForm({
 
                 {g.items.map((it) => {
                   const c = it.c;
-                  const ct = contrib(c);
                   return (
                     <div
                       key={c.id}
@@ -498,22 +516,42 @@ export default function ScoreForm({
                             <span className="text-sm font-semibold text-indigo-600 tabular-nums">
                               {it.code}
                             </span>
-                            <span className="font-semibold text-slate-800">
+                            <span className="text-base font-semibold text-slate-900">
                               {c.name}
                             </span>
                           </div>
                           {c.description && (
-                            <p className="mt-1 text-xs text-slate-400">
+                            <p className="mt-1 text-sm text-slate-500">
                               {c.description}
                             </p>
                           )}
                         </div>
-                        <div className="shrink-0 text-right text-xs text-slate-400">
-                          배점 {c.maxScore}
-                        </div>
+                        {c.type === "QUALITATIVE" ? (
+                          <div className="shrink-0 text-right text-xs text-slate-400">
+                            배점 {c.maxScore}
+                          </div>
+                        ) : (
+                          <div className="flex shrink-0 items-center gap-1.5">
+                            <input
+                              type="number"
+                              step="any"
+                              min={0}
+                              max={c.maxScore}
+                              value={vals[c.id]}
+                              onChange={(e) => setVal(c.id, e.target.value)}
+                              onFocus={() => startEditing(c.id)}
+                              onBlur={stopEditing}
+                              placeholder="0"
+                              className="w-16 rounded-lg border border-slate-300 px-2 py-1.5 text-right text-base font-semibold text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            />
+                            <span className="text-xs text-slate-400">
+                              / {c.maxScore}
+                            </span>
+                          </div>
+                        )}
                       </div>
 
-                      {c.type === "QUALITATIVE" ? (
+                      {c.type === "QUALITATIVE" && (
                         <div
                           className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5"
                           onFocusCapture={() => startEditing(c.id)}
@@ -538,53 +576,41 @@ export default function ScoreForm({
                             );
                           })}
                         </div>
-                      ) : (
-                        <div className="mt-3 flex items-center gap-2">
-                          <input
-                            type="number"
-                            step="any"
-                            min={0}
-                            max={c.maxScore}
-                            value={vals[c.id]}
-                            onChange={(e) => setVal(c.id, e.target.value)}
-                            onFocus={() => startEditing(c.id)}
-                            onBlur={stopEditing}
-                            placeholder={`0 ~ ${c.maxScore}`}
-                            className="w-40 rounded-lg border border-slate-300 px-3 py-2.5 text-lg font-semibold text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                          />
-                          <span className="text-sm text-slate-400">
-                            / {c.maxScore}점
-                          </span>
-                        </div>
                       )}
 
-                      <div className="mt-2.5 text-right text-xs text-slate-500">
-                        점수{" "}
-                        <span className="font-semibold text-slate-700">
-                          {isFilled(c) ? fmt(ct ?? 0) : "–"}
-                        </span>
-                        점
-                      </div>
-
                       {/* 같은 항목 — 다른 대상에 내가 준 점수(참고) */}
-                      {(otherScores[c.id]?.length ?? 0) > 0 && (
-                        <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-2">
-                          <span className="text-xs text-slate-400">
-                            다른 기업 부여 점수
-                          </span>
-                          {otherScores[c.id].map((o, k) => (
-                            <span
-                              key={k}
-                              className="inline-flex items-baseline gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs text-slate-600"
-                            >
-                              <span className="max-w-24 truncate">
-                                {o.name}
-                              </span>
-                              <span className="font-semibold tabular-nums text-slate-800">
-                                {fmt(o.value)}
-                              </span>
-                            </span>
-                          ))}
+                      {((otherScores[c.id]?.length ?? 0) > 0 ||
+                        (otherPending[c.id]?.length ?? 0) > 0) && (
+                        <div className="mt-2 space-y-1.5 border-t border-slate-100 pt-2">
+                          {(otherScores[c.id]?.length ?? 0) > 0 && (
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="text-xs text-slate-400">평가 기업</span>
+                              {otherScores[c.id].map((o, k) => (
+                                <span
+                                  key={k}
+                                  className="inline-flex items-baseline gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs text-slate-600"
+                                >
+                                  <span className="max-w-24 truncate">{o.name}</span>
+                                  <span className="font-semibold tabular-nums text-slate-800">
+                                    {fmt(o.value)}
+                                  </span>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {(otherPending[c.id]?.length ?? 0) > 0 && (
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="text-xs text-slate-400">미평가 기업</span>
+                              {otherPending[c.id].map((name, k) => (
+                                <span
+                                  key={k}
+                                  className="inline-flex items-baseline gap-1 rounded-md border border-dashed border-slate-200 px-2 py-0.5 text-xs text-slate-400"
+                                >
+                                  <span className="max-w-24 truncate">{name}</span>
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

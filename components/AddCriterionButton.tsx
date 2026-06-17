@@ -1,10 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import CriterionForm, { type CriterionInit } from './CriterionForm'
-import { PencilIcon } from './icons'
+import CriterionForm from './CriterionForm'
 
-export default function EditCriterionButton({ sessionId, criterion }: { sessionId: string; criterion: CriterionInit }) {
+export default function AddCriterionButton({ sessionId }: { sessionId: string }) {
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
@@ -20,20 +19,18 @@ export default function EditCriterionButton({ sessionId, criterion }: { sessionI
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-md p-1 text-slate-400 transition hover:bg-slate-100 hover:text-indigo-600"
-        title="수정"
-        aria-label="수정"
+        className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700"
       >
-        <PencilIcon className="h-4 w-4" />
+        + 평가 항목 추가
       </button>
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setOpen(false)}>
           <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-base font-semibold text-slate-800">세부항목 수정</h3>
+              <h3 className="text-base font-semibold text-slate-800">평가 항목 추가</h3>
               <button type="button" onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600">✕</button>
             </div>
-            <CriterionForm sessionId={sessionId} criterion={criterion} onDone={() => setOpen(false)} />
+            <CriterionForm sessionId={sessionId} onDone={() => setOpen(false)} />
           </div>
         </div>
       )}

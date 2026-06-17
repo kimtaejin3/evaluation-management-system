@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/session'
 import { computeWeightedScore } from '@/lib/scoring'
 import ChairSummaryForm from '@/components/ChairSummaryForm'
+import ChairScoreCell from '@/components/ChairScoreCell'
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1))
 
@@ -17,15 +18,21 @@ export default async function ChairPage({ params }: { params: Promise<{ sessionI
   // 위원장 본인만 접근
   if (session.chairId !== user.id) redirect('/evaluate')
 
-  const [subjects, criteria, assignments, scores] = await Promise.all([
+  const [subjects, criteria, assignments, scores, opinions] = await Promise.all([
     prisma.subject.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } }),
-    prisma.criterion.findMany({ where: { sessionId }, select: { id: true, weight: true } }),
+    prisma.criterion.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true, maxScore: true, weight: true } }),
     prisma.assignment.findMany({ where: { sessionId }, include: { user: { select: { id: true, name: true } } } }),
     prisma.score.findMany({ where: { sessionId }, select: { evaluatorId: true, subjectId: true, criterionId: true, value: true } }),
+    prisma.opinion.findMany({ where: { sessionId }, select: { evaluatorId: true, subjectId: true, text: true } }),
   ])
 
   const weights = criteria.map((c) => ({ id: c.id, weight: c.weight }))
   const totalCri = criteria.length
+
+  // 위원장을 컬럼 맨 앞으로
+  const orderedAssignments = [...assignments].sort(
+    (a, b) => (b.userId === session.chairId ? 1 : 0) - (a.userId === session.chairId ? 1 : 0),
+  )
 
   // (evaluator, subject) → rows
   const byEvalSub = new Map<string, { criterionId: string; value: number }[]>()
@@ -34,6 +41,14 @@ export default async function ChairPage({ params }: { params: Promise<{ sessionI
     if (!byEvalSub.has(k)) byEvalSub.set(k, [])
     byEvalSub.get(k)!.push({ criterionId: s.criterionId, value: s.value })
   }
+  // (evaluator:subject:criterion) → value (모달 항목별 표시용)
+  const scoreMap = new Map<string, number>()
+  for (const s of scores) scoreMap.set(`${s.evaluatorId}:${s.subjectId}:${s.criterionId}`, s.value)
+  const itemsOf = (evId: string, subId: string) =>
+    criteria.map((c) => ({ name: c.name, maxScore: c.maxScore, value: scoreMap.get(`${evId}:${subId}:${c.id}`) ?? null }))
+  // (evaluator:subject) → 종합의견
+  const opinionMap = new Map<string, string>()
+  for (const o of opinions) opinionMap.set(`${o.evaluatorId}:${o.subjectId}`, o.text)
 
   type CellInfo = { state: 'done' | 'partial' | 'none'; score: number | null }
   const cellOf = (evId: string, subId: string): CellInfo => {
@@ -75,7 +90,7 @@ export default async function ChairPage({ params }: { params: Promise<{ sessionI
           <thead className="bg-slate-50 text-slate-500">
             <tr className="border-b border-slate-200">
               <th className="px-4 py-2.5 text-left font-medium">대상</th>
-              {assignments.map((a) => (
+              {orderedAssignments.map((a) => (
                 <th key={a.userId} className="px-4 py-2.5 text-right font-medium whitespace-nowrap">
                   {a.user.name}
                   {a.userId === session.chairId && <span className="ml-1 text-xs text-indigo-600">(위원장)</span>}
@@ -92,17 +107,19 @@ export default async function ChairPage({ params }: { params: Promise<{ sessionI
               return (
                 <tr key={sub.id} className="border-b border-slate-100 last:border-0">
                   <td className="px-4 py-3 font-medium text-slate-800">{sub.name}</td>
-                  {assignments.map((a) => {
+                  {orderedAssignments.map((a) => {
                     const c = cellOf(a.userId, sub.id)
                     return (
-                      <td key={a.userId} className="px-4 py-3 text-right tabular-nums">
-                        {c.state === 'done' ? (
-                          <span className="font-semibold text-slate-800">{fmt(c.score!)}</span>
-                        ) : c.state === 'partial' ? (
-                          <span className="text-xs text-amber-600">입력 중</span>
-                        ) : (
-                          <span className="text-slate-300">—</span>
-                        )}
+                      <td key={a.userId} className="px-2 py-2 text-right tabular-nums">
+                        <ChairScoreCell
+                          evaluatorName={a.user.name}
+                          subjectName={sub.name}
+                          isChair={a.userId === session.chairId}
+                          state={c.state}
+                          score={c.score}
+                          items={itemsOf(a.userId, sub.id)}
+                          opinion={opinionMap.get(`${a.userId}:${sub.id}`) ?? null}
+                        />
                       </td>
                     )
                   })}
@@ -127,7 +144,7 @@ export default async function ChairPage({ params }: { params: Promise<{ sessionI
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-slate-400">· 각 칸은 위원별 합계 점수(모든 항목 입력 완료 시 표시) · 평균/순위는 완료 위원 기준 잠정값입니다.</p>
+      <p className="text-xs text-slate-400">· 각 칸: 입력전 / 입력중 / 합계 점수(모든 항목 완료 시) — 칸을 클릭하면 항목별 입력 현황을 볼 수 있습니다. · 평균/순위는 완료 위원 기준 잠정값입니다.</p>
 
       {/* 총괄평가 작성 */}
       <ChairSummaryForm sessionId={sessionId} initial={session.chairSummary ?? ''} />

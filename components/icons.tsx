@@ -65,3 +65,25 @@ export function CompanyIcon(p: IconProps) {
     </Svg>
   )
 }
+
+// 수정 — 연필
+export function PencilIcon(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </Svg>
+  )
+}
+
+// 삭제 — 휴지통
+export function TrashIcon(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M3 6h18" />
+      <path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />
+      <path d="M6 6v14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6" />
+      <path d="M10 11v6M14 11v6" />
+    </Svg>
+  )
+}

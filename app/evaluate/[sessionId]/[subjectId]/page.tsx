@@ -37,12 +37,18 @@ export default async function ScoreSheet({ params }: { params: Promise<{ session
 
   // 항목별 — 다른 대상에 내가 매긴 점수(평가한 모든 기업, 점수 높은 순)
   const subjectName = new Map(subjects.map((s) => [s.id, s.name]))
+  const otherSubjects = subjects.filter((s) => s.id !== subjectId)
   const otherScores: Record<string, { name: string; value: number }[]> = {}
+  const otherPending: Record<string, string[]> = {} // 항목별 — 아직 내가 평가하지 않은 다른 기업
   for (const c of criteria) {
+    const scoredIds = new Set(
+      myScores.filter((s) => s.criterionId === c.id && s.subjectId !== subjectId).map((s) => s.subjectId),
+    )
     otherScores[c.id] = myScores
       .filter((s) => s.criterionId === c.id && s.subjectId !== subjectId)
       .map((s) => ({ name: subjectName.get(s.subjectId) ?? '', value: s.value }))
       .sort((a, b) => b.value - a.value)
+    otherPending[c.id] = otherSubjects.filter((s) => !scoredIds.has(s.id)).map((s) => s.name)
   }
 
   const criteriaView: CriterionView[] = criteria.map((c) => {
@@ -83,6 +89,7 @@ export default async function ScoreSheet({ params }: { params: Promise<{ session
       initialComment={opinion?.text ?? ''}
       subjects={subjects}
       otherScores={otherScores}
+      otherPending={otherPending}
     />
   )
 }
