@@ -161,12 +161,7 @@ export default function ScoreForm({
         <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-2 px-6 pt-2.5 text-sm">
           <div className="flex items-center gap-2">
             <Link href="/evaluate" className="rounded-md border border-slate-300 px-2.5 py-1 text-slate-600 transition hover:bg-slate-50">← 목록</Link>
-            {subjects.length > 0 ? (
-              <SubjectPicker sessionId={sessionId} currentId={subjectId} subjects={subjects} />
-            ) : (
-              <span className="font-semibold text-slate-800">{subjectName}</span>
-            )}
-            <span className="hidden text-slate-400 sm:inline">· {sessionName}</span>
+            <span className="text-slate-500">{sessionName}</span>
           </div>
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1.5 text-xs">
@@ -174,15 +169,17 @@ export default function ScoreForm({
               <span className="text-slate-400">{autoState === 'saving' ? '저장 중' : autoState === 'error' ? '저장 실패' : '자동 저장'}</span>
             </span>
             <span className="text-sm">현재 <b className="text-indigo-700 tabular-nums">{fmt(total)}</b><span className="text-slate-400">/{fmt(maxTotal)}</span></span>
-            {isChair && (
-              <Link href={`/evaluate/${sessionId}/chair`} className="rounded-md bg-[var(--gov-navy)] px-3 py-1 text-xs font-medium text-white transition hover:opacity-90">
-                다른 위원 평가 · 총평 →
-              </Link>
-            )}
           </div>
         </div>
-        {/* 항목 네비게이션: 번호만 + 총괄심사표 */}
+        {/* 네비: 회사 선택 · 위원장 배지 | 평가 항목 번호 · 총괄심사표 · (위원장) 다른 위원 평가 */}
         <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-1.5 px-6 py-2">
+          {subjects.length > 0 ? (
+            <SubjectPicker sessionId={sessionId} currentId={subjectId} subjects={subjects} />
+          ) : (
+            <span className="font-semibold text-slate-800">{subjectName}</span>
+          )}
+          {isChair && <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">위원장</span>}
+          <span className="mx-1 h-5 w-px bg-slate-200" />
           <span className="mr-1 text-xs font-medium text-slate-400">평가 항목</span>
           {sections.map((g, i) => {
             const d = sectionDone(g)
@@ -197,6 +194,11 @@ export default function ScoreForm({
           <button type="button" onClick={() => setStep('summary')} className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${step === 'summary' ? 'bg-[var(--gov-navy)] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
             총괄심사표
           </button>
+          {isChair && (
+            <Link href={`/evaluate/${sessionId}/chair`} className="rounded-md bg-[var(--gov-navy)] px-3 py-1.5 text-xs font-medium text-white transition hover:opacity-90">
+              다른 위원 평가 · 총평 →
+            </Link>
+          )}
           {deadline && <span className="ml-auto text-xs text-slate-400">마감 {deadline}</span>}
         </div>
       </div>
