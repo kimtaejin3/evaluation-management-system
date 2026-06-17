@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export interface PreviewDoc {
   id: string;
@@ -26,10 +26,26 @@ export default function DocPreviewBoard({
   documents: PreviewDoc[];
 }) {
   const [panes, setPanes] = useState<PaneState[]>([]);
-  const [railOpen, setRailOpen] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const zTop = useRef(50);
+
+  useEffect(() => {
+    function onDoc(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+
   const drag = useRef<{ id: string; dx: number; dy: number } | null>(null);
-  const resize = useRef<{ id: string; sx: number; sy: number; w0: number; h0: number } | null>(null);
+  const resize = useRef<{
+    id: string;
+    sx: number;
+    sy: number;
+    w0: number;
+    h0: number;
+  } | null>(null);
 
   if (documents.length === 0) return null;
 
@@ -51,7 +67,10 @@ export default function DocPreviewBoard({
       }
       const i = p.length;
       // 기본 프리뷰 창 너비(기존 440 → 1.5배). 화면이 좁으면 화면폭에 맞춤
-      const w = typeof window !== "undefined" ? Math.min(660, window.innerWidth - 32) : 660;
+      const w =
+        typeof window !== "undefined"
+          ? Math.min(660, window.innerWidth - 32)
+          : 660;
       // 왼쪽 서류함을 가리지 않도록 화면 오른쪽에서 계단식으로 띄움
       const baseX =
         typeof window !== "undefined"
@@ -119,7 +138,13 @@ export default function DocPreviewBoard({
   const onResizeDown = (e: React.PointerEvent, pane: PaneState) => {
     e.stopPropagation();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    resize.current = { id: pane.id, sx: e.clientX, sy: e.clientY, w0: pane.w, h0: pane.h };
+    resize.current = {
+      id: pane.id,
+      sx: e.clientX,
+      sy: e.clientY,
+      w0: pane.w,
+      h0: pane.h,
+    };
     bringFront(pane.id);
   };
   const onResizeMove = (e: React.PointerEvent) => {
@@ -127,7 +152,9 @@ export default function DocPreviewBoard({
     if (!r) return;
     const w = Math.max(280, r.w0 + (e.clientX - r.sx));
     const h = Math.max(200, r.h0 + (e.clientY - r.sy));
-    setPanes((p) => p.map((pane) => (pane.id === r.id ? { ...pane, w, h } : pane)));
+    setPanes((p) =>
+      p.map((pane) => (pane.id === r.id ? { ...pane, w, h } : pane)),
+    );
   };
   const onResizeUp = () => {
     resize.current = null;
@@ -141,7 +168,7 @@ export default function DocPreviewBoard({
         const cols = Math.min(p.length, 3);
         const col = i % cols;
         const row = Math.floor(i / cols);
-        const startX = 252; // 왼쪽 서류함 폭 확보
+        const startX = 24;
         const w = Math.floor((window.innerWidth - startX - 24) / cols) - 12;
         return {
           ...pane,
@@ -157,88 +184,56 @@ export default function DocPreviewBoard({
 
   return (
     <>
-      {/* 왼쪽 서류함 (선택 사이드바) */}
-      {railOpen ? (
-        <aside className="fixed left-3 top-28 bottom-3 z-30 flex w-56 flex-col rounded-xl border border-slate-200 bg-white shadow-lg">
-          <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2.5">
-            <span className="text-sm font-semibold text-slate-700">
-              심사 서류 <span className="text-xs text-slate-400">{documents.length}</span>
-            </span>
-            <button
-              type="button"
-              onClick={() => setRailOpen(false)}
-              className="rounded px-1.5 py-0.5 text-xs text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-              title="서류함 접기"
-            >
-              ‹
-            </button>
-          </div>
-
-          <div className="flex-1 space-y-1 overflow-auto p-2">
-            {documents.map((d) => {
-              const on = openIds.has(d.id);
-              return (
-                <button
-                  key={d.id}
-                  type="button"
-                  onClick={() => toggle(d)}
-                  title={d.name}
-                  className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-sm transition ${
-                    on
-                      ? "border-indigo-300 bg-indigo-50 text-indigo-700"
-                      : "border-transparent text-slate-600 hover:bg-slate-50"
-                  }`}
-                >
-                  <span className="shrink-0">{on ? "📂" : "📄"}</span>
-                  <span className="line-clamp-2 flex-1 break-all leading-tight">
-                    {d.name}
-                  </span>
-                  {on && (
-                    <span className="shrink-0 text-[10px] font-medium text-indigo-400">
-                      열림
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="border-t border-slate-100 p-2 text-xs text-slate-400">
-            {panes.length > 0 ? (
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={tileAll}
-                  disabled={panes.length < 2}
-                  className="flex-1 rounded-md border border-slate-300 px-2 py-1 text-slate-600 transition hover:bg-slate-50 disabled:opacity-40"
-                >
-                  나란히 정렬
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPanes([])}
-                  className="flex-1 rounded-md border border-slate-300 px-2 py-1 text-slate-600 transition hover:bg-slate-50"
-                >
-                  모두 닫기
-                </button>
-              </div>
-            ) : (
-              <p className="px-1 leading-tight">
-                서류를 클릭하면 프리뷰 창이 열립니다. 여러 개를 동시에 띄워 비교할 수 있어요.
-              </p>
-            )}
-          </div>
-        </aside>
-      ) : (
+      {/* 심사 서류 인라인 드롭다운 */}
+      <div ref={menuRef} className="relative inline-block">
         <button
           type="button"
-          onClick={() => setRailOpen(true)}
-          className="fixed left-0 top-32 z-30 flex items-center gap-1 rounded-r-lg border border-l-0 border-slate-200 bg-white px-2 py-3 text-xs font-medium text-slate-600 shadow-md transition hover:bg-slate-50"
-          title="서류함 펼치기"
+          onClick={() => setMenuOpen((o) => !o)}
+          className="flex items-center gap-1.5 rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-600 transition hover:bg-slate-50"
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
         >
-          📁 서류 {panes.length > 0 && <span className="text-indigo-500">{panes.length}</span>}
+          📁 심사 서류 <span className="text-xs text-slate-400">{documents.length}</span>
+          {panes.length > 0 && <span className="text-xs font-medium text-indigo-500">· {panes.length} 열림</span>}
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={`h-4 w-4 text-slate-400 transition-transform ${menuOpen ? "rotate-180" : ""}`} aria-hidden>
+            <path d="m5 8 5 5 5-5" />
+          </svg>
         </button>
-      )}
+        {menuOpen && (
+          <div className="absolute left-0 top-full z-40 mt-1 w-72 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+            <div className="max-h-72 space-y-1 overflow-auto p-1">
+              {documents.map((d) => {
+                const on = openIds.has(d.id);
+                return (
+                  <button
+                    key={d.id}
+                    type="button"
+                    onClick={() => toggle(d)}
+                    title={d.name}
+                    className={`flex w-full items-center gap-2 rounded-md border px-2.5 py-2 text-left text-sm transition ${
+                      on ? "border-indigo-300 bg-indigo-50 text-indigo-700" : "border-transparent text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    <span className="shrink-0">{on ? "📂" : "📄"}</span>
+                    <span className="line-clamp-2 flex-1 break-all leading-tight">{d.name}</span>
+                    {on && <span className="shrink-0 text-[10px] font-medium text-indigo-400">열림</span>}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="border-t border-slate-100 p-2 text-xs text-slate-400">
+              {panes.length > 0 ? (
+                <div className="flex items-center gap-1.5">
+                  <button type="button" onClick={tileAll} disabled={panes.length < 2} className="flex-1 rounded-md border border-slate-300 px-2 py-1 text-slate-600 transition hover:bg-slate-50 disabled:opacity-40">나란히 정렬</button>
+                  <button type="button" onClick={() => setPanes([])} className="flex-1 rounded-md border border-slate-300 px-2 py-1 text-slate-600 transition hover:bg-slate-50">모두 닫기</button>
+                </div>
+              ) : (
+                <p className="px-1 leading-tight">서류를 클릭하면 프리뷰 창이 열립니다. 여러 개를 동시에 띄워 비교할 수 있어요.</p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* 플로팅 프리뷰 창들 */}
       {panes.map((pane) => (
@@ -306,7 +301,12 @@ export default function DocPreviewBoard({
                 className="absolute bottom-0 right-0 z-10 h-5 w-5 cursor-se-resize touch-none"
                 title="창 크기 조절"
               >
-                <svg viewBox="0 0 10 10" className="h-full w-full text-slate-400" fill="currentColor" aria-hidden>
+                <svg
+                  viewBox="0 0 10 10"
+                  className="h-full w-full text-slate-400"
+                  fill="currentColor"
+                  aria-hidden
+                >
                   <path d="M9 1v8H1z" opacity="0.25" />
                   <circle cx="8" cy="8" r="0.9" />
                   <circle cx="5.5" cy="8" r="0.9" />

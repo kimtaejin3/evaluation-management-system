@@ -205,6 +205,7 @@ export default function ScoreForm({
           <div className="flex items-center gap-2">
             <Link href="/evaluate" className="rounded-md border border-slate-300 px-2.5 py-1 text-slate-600 transition hover:bg-slate-50">← 목록</Link>
             <span className="text-slate-500">{sessionName}</span>
+            <DocPreviewBoard documents={documents} />
           </div>
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1.5 text-xs">
@@ -214,9 +215,6 @@ export default function ScoreForm({
             <span>현재 <b className="text-indigo-700 tabular-nums">{fmt(total)}</b><span className="text-slate-400">/{fmt(maxTotal)}</span></span>
           </div>
         </div>
-
-        {/* 심사 서류 */}
-        <DocPreviewBoard documents={documents} />
 
         {step === 'summary' ? (
           /* ── 총괄심사표 (내 점수 전체 + 제출) ── */
