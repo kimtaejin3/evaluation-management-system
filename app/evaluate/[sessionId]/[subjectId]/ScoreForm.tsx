@@ -37,6 +37,7 @@ export default function ScoreForm({
   criteria,
   initialComment,
   subjects = [],
+  otherScores = {},
 }: {
   sessionId: string
   subjectId: string
@@ -50,6 +51,7 @@ export default function ScoreForm({
   criteria: CriterionView[]
   initialComment: string
   subjects?: { id: string; name: string }[]
+  otherScores?: Record<string, { name: string; value: number }[]>
 }) {
   const [state, formAction, isPending] = useActionState(saveScores.bind(null, sessionId, subjectId), null)
   const [confirm, setConfirm] = useState(false)
@@ -331,6 +333,19 @@ export default function ScoreForm({
                       )}
 
                       <div className="mt-2.5 text-right text-xs text-slate-500">점수 <span className="font-semibold text-slate-700">{ct != null ? fmt(ct) : '–'}</span>점</div>
+
+                      {/* 같은 항목 — 다른 대상에 내가 준 점수(참고) */}
+                      {(otherScores[c.id]?.length ?? 0) > 0 && (
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-2">
+                          <span className="text-xs text-slate-400">다른 대상 내 점수</span>
+                          {otherScores[c.id].map((o, k) => (
+                            <span key={k} className="inline-flex items-baseline gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs text-slate-600">
+                              <span className="max-w-24 truncate">{o.name}</span>
+                              <span className="font-semibold tabular-nums text-slate-800">{fmt(o.value)}</span>
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )
                 })}

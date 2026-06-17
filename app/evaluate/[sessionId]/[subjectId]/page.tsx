@@ -29,11 +29,22 @@ export default async function ScoreSheet({ params }: { params: Promise<{ session
 
   // 이 심사의 내 진행률(완료 대상 수 / 전체) + 대상 전환 드롭다운용
   const subjects = await prisma.subject.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } })
-  const myScores = await prisma.score.findMany({ where: { evaluatorId: user.id, sessionId }, select: { subjectId: true, criterionId: true } })
+  const myScores = await prisma.score.findMany({ where: { evaluatorId: user.id, sessionId }, select: { subjectId: true, criterionId: true, value: true } })
   const totalCriteria = criteria.length
   const doneCountBySubject = new Map<string, number>()
   for (const s of myScores) doneCountBySubject.set(s.subjectId, (doneCountBySubject.get(s.subjectId) ?? 0) + 1)
   const doneSubjects = subjects.filter((s) => totalCriteria > 0 && (doneCountBySubject.get(s.id) ?? 0) >= totalCriteria).length
+
+  // 항목별 — 다른 대상에 내가 매긴 점수(상위 5개, 점수 높은 순)
+  const subjectName = new Map(subjects.map((s) => [s.id, s.name]))
+  const otherScores: Record<string, { name: string; value: number }[]> = {}
+  for (const c of criteria) {
+    otherScores[c.id] = myScores
+      .filter((s) => s.criterionId === c.id && s.subjectId !== subjectId)
+      .map((s) => ({ name: subjectName.get(s.subjectId) ?? '', value: s.value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5)
+  }
 
   const criteriaView: CriterionView[] = criteria.map((c) => {
     const cur = byCriterion.get(c.id)
@@ -72,6 +83,7 @@ export default async function ScoreSheet({ params }: { params: Promise<{ session
       criteria={criteriaView}
       initialComment={opinion?.text ?? ''}
       subjects={subjects}
+      otherScores={otherScores}
     />
   )
 }
