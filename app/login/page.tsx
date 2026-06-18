@@ -15,7 +15,7 @@ const DEMO_ACCOUNTS = [
 ]
 
 export default function LoginPage() {
-  const [state, formAction] = useActionState(login, null)
+  const [state, formAction, isPending] = useActionState(login, null)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   return (
@@ -72,8 +72,18 @@ export default function LoginPage() {
             {state?.error && (
               <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700 ring-1 ring-inset ring-rose-200">{state.error}</p>
             )}
-            <button className="w-full rounded-md bg-indigo-600 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700">
-              로그인
+            <button
+              disabled={isPending}
+              aria-busy={isPending}
+              className="flex w-full items-center justify-center gap-2 rounded-md bg-indigo-600 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {isPending && (
+                <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4 animate-spin" aria-hidden>
+                  <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" className="opacity-25" />
+                  <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                </svg>
+              )}
+              {isPending ? '로그인 중…' : '로그인'}
             </button>
           </form>
 

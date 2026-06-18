@@ -1,9 +1,9 @@
 import { Suspense } from "react";
 import { prisma } from "@/lib/db";
-import { computeFinalScores, rankSubjects, overallGrade } from "@/lib/scoring";
+import { computeFinalScores, rankSubjects } from "@/lib/scoring";
 import { getSessionInsights } from "@/lib/progress";
 import PrintButton from "./PrintButton";
-import ResultCell from "@/components/ResultCell";
+import RankingTable from "@/components/RankingTable";
 import { SkeletonCard, SkeletonTable } from "@/components/Skeletons";
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
@@ -54,16 +54,9 @@ async function ResultsContent({ id }: { id: string }) {
   const maxTotal = criteria.reduce((s, c) => s + c.maxScore * c.weight, 0);
   const insights = await getSessionInsights(id);
   const divergent = insights.rows.filter((r) => r.spread !== null && r.spread >= 10);
-  // 대상×항목 위원 평균
-  const critAvg = (subId: string, critId: string): number | null => {
-    const vs = scores.filter((s) => s.subjectId === subId && s.criterionId === critId).map((s) => s.value);
-    return vs.length ? vs.reduce((a, b) => a + b, 0) / vs.length : null;
-  };
-  // (위원:대상:항목) → 점수, hover 툴팁용 위원별 점수
+  // (위원:대상:항목) → 점수 (RankingTable에 전달, 클라이언트에서 평균·위원별 계산)
   const scoreVal = new Map<string, number>();
   for (const s of scores) scoreVal.set(`${s.evaluatorId}:${s.subjectId}:${s.criterionId}`, s.value);
-  const perEvaluator = (subId: string, critId: string) =>
-    assignments.map((a) => ({ name: a.user.name, value: scoreVal.get(`${a.userId}:${subId}:${critId}`) ?? null }));
   const printedAt = new Date().toLocaleString("ko-KR", { dateStyle: "long", timeStyle: "short" });
   const chair = session?.chairId ? await prisma.user.findUnique({ where: { id: session.chairId }, select: { name: true } }) : null;
 
@@ -91,7 +84,6 @@ async function ResultsContent({ id }: { id: string }) {
     sectionNo.set(g.section, gi + 1);
     g.items.forEach((c, ci) => itemCode.set(c.id, `${gi + 1}-${ci + 1}`));
   });
-  const gradeBadge = "inline-flex h-6 min-w-6 items-center justify-center rounded-md bg-[var(--gov-navy)] px-1.5 text-xs font-bold text-white print:bg-transparent print:text-black";
 
   return (
     <div className="space-y-5">
@@ -181,48 +173,14 @@ async function ResultsContent({ id }: { id: string }) {
             </table>
           </div>
 
-          {/* (B) 순위 결과표 — 기업이 행(세로), 항목은 번호 열. 기업이 늘어도 아래로 쌓임 */}
-          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white print:overflow-visible print:rounded-none print:border-black">
-            <div className="border-b border-slate-100 px-5 py-3 text-sm font-semibold text-slate-700 print:border-black">순위 결과 <span className="ml-1 text-xs font-normal text-slate-400">· 항목 점수는 위원 평균(셀에 마우스를 올리면 위원별 점수)</span></div>
-            <table className="w-full text-sm">
-              <thead className="text-slate-500 print:text-black">
-                <tr className="border-b border-slate-200 bg-slate-50 print:border-black print:bg-transparent">
-                  <th className="w-px whitespace-nowrap px-3 py-2 text-center font-medium print:border print:border-black">순위</th>
-                  <th className="px-3 py-2 text-left font-medium print:border print:border-black">기업</th>
-                  {orderedCriteria.map((c) => (
-                    <th key={c.id} className="w-px whitespace-nowrap px-3 py-2 text-center font-medium tabular-nums print:border print:border-black" title={c.name}>
-                      {itemCode.get(c.id)}
-                    </th>
-                  ))}
-                  <th className="w-px whitespace-nowrap px-4 py-2 text-right font-medium print:border print:border-black">최종<div className="text-xs font-normal text-slate-400 print:text-black">/{fmt(maxTotal)}</div></th>
-                  <th className="w-px whitespace-nowrap px-3 py-2 text-right font-medium print:border print:border-black">환산</th>
-                  <th className="w-px whitespace-nowrap px-3 py-2 text-center font-medium print:border print:border-black">등급</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orderedSubjects.map((s) => (
-                  <tr key={s.id} className="border-b border-slate-100 last:border-0 print:border-black">
-                    <td className="px-3 py-2.5 text-center print:border print:border-black">
-                      {s.rank != null ? (
-                        <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-700 print:bg-transparent">{s.rank}</span>
-                      ) : (
-                        <span className="text-slate-300">—</span>
-                      )}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2.5 font-medium text-slate-800 print:border print:border-black">{s.name}</td>
-                    {orderedCriteria.map((c) => (
-                      <td key={c.id} className="px-3 py-2.5 text-center tabular-nums text-slate-700 print:border print:border-black">
-                        <ResultCell avg={critAvg(s.id, c.id)} scores={perEvaluator(s.id, c.id)} />
-                      </td>
-                    ))}
-                    <td className="px-4 py-2.5 text-right text-base font-bold text-slate-900 tabular-nums print:border print:border-black">{s.finalScore.toFixed(2)}</td>
-                    <td className="px-3 py-2.5 text-right tabular-nums text-slate-600 print:border print:border-black">{maxTotal > 0 ? ((s.finalScore / maxTotal) * 100).toFixed(1) : "0.0"}</td>
-                    <td className="px-3 py-2.5 text-center print:border print:border-black"><span className={gradeBadge}>{overallGrade(s.finalScore, maxTotal)}</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {/* (B) 순위 결과표 — 기업=행. 기업 옆 '위원별' 토글로 위원 행+평균 펼침 */}
+          <RankingTable
+            subjects={orderedSubjects}
+            criteria={orderedCriteria.map((c) => ({ id: c.id, code: itemCode.get(c.id) ?? "", name: c.name, weight: c.weight }))}
+            evaluators={assignments.map((a) => ({ id: a.userId, name: a.user.name }))}
+            scores={Object.fromEntries(scoreVal)}
+            maxTotal={maxTotal}
+          />
         </>
       )}
 
