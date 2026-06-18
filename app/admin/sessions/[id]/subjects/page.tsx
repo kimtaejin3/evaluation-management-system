@@ -41,22 +41,24 @@ export default async function SubjectsPage({
 }
 
 async function SubjectsContent({ id }: { id: string }) {
-  const session = await prisma.evaluationSession.findUnique({ where: { id } });
-  const subjects = await prisma.subject.findMany({
-    where: { sessionId: id },
-    orderBy: { order: "asc" },
-    // 이 심사 전용 자료 + 공통(sessionId=null) 자료만
-    include: {
-      company: {
-        include: {
-          documents: {
-            where: { OR: [{ sessionId: id }, { sessionId: null }] },
-            orderBy: { createdAt: "asc" },
+  const [session, subjects] = await Promise.all([
+    prisma.evaluationSession.findUnique({ where: { id } }),
+    prisma.subject.findMany({
+      where: { sessionId: id },
+      orderBy: { order: "asc" },
+      // 이 심사 전용 자료 + 공통(sessionId=null) 자료만
+      include: {
+        company: {
+          include: {
+            documents: {
+              where: { OR: [{ sessionId: id }, { sessionId: null }] },
+              orderBy: { createdAt: "asc" },
+            },
           },
         },
       },
-    },
-  });
+    }),
+  ]);
   const usedCompanyIds = subjects.map((s) => s.companyId);
   const available = await prisma.company.findMany({
     where: { id: { notIn: usedCompanyIds.length ? usedCompanyIds : [""] } },

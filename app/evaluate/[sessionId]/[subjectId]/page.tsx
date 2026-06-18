@@ -34,27 +34,27 @@ async function ScoreSheetContent({
 }) {
   const { sessionId, subjectId } = await params
 
-  const subject = await prisma.subject.findUnique({
-    where: { id: subjectId },
-    include: {
-      company: {
-        include: {
-          documents: { where: { OR: [{ sessionId }, { sessionId: null }] }, orderBy: { createdAt: 'asc' } },
+  // 서로 독립인 쿼리는 병렬 실행
+  const [subject, session, criteria, existing, opinion, subjects, myScores] = await Promise.all([
+    prisma.subject.findUnique({
+      where: { id: subjectId },
+      include: {
+        company: {
+          include: {
+            documents: { where: { OR: [{ sessionId }, { sessionId: null }] }, orderBy: { createdAt: 'asc' } },
+          },
         },
       },
-    },
-  })
-  const session = await prisma.evaluationSession.findUnique({ where: { id: sessionId } })
-  const criteria = await prisma.criterion.findMany({ where: { sessionId }, orderBy: { order: 'asc' } })
+    }),
+    prisma.evaluationSession.findUnique({ where: { id: sessionId } }),
+    prisma.criterion.findMany({ where: { sessionId }, orderBy: { order: 'asc' } }),
+    prisma.score.findMany({ where: { evaluatorId: userId, subjectId } }),
+    prisma.opinion.findUnique({ where: { evaluatorId_subjectId: { evaluatorId: userId, subjectId } } }),
+    prisma.subject.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } }),
+    prisma.score.findMany({ where: { evaluatorId: userId, sessionId }, select: { subjectId: true, criterionId: true, value: true } }),
+  ])
   if (!subject || !session) notFound()
-
-  const existing = await prisma.score.findMany({ where: { evaluatorId: userId, subjectId } })
   const byCriterion = new Map(existing.map((s) => [s.criterionId, s]))
-  const opinion = await prisma.opinion.findUnique({ where: { evaluatorId_subjectId: { evaluatorId: userId, subjectId } } })
-
-  // 이 심사의 내 진행률(완료 대상 수 / 전체) + 대상 전환 드롭다운용
-  const subjects = await prisma.subject.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } })
-  const myScores = await prisma.score.findMany({ where: { evaluatorId: userId, sessionId }, select: { subjectId: true, criterionId: true, value: true } })
   const totalCriteria = criteria.length
   const doneCountBySubject = new Map<string, number>()
   for (const s of myScores) doneCountBySubject.set(s.subjectId, (doneCountBySubject.get(s.subjectId) ?? 0) + 1)

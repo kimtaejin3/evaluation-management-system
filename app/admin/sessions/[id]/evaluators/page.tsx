@@ -28,11 +28,10 @@ export default async function EvaluatorsPage({
 }
 
 async function EvaluatorsContent({ id }: { id: string }) {
-  const session = await prisma.evaluationSession.findUnique({ where: { id } });
-  const assignments = await prisma.assignment.findMany({
-    where: { sessionId: id },
-    include: { user: true },
-  });
+  const [session, assignments] = await Promise.all([
+    prisma.evaluationSession.findUnique({ where: { id } }),
+    prisma.assignment.findMany({ where: { sessionId: id }, include: { user: true } }),
+  ]);
   const assignedIds = assignments.map((a) => a.userId);
   // 평가위원 관리에서 등록됐지만 이 심사에 아직 배정되지 않은 위원
   const available = await prisma.user.findMany({

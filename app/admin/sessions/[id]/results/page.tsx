@@ -33,11 +33,14 @@ export default async function ResultsPage({
 }
 
 async function ResultsContent({ id }: { id: string }) {
-  const session = await prisma.evaluationSession.findUnique({ where: { id } });
-  const subjects = await prisma.subject.findMany({ where: { sessionId: id } });
-  const criteria = await prisma.criterion.findMany({ where: { sessionId: id } });
-  const scores = await prisma.score.findMany({ where: { sessionId: id } });
-  const assignments = await prisma.assignment.findMany({ where: { sessionId: id }, include: { user: { select: { id: true, name: true } } } });
+  const [session, subjects, criteria, scores, assignments, insights] = await Promise.all([
+    prisma.evaluationSession.findUnique({ where: { id } }),
+    prisma.subject.findMany({ where: { sessionId: id } }),
+    prisma.criterion.findMany({ where: { sessionId: id } }),
+    prisma.score.findMany({ where: { sessionId: id } }),
+    prisma.assignment.findMany({ where: { sessionId: id }, include: { user: { select: { id: true, name: true } } } }),
+    getSessionInsights(id),
+  ]);
 
   const finalScores = computeFinalScores(
     scores.map((s) => ({
@@ -52,7 +55,6 @@ async function ResultsContent({ id }: { id: string }) {
   const subjectName = new Map(subjects.map((s) => [s.id, s.name]));
   const orderedCriteria = [...criteria].sort((a, b) => a.order - b.order);
   const maxTotal = criteria.reduce((s, c) => s + c.maxScore * c.weight, 0);
-  const insights = await getSessionInsights(id);
   const divergent = insights.rows.filter((r) => r.spread !== null && r.spread >= 10);
   // (위원:대상:항목) → 점수 (RankingTable에 전달, 클라이언트에서 평균·위원별 계산)
   const scoreVal = new Map<string, number>();

@@ -44,34 +44,35 @@ export default async function EvaluateHome({
 }
 
 async function AssignmentList({ userId, userName }: { userId: string; userName: string }) {
-  const assignments = await prisma.assignment.findMany({
-    where: { userId, session: { status: "IN_PROGRESS" } },
-    include: {
-      session: {
-        include: {
-          subjects: {
-            orderBy: { order: "asc" },
-            include: {
-              company: {
-                include: {
-                  documents: {
-                    orderBy: { createdAt: "asc" },
-                    select: { id: true, originalName: true, sessionId: true },
+  const [assignments, myScores] = await Promise.all([
+    prisma.assignment.findMany({
+      where: { userId, session: { status: "IN_PROGRESS" } },
+      include: {
+        session: {
+          include: {
+            subjects: {
+              orderBy: { order: "asc" },
+              include: {
+                company: {
+                  include: {
+                    documents: {
+                      orderBy: { createdAt: "asc" },
+                      select: { id: true, originalName: true, sessionId: true },
+                    },
                   },
                 },
               },
             },
+            criteria: true,
           },
-          criteria: true,
         },
       },
-    },
-  });
-
-  const myScores = await prisma.score.findMany({
-    where: { evaluatorId: userId },
-    select: { subjectId: true, criterionId: true, value: true },
-  });
+    }),
+    prisma.score.findMany({
+      where: { evaluatorId: userId },
+      select: { subjectId: true, criterionId: true, value: true },
+    }),
+  ]);
   const rowsBySubject = new Map<
     string,
     { criterionId: string; value: number }[]

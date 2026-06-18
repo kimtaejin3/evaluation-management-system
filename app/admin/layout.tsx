@@ -9,11 +9,13 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getCurrentUser();
-  const sessions = await prisma.evaluationSession.findMany({
-    orderBy: { createdAt: "desc" },
-    select: { id: true, name: true, status: true },
-  });
+  const [user, sessions] = await Promise.all([
+    getCurrentUser(),
+    prisma.evaluationSession.findMany({
+      orderBy: { createdAt: "desc" },
+      select: { id: true, name: true, status: true },
+    }),
+  ]);
   return (
     <div className="flex min-h-screen bg-slate-100 text-slate-900">
       <AdminSidebar sessions={sessions} />
