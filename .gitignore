@@ -47,3 +47,4 @@ screenshots/
 
 # 업로드 파일
 storage/
+.env.bak*
