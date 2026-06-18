@@ -52,6 +52,9 @@ export default function ScoreForm({
   subjects = [],
   otherScores = {},
   otherPending = {},
+  initialStep,
+  onSelectSubject,
+  onDirty,
 }: {
   sessionId: string;
   subjectId: string;
@@ -67,6 +70,11 @@ export default function ScoreForm({
   subjects?: { id: string; name: string }[];
   otherScores?: Record<string, { name: string; value: number }[]>;
   otherPending?: Record<string, string[]>;
+  // CSR 모드: 대상 전환을 라우트 이동 없이 처리(있으면 SubjectPicker가 이 콜백 호출)
+  initialStep?: string;
+  onSelectSubject?: (id: string, step: string) => void;
+  // CSR 모드: 점수 변경 시 호출(클라이언트 캐시 무효화용)
+  onDirty?: () => void;
 }) {
   const [state, formAction, isPending] = useActionState(
     saveScores.bind(null, sessionId, subjectId),
@@ -105,6 +113,7 @@ export default function ScoreForm({
   };
   const setVal = (id: string, v: string, immediate = false) => {
     setVals((p) => ({ ...p, [id]: v }));
+    onDirty?.(); // CSR 캐시 무효화(저장한 값이 재방문 시 stale로 보이지 않게)
     if (timers.current[id]) clearTimeout(timers.current[id]);
     if (immediate) runSave(id, v);
     else timers.current[id] = setTimeout(() => runSave(id, v), 700);
@@ -187,10 +196,11 @@ export default function ScoreForm({
   const sectionDone = (g: (typeof sections)[number]) =>
     g.items.filter((it) => isFilled(it.c)).length;
 
-  // step: 섹션 인덱스 | 'summary' — 회사 전환 시 URL(?step=)로 현재 보던 화면 유지
+  // step: 섹션 인덱스 | 'summary' — 회사 전환 시 현재 보던 화면 유지
+  // CSR 모드는 initialStep prop, 일반(라우트) 모드는 URL(?step=) 사용
   const searchParams = useSearchParams();
-  const stepParam = searchParams.get("step");
-  const initialStep: number | "summary" =
+  const stepParam = initialStep ?? searchParams.get("step");
+  const startStep: number | "summary" =
     stepParam === "summary"
       ? "summary"
       : stepParam != null && Number.isFinite(Number(stepParam))
@@ -199,7 +209,7 @@ export default function ScoreForm({
             Math.min(Number(stepParam), Math.max(0, sections.length - 1)),
           )
         : 0;
-  const [step, setStep] = useState<number | "summary">(initialStep);
+  const [step, setStep] = useState<number | "summary">(startStep);
   const deadline = eventDate
     ? new Date(eventDate).toLocaleString("ko-KR", {
         month: "long",
@@ -233,6 +243,7 @@ export default function ScoreForm({
               currentId={subjectId}
               subjects={subjects}
               step={String(step)}
+              onSelect={onSelectSubject ? (id) => onSelectSubject(id, String(step)) : undefined}
             />
           ) : (
             <span className="font-semibold text-slate-800">{subjectName}</span>

@@ -9,11 +9,14 @@ export default function SubjectPicker({
   currentId,
   subjects,
   step,
+  onSelect,
 }: {
   sessionId: string
   currentId: string
   subjects: { id: string; name: string }[]
   step?: string
+  // 있으면 라우트 이동 대신 이 콜백으로 전환(CSR 모드)
+  onSelect?: (id: string) => void
 }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -37,7 +40,10 @@ export default function SubjectPicker({
 
   const select = (id: string) => {
     setOpen(false)
-    if (id !== currentId) {
+    if (id === currentId) return
+    if (onSelect) {
+      onSelect(id) // CSR: 라우트 이동 없이 클라이언트에서 전환
+    } else {
       const q = step ? `?step=${encodeURIComponent(step)}` : ''
       router.push(`/evaluate/${sessionId}/${id}${q}`)
     }
