@@ -1,9 +1,7 @@
-import { readFile } from 'fs/promises'
-import path from 'path'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/session'
-import { UPLOAD_DIR } from '@/lib/storage'
+import { getUploadBytes } from '@/lib/storage'
 import BackButton from '@/components/BackButton'
 import HwpViewer from '@/components/HwpViewer'
 import PdfViewer from '@/components/PdfViewer'
@@ -15,12 +13,8 @@ function formatSize(bytes: number) {
 }
 
 async function readText(doc: { url: string | null; storedName: string }): Promise<string | null> {
-  try {
-    if (doc.url) return await (await fetch(doc.url)).text()
-    return (await readFile(path.join(UPLOAD_DIR, doc.storedName))).toString('utf8')
-  } catch {
-    return null
-  }
+  const bytes = await getUploadBytes(doc)
+  return bytes ? new TextDecoder('utf-8').decode(bytes) : null
 }
 
 // mimeType이 불명확(application/octet-stream 등)해도 확장자로 형식 보강

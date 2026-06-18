@@ -1,8 +1,6 @@
-import { readFile } from 'fs/promises'
-import path from 'path'
 import { prisma } from '@/lib/db'
 import { getCurrentToken } from '@/lib/session'
-import { UPLOAD_DIR } from '@/lib/storage'
+import { getUploadBytes } from '@/lib/storage'
 
 const EXT_MIME: Record<string, string> = {
   pdf: 'application/pdf',
@@ -49,22 +47,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     'Content-Disposition': `inline; filename*=UTF-8''${encodeURIComponent(doc.originalName)}`,
   }
 
-  // Vercel Blob: 인증 통과 후 서버가 받아 스트리밍(URL 노출 없이 권한 유지)
-  if (doc.url) {
-    try {
-      const r = await fetch(doc.url)
-      if (!r.ok || !r.body) return new Response('File missing', { status: 404 })
-      return new Response(r.body, { headers })
-    } catch {
-      return new Response('File missing', { status: 404 })
-    }
-  }
-
-  // 로컬 디스크
-  try {
-    const data = await readFile(path.join(UPLOAD_DIR, doc.storedName))
-    return new Response(new Uint8Array(data), { headers })
-  } catch {
-    return new Response('File missing', { status: 404 })
-  }
+  // 저장소(R2/Blob/로컬) 무관 — 서버가 인증 통과 후 받아서 인라인 제공(URL 미노출)
+  const bytes = await getUploadBytes(doc)
+  if (!bytes) return new Response('File missing', { status: 404 })
+  // 런타임은 Uint8Array를 그대로 받지만 TS DOM 타입(BodyInit) 마찰이 있어 캐스팅
+  return new Response(bytes as unknown as BodyInit, { headers })
 }
