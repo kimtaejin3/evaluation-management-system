@@ -1,9 +1,30 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { useFormStatus } from 'react-dom'
 
 const MAX_MB = 4
 const MAX_BYTES = MAX_MB * 1024 * 1024
+
+// 제출 중(서버 액션 진행) 상태를 반영하는 업로드 버튼
+function SubmitButton({ disabled }: { disabled: boolean }) {
+  const { pending } = useFormStatus()
+  return (
+    <button
+      disabled={disabled || pending}
+      aria-busy={pending}
+      className="flex shrink-0 items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      {pending && (
+        <svg viewBox="0 0 24 24" fill="none" className="h-3.5 w-3.5 animate-spin" aria-hidden>
+          <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" className="opacity-25" />
+          <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+        </svg>
+      )}
+      {pending ? '업로드 중…' : '업로드'}
+    </button>
+  )
+}
 
 // 평가 대상 자료 업로드 폼 — 용량 초과 파일은 전송 전에 차단(서버 액션 본문 한도 초과로 인한 크래시 방지)
 export default function SubjectUploadForm({ action }: { action: (formData: FormData) => void | Promise<void> }) {
@@ -39,12 +60,7 @@ export default function SubjectUploadForm({ action }: { action: (formData: FormD
         onChange={(e) => check(e.target.files)}
         className="text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-indigo-700 hover:file:bg-indigo-100"
       />
-      <button
-        disabled={!!error}
-        className="shrink-0 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-40"
-      >
-        업로드
-      </button>
+      <SubmitButton disabled={!!error} />
       <span className="basis-full text-xs text-slate-400">
         예: 사업계획서 · 현장실태 조사서 · 사전검토표 (이 심사 전용으로 저장) · <span className="font-medium text-slate-500">PDF만 · 최대 {MAX_MB}MB</span>
       </span>
