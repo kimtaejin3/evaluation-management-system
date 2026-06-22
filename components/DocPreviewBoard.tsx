@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 export interface PreviewDoc {
   id: string;
@@ -22,13 +23,16 @@ interface PaneState {
 // 평가위원이 여러 심사 서류를 왼쪽 사이드에서 선택해 동시에 띄워놓고 비교하며 채점할 수 있는 프리뷰 보드
 export default function DocPreviewBoard({
   documents,
+  docked = false,
 }: {
   documents: PreviewDoc[];
+  // docked=true: 좌측 도킹 목록(항상 보임) + 클릭 시 플로팅 창. false: 인라인 드롭다운
+  docked?: boolean;
 }) {
   const [panes, setPanes] = useState<PaneState[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const zTop = useRef(50);
+  const zTop = useRef(1000);
 
   useEffect(() => {
     function onDoc(e: MouseEvent) {
@@ -47,7 +51,14 @@ export default function DocPreviewBoard({
     h0: number;
   } | null>(null);
 
-  if (documents.length === 0) return null;
+  if (documents.length === 0) {
+    if (!docked) return null;
+    return (
+      <div className="flex h-full min-h-40 items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-400">
+        등록된 심사 자료가 없습니다.
+      </div>
+    );
+  }
 
   const bringFront = (id: string) =>
     setPanes((p) =>
@@ -184,7 +195,50 @@ export default function DocPreviewBoard({
 
   return (
     <>
-      {/* 심사 서류 인라인 드롭다운 */}
+      {/* 좌측 도킹 목록(클릭 시 플로팅 창) */}
+      {docked && (
+        <div className="flex h-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2.5">
+            <span className="text-sm font-semibold text-slate-700">
+              심사 자료 <span className="text-xs font-normal text-slate-400">{documents.length}</span>
+            </span>
+            {panes.length > 0 && (
+              <button type="button" onClick={() => setPanes([])} className="rounded px-1.5 py-0.5 text-xs text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+                모두 닫기
+              </button>
+            )}
+          </div>
+          <div className="flex-1 space-y-1 overflow-auto p-2">
+            {documents.map((d) => {
+              const on = openIds.has(d.id);
+              return (
+                <button
+                  key={d.id}
+                  type="button"
+                  onClick={() => toggle(d)}
+                  title={d.name}
+                  className={`flex w-full items-center gap-2 rounded-md border px-2.5 py-1.5 text-left text-xs transition ${
+                    on ? "border-indigo-300 bg-indigo-50 text-indigo-700" : "border-transparent text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  <span className="line-clamp-2 flex-1 break-all leading-tight">{d.name}</span>
+                  {on && <span className="shrink-0 text-[10px] font-medium text-indigo-400">열림</span>}
+                </button>
+              );
+            })}
+          </div>
+          <div className="border-t border-slate-100 p-2 text-xs text-slate-400">
+            {panes.length > 1 ? (
+              <button type="button" onClick={tileAll} className="w-full rounded-md border border-slate-300 px-2 py-1 text-slate-600 transition hover:bg-slate-50">나란히 정렬</button>
+            ) : (
+              <p className="px-1 leading-tight">자료를 클릭하면 창으로 열립니다. 여러 개를 띄워 비교할 수 있어요.</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 인라인 드롭다운(비-도킹 모드에서만) */}
+      {!docked && (
       <div ref={menuRef} className="relative inline-block">
         <button
           type="button"
@@ -234,9 +288,13 @@ export default function DocPreviewBoard({
           </div>
         )}
       </div>
+      )}
 
-      {/* 플로팅 프리뷰 창들 */}
-      {panes.map((pane) => (
+      {/* 플로팅 프리뷰 창들 — body로 portal(부모 stacking context 탈출 → 항상 최상단) */}
+      {typeof document !== "undefined" &&
+        createPortal(
+          <>
+            {panes.map((pane) => (
         <div
           key={pane.id}
           onPointerDown={() => bringFront(pane.id)}
@@ -316,7 +374,10 @@ export default function DocPreviewBoard({
             </div>
           )}
         </div>
-      ))}
+            ))}
+          </>,
+          document.body,
+        )}
     </>
   );
 }

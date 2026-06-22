@@ -4,7 +4,6 @@
 
 import { Fragment, useActionState, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import {
   saveScores,
   autoSaveScore,
@@ -45,14 +44,11 @@ export default function ScoreForm({
   evaluatorName,
   isChair = false,
   eventDate,
-  progress,
   documents,
   criteria,
   initialComment,
   subjects = [],
   otherScores = {},
-  otherPending = {},
-  initialStep,
   onSelectSubject,
   onDirty,
 }: {
@@ -70,8 +66,9 @@ export default function ScoreForm({
   subjects?: { id: string; name: string }[];
   otherScores?: Record<string, { name: string; value: number }[]>;
   otherPending?: Record<string, string[]>;
-  // CSR 모드: 대상 전환을 라우트 이동 없이 처리(있으면 SubjectPicker가 이 콜백 호출)
+  // CSR 모드 호환(현재 미사용)
   initialStep?: string;
+  // CSR 모드: 대상 전환을 라우트 이동 없이 처리
   onSelectSubject?: (id: string, step: string) => void;
   // CSR 모드: 점수 변경 시 호출(클라이언트 캐시 무효화용)
   onDirty?: () => void;
@@ -113,7 +110,7 @@ export default function ScoreForm({
   };
   const setVal = (id: string, v: string, immediate = false) => {
     setVals((p) => ({ ...p, [id]: v }));
-    onDirty?.(); // CSR 캐시 무효화(저장한 값이 재방문 시 stale로 보이지 않게)
+    onDirty?.();
     if (timers.current[id]) clearTimeout(timers.current[id]);
     if (immediate) runSave(id, v);
     else timers.current[id] = setTimeout(() => runSave(id, v), 700);
@@ -161,7 +158,7 @@ export default function ScoreForm({
     const n = Number(raw);
     return Number.isFinite(n) ? n * c.weight : null;
   };
-  // 입력 완료 판정 — 정량 0점은 '미입력'으로 간주(빈 값과 동일). 정성은 선택(인덱스 0 포함) 인정
+  // 입력 완료 판정 — 정량 0점은 '미입력'으로 간주. 정성은 선택(인덱스 0 포함) 인정
   const isFilled = (c: CriterionView): boolean => {
     const raw = vals[c.id];
     if (raw === "") return false;
@@ -173,7 +170,7 @@ export default function ScoreForm({
   const filledCount = criteria.filter((c) => isFilled(c)).length;
   const allFilled = filledCount === criteria.length && criteria.length > 0;
 
-  // 항목(섹션)별 그룹 + 번호 체계(1 / 1-1)
+  // 항목(섹션)별 그룹 + 번호 체계(1 / 1-1) — 미분류는 맨 끝
   type Item = { c: CriterionView; code: string };
   const sections: { no: number; name: string | null; items: Item[] }[] = [];
   criteria.forEach((c) => {
@@ -185,7 +182,6 @@ export default function ScoreForm({
     }
     g.items.push({ c, code: "" });
   });
-  // 미분류(섹션 없음)는 항상 맨 끝 — 관리자 화면과 동일한 순서. 이후 번호·코드 부여
   sections.sort((a, b) => (a.name === null ? 1 : b.name === null ? -1 : 0));
   sections.forEach((g, gi) => {
     g.no = gi + 1;
@@ -193,23 +189,7 @@ export default function ScoreForm({
       it.code = `${g.no}-${ii + 1}`;
     });
   });
-  const sectionDone = (g: (typeof sections)[number]) =>
-    g.items.filter((it) => isFilled(it.c)).length;
 
-  // step: 섹션 인덱스 | 'summary' — 회사 전환 시 현재 보던 화면 유지
-  // CSR 모드는 initialStep prop, 일반(라우트) 모드는 URL(?step=) 사용
-  const searchParams = useSearchParams();
-  const stepParam = initialStep ?? searchParams.get("step");
-  const startStep: number | "summary" =
-    stepParam === "summary"
-      ? "summary"
-      : stepParam != null && Number.isFinite(Number(stepParam))
-        ? Math.max(
-            0,
-            Math.min(Number(stepParam), Math.max(0, sections.length - 1)),
-          )
-        : 0;
-  const [step, setStep] = useState<number | "summary">(startStep);
   const deadline = eventDate
     ? new Date(eventDate).toLocaleString("ko-KR", {
         month: "long",
@@ -219,70 +199,26 @@ export default function ScoreForm({
       })
     : null;
 
-  const navChip = (active: boolean) =>
-    `relative flex h-8 items-center justify-center gap-1 rounded-md px-2.5 text-sm font-semibold transition ${
-      active
-        ? "bg-[var(--gov-navy)] text-white"
-        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-    }`;
-
   return (
     <form action={formAction}>
-      {/* 제출용 히든 값(전 항목) — 한 화면에 한 섹션만 보여도 모든 값이 제출됨 */}
+      {/* 제출용 히든 값(전 항목) */}
       {criteria.map((c) => (
         <input key={c.id} type="hidden" name={`c_${c.id}`} value={vals[c.id]} />
       ))}
 
-      {/* 헤더 (네비게이션만) */}
+      {/* 헤더 (현재 너비 유지) */}
       <div className="sticky top-0 z-20 border-b border-slate-200 bg-white">
-        {/* 네비: 회사 선택 · 위원장 배지 | 평가 항목 번호 · 총괄심사표 · (위원장) 다른 위원 평가 */}
         <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-1.5 px-6 py-2.5">
           {subjects.length > 0 ? (
             <SubjectPicker
               sessionId={sessionId}
               currentId={subjectId}
               subjects={subjects}
-              step={String(step)}
-              onSelect={onSelectSubject ? (id) => onSelectSubject(id, String(step)) : undefined}
+              onSelect={onSelectSubject ? (id) => onSelectSubject(id, "") : undefined}
             />
           ) : (
             <span className="font-semibold text-slate-800">{subjectName}</span>
           )}
-         
-          <span className="mx-1 h-5 w-px bg-slate-200" />
-          <span className="mr-1 text-xs font-medium text-slate-400">
-            평가 항목
-          </span>
-          {sections.map((g, i) => {
-            const d = sectionDone(g);
-            const active = step === i;
-            const done = d >= g.items.length;
-            return (
-              <button
-                key={g.no}
-                type="button"
-                onClick={() => setStep(i)}
-                className={navChip(active)}
-                title={g.name ?? `항목 ${g.no}`}
-              >
-                {g.no}
-                <span
-                  className={`text-xs font-normal ${active ? "text-white/80" : done ? "text-slate-500" : "text-slate-400"}`}
-                >
-                  {done ? "완료" : `${d}/${g.items.length}`}
-                </span>
-              </button>
-            );
-          })}
-          <span className="mx-1 h-5 w-px bg-slate-200" />
-          <button
-            type="button"
-            onClick={() => setStep("summary")}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${step === "summary" ? "bg-[var(--gov-navy)] text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
-          >
-            총괄심사표
-          </button>
-           <span className="mx-1 h-5 w-px bg-slate-200" />
           {isChair && (
             <>
               <span className="rounded-full bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700">
@@ -290,154 +226,170 @@ export default function ScoreForm({
               </span>
               <Link
                 href={`/evaluate/${sessionId}/chair`}
-                className="rounded-md px-3 py-1.5 text-xs font-medium bg-slate-100 text-slate-600 transition hover:opacity-90"
-                >
+                className="rounded-md bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-200"
+              >
                 다른 위원 평가 · 총평 →
               </Link>
-              </>
+            </>
           )}
           {deadline && (
-            <span className="ml-auto text-xs text-slate-400">
-              마감 {deadline}
-            </span>
+            <span className="ml-auto text-xs text-slate-400">마감 {deadline}</span>
           )}
         </div>
       </div>
 
-      <div className="mx-auto max-w-5xl space-y-5 px-6 py-6">
-        {/* 목록·심사 이름·자동 저장·현재 점수 (문항 위) */}
-        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-          <div className="flex items-center gap-2">
-            <Link
-              href="/evaluate"
-              className="rounded-md border border-slate-300 px-2.5 py-1 text-slate-600 transition hover:bg-slate-50"
-            >
-              ← 목록
-            </Link>
-            <span className="text-slate-500">{sessionName}</span>
-            <DocPreviewBoard documents={documents} />
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5 text-xs">
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${autoState === "saving" ? "bg-amber-500 animate-pulse" : autoState === "error" ? "bg-rose-500" : autoState === "saved" ? "bg-emerald-500" : "bg-slate-300"}`}
-              />
-              <span className="text-slate-400">
-                {autoState === "saving"
-                  ? "저장 중"
-                  : autoState === "error"
-                    ? "저장 실패"
-                    : "자동 저장"}
-              </span>
-            </span>
-            <span>
-              현재 <b className="text-indigo-700 tabular-nums">{fmt(total)}</b>
-              <span className="text-slate-400">/{fmt(maxTotal)}</span>
-            </span>
-          </div>
+      {/* 목록·세션명·자동저장 (현재 너비 유지) */}
+      <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 px-6 pt-4 text-sm">
+        <div className="flex items-center gap-2">
+          <Link
+            href="/evaluate"
+            className="rounded-md border border-slate-300 px-2.5 py-1 text-slate-600 transition hover:bg-slate-50"
+          >
+            ← 목록
+          </Link>
+          <span className="text-slate-500">{sessionName}</span>
         </div>
+        <span className="flex items-center gap-1.5 text-xs">
+          <span
+            className={`h-1.5 w-1.5 rounded-full ${autoState === "saving" ? "bg-amber-500 animate-pulse" : autoState === "error" ? "bg-rose-500" : autoState === "saved" ? "bg-emerald-500" : "bg-slate-300"}`}
+          />
+          <span className="text-slate-400">
+            {autoState === "saving"
+              ? "저장 중"
+              : autoState === "error"
+                ? "저장 실패"
+                : "자동 저장"}
+          </span>
+        </span>
+      </div>
 
-        {step === "summary" ? (
-          /* ── 총괄심사표 (내 점수 전체 + 제출) ── */
-          <>
-            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
-                <h2 className="text-sm font-semibold text-slate-700">
-                  총괄심사표 · {evaluatorName} 위원
-                </h2>
-                <span className="text-sm">
-                  합계{" "}
-                  <b className="text-indigo-700 tabular-nums">{fmt(total)}</b>{" "}
-                  <span className="text-slate-400">/ {fmt(maxTotal)}</span>
-                </span>
-              </div>
-              <table className="w-full text-sm">
-                <thead className="bg-slate-50 text-left text-slate-500">
-                  <tr className="border-b border-slate-200">
-                    <th className="w-px whitespace-nowrap px-3 py-2 text-center font-medium">
-                      번호
-                    </th>
-                    <th className="px-3 py-2 font-medium">평가 항목</th>
-                    <th className="w-px whitespace-nowrap px-3 py-2 text-right font-medium">
-                      배점
-                    </th>
-                    <th className="w-px whitespace-nowrap px-3 py-2 text-right font-medium">
-                      내 점수
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sections.map((g) => (
-                    <Fragment key={g.no}>
-                      <tr>
-                        <td
-                          colSpan={4}
-                          className="border-b border-slate-100 bg-slate-50/60 px-3 py-1.5"
-                        >
-                          <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-semibold text-indigo-700">
-                            {g.no}
-                          </span>
-                          <span className="ml-1.5 text-xs font-semibold text-slate-600">
-                            {g.name ?? "미분류"}
-                          </span>
-                        </td>
-                      </tr>
-                      {g.items.map((it) => {
-                        const ct = contrib(it.c);
-                        const filled = isFilled(it.c);
-                        return (
-                          <tr
-                            key={it.c.id}
-                            className="border-b border-slate-50 last:border-0"
-                          >
-                            <td className="px-3 py-2 text-center align-top tabular-nums text-indigo-600">
-                              {it.code}
-                            </td>
-                            <td className="px-3 py-2 text-slate-700">
-                              <div className="font-medium text-slate-800">
-                                {it.c.name}
+      {/* 작업 영역 — 좌:자료 / 중:평가표 / 우:종합의견 (넓게) */}
+      <div className="mx-auto max-w-[1600px] px-6 py-4">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,0.4fr)_minmax(0,1.75fr)_320px]">
+          {/* 좌: 자료 */}
+          <div className="lg:sticky lg:top-14 lg:h-[70vh]">
+            <DocPreviewBoard documents={documents} docked />
+          </div>
+
+          {/* 중: 평가표(입력) */}
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
+              <h2 className="text-sm font-semibold text-slate-700">
+                평가표 · {evaluatorName} 위원
+              </h2>
+              <span className="text-sm">
+                합계 <b className="text-indigo-700 tabular-nums">{fmt(total)}</b>{" "}
+                <span className="text-slate-400">/ {fmt(maxTotal)}</span>
+              </span>
+            </div>
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 text-left text-slate-500">
+                <tr className="border-b border-slate-200">
+                  <th className="w-px whitespace-nowrap px-3 py-2 text-center font-medium">번호</th>
+                  <th className="px-3 py-2 font-medium">평가 항목</th>
+                  <th className="w-px whitespace-nowrap px-3 py-2 text-right font-medium">배점</th>
+                  <th className="w-44 px-3 py-2 text-right font-medium">점수</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sections.map((g) => (
+                  <Fragment key={g.no}>
+                    <tr>
+                      <td colSpan={4} className="border-b border-slate-100 bg-slate-50/60 px-3 py-1.5">
+                        <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-semibold text-indigo-700">{g.no}</span>
+                        <span className="ml-1.5 text-xs font-semibold text-slate-600">{g.name ?? "미분류"}</span>
+                      </td>
+                    </tr>
+                    {g.items.map((it) => {
+                      const c = it.c;
+                      const others = otherScores[c.id] ?? [];
+                      return (
+                        <tr key={c.id} className="border-b border-slate-50 last:border-0">
+                          <td className="px-3 py-2.5 text-center align-top tabular-nums text-indigo-600">{it.code}</td>
+                          <td className="px-3 py-2.5 align-top">
+                            <div className="font-medium text-slate-800">{c.name}</div>
+                            {c.description && (
+                              <div className="mt-0.5 text-xs leading-snug text-slate-400">{c.description}</div>
+                            )}
+                            {others.length > 0 && (
+                              <div className="mt-1 truncate text-[11px] text-slate-400">
+                                다른 대상: {others.map((o) => `${o.name} ${fmt(o.value)}`).join(" · ")}
                               </div>
-                              {it.c.description && (
-                                <div className="mt-0.5 text-xs leading-snug text-slate-400">
-                                  {it.c.description}
-                                </div>
-                              )}
-                            </td>
-                            <td className="px-3 py-2 text-right align-top tabular-nums text-slate-400">
-                              {it.c.maxScore}
-                            </td>
-                            <td className="px-3 py-2 text-right align-top font-semibold tabular-nums text-slate-800">
-                              {filled ? (
-                                fmt(ct ?? 0)
-                              ) : (
-                                <span className="text-rose-500">미입력</span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </Fragment>
-                  ))}
-                </tbody>
-              </table>
+                            )}
+                          </td>
+                          <td className="px-3 py-2.5 text-right align-top tabular-nums text-slate-400">{c.maxScore}</td>
+                          <td className="px-3 py-2.5 align-top">
+                            {c.type === "QUALITATIVE" ? (
+                              <select
+                                value={vals[c.id]}
+                                onChange={(e) => setVal(c.id, e.target.value, true)}
+                                onFocus={() => startEditing(c.id)}
+                                onBlur={stopEditing}
+                                className={`w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 ${vals[c.id] === "" ? "text-slate-400" : "text-slate-800"}`}
+                              >
+                                <option value="">선택</option>
+                                {(c.options ?? []).map((o, idx) => (
+                                  <option key={idx} value={idx}>
+                                    {o.label} · {o.points}점
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <div className="flex items-center justify-end gap-1">
+                                <input
+                                  type="number"
+                                  step="any"
+                                  min={0}
+                                  max={c.maxScore}
+                                  value={vals[c.id]}
+                                  onChange={(e) => setVal(c.id, e.target.value)}
+                                  onFocus={() => startEditing(c.id)}
+                                  onBlur={stopEditing}
+                                  placeholder="0"
+                                  className="w-20 rounded-md border border-slate-300 px-2 py-1.5 text-right text-sm font-semibold text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                />
+                                <span className="text-xs text-slate-400">/ {c.maxScore}</span>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </Fragment>
+                ))}
+                {criteria.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-3 py-10 text-center text-slate-400">평가 항목이 없습니다.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* 우: 종합의견 + 제출 */}
+          <div className="space-y-4 lg:sticky lg:top-14 lg:self-start">
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <div className="text-center">
+                <div className="text-xs text-slate-400">현재 점수</div>
+                <div className="text-3xl font-bold text-indigo-700 tabular-nums">
+                  {fmt(total)}
+                  <span className="text-base font-normal text-slate-400"> / {fmt(maxTotal)}</span>
+                </div>
+                <div className="mt-1 text-xs text-slate-400">입력 {filledCount}/{criteria.length}</div>
+              </div>
             </div>
 
-            {/* 종합의견 */}
-            <div className="rounded-xl border border-slate-200 bg-white p-5">
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-sm font-semibold text-slate-700">
-                  종합의견
-                </span>
-                <span className="text-xs text-slate-400">
-                  {comment.length} / 1000
-                </span>
+                <span className="text-sm font-semibold text-slate-700">종합의견</span>
+                <span className="text-xs text-slate-400">{comment.length} / 1000</span>
               </div>
               <textarea
                 name="comment"
                 value={comment}
                 maxLength={1000}
                 onChange={(e) => setComment(e.target.value)}
-                rows={4}
+                rows={8}
                 placeholder="대상에 대한 종합적인 평가 의견을 입력하세요. (선택)"
                 className="w-full resize-none rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
@@ -456,230 +408,48 @@ export default function ScoreForm({
             </div>
 
             {state?.error && (
-              <p className="rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-inset ring-rose-200">
-                {state.error}
-              </p>
+              <p className="rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-inset ring-rose-200">{state.error}</p>
             )}
             {state?.saved && (
-              <p className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700 ring-1 ring-inset ring-emerald-200">
-                임시 저장되었습니다.
-              </p>
+              <p className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700 ring-1 ring-inset ring-emerald-200">임시 저장되었습니다.</p>
             )}
 
-            <div className="flex items-center justify-between gap-2">
-              <button
-                name="intent"
-                value="save"
-                disabled={isPending}
-                className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
-              >
-                임시 저장
-              </button>
+            <div className="space-y-2">
               <button
                 type="button"
                 onClick={() => setConfirm(true)}
                 disabled={!allFilled || isPending}
-                className="rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-40"
+                className="w-full rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-40"
               >
                 제출 전 확인 →
               </button>
+              <button
+                name="intent"
+                value="save"
+                disabled={isPending}
+                className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                임시 저장
+              </button>
+              {!allFilled && (
+                <p className="text-center text-xs text-slate-400">모든 항목 입력 시 제출할 수 있습니다.</p>
+              )}
             </div>
-            {!allFilled && (
-              <p className="text-right text-xs text-slate-400">
-                모든 항목을 입력하면 제출할 수 있습니다. ({filledCount}/
-                {criteria.length})
-              </p>
-            )}
-          </>
-        ) : (
-          /* ── 항목 한 개 화면 ── */
-          (() => {
-            const g = sections[step] ?? sections[0];
-            if (!g)
-              return (
-                <p className="text-sm text-slate-400">평가 항목이 없습니다.</p>
-              );
-            return (
-              <>
-                <div className="flex items-center gap-2">
-                  <span className="flex h-7 min-w-7 items-center justify-center rounded-md bg-[var(--gov-navy)] px-1.5 text-sm font-bold text-white">
-                    {g.no}
-                  </span>
-                  <h2 className="text-lg font-bold text-slate-900">
-                    {g.name ?? "평가 항목"}
-                  </h2>
-                  <span className="text-xs text-slate-400">
-                    세부 {g.items.length}항목 · {sectionDone(g)}/
-                    {g.items.length} 입력
-                  </span>
-                </div>
-
-                {g.items.map((it) => {
-                  const c = it.c;
-                  return (
-                    <div
-                      key={c.id}
-                      className="rounded-xl border border-slate-200 bg-white p-5"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-indigo-600 tabular-nums">
-                              {it.code}
-                            </span>
-                            <span className="text-base font-semibold text-slate-900">
-                              {c.name}
-                            </span>
-                          </div>
-                          {c.description && (
-                            <p className="mt-1 text-sm text-slate-500">
-                              {c.description}
-                            </p>
-                          )}
-                        </div>
-                        {c.type === "QUALITATIVE" ? (
-                          <div className="shrink-0 text-right text-xs text-slate-400">
-                            배점 {c.maxScore}
-                          </div>
-                        ) : (
-                          <div className="flex shrink-0 items-center gap-1.5">
-                            <input
-                              type="number"
-                              step="any"
-                              min={0}
-                              max={c.maxScore}
-                              value={vals[c.id]}
-                              onChange={(e) => setVal(c.id, e.target.value)}
-                              onFocus={() => startEditing(c.id)}
-                              onBlur={stopEditing}
-                              placeholder="0"
-                              className="w-16 rounded-lg border border-slate-300 px-2 py-1.5 text-right text-base font-semibold text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                            />
-                            <span className="text-xs text-slate-400">
-                              / {c.maxScore}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      {c.type === "QUALITATIVE" && (
-                        <div
-                          className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5"
-                          onFocusCapture={() => startEditing(c.id)}
-                          onBlurCapture={stopEditing}
-                        >
-                          {(c.options ?? []).map((o, idx) => {
-                            const active = vals[c.id] === String(idx);
-                            return (
-                              <button
-                                key={idx}
-                                type="button"
-                                onClick={() => setVal(c.id, String(idx), true)}
-                                className={`flex flex-col items-center rounded-lg border px-2 py-3 text-sm transition ${active ? "border-[var(--gov-navy)] bg-[var(--gov-navy)] text-white" : "border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:bg-indigo-50/40"}`}
-                              >
-                                <span className="font-semibold">{o.label}</span>
-                                <span
-                                  className={`mt-0.5 text-xs ${active ? "text-white/70" : "text-slate-400"}`}
-                                >
-                                  {o.points}점
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      {/* 같은 항목 — 다른 대상에 내가 준 점수(참고) */}
-                      {((otherScores[c.id]?.length ?? 0) > 0 ||
-                        (otherPending[c.id]?.length ?? 0) > 0) && (
-                        <div className="mt-2 space-y-1.5 border-t border-slate-100 pt-2">
-                          {(otherScores[c.id]?.length ?? 0) > 0 && (
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <span className="text-xs text-slate-400">평가 기업</span>
-                              {otherScores[c.id].map((o, k) => (
-                                <span
-                                  key={k}
-                                  className="inline-flex items-baseline gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs text-slate-600"
-                                >
-                                  <span className="max-w-24 truncate">{o.name}</span>
-                                  <span className="font-semibold tabular-nums text-slate-800">
-                                    {fmt(o.value)}
-                                  </span>
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                          {(otherPending[c.id]?.length ?? 0) > 0 && (
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <span className="text-xs text-slate-400">미평가 기업</span>
-                              {otherPending[c.id].map((name, k) => (
-                                <span
-                                  key={k}
-                                  className="inline-flex items-baseline gap-1 rounded-md border border-dashed border-slate-200 px-2 py-0.5 text-xs text-slate-400"
-                                >
-                                  <span className="max-w-24 truncate">{name}</span>
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-
-                {/* 이전 / 다음 */}
-                <div className="flex items-center justify-between gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setStep(step <= 0 ? 0 : step - 1)}
-                    disabled={step <= 0}
-                    className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-40"
-                  >
-                    ← 이전 항목
-                  </button>
-                  {step >= sections.length - 1 ? (
-                    <button
-                      type="button"
-                      onClick={() => setStep("summary")}
-                      className="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700"
-                    >
-                      총괄심사표 →
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setStep(step + 1)}
-                      className="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700"
-                    >
-                      다음 항목 →
-                    </button>
-                  )}
-                </div>
-              </>
-            );
-          })()
-        )}
+          </div>
+        </div>
       </div>
 
       {/* 제출 전 확인 모달 */}
       {confirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
           <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6">
-            <div className="text-xs text-slate-400">
-              제출 확인 · 제출 후에는 관리자만 재오픈할 수 있습니다
-            </div>
-            <h2 className="mt-1 text-lg font-bold text-slate-900">
-              {subjectName} 평가를 제출할까요?
-            </h2>
+            <div className="text-xs text-slate-400">제출 확인 · 제출 후에는 관리자만 재오픈할 수 있습니다</div>
+            <h2 className="mt-1 text-lg font-bold text-slate-900">{subjectName} 평가를 제출할까요?</h2>
             <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
               <div className="flex items-end justify-between">
                 <span className="text-sm text-slate-500">합계 점수</span>
                 <span className="text-2xl font-bold text-indigo-700 tabular-nums">
-                  {fmt(total)}{" "}
-                  <span className="text-sm font-normal text-slate-400">
-                    / {fmt(maxTotal)}
-                  </span>
+                  {fmt(total)} <span className="text-sm font-normal text-slate-400">/ {fmt(maxTotal)}</span>
                 </span>
               </div>
             </div>

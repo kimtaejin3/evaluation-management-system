@@ -4,7 +4,6 @@ import { getCurrentUser } from '@/lib/session'
 import { getUploadBytes } from '@/lib/storage'
 import BackButton from '@/components/BackButton'
 import HwpViewer from '@/components/HwpViewer'
-import PdfViewer from '@/components/PdfViewer'
 
 function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`
@@ -56,7 +55,14 @@ export default async function ViewerPage({
           <img src={src} alt={doc.originalName} className="max-h-[85vh] w-auto object-contain" />
         </div>
       )}
-      {kind === 'pdf' && <PdfViewer id={doc.id} embed={isEmbed} />}
+      {kind === 'pdf' && (
+        <object data={src} type="application/pdf" className={`w-full rounded-lg border border-slate-200 bg-white ${isEmbed ? 'h-[calc(100vh-1rem)]' : 'h-[82vh]'}`}>
+          <iframe src={src} title={doc.originalName} className="h-full w-full" />
+          <p className="p-6 text-center text-sm text-slate-500">
+            브라우저에서 PDF 미리보기를 열 수 없습니다. <a href={src} target="_blank" rel="noreferrer" className="text-indigo-600 underline">새 탭에서 열기</a>
+          </p>
+        </object>
+      )}
       {kind === 'text' &&
         (textContent !== null ? (
           <pre className="overflow-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-white p-5 text-sm leading-relaxed text-slate-800">{textContent}</pre>

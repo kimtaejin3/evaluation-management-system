@@ -6,60 +6,46 @@ import type { SheetData } from '@/lib/evaluate-data'
 
 const bar = 'rounded bg-slate-200/70'
 
-// 실제 ScoreForm 레이아웃과 동일한 골격의 스켈레톤(로딩 시 덜컹임 방지)
+// 실제 ScoreForm(3단) 레이아웃과 동일한 골격의 스켈레톤(로딩 시 덜컹임 방지)
 function SheetSkeleton() {
   return (
     <div className="animate-pulse">
-      {/* 헤더(네비) */}
+      {/* 헤더 */}
       <div className="sticky top-0 z-20 border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-1.5 px-6 py-2.5">
+        <div className="mx-auto flex max-w-5xl items-center gap-1.5 px-6 py-2.5">
           <div className={`h-8 w-28 ${bar}`} />
-          <div className="h-5 w-12 rounded-full bg-slate-200/70" />
-          <span className="mx-1 h-5 w-px bg-slate-200" />
-          <div className={`h-4 w-14 ${bar}`} />
-          {[0, 1, 2, 3, 4].map((i) => (
-            <div key={i} className={`h-8 w-10 ${bar}`} />
-          ))}
-          <span className="mx-1 h-5 w-px bg-slate-200" />
-          <div className={`h-8 w-24 ${bar}`} />
+          <div className={`ml-auto h-4 w-32 ${bar}`} />
         </div>
       </div>
-      {/* 본문 */}
-      <div className="mx-auto max-w-5xl space-y-5 px-6 py-6">
-        {/* 목록·세션명·서류 / 현재 점수 */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <div className={`h-7 w-16 ${bar}`} />
-            <div className={`h-4 w-40 ${bar}`} />
-            <div className={`h-7 w-24 ${bar}`} />
-          </div>
-          <div className={`h-4 w-24 ${bar}`} />
-        </div>
-        {/* 섹션 제목 */}
+      {/* 목록 줄 */}
+      <div className="mx-auto flex max-w-5xl items-center justify-between px-6 pt-4">
         <div className="flex items-center gap-2">
-          <div className={`h-7 w-7 ${bar}`} />
-          <div className={`h-6 w-40 ${bar}`} />
+          <div className={`h-7 w-16 ${bar}`} />
+          <div className={`h-4 w-40 ${bar}`} />
         </div>
-        {/* 항목 카드 */}
-        {[0, 1].map((i) => (
-          <div key={i} className="rounded-xl border border-slate-200 bg-white p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div className="space-y-2">
-                <div className={`h-4 w-48 ${bar}`} />
-                <div className={`h-3 w-64 ${bar}`} />
-              </div>
-              <div className={`h-3 w-10 ${bar}`} />
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
-              {[0, 1, 2, 3, 4].map((j) => (
-                <div key={j} className="h-14 rounded-lg bg-slate-200/70" />
+        <div className={`h-4 w-16 ${bar}`} />
+      </div>
+      {/* 3단 */}
+      <div className="mx-auto max-w-[1600px] px-6 py-4">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,0.4fr)_minmax(0,1.75fr)_320px]">
+          <div className={`h-[70vh] ${bar}`} />
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <div className="border-b border-slate-100 px-5 py-3"><div className={`h-4 w-40 ${bar}`} /></div>
+            <div className="space-y-3 p-5">
+              {[0, 1, 2, 3, 4].map((i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <div className={`h-4 w-8 ${bar}`} />
+                  <div className={`h-4 flex-1 ${bar}`} />
+                  <div className={`h-8 w-36 ${bar}`} />
+                </div>
               ))}
             </div>
-            <div className="mt-2.5 flex justify-end">
-              <div className={`h-3 w-16 ${bar}`} />
-            </div>
           </div>
-        ))}
+          <div className="space-y-4">
+            <div className={`h-24 ${bar}`} />
+            <div className={`h-56 ${bar}`} />
+          </div>
+        </div>
       </div>
     </div>
   )
