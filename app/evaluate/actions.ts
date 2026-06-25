@@ -157,6 +157,16 @@ export async function saveScores(
     return { saved: true }
   }
 
-  const subject = await prisma.subject.findUnique({ where: { id: subjectId }, select: { name: true } })
-  redirect(`/evaluate?submitted=${encodeURIComponent(subject?.name ?? '')}`)
+  // 제출 후: 같은 심사의 다음 평가대상으로 이동. 마지막이면 목록으로(제출 안내).
+  const subjects = await prisma.subject.findMany({
+    where: { sessionId },
+    orderBy: { order: 'asc' },
+    select: { id: true, name: true },
+  })
+  const idx = subjects.findIndex((s) => s.id === subjectId)
+  const next = idx >= 0 ? subjects[idx + 1] : undefined
+  if (next) {
+    redirect(`/evaluate/${sessionId}/${next.id}`)
+  }
+  redirect(`/evaluate?submitted=${encodeURIComponent(subjects[idx]?.name ?? '')}`)
 }

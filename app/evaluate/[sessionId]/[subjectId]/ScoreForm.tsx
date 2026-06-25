@@ -158,11 +158,11 @@ export default function ScoreForm({
     const n = Number(raw);
     return Number.isFinite(n) ? n * c.weight : null;
   };
-  // 입력 완료 판정 — 정량 0점은 '미입력'으로 간주. 정성은 선택(인덱스 0 포함) 인정
+  // 입력 완료 판정 — 빈칸만 '미입력'. 0점은 유효 입력(가점/감점 등)으로 인정. 정성은 선택(인덱스 0 포함) 인정
   const isFilled = (c: CriterionView): boolean => {
     const raw = vals[c.id];
     if (raw === "") return false;
-    if (c.type === "QUANTITATIVE") return Number(raw) !== 0;
+    if (c.type === "QUANTITATIVE") return Number.isFinite(Number(raw));
     return true;
   };
   const total = criteria.reduce((s, c) => s + (contrib(c) ?? 0), 0);
@@ -345,7 +345,7 @@ export default function ScoreForm({
                                   onChange={(e) => setVal(c.id, e.target.value)}
                                   onFocus={() => startEditing(c.id)}
                                   onBlur={stopEditing}
-                                  placeholder="0"
+                                  placeholder="입력"
                                   className="w-20 rounded-md border border-slate-300 px-2 py-1.5 text-right text-sm font-semibold text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                                 />
                                 <span className="text-xs text-slate-400">/ {c.maxScore}</span>
