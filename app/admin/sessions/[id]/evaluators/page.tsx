@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { removeEvaluator, assignEvaluator, setChair } from "../../actions";
 import { SkeletonCard, SkeletonTable } from "@/components/Skeletons";
+import EvaluatorImportButton from "@/components/EvaluatorImportButton";
 
 const inputCls =
   "rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500";
@@ -52,7 +53,10 @@ async function EvaluatorsContent({ id }: { id: string }) {
         <p className="text-sm text-slate-400">마감된 심사는 평가위원을 수정할 수 없습니다.</p>
       ) : (
         <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <div className="mb-3 text-sm font-semibold text-slate-700">평가위원 배정</div>
+          <div className="mb-3 flex items-center justify-between">
+            <div className="text-sm font-semibold text-slate-700">평가위원 배정</div>
+            <EvaluatorImportButton sessionId={id} />
+          </div>
           {/* 기존 위원 불러오기 */}
           <form action={assignEvaluator.bind(null, id)} className="flex gap-2">
             <select name="userId" defaultValue="" required className={`flex-1 ${inputCls}`}>

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { deleteCriterion } from "../../actions";
 import { parseGradeOptions, defaultGradeOptions } from "@/lib/scoring";
 import AddCriterionButton from "@/components/AddCriterionButton";
+import ImportCriteriaButton from "@/components/ImportCriteriaButton";
 import EditCriterionButton from "@/components/EditCriterionButton";
 import EditSectionButton from "@/components/EditSectionButton";
 import { TrashIcon } from "@/components/icons";
@@ -62,7 +63,10 @@ async function CriteriaContent({ id }: { id: string }) {
           {locked ? (
             <span className="text-xs text-slate-400">마감되어 수정할 수 없습니다</span>
           ) : (
-            <AddCriterionButton sessionId={id} />
+            <>
+              <ImportCriteriaButton sessionId={id} />
+              <AddCriterionButton sessionId={id} />
+            </>
           )}
         </div>
       </div>
