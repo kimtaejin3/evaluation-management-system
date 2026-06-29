@@ -21,7 +21,7 @@ export default function EvaluatorImportButton({ sessionId }: { sessionId: string
         onClick={() => setOpen(true)}
         className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-sm font-medium text-indigo-700 transition hover:bg-indigo-100"
       >
-        엑셀 업로드
+        엑셀·한글 가져오기
       </button>
       {open && (
         <div
@@ -31,7 +31,7 @@ export default function EvaluatorImportButton({ sessionId }: { sessionId: string
           <div className="my-8 w-full max-w-3xl rounded-xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h3 className="text-base font-semibold text-slate-800">평가위원 엑셀 업로드</h3>
+                <h3 className="text-base font-semibold text-slate-800">평가위원 엑셀·한글 가져오기</h3>
                 <p className="mt-0.5 text-xs text-slate-400">
                   명단 엑셀을 업로드하거나 붙여넣어 계정 생성·이 심사 배정을 한 번에 처리합니다.
                 </p>

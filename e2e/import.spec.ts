@@ -18,7 +18,7 @@ async function loginAsAdmin(page: Page) {
   await page.waitForURL('**/admin/sessions')
 }
 
-test('엑셀 업로드 모달 — 붙여넣기 → 자동 매핑/미리보기', async ({ page }) => {
+test('엑셀·한글 가져오기 모달 — 붙여넣기 → 자동 매핑/미리보기', async ({ page }) => {
   await loginAsAdmin(page)
 
   // 새 심사 생성
@@ -29,10 +29,10 @@ test('엑셀 업로드 모달 — 붙여넣기 → 자동 매핑/미리보기', 
   await page.waitForURL(/\/admin\/sessions\/[a-z0-9]{20,}$/)
   const sessionUrl = page.url()
 
-  // 평가 항목 → 엑셀 업로드 모달
+  // 평가 항목 → 엑셀·한글 가져오기 모달
   await page.goto(`${sessionUrl}/criteria`)
-  await page.getByRole('button', { name: '엑셀 업로드' }).click()
-  await expect(page.getByRole('heading', { name: '엑셀 업로드' })).toBeVisible()
+  await page.getByRole('button', { name: '엑셀·한글 가져오기' }).click()
+  await expect(page.getByRole('heading', { name: '엑셀·한글 가져오기' })).toBeVisible()
 
   // 등급 척도표 TSV 붙여넣기(fill은 input 이벤트를 발생시켜 onChange 파싱을 트리거)
   const tsv = [

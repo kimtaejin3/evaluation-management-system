@@ -21,7 +21,7 @@ export default function ImportCriteriaButton({ sessionId }: { sessionId: string 
         onClick={() => setOpen(true)}
         className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-sm font-medium text-indigo-700 transition hover:bg-indigo-100"
       >
-        엑셀 업로드
+        엑셀·한글 가져오기
       </button>
       {open && (
         <div
@@ -34,7 +34,7 @@ export default function ImportCriteriaButton({ sessionId }: { sessionId: string 
           >
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h3 className="text-base font-semibold text-slate-800">엑셀 업로드</h3>
+                <h3 className="text-base font-semibold text-slate-800">엑셀·한글 가져오기</h3>
                 <p className="mt-0.5 text-xs text-slate-400">
                   평가표 엑셀을 업로드하거나 복사·붙여넣어 평가항목을 일괄 생성합니다.
                 </p>

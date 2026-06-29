@@ -188,11 +188,11 @@ export default function EvaluatorImportForm({
           {fileName && !parsing && (
             <span className="text-xs font-medium text-emerald-600">{fileName} 불러옴</span>
           )}
-          <span className="text-xs text-slate-400">.xlsx · .xls · .csv (최대 4MB)</span>
+          <span className="text-xs text-slate-400">.xlsx · .xls · .csv (최대 4MB) · 한글(HWP)은 파일 업로드 불가</span>
         </div>
         {fileError && <p className="text-xs font-medium text-rose-600">{fileError}</p>}
         <div className="flex items-center justify-between">
-          <span className="text-xs text-slate-400">또는 엑셀에서 명단을 드래그·복사해 붙여넣기</span>
+          <span className="text-xs text-slate-400">또는 엑셀·한글에서 명단을 드래그·복사해 붙여넣기(한글은 이 방식만 가능)</span>
           <button type="button" onClick={() => onPaste(SAMPLE)} className="text-xs text-slate-400 hover:text-indigo-600">
             예시 채우기
           </button>

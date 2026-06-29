@@ -9,7 +9,7 @@ const APP_VERSION = "0.1.0";
 
 const SUB_ITEMS = [
   { suffix: "", label: "상세", desc: "심사 정보· 실시간 모니터링" },
-  { suffix: "/criteria", label: "평가 항목", desc: "배점·등급 설정·엑셀 업로드" },
+  { suffix: "/criteria", label: "평가 항목", desc: "배점·등급 설정·엑셀·한글 가져오기" },
   { suffix: "/subjects", label: "평가 대상", desc: "기업 편입·자료" },
   { suffix: "/evaluators", label: "평가위원", desc: "위원 배정·위원장" },
   { suffix: "/results", label: "집계 결과", desc: "순위·환산·등급 총괄표" },
