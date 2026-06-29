@@ -48,7 +48,8 @@ export default function ScoreForm({
   criteria,
   initialComment,
   subjects = [],
-  otherScores = {},
+  compareSubjects = [],
+  compareScores = {},
   onSelectSubject,
   onDirty,
 }: {
@@ -66,6 +67,9 @@ export default function ScoreForm({
   subjects?: { id: string; name: string }[];
   otherScores?: Record<string, { name: string; value: number }[]>;
   otherPending?: Record<string, string[]>;
+  // 비교용: 내가 채점한 다른 대상 + (대상→항목→점수)
+  compareSubjects?: { id: string; name: string }[];
+  compareScores?: Record<string, Record<string, number>>;
   // CSR 모드 호환(현재 미사용)
   initialStep?: string;
   // CSR 모드: 대상 전환을 라우트 이동 없이 처리
@@ -79,6 +83,13 @@ export default function ScoreForm({
   );
   const [confirm, setConfirm] = useState(false);
   const [comment, setComment] = useState(initialComment);
+  // 비교 컬럼: 화살표로 다른 대상(기업) 선택 → 항목별로 그 대상에 매긴 점수 표시
+  const [cmpIdx, setCmpIdx] = useState(0);
+  const hasCompare = compareSubjects.length > 0;
+  const cmpSubject = hasCompare
+    ? compareSubjects[((cmpIdx % compareSubjects.length) + compareSubjects.length) % compareSubjects.length]
+    : null;
+  const cmpRow = cmpSubject ? compareScores[cmpSubject.id] ?? {} : {};
   const [vals, setVals] = useState<Record<string, string>>(() => {
     const o: Record<string, string> = {};
     for (const c of criteria)
@@ -289,20 +300,48 @@ export default function ScoreForm({
                   <th className="px-3 py-2 font-medium">평가 항목</th>
                   <th className="w-px whitespace-nowrap px-3 py-2 text-right font-medium">배점</th>
                   <th className="w-44 px-3 py-2 text-right font-medium">점수</th>
+                  {hasCompare && (
+                    <th className="w-36 px-3 py-2 text-right font-medium">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setCmpIdx((i) => i - 1)}
+                          className="rounded p-0.5 text-slate-400 transition hover:bg-slate-200 hover:text-slate-600"
+                          aria-label="이전 대상"
+                          title="이전 대상"
+                        >
+                          ◀
+                        </button>
+                        <span className="max-w-[5.5rem] truncate font-medium text-slate-600" title={cmpSubject?.name}>
+                          {cmpSubject?.name}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setCmpIdx((i) => i + 1)}
+                          className="rounded p-0.5 text-slate-400 transition hover:bg-slate-200 hover:text-slate-600"
+                          aria-label="다음 대상"
+                          title="다음 대상"
+                        >
+                          ▶
+                        </button>
+                      </div>
+                      <div className="text-[10px] font-normal text-slate-400">이 대상에 매긴 점수</div>
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody>
                 {sections.map((g) => (
                   <Fragment key={g.no}>
                     <tr>
-                      <td colSpan={4} className="border-b border-slate-100 bg-slate-50/60 px-3 py-1.5">
+                      <td colSpan={hasCompare ? 5 : 4} className="border-b border-slate-100 bg-slate-50/60 px-3 py-1.5">
                         <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-semibold text-indigo-700">{g.no}</span>
                         <span className="ml-1.5 text-xs font-semibold text-slate-600">{g.name ?? "미분류"}</span>
                       </td>
                     </tr>
                     {g.items.map((it) => {
                       const c = it.c;
-                      const others = otherScores[c.id] ?? [];
+                      const cmpVal = cmpRow[c.id];
                       return (
                         <tr key={c.id} className="border-b border-slate-50 last:border-0">
                           <td className="px-3 py-2.5 text-center align-top tabular-nums text-indigo-600">{it.code}</td>
@@ -310,11 +349,6 @@ export default function ScoreForm({
                             <div className="font-medium text-slate-800">{c.name}</div>
                             {c.description && (
                               <div className="mt-0.5 text-xs leading-snug text-slate-400">{c.description}</div>
-                            )}
-                            {others.length > 0 && (
-                              <div className="mt-1 truncate text-[11px] text-slate-400">
-                                다른 대상: {others.map((o) => `${o.name} ${fmt(o.value)}`).join(" · ")}
-                              </div>
                             )}
                           </td>
                           <td className="px-3 py-2.5 text-right align-top tabular-nums text-slate-400">{c.maxScore}</td>
@@ -352,6 +386,11 @@ export default function ScoreForm({
                               </div>
                             )}
                           </td>
+                          {hasCompare && (
+                            <td className="px-3 py-2.5 text-right align-top tabular-nums text-slate-500">
+                              {cmpVal === undefined ? <span className="text-slate-300">—</span> : fmt(cmpVal)}
+                            </td>
+                          )}
                         </tr>
                       );
                     })}
@@ -359,7 +398,7 @@ export default function ScoreForm({
                 ))}
                 {criteria.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-3 py-10 text-center text-slate-400">평가 항목이 없습니다.</td>
+                    <td colSpan={hasCompare ? 5 : 4} className="px-3 py-10 text-center text-slate-400">평가 항목이 없습니다.</td>
                   </tr>
                 )}
               </tbody>
