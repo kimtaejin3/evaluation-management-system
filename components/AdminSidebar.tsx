@@ -24,6 +24,13 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   CLOSED: { label: "마감", cls: "bg-slate-200 text-slate-600 ring-slate-300" },
 };
 
+// 사이드바(어두운 배경)에서 분과 이름 옆 진행상태 텍스트 색상
+const STATUS_TEXT: Record<string, string> = {
+  DRAFT: "text-slate-400",
+  IN_PROGRESS: "text-emerald-300",
+  CLOSED: "text-slate-500",
+};
+
 type Session = { id: string; name: string; status: string };
 
 function topCls(active: boolean) {
@@ -241,9 +248,16 @@ export default function AdminSidebar({ sessions }: { sessions: Session[] }) {
                   key={s.id}
                   href={`/admin/sessions/${s.id}`}
                   className={sessionCls(false)}
-                  title={s.name}
+                  title={`${s.name} · ${STATUS[s.status]?.label ?? s.status}`}
                 >
-                  {s.name}
+                  <span className="flex items-center gap-1.5">
+                    <span
+                      className={`shrink-0 text-[10px] font-medium ${STATUS_TEXT[s.status] ?? "text-slate-400"}`}
+                    >
+                      {STATUS[s.status]?.label ?? s.status}
+                    </span>
+                    <span className="truncate">{s.name}</span>
+                  </span>
                 </Link>
               ))}
             </div>
