@@ -1,9 +1,12 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { removeEvaluator, assignEvaluator, setChair } from "../../actions";
+import { resetEvaluatorPassword, deleteEvaluator } from "@/app/admin/actions";
 import { SkeletonCard, SkeletonTable } from "@/components/Skeletons";
 import EvaluatorImportButton from "@/components/EvaluatorImportButton";
+import PasswordCell from "@/components/PasswordCell";
 
 const inputCls =
   "rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500";
@@ -86,6 +89,7 @@ async function EvaluatorsContent({ id }: { id: string }) {
             <tr className="border-b border-slate-100">
               <th className="px-5 py-3 font-medium">이름</th>
               <th className="px-5 py-3 font-medium">아이디</th>
+              <th className="px-5 py-3 font-medium">임시 비밀번호</th>
               <th className="px-5 py-3 font-medium">위원장</th>
               {!locked && <th className="px-5 py-3"></th>}
             </tr>
@@ -101,6 +105,9 @@ async function EvaluatorsContent({ id }: { id: string }) {
                   </td>
                   <td className="px-5 py-3 text-slate-600">{a.user.username}</td>
                   <td className="px-5 py-3">
+                    <PasswordCell value={a.user.tempPassword} />
+                  </td>
+                  <td className="px-5 py-3">
                     {locked ? (
                       isChair ? "위원장" : "—"
                     ) : isChair ? (
@@ -115,9 +122,17 @@ async function EvaluatorsContent({ id }: { id: string }) {
                   </td>
                   {!locked && (
                     <td className="px-5 py-3 text-right">
-                      <form action={async () => { "use server"; await removeEvaluator(id, a.userId); }}>
-                        <button className="text-sm text-rose-600 hover:underline">배정 해제</button>
-                      </form>
+                      <div className="flex items-center justify-end gap-3">
+                        <form action={async () => { "use server"; await resetEvaluatorPassword(a.userId); revalidatePath(`/admin/sessions/${id}/evaluators`); }}>
+                          <button className="text-sm text-slate-500 hover:text-indigo-600 hover:underline">비번 재발급</button>
+                        </form>
+                        <form action={async () => { "use server"; await removeEvaluator(id, a.userId); }}>
+                          <button className="text-sm text-slate-500 hover:text-amber-600 hover:underline">배정 해제</button>
+                        </form>
+                        <form action={async () => { "use server"; await deleteEvaluator(a.userId); revalidatePath(`/admin/sessions/${id}/evaluators`); }}>
+                          <button className="text-sm text-rose-600 hover:underline">계정 삭제</button>
+                        </form>
+                      </div>
                     </td>
                   )}
                 </tr>
@@ -125,7 +140,7 @@ async function EvaluatorsContent({ id }: { id: string }) {
             })}
             {assignments.length === 0 && (
               <tr>
-                <td colSpan={locked ? 3 : 4} className="px-5 py-10 text-center text-slate-400">
+                <td colSpan={locked ? 4 : 5} className="px-5 py-10 text-center text-slate-400">
                   배정된 위원이 없습니다. 위에서 평가위원을 선택해 배정하세요.
                 </td>
               </tr>

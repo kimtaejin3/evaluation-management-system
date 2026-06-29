@@ -248,32 +248,46 @@ export async function commitEvaluatorImport(
   const { rows, warnings } = buildEvaluators(grid, payload.mapping, { hasHeader: payload.hasHeader })
   if (rows.length === 0) return { ok: false, error: warnings[0] ?? '가져올 위원이 없습니다.', warnings }
 
-  const accounts: ImportedEvaluator[] = []
-  await prisma.$transaction(async (tx) => {
-    for (const r of rows) {
+  // 비밀번호 해시(bcrypt)는 느려서 트랜잭션 안에서 돌리면 타임아웃을 유발한다.
+  // → 트랜잭션 밖에서 조회·해시를 미리 끝내고, 트랜잭션에선 빠른 쓰기만 한다.
+  const prepared = await Promise.all(
+    rows.map(async (r) => {
       const username = r.username || genUsername()
-      const existing = await tx.user.findUnique({ where: { username } })
-      let tempPassword: string | null = null
-      let userId: string
+      const existing = await prisma.user.findUnique({ where: { username }, select: { id: true, name: true } })
       if (existing) {
-        userId = existing.id
-        if (existing.name !== r.name) await tx.user.update({ where: { id: existing.id }, data: { name: r.name } })
-      } else {
-        const pw = genPassword()
-        const created = await tx.user.create({
-          data: { username, name: r.name, role: 'EVALUATOR', passwordHash: await hashPassword(pw), tempPassword: pw },
-        })
-        userId = created.id
-        tempPassword = pw
+        return { kind: 'existing' as const, username, name: r.name, id: existing.id, nameChanged: existing.name !== r.name }
       }
-      await tx.assignment.upsert({
-        where: { sessionId_userId: { sessionId, userId } },
-        update: {},
-        create: { sessionId, userId },
-      })
-      accounts.push({ name: r.name, username, tempPassword })
-    }
-  })
+      const pw = genPassword()
+      return { kind: 'new' as const, username, name: r.name, pw, hash: await hashPassword(pw) }
+    }),
+  )
+
+  const accounts: ImportedEvaluator[] = []
+  await prisma.$transaction(
+    async (tx) => {
+      for (const p of prepared) {
+        let userId: string
+        let tempPassword: string | null = null
+        if (p.kind === 'existing') {
+          userId = p.id
+          if (p.nameChanged) await tx.user.update({ where: { id: p.id }, data: { name: p.name } })
+        } else {
+          const created = await tx.user.create({
+            data: { username: p.username, name: p.name, role: 'EVALUATOR', passwordHash: p.hash, tempPassword: p.pw },
+          })
+          userId = created.id
+          tempPassword = p.pw
+        }
+        await tx.assignment.upsert({
+          where: { sessionId_userId: { sessionId, userId } },
+          update: {},
+          create: { sessionId, userId },
+        })
+        accounts.push({ name: p.name, username: p.username, tempPassword })
+      }
+    },
+    { timeout: 20000 },
+  )
 
   revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
   revalidatePath('/admin/evaluators')
