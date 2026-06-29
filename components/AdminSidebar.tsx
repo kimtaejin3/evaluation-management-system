@@ -8,7 +8,7 @@ import { SessionsIcon, UsersIcon, CompanyIcon } from "./icons";
 const APP_VERSION = "0.1.0";
 
 const SUB_ITEMS = [
-  { suffix: "", label: "상세", desc: "심사 정보· 실시간 모니터링" },
+  { suffix: "", label: "상세", desc: "분과 정보· 실시간 모니터링" },
   { suffix: "/criteria", label: "평가 항목", desc: "배점·등급 설정·엑셀·한글 가져오기" },
   { suffix: "/subjects", label: "평가 대상", desc: "기업 편입·자료" },
   { suffix: "/evaluators", label: "평가위원", desc: "위원 배정·위원장" },
@@ -48,7 +48,7 @@ function leafCls(active: boolean) {
   }`;
 }
 
-// 세션 모드 하단의 심사 전환 드롭다운
+// 세션 모드 하단의 분과 전환 드롭다운
 function SessionSwitcher({
   sessions,
   currentId,
@@ -91,7 +91,7 @@ function SessionSwitcher({
         aria-haspopup="listbox"
         aria-expanded={open}
       >
-        <span className="truncate">{current?.name ?? "심사 선택"}</span>
+        <span className="truncate">{current?.name ?? "분과 선택"}</span>
         <svg
           viewBox="0 0 20 20"
           fill="none"
@@ -111,7 +111,7 @@ function SessionSwitcher({
           role="listbox"
         >
           <div className="px-3 pb-1 pt-1.5 text-[11px] font-medium uppercase tracking-wide text-slate-400">
-            심사 전환
+            분과 전환
           </div>
           {sessions.map((s) => {
             const active = s.id === currentId;
@@ -143,7 +143,7 @@ function SessionSwitcher({
           })}
           {sessions.length === 0 && (
             <div className="px-3 py-2 text-sm text-slate-400">
-              등록된 심사 없음
+              등록된 분과 없음
             </div>
           )}
         </div>
@@ -176,7 +176,7 @@ export default function AdminSidebar({ sessions }: { sessions: Session[] }) {
       </div>
 
       {sid ? (
-        /* ── 세션 모드: 이 심사의 메뉴만 ── */
+        /* ── 세션 모드: 이 분과의 메뉴만 ── */
         <>
           <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
             <Link
@@ -190,9 +190,9 @@ export default function AdminSidebar({ sessions }: { sessions: Session[] }) {
                 className="truncate text-sm font-bold text-white"
                 title={current?.name}
               >
-                {current?.name ?? "심사"}
+                {current?.name ?? "분과"}
               </div>
-              <div className="text-[11px] text-slate-400">심사 메뉴</div>
+              <div className="text-[11px] text-slate-400">분과 메뉴</div>
             </div>
             <div className="space-y-0.5">
               {SUB_ITEMS.map((it) => {
@@ -228,12 +228,12 @@ export default function AdminSidebar({ sessions }: { sessions: Session[] }) {
           <div>
             <Link href="/admin/sessions" className={topCls(sessionsActive)}>
               <SessionsIcon />
-              심사 관리
+              분과 관리
             </Link>
             <div className="mt-1 ml-3 space-y-0.5 border-l border-white/15 pl-2">
               {sessions.length === 0 && (
                 <div className="px-3 py-1.5 text-xs text-slate-500">
-                  등록된 심사 없음
+                  등록된 분과 없음
                 </div>
               )}
               {sessions.map((s) => (

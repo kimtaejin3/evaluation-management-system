@@ -13,7 +13,7 @@ export default function EvaluatorsAdminPage() {
       <div>
         <h1 className="text-2xl font-bold">평가위원 관리</h1>
         <p className="mt-1 text-sm text-slate-500">
-          전체 평가위원 계정을 관리합니다. 심사 배정은 심사별 화면에서
+          전체 평가위원 계정을 관리합니다. 분과 배정은 분과별 화면에서
           진행하세요.
         </p>
       </div>
@@ -75,7 +75,7 @@ async function EvaluatorTable() {
               <th className="px-4 py-2.5 font-medium">이름</th>
               <th className="px-4 py-2.5 font-medium">아이디</th>
               <th className="px-4 py-2.5 font-medium">임시 비밀번호</th>
-              <th className="px-4 py-2.5 font-medium">배정 심사</th>
+              <th className="px-4 py-2.5 font-medium">배정 분과</th>
               <th className="px-4 py-2.5 text-right"></th>
             </tr>
           </thead>

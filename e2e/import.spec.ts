@@ -5,7 +5,7 @@ const prisma = new PrismaClient()
 const SESSION_NAME = 'E2E-PW 평가항목 업로드 테스트'
 
 test.afterAll(async () => {
-  // 테스트로 만든 심사 정리
+  // 테스트로 만든 분과 정리
   await prisma.evaluationSession.deleteMany({ where: { name: { startsWith: 'E2E-PW' } } })
   await prisma.$disconnect()
 })
@@ -21,10 +21,10 @@ async function loginAsAdmin(page: Page) {
 test('엑셀·한글 가져오기 모달 — 붙여넣기 → 자동 매핑/미리보기', async ({ page }) => {
   await loginAsAdmin(page)
 
-  // 새 심사 생성
+  // 새 분과 생성
   await page.goto('/admin/sessions/new')
   await page.getByPlaceholder('예) 2026년 상반기 사업 평가').fill(SESSION_NAME)
-  await page.getByRole('button', { name: '심사 생성' }).click()
+  await page.getByRole('button', { name: '분과 생성' }).click()
   // 생성 후 세션 상세(cuid)로 리다이렉트 — "new"에 오매칭되지 않도록 길이로 구분
   await page.waitForURL(/\/admin\/sessions\/[a-z0-9]{20,}$/)
   const sessionUrl = page.url()

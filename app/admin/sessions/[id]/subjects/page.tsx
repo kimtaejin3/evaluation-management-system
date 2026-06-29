@@ -46,7 +46,7 @@ async function SubjectsContent({ id }: { id: string }) {
     prisma.subject.findMany({
       where: { sessionId: id },
       orderBy: { order: "asc" },
-      // 이 심사 전용 자료 + 공통(sessionId=null) 자료만
+      // 이 분과 전용 자료 + 공통(sessionId=null) 자료만
       include: {
         company: {
           include: {
@@ -71,7 +71,7 @@ async function SubjectsContent({ id }: { id: string }) {
       {/* 대상 추가 (상단) */}
       {locked ? (
         <p className="text-sm text-slate-400">
-          마감된 심사는 평가 대상을 수정할 수 없습니다.
+          마감된 분과는 평가 대상을 수정할 수 없습니다.
         </p>
       ) : (
         <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-5">
@@ -110,7 +110,7 @@ async function SubjectsContent({ id }: { id: string }) {
             >
               기업 관리
             </Link>
-            에서 전역으로 관리되며 심사 간 공유됩니다. 신규 기업은 기업 관리에서 먼저 등록하세요.
+            에서 전역으로 관리되며 분과 간 공유됩니다. 신규 기업은 기업 관리에서 먼저 등록하세요.
           </p>
         </div>
       )}
@@ -171,7 +171,7 @@ async function SubjectsContent({ id }: { id: string }) {
                   }}
                 >
                   <button className="text-sm text-rose-600 hover:underline">
-                    심사에서 제외
+                    분과에서 제외
                   </button>
                 </form>
               )}
@@ -180,7 +180,7 @@ async function SubjectsContent({ id }: { id: string }) {
             <div className="mt-4 border-t border-slate-100 pt-4">
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-xs font-medium text-slate-500">
-                  심사 서류 ({s.company.documents.length})
+                  분과 서류 ({s.company.documents.length})
                 </span>
                 <Link
                   href="/admin/companies"

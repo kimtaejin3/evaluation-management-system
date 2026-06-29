@@ -47,7 +47,7 @@ export default function SessionPicker({ sessions, currentId }: { sessions: S[]; 
         aria-expanded={open}
       >
         <span className="max-w-[22rem] truncate text-lg font-bold text-slate-900">
-          {current?.name ?? '심사 선택'}
+          {current?.name ?? '분과 선택'}
         </span>
         <svg
           viewBox="0 0 20 20"
@@ -69,7 +69,7 @@ export default function SessionPicker({ sessions, currentId }: { sessions: S[]; 
           role="listbox"
         >
           <div className="px-3 pb-1 pt-1.5 text-[11px] font-medium uppercase tracking-wide text-slate-400">
-            심사 선택
+            분과 선택
           </div>
           {sessions.map((s) => {
             const active = s.id === currentId

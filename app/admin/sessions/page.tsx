@@ -13,7 +13,7 @@ const STATUS_OPTIONS = [
   { value: "CLOSED", label: "마감" },
 ];
 
-// 심사의 연도(평가 일시 우선, 없으면 생성일)
+// 분과의 연도(평가 일시 우선, 없으면 생성일)
 function sessionYear(s: { eventDate: Date | null; createdAt: Date }): number {
   return new Date(s.eventDate ?? s.createdAt).getFullYear();
 }
@@ -27,16 +27,16 @@ export default function SessionListPage({
     <div className="space-y-5">
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-2xl font-bold">심사 관리</h1>
+          <h1 className="text-2xl font-bold">분과 관리</h1>
           <p className="mt-1 text-sm text-slate-500">
-            심사 생성 · 편집 · 마감
+            분과 생성 · 편집 · 마감
           </p>
         </div>
         <Link
           href="/admin/sessions/new"
           className="rounded-md bg-[var(--gov-primary)] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-95"
         >
-          + 새 심사
+          + 새 분과
         </Link>
       </div>
 
@@ -65,7 +65,7 @@ async function SessionList({
     },
   });
 
-  // 연도 옵션(전체 심사 기준) + 필터 적용
+  // 연도 옵션(전체 분과 기준) + 필터 적용
   const years = [...new Set(all.map(sessionYear))].sort((a, b) => b - a);
   const sessions = year
     ? all.filter((s) => String(sessionYear(s)) === year)
@@ -106,7 +106,7 @@ async function SessionList({
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-slate-600">
             <tr className="border-b border-slate-200">
-              <th className="px-5 py-3 font-semibold">심사명</th>
+              <th className="px-5 py-3 font-semibold">분과명</th>
               <th className="px-5 py-3 font-semibold">상태</th>
               <th className="px-5 py-3 font-semibold">항목</th>
               <th className="px-5 py-3 font-semibold">대상</th>
@@ -168,7 +168,7 @@ async function SessionList({
                   colSpan={7}
                   className="px-5 py-12 text-center text-slate-400"
                 >
-                  조회된 심사가 없습니다.
+                  조회된 분과가 없습니다.
                 </td>
               </tr>
             )}

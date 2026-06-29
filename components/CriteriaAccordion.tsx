@@ -13,7 +13,7 @@ export interface PreviewCriterion {
   gradeOptions: unknown
 }
 
-// 평가 대상 목록에서 심사별 평가 항목을 접었다 폈다(아코디언) 조회
+// 평가 대상 목록에서 분과별 평가 항목을 접었다 폈다(아코디언) 조회
 export default function CriteriaAccordion({ criteria }: { criteria: PreviewCriterion[] }) {
   const [open, setOpen] = useState(false)
 

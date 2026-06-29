@@ -215,9 +215,9 @@ export default function ImportCriteriaForm({
                 첫 행은 머리글(헤더)
               </label>
               <span className="inline-flex items-center gap-1.5 rounded-md bg-rose-50 px-2 py-1 text-xs font-medium text-rose-600">
-                ⚠ 이 심사의 기존 평가항목을 모두 지우고 새로 채웁니다
+                ⚠ 이 분과의 기존 평가항목을 모두 지우고 새로 채웁니다
               </span>
-              <span className="text-xs text-slate-400">채점이 시작된 심사는 차단됩니다.</span>
+              <span className="text-xs text-slate-400">채점이 시작된 분과는 차단됩니다.</span>
             </div>
 
             <div className="text-sm font-semibold text-slate-700">

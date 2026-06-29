@@ -20,7 +20,7 @@ interface PaneState {
   minimized: boolean;
 }
 
-// 평가위원이 여러 심사 서류를 왼쪽 사이드에서 선택해 동시에 띄워놓고 비교하며 채점할 수 있는 프리뷰 보드
+// 평가위원이 여러 분과 서류를 왼쪽 사이드에서 선택해 동시에 띄워놓고 비교하며 채점할 수 있는 프리뷰 보드
 export default function DocPreviewBoard({
   documents,
   docked = false,
@@ -55,7 +55,7 @@ export default function DocPreviewBoard({
     if (!docked) return null;
     return (
       <div className="flex h-full min-h-40 items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-400">
-        등록된 심사 자료가 없습니다.
+        등록된 분과 자료가 없습니다.
       </div>
     );
   }
@@ -200,7 +200,7 @@ export default function DocPreviewBoard({
         <div className="flex h-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white">
           <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2.5">
             <span className="text-sm font-semibold text-slate-700">
-              심사 자료 <span className="text-xs font-normal text-slate-400">{documents.length}</span>
+              분과 자료 <span className="text-xs font-normal text-slate-400">{documents.length}</span>
             </span>
             {panes.length > 0 && (
               <button type="button" onClick={() => setPanes([])} className="rounded px-1.5 py-0.5 text-xs text-slate-400 hover:bg-slate-100 hover:text-slate-600">
@@ -247,7 +247,7 @@ export default function DocPreviewBoard({
           aria-haspopup="menu"
           aria-expanded={menuOpen}
         >
-          📁 심사 서류 <span className="text-xs text-slate-400">{documents.length}</span>
+          📁 분과 서류 <span className="text-xs text-slate-400">{documents.length}</span>
           {panes.length > 0 && <span className="text-xs font-medium text-indigo-500">· {panes.length} 열림</span>}
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={`h-4 w-4 text-slate-400 transition-transform ${menuOpen ? "rotate-180" : ""}`} aria-hidden>
             <path d="m5 8 5 5 5-5" />

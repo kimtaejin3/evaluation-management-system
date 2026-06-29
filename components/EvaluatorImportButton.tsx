@@ -33,7 +33,7 @@ export default function EvaluatorImportButton({ sessionId }: { sessionId: string
               <div>
                 <h3 className="text-base font-semibold text-slate-800">평가위원 엑셀·한글 가져오기</h3>
                 <p className="mt-0.5 text-xs text-slate-400">
-                  명단 엑셀을 업로드하거나 붙여넣어 계정 생성·이 심사 배정을 한 번에 처리합니다.
+                  명단 엑셀을 업로드하거나 붙여넣어 계정 생성·이 분과 배정을 한 번에 처리합니다.
                 </p>
               </div>
               <button type="button" onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600">

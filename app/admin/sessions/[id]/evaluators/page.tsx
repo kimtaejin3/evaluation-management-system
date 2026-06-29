@@ -37,7 +37,7 @@ async function EvaluatorsContent({ id }: { id: string }) {
     prisma.assignment.findMany({ where: { sessionId: id }, include: { user: true } }),
   ]);
   const assignedIds = assignments.map((a) => a.userId);
-  // 평가위원 관리에서 등록됐지만 이 심사에 아직 배정되지 않은 위원
+  // 평가위원 관리에서 등록됐지만 이 분과에 아직 배정되지 않은 위원
   const available = await prisma.user.findMany({
     where: { role: "EVALUATOR", id: { notIn: assignedIds.length ? assignedIds : [""] } },
     orderBy: { name: "asc" },
@@ -53,7 +53,7 @@ async function EvaluatorsContent({ id }: { id: string }) {
     <div className="space-y-6">
       {/* 위원 추가 (상단) */}
       {locked ? (
-        <p className="text-sm text-slate-400">마감된 심사는 평가위원을 수정할 수 없습니다.</p>
+        <p className="text-sm text-slate-400">마감된 분과는 평가위원을 수정할 수 없습니다.</p>
       ) : (
         <div className="rounded-xl border border-slate-200 bg-white p-5">
           <div className="mb-3 flex items-center justify-between">
@@ -73,7 +73,7 @@ async function EvaluatorsContent({ id }: { id: string }) {
             </button>
           </form>
           <p className="mt-3 text-xs text-slate-400">
-            위원 계정은 <Link href="/admin/evaluators" className="text-indigo-600 hover:underline">평가위원 관리</Link>에서 전역으로 등록·관리됩니다. 여기서는 이 심사에 배정만 합니다.
+            위원 계정은 <Link href="/admin/evaluators" className="text-indigo-600 hover:underline">평가위원 관리</Link>에서 전역으로 등록·관리됩니다. 여기서는 이 분과에 배정만 합니다.
           </p>
         </div>
       )}

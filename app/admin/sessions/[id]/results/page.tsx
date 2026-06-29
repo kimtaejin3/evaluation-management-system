@@ -107,12 +107,12 @@ async function ResultsContent({ id }: { id: string }) {
       <div className="hidden print:block">
         <div className="text-center">
           <div className="text-xs tracking-wide text-slate-500">사업 심사·평가 종합관리시스템</div>
-          <h1 className="mt-1 text-2xl font-bold">심사 결과 총괄표</h1>
+          <h1 className="mt-1 text-2xl font-bold">분과 결과 총괄표</h1>
         </div>
         <table className="mt-5 w-full border border-black text-sm">
           <tbody>
             <tr>
-              <th className="w-28 border border-black bg-slate-100 px-3 py-1.5 text-left font-medium">심사명</th>
+              <th className="w-28 border border-black bg-slate-100 px-3 py-1.5 text-left font-medium">분과명</th>
               <td className="border border-black px-3 py-1.5">{session?.name}</td>
               <th className="w-28 border border-black bg-slate-100 px-3 py-1.5 text-left font-medium">평가 일시</th>
               <td className="border border-black px-3 py-1.5">{fmtDate(session?.eventDate ?? null)}</td>

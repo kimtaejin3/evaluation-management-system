@@ -19,7 +19,7 @@ export default function CompaniesPage() {
       <div>
         <h1 className="text-2xl font-bold">기업 관리</h1>
         <p className="mt-1 text-sm text-slate-500">
-          평가 대상 기업을 등록·관리합니다. 심사 자료 업로드는 <span className="font-medium text-slate-600">심사 관리 &gt; 평가 대상</span>에서 합니다.
+          평가 대상 기업을 등록·관리합니다. 분과 자료 업로드는 <span className="font-medium text-slate-600">분과 관리 &gt; 평가 대상</span>에서 합니다.
         </p>
       </div>
 
@@ -56,7 +56,7 @@ async function CompanyList() {
   return (
     <div className="space-y-3">
         {companies.map((c) => {
-          // 이 기업이 참여 중인 심사(중복 제거)
+          // 이 기업이 참여 중인 분과(중복 제거)
           const sessions = Array.from(
             new Map(c.subjects.map((s) => [s.session.id, s.session])).values(),
           );
@@ -79,7 +79,7 @@ async function CompanyList() {
               </div>
 
               <div className="mt-4 border-t border-slate-100 pt-4">
-                <div className="mb-2 text-xs font-medium text-slate-500">참여 심사 ({sessions.length})</div>
+                <div className="mb-2 text-xs font-medium text-slate-500">참여 분과 ({sessions.length})</div>
                 {sessions.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {sessions.map((s) => {
@@ -93,7 +93,7 @@ async function CompanyList() {
                     })}
                   </div>
                 ) : (
-                  <p className="text-sm text-slate-400">참여 중인 심사가 없습니다.</p>
+                  <p className="text-sm text-slate-400">참여 중인 분과가 없습니다.</p>
                 )}
               </div>
             </div>

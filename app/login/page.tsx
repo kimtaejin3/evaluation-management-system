@@ -6,7 +6,7 @@ import BrandMark from '@/components/BrandMark'
 
 const inputCls = 'mt-1.5 w-full rounded-md border border-slate-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500'
 
-const POINTS = ['심사 항목 설정 · 평가 · 결과 집계를 한 곳에서', '위원별 진행 현황 실시간 모니터링', '평가 자료 일괄 업로드 및 권한 보호']
+const POINTS = ['분과 항목 설정 · 평가 · 결과 집계를 한 곳에서', '위원별 진행 현황 실시간 모니터링', '평가 자료 일괄 업로드 및 권한 보호']
 
 const DEMO_ACCOUNTS = [
   { role: '관리자', name: '관리자', username: 'admin', password: 'admin1234' },

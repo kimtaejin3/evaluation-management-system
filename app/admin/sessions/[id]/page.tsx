@@ -31,7 +31,7 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
   )
 }
 
-// 심사 정보 카드 (단일 쿼리)
+// 분과 정보 카드 (단일 쿼리)
 async function SessionInfo({ id }: { id: string }) {
   const session = await prisma.evaluationSession.findUnique({
     where: { id },
@@ -50,9 +50,9 @@ async function SessionInfo({ id }: { id: string }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="font-semibold">심사 정보</h2>
+        <h2 className="font-semibold">분과 정보</h2>
         <form action={async () => { 'use server'; await duplicateSession(id) }}>
-          <button className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50">심사 복사</button>
+          <button className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50">분과 복사</button>
         </form>
       </div>
       {session.description && <p className="mb-4 text-sm text-slate-600">{session.description}</p>}

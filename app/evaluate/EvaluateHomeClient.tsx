@@ -82,7 +82,7 @@ export default function EvaluateHomeClient({
       )}
       {!error && sessions?.length === 0 && (
         <div className="rounded-xl border border-dashed border-slate-300 bg-white p-12 text-center text-slate-400">
-          진행 중인 배정 심사가 없습니다.
+          진행 중인 배정 분과가 없습니다.
         </div>
       )}
 
@@ -195,7 +195,7 @@ export default function EvaluateHomeClient({
                   </div>
                   {sub.docs.length > 0 && (
                     <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-[3.5rem]">
-                      <span className="text-xs text-slate-400">심사 서류</span>
+                      <span className="text-xs text-slate-400">분과 서류</span>
                       {sub.docs.map((d) => (
                         <a
                           key={d.id}

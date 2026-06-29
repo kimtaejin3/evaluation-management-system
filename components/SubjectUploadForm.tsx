@@ -62,7 +62,7 @@ export default function SubjectUploadForm({ action }: { action: (formData: FormD
       />
       <SubmitButton disabled={!!error} />
       <span className="basis-full text-xs text-slate-400">
-        예: 사업계획서 · 현장실태 조사서 · 사전검토표 (이 심사 전용으로 저장) · <span className="font-medium text-slate-500">PDF만 · 최대 {MAX_MB}MB</span>
+        예: 사업계획서 · 현장실태 조사서 · 사전검토표 (이 분과 전용으로 저장) · <span className="font-medium text-slate-500">PDF만 · 최대 {MAX_MB}MB</span>
       </span>
       {error && <span className="basis-full text-xs font-medium text-rose-600">{error}</span>}
     </form>
