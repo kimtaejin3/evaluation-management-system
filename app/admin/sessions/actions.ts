@@ -10,6 +10,7 @@ import { randomUUID } from 'crypto'
 import { hashPassword } from '@/lib/auth'
 import { buildCriteria, type ColumnMapping, type BuildOptions } from '@/lib/kpass-import'
 import { buildEvaluators, type EvalColumnMapping } from '@/lib/evaluator-import'
+import { buildSubjects, type SubjectColumnMapping } from '@/lib/subject-import'
 import { parseSheet } from '@/lib/kpass-sheet'
 
 export async function createSession(formData: FormData) {
@@ -255,10 +256,10 @@ export async function commitEvaluatorImport(
       const username = r.username || genUsername()
       const existing = await prisma.user.findUnique({ where: { username }, select: { id: true, name: true } })
       if (existing) {
-        return { kind: 'existing' as const, username, name: r.name, id: existing.id, nameChanged: existing.name !== r.name }
+        return { kind: 'existing' as const, username, name: r.name, phone: r.phone, id: existing.id, nameChanged: existing.name !== r.name }
       }
       const pw = genPassword()
-      return { kind: 'new' as const, username, name: r.name, pw, hash: await hashPassword(pw) }
+      return { kind: 'new' as const, username, name: r.name, phone: r.phone, pw, hash: await hashPassword(pw) }
     }),
   )
 
@@ -270,10 +271,11 @@ export async function commitEvaluatorImport(
         let tempPassword: string | null = null
         if (p.kind === 'existing') {
           userId = p.id
-          if (p.nameChanged) await tx.user.update({ where: { id: p.id }, data: { name: p.name } })
+          // 이름 변경 또는 연락처 제공 시 갱신
+          if (p.nameChanged || p.phone) await tx.user.update({ where: { id: p.id }, data: { name: p.name, phone: p.phone ?? undefined } })
         } else {
           const created = await tx.user.create({
-            data: { username: p.username, name: p.name, role: 'EVALUATOR', passwordHash: p.hash, tempPassword: p.pw },
+            data: { username: p.username, name: p.name, phone: p.phone, role: 'EVALUATOR', passwordHash: p.hash, tempPassword: p.pw },
           })
           userId = created.id
           tempPassword = p.pw
@@ -292,6 +294,64 @@ export async function commitEvaluatorImport(
   revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
   revalidatePath('/admin/evaluators')
   return { ok: true, accounts, warnings }
+}
+
+// ── 평가 대상(기업) 명단 엑셀 임포트(파일 업로드 + 복붙) ──
+// 행마다: 기업 upsert(by 기업명, 사업자번호·설명 갱신) + 이 분과에 평가 대상으로 편입(중복 스킵).
+export interface SubjectImportPayload {
+  grid: string[][]
+  mapping: SubjectColumnMapping
+  hasHeader: boolean
+}
+
+export interface SubjectImportResult {
+  ok: boolean
+  created?: number
+  skipped?: number
+  error?: string
+  warnings?: string[]
+}
+
+export async function commitSubjectImport(
+  sessionId: string,
+  payload: SubjectImportPayload,
+): Promise<SubjectImportResult> {
+  const grid = payload.grid ?? []
+  if (grid.length === 0) return { ok: false, error: '가져올 내용이 없습니다.' }
+
+  const { rows, warnings } = buildSubjects(grid, payload.mapping, { hasHeader: payload.hasHeader })
+  if (rows.length === 0) return { ok: false, error: warnings[0] ?? '가져올 평가 대상이 없습니다.', warnings }
+
+  let created = 0
+  let skipped = 0
+  await prisma.$transaction(
+    async (tx) => {
+      let order = await tx.subject.count({ where: { sessionId } })
+      for (const r of rows) {
+        const company = await tx.company.upsert({
+          where: { name: r.name },
+          update: { businessNo: r.businessNo ?? undefined, description: r.description ?? undefined },
+          create: { name: r.name, businessNo: r.businessNo, description: r.description },
+        })
+        const exists = await tx.subject.findUnique({
+          where: { sessionId_companyId: { sessionId, companyId: company.id } },
+        })
+        if (exists) {
+          skipped++
+          continue
+        }
+        await tx.subject.create({
+          data: { sessionId, companyId: company.id, name: company.name, description: company.description, order: order++ },
+        })
+        created++
+      }
+    },
+    { timeout: 20000 },
+  )
+
+  revalidatePath(`/admin/sessions/${sessionId}/subjects`)
+  revalidatePath('/admin/companies')
+  return { ok: true, created, skipped, warnings }
 }
 
 // 항목(대제목/섹션) 이름 일괄 변경 — 해당 항목의 모든 세부항목에 적용. from=null이면 '미분류' 그룹.

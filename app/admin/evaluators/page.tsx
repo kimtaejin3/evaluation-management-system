@@ -24,9 +24,9 @@ export default function EvaluatorsAdminPage() {
 
       <form
         action={createEvaluator}
-        className="grid grid-cols-3 gap-3 rounded-lg border border-slate-200 bg-white p-4"
+        className="grid grid-cols-2 gap-3 rounded-lg border border-slate-200 bg-white p-4"
       >
-        <div className="col-span-3 text-sm font-semibold text-slate-700">
+        <div className="col-span-2 text-sm font-semibold text-slate-700">
           위원 계정 추가
         </div>
         <input name="name" placeholder="이름" required className={inputCls} />
@@ -42,11 +42,12 @@ export default function EvaluatorsAdminPage() {
           required
           className={inputCls}
         />
-        <button className="col-span-3 rounded-md bg-indigo-600 py-2 text-sm font-medium text-white transition hover:bg-indigo-700">
+        <input name="phone" placeholder="연락처(선택)" className={inputCls} />
+        <button className="col-span-2 rounded-md bg-indigo-600 py-2 text-sm font-medium text-white transition hover:bg-indigo-700">
           + 위원 추가
         </button>
-        <p className="col-span-3 text-xs text-slate-400">
-          기존 아이디면 이름만 갱신합니다.
+        <p className="col-span-2 text-xs text-slate-400">
+          기존 아이디면 이름·연락처를 갱신합니다.
         </p>
       </form>
     </div>
@@ -74,6 +75,7 @@ async function EvaluatorTable() {
             <tr className="border-b border-slate-100 bg-slate-50/60">
               <th className="px-4 py-2.5 font-medium">이름</th>
               <th className="px-4 py-2.5 font-medium">아이디</th>
+              <th className="px-4 py-2.5 font-medium">연락처</th>
               <th className="px-4 py-2.5 font-medium">임시 비밀번호</th>
               <th className="px-4 py-2.5 font-medium">배정 분과</th>
               <th className="px-4 py-2.5 text-right"></th>
@@ -88,6 +90,7 @@ async function EvaluatorTable() {
                   </span>
                 </td>
                 <td className="px-4 py-2.5 text-slate-600">{u.username}</td>
+                <td className="px-4 py-2.5 text-slate-600">{u.phone ?? <span className="text-slate-300">—</span>}</td>
                 <td className="px-4 py-2.5">
                   <PasswordCell value={u.tempPassword} />
                 </td>
@@ -136,7 +139,7 @@ async function EvaluatorTable() {
             {evaluators.length === 0 && (
               <tr>
                 <td
-                  colSpan={5}
+                  colSpan={6}
                   className="px-4 py-10 text-center text-slate-400"
                 >
                   등록된 평가위원이 없습니다.

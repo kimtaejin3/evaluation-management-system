@@ -12,12 +12,13 @@ export async function createEvaluator(formData: FormData) {
   const username = String(formData.get('username') ?? '').trim()
   const name = String(formData.get('name') ?? '').trim()
   const password = String(formData.get('password') ?? '')
+  const phone = String(formData.get('phone') ?? '').trim() || null
   if (!username || !name || !password) return
 
   await prisma.user.upsert({
     where: { username },
-    update: { name },
-    create: { username, name, role: 'EVALUATOR', passwordHash: await hashPassword(password), tempPassword: password },
+    update: { name, phone: phone ?? undefined },
+    create: { username, name, phone, role: 'EVALUATOR', passwordHash: await hashPassword(password), tempPassword: password },
   })
   revalidatePath('/admin/evaluators')
 }

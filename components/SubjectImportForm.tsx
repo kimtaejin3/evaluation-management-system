@@ -3,27 +3,27 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  autoDetectEvaluatorMapping,
-  evaluatorLooksLikeHeader,
-  buildEvaluators,
-  EVALUATOR_FIELDS,
-  type EvalColumnMapping,
-  type EvaluatorField,
-} from "@/lib/evaluator-import";
+  autoDetectSubjectMapping,
+  subjectLooksLikeHeader,
+  buildSubjects,
+  SUBJECT_FIELDS,
+  type SubjectColumnMapping,
+  type SubjectField,
+} from "@/lib/subject-import";
 import { parseTsv } from "@/lib/kpass-import";
 import {
-  commitEvaluatorImport,
+  commitSubjectImport,
   parseSheetUpload,
-  type EvaluatorImportResult,
+  type SubjectImportResult,
 } from "@/app/admin/sessions/actions";
 import { parseHtmlTable } from "./clipboard-table";
 
 const inputCls =
   "rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500";
 
-const SAMPLE = `성명\t아이디\t연락처\n홍길동\thong\t010-1234-5678\n김평가\t\t010-2222-3333\n이심사\tlee\t`;
+const SAMPLE = `기업명\t사업자번호\t설명\n(주)가나기술\t123-45-67890\tAI 솔루션\n다라산업\t234-56-78901\t정밀부품\n마바건설\t\t`;
 
-export default function EvaluatorImportForm({
+export default function SubjectImportForm({
   sessionId,
   onDone,
 }: {
@@ -37,8 +37,8 @@ export default function EvaluatorImportForm({
   const [parsing, setParsing] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
   const [hasHeader, setHasHeader] = useState(true);
-  const [override, setOverride] = useState<Record<number, EvaluatorField | null>>({});
-  const [result, setResult] = useState<EvaluatorImportResult | null>(null);
+  const [override, setOverride] = useState<Record<number, SubjectField | null>>({});
+  const [result, setResult] = useState<SubjectImportResult | null>(null);
   const [pending, startTransition] = useTransition();
   const headerTouched = useRef(false);
 
@@ -47,22 +47,22 @@ export default function EvaluatorImportForm({
 
   useEffect(() => {
     if (headerTouched.current) return;
-    setHasHeader(grid.length > 0 ? evaluatorLooksLikeHeader(grid[0]) : true);
+    setHasHeader(grid.length > 0 ? subjectLooksLikeHeader(grid[0]) : true);
   }, [grid]);
 
   const headerRow = hasHeader ? grid[0] ?? [] : [];
-  const auto = useMemo<EvalColumnMapping>(() => {
+  const auto = useMemo<SubjectColumnMapping>(() => {
     const padded = Array.from({ length: colCount }, (_, i) => headerRow[i] ?? "");
-    return autoDetectEvaluatorMapping(padded);
+    return autoDetectSubjectMapping(padded);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [colCount, headerRow.join(""), hasHeader]);
 
-  const mapping: EvalColumnMapping = useMemo(
+  const mapping: SubjectColumnMapping = useMemo(
     () => Array.from({ length: colCount }, (_, i) => (i in override ? override[i] : auto[i] ?? null)),
     [colCount, override, auto],
   );
 
-  const preview = useMemo(() => buildEvaluators(grid, mapping, { hasHeader }), [grid, mapping, hasHeader]);
+  const preview = useMemo(() => buildSubjects(grid, mapping, { hasHeader }), [grid, mapping, hasHeader]);
   const sampleRows = (hasHeader ? grid.slice(1) : grid).slice(0, 3);
   const nameMapped = mapping.includes("name");
 
@@ -114,68 +114,25 @@ export default function EvaluatorImportForm({
   };
 
   const setCol = (i: number, v: string) =>
-    setOverride((o) => ({ ...o, [i]: v === "" ? null : (v as EvaluatorField) }));
+    setOverride((o) => ({ ...o, [i]: v === "" ? null : (v as SubjectField) }));
 
   const submit = () => {
     setResult(null);
     startTransition(async () => {
-      const res = await commitEvaluatorImport(sessionId, { grid, mapping, hasHeader });
+      const res = await commitSubjectImport(sessionId, { grid, mapping, hasHeader });
       setResult(res);
-      if (res.ok) router.refresh();
+      if (res.ok) {
+        router.refresh();
+        onDone();
+      }
     });
   };
-
-  // 성공 결과: 계정·임시비번 안내(모달 유지 — 관리자가 비번을 옮겨적도록)
-  if (result?.ok && result.accounts) {
-    return (
-      <div className="space-y-4">
-        <p className="text-sm font-medium text-emerald-600">
-          {result.accounts.length}명을 배정했습니다. 새로 생성된 계정의 임시 비밀번호를 안내하세요.
-        </p>
-        <div className="max-h-72 overflow-auto rounded-xl border border-slate-200">
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-slate-50 text-left text-slate-500">
-              <tr className="border-b border-slate-200">
-                <th className="px-3 py-2 font-medium">성명</th>
-                <th className="px-3 py-2 font-medium">아이디</th>
-                <th className="px-3 py-2 font-medium">임시 비밀번호</th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.accounts.map((a, i) => (
-                <tr key={i} className="border-b border-slate-100">
-                  <td className="px-3 py-2 text-slate-800">{a.name}</td>
-                  <td className="px-3 py-2 font-mono text-slate-700">{a.username}</td>
-                  <td className="px-3 py-2 font-mono">
-                    {a.tempPassword ? (
-                      <span className="text-indigo-700">{a.tempPassword}</span>
-                    ) : (
-                      <span className="text-slate-400">기존 계정(비번 유지)</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={onDone}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-          >
-            완료
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-5">
       <section className="space-y-2">
         <label className="text-sm font-semibold text-slate-700">
-          1. 평가위원 명단 — 엑셀 파일 업로드 또는 붙여넣기
+          1. 평가 대상(기업) 명단 — 엑셀 파일 업로드 또는 붙여넣기
         </label>
         <div className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-slate-300 p-3">
           <input
@@ -203,12 +160,10 @@ export default function EvaluatorImportForm({
           onChange={(e) => onPaste(e.target.value)}
           disabled={!!fileGrid}
           rows={4}
-          placeholder={fileGrid ? "파일을 불러왔습니다." : "Ctrl+V 로 붙여넣기"}
+          placeholder={fileGrid ? "표를 불러왔습니다." : "한글/엑셀 표를 복사해 Ctrl+V"}
           className={`w-full font-mono text-xs ${inputCls} disabled:bg-slate-50`}
         />
-        <p className="text-xs text-slate-400">
-          아이디(이메일) 열이 없으면 자동 생성하고 임시 비밀번호를 발급합니다.
-        </p>
+        <p className="text-xs text-slate-400">기존 기업명이면 정보를 갱신하고, 이미 편입된 대상은 건너뜁니다.</p>
       </section>
 
       {colCount > 0 && (
@@ -246,7 +201,7 @@ export default function EvaluatorImportForm({
                     <td className="px-3 py-2">
                       <select value={mapping[i] ?? ""} onChange={(e) => setCol(i, e.target.value)} className={inputCls}>
                         <option value="">무시</option>
-                        {EVALUATOR_FIELDS.map((f) => (
+                        {SUBJECT_FIELDS.map((f) => (
                           <option key={f.field} value={f.field}>
                             {f.label}
                             {f.required ? " *" : ""}
@@ -258,12 +213,12 @@ export default function EvaluatorImportForm({
                 ))}
               </tbody>
             </table>
-            {!nameMapped && <p className="text-xs font-medium text-rose-600">* 한 열을 반드시 “성명”으로 지정하세요.</p>}
+            {!nameMapped && <p className="text-xs font-medium text-rose-600">* 한 열을 반드시 “기업명”으로 지정하세요.</p>}
           </section>
 
           <section className="space-y-2">
             <div className="text-sm font-semibold text-slate-700">
-              3. 미리보기 <span className="text-xs text-slate-400">{preview.rows.length}명 배정 예정</span>
+              3. 미리보기 <span className="text-xs text-slate-400">{preview.rows.length}개 편입 예정</span>
             </div>
             {preview.warnings.length > 0 && (
               <ul className="space-y-1 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
@@ -277,17 +232,17 @@ export default function EvaluatorImportForm({
                 <table className="w-full text-sm">
                   <thead className="sticky top-0 bg-slate-50 text-left text-slate-500">
                     <tr className="border-b border-slate-200">
-                      <th className="px-3 py-2 font-medium">성명</th>
-                      <th className="px-3 py-2 font-medium">아이디</th>
-                      {mapping.includes("phone") && <th className="px-3 py-2 font-medium">연락처</th>}
+                      <th className="px-3 py-2 font-medium">기업명</th>
+                      <th className="whitespace-nowrap px-3 py-2 font-medium">사업자번호</th>
+                      <th className="px-3 py-2 font-medium">설명</th>
                     </tr>
                   </thead>
                   <tbody>
                     {preview.rows.slice(0, 100).map((r, i) => (
-                      <tr key={i} className="border-b border-slate-100">
+                      <tr key={i} className="border-b border-slate-100 align-top">
                         <td className="px-3 py-2 text-slate-800">{r.name}</td>
-                        <td className="px-3 py-2 font-mono text-slate-500">{r.username ?? "(자동 생성)"}</td>
-                        {mapping.includes("phone") && <td className="px-3 py-2 text-slate-500">{r.phone ?? "—"}</td>}
+                        <td className="whitespace-nowrap px-3 py-2 text-slate-500">{r.businessNo ?? "—"}</td>
+                        <td className="px-3 py-2 text-slate-500">{r.description ?? "—"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -309,7 +264,7 @@ export default function EvaluatorImportForm({
               onClick={submit}
               className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {pending ? "배정 중…" : `${preview.rows.length}명 배정`}
+              {pending ? "편입 중…" : `${preview.rows.length}개 편입`}
             </button>
           </div>
         </>

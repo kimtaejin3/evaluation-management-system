@@ -89,6 +89,7 @@ async function EvaluatorsContent({ id }: { id: string }) {
             <tr className="border-b border-slate-100">
               <th className="px-5 py-3 font-medium">이름</th>
               <th className="px-5 py-3 font-medium">아이디</th>
+              <th className="px-5 py-3 font-medium">연락처</th>
               <th className="px-5 py-3 font-medium">임시 비밀번호</th>
               <th className="px-5 py-3 font-medium">위원장</th>
               {!locked && <th className="px-5 py-3"></th>}
@@ -104,6 +105,7 @@ async function EvaluatorsContent({ id }: { id: string }) {
                     {isChair && <span className="ml-2 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">위원장</span>}
                   </td>
                   <td className="px-5 py-3 text-slate-600">{a.user.username}</td>
+                  <td className="px-5 py-3 text-slate-600">{a.user.phone ?? <span className="text-slate-300">—</span>}</td>
                   <td className="px-5 py-3">
                     <PasswordCell value={a.user.tempPassword} />
                   </td>
@@ -140,7 +142,7 @@ async function EvaluatorsContent({ id }: { id: string }) {
             })}
             {assignments.length === 0 && (
               <tr>
-                <td colSpan={locked ? 4 : 5} className="px-5 py-10 text-center text-slate-400">
+                <td colSpan={locked ? 5 : 6} className="px-5 py-10 text-center text-slate-400">
                   배정된 위원이 없습니다. 위에서 평가위원을 선택해 배정하세요.
                 </td>
               </tr>

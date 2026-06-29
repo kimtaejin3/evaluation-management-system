@@ -9,6 +9,7 @@ import {
   deleteSubjectDocument,
 } from "../../actions";
 import SubjectUploadForm from "@/components/SubjectUploadForm";
+import SubjectImportButton from "@/components/SubjectImportButton";
 import { SkeletonCard, SkeletonCardGrid } from "@/components/Skeletons";
 
 const inputCls =
@@ -75,8 +76,11 @@ async function SubjectsContent({ id }: { id: string }) {
         </p>
       ) : (
         <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-5">
-          <div className="text-sm font-semibold text-slate-700">
-            평가 대상 추가
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-semibold text-slate-700">
+              평가 대상 추가
+            </div>
+            <SubjectImportButton sessionId={id} />
           </div>
           {/* 기존 기업에서 선택 */}
           <form action={addSubject.bind(null, id)} className="flex gap-2">
@@ -156,6 +160,12 @@ async function SubjectsContent({ id }: { id: string }) {
                       {s.name}
                     </span>
                   </div>
+                  <p className="mt-0.5 text-xs text-slate-400">
+                    사업자번호{" "}
+                    {s.company.businessNo ?? (
+                      <span className="text-slate-300">미등록</span>
+                    )}
+                  </p>
                   {s.company.description && (
                     <p className="mt-1 text-sm text-slate-500">
                       {s.company.description}

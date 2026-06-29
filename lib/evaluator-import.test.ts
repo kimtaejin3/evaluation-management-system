@@ -16,7 +16,7 @@ describe('autoDetectEvaluatorMapping', () => {
   })
   it('부분 포함도 너그럽게 매칭("성명자"→name), 미상 헤더는 null', () => {
     expect(autoDetectEvaluatorMapping(['성명자', '아이디'])).toEqual(['name', 'username'])
-    expect(autoDetectEvaluatorMapping(['순번', '연락처'])).toEqual([null, null])
+    expect(autoDetectEvaluatorMapping(['순번', '비고'])).toEqual([null, null])
   })
 })
 
@@ -40,9 +40,9 @@ describe('buildEvaluators', () => {
     const { rows, warnings } = buildEvaluators(grid, map, { hasHeader: true })
     expect(warnings).toEqual([])
     expect(rows).toEqual([
-      { name: '홍길동', username: 'hong@example.com' },
-      { name: '김평가', username: null },
-      { name: '이심사', username: 'lee@example.com' },
+      { name: '홍길동', username: 'hong@example.com', phone: null },
+      { name: '김평가', username: null, phone: null },
+      { name: '이심사', username: 'lee@example.com', phone: null },
     ])
   })
 
@@ -62,5 +62,16 @@ describe('buildEvaluators', () => {
     const { rows, warnings } = buildEvaluators(grid, [null, 'username'], { hasHeader: true })
     expect(rows).toHaveLength(0)
     expect(warnings[0]).toMatch(/성명/)
+  })
+
+  it('연락처 열 매핑·추출', () => {
+    const g = [
+      ['성명', '이메일', '연락처'],
+      ['홍길동', 'h@x.com', '010-1234-5678'],
+    ]
+    const m = autoDetectEvaluatorMapping(g[0])
+    expect(m).toEqual(['name', 'username', 'phone'])
+    const { rows } = buildEvaluators(g, m, { hasHeader: true })
+    expect(rows[0]).toEqual({ name: '홍길동', username: 'h@x.com', phone: '010-1234-5678' })
   })
 })

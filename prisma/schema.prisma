@@ -31,6 +31,8 @@ model User {
   // 관리자가 발급한 임시 비밀번호(참조용). 위원이 직접 변경 기능은 없음.
   tempPassword String?
   name         String
+  // 연락처(전화/휴대폰) — 평가위원 안내용. 선택 입력.
+  phone        String?
   role         Role
   assignments  Assignment[]
   scores       Score[]
