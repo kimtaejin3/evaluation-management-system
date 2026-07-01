@@ -12,16 +12,24 @@ import { buildCriteria, type ColumnMapping, type BuildOptions } from '@/lib/kpas
 import { buildEvaluators, type EvalColumnMapping } from '@/lib/evaluator-import'
 import { buildSubjects, type SubjectColumnMapping } from '@/lib/subject-import'
 import { parseSheet } from '@/lib/kpass-sheet'
+import { assertSessionAccess, assertProjectAccess, requireAdminUser } from '@/lib/authz'
 
 export async function createSession(formData: FormData) {
+  const user = await requireAdminUser()
   const name = String(formData.get('name') ?? '').trim()
-  if (!name) return
+  const projectId = String(formData.get('projectId') ?? '').trim()
+  if (!name || !projectId) return
+  // 과제 접근 권한 검증(간사는 배정된 과제만)
+  await assertProjectAccess(projectId)
   const session = await prisma.evaluationSession.create({
     data: {
       name,
       description: String(formData.get('description') ?? '') || null,
       location: String(formData.get('location') ?? '') || null,
       eventDate: formData.get('eventDate') ? new Date(String(formData.get('eventDate'))) : null,
+      projectId,
+      // 간사가 만들면 본인이 담당, 마스터가 만들면 폼의 secretaryId(선택)
+      secretaryId: user.role === 'SECRETARY' ? user.id : (String(formData.get('secretaryId') ?? '') || null),
     },
   })
   redirect(`/admin/sessions/${session.id}`)
@@ -31,6 +39,7 @@ export async function createSession(formData: FormData) {
 // 이 심사 전용 자료(sessionId 지정)는 파일까지 함께 삭제, 공통 자료(sessionId=null)는 보존.
 // Opinion·EditingPresence는 관계가 없어 별도 정리.
 export async function deleteSession(sessionId: string) {
+  await assertSessionAccess(sessionId)
   const docs = await prisma.document.findMany({ where: { sessionId } })
   for (const d of docs) {
     await deleteUpload(d.storedName, d.url)
@@ -43,6 +52,7 @@ export async function deleteSession(sessionId: string) {
 }
 
 export async function setSessionStatus(sessionId: string, status: 'DRAFT' | 'IN_PROGRESS' | 'CLOSED') {
+  await assertSessionAccess(sessionId)
   if (status === 'CLOSED') {
     const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { eventDate: true } })
     if (s && !canCloseSession(s.eventDate)) {
@@ -54,6 +64,7 @@ export async function setSessionStatus(sessionId: string, status: 'DRAFT' | 'IN_
 }
 
 export async function addCriterion(sessionId: string, formData: FormData) {
+  await assertSessionAccess(sessionId)
   const name = String(formData.get('name') ?? '').trim()
   if (!name) return
   const type = String(formData.get('type')) === 'QUALITATIVE' ? 'QUALITATIVE' : 'QUANTITATIVE'
@@ -86,6 +97,7 @@ export async function addCriterion(sessionId: string, formData: FormData) {
 }
 
 export async function updateCriterion(sessionId: string, criterionId: string, formData: FormData) {
+  await assertSessionAccess(sessionId)
   const name = String(formData.get('name') ?? '').trim()
   if (!name) return
   const type = String(formData.get('type')) === 'QUALITATIVE' ? 'QUALITATIVE' : 'QUANTITATIVE'
@@ -124,6 +136,7 @@ export async function updateCriterion(sessionId: string, criterionId: string, fo
 }
 
 export async function deleteCriterion(sessionId: string, criterionId: string) {
+  await assertSessionAccess(sessionId)
   await prisma.criterion.delete({ where: { id: criterionId } })
   revalidatePath(`/admin/sessions/${sessionId}/criteria`)
 }
@@ -148,6 +161,7 @@ export interface KpassImportResult {
 
 // 업로드된 엑셀 파일 → 격자(string[][]). 미리보기/매핑은 클라에서 이 격자로 진행.
 export async function parseSheetUpload(formData: FormData): Promise<{ grid: string[][]; error?: string }> {
+  await requireAdminUser()
   const file = formData.get('file')
   if (!(file instanceof File) || file.size === 0) return { grid: [], error: '파일이 없습니다.' }
   if (file.size > 4 * 1024 * 1024) return { grid: [], error: '파일이 너무 큽니다(최대 4MB).' }
@@ -160,6 +174,7 @@ export async function parseSheetUpload(formData: FormData): Promise<{ grid: stri
 }
 
 export async function commitKpassImport(sessionId: string, payload: KpassImportPayload): Promise<KpassImportResult> {
+  await assertSessionAccess(sessionId)
   const grid = payload.grid ?? []
   if (grid.length === 0) return { ok: false, error: '가져올 내용이 없습니다.' }
 
@@ -243,6 +258,7 @@ export async function commitEvaluatorImport(
   sessionId: string,
   payload: EvaluatorImportPayload,
 ): Promise<EvaluatorImportResult> {
+  await assertSessionAccess(sessionId)
   const grid = payload.grid ?? []
   if (grid.length === 0) return { ok: false, error: '가져올 내용이 없습니다.' }
 
@@ -316,6 +332,7 @@ export async function commitSubjectImport(
   sessionId: string,
   payload: SubjectImportPayload,
 ): Promise<SubjectImportResult> {
+  await assertSessionAccess(sessionId)
   const grid = payload.grid ?? []
   if (grid.length === 0) return { ok: false, error: '가져올 내용이 없습니다.' }
 
@@ -356,6 +373,7 @@ export async function commitSubjectImport(
 
 // 항목(대제목/섹션) 이름 일괄 변경 — 해당 항목의 모든 세부항목에 적용. from=null이면 '미분류' 그룹.
 export async function renameSection(sessionId: string, from: string | null, to: string) {
+  await assertSessionAccess(sessionId)
   const next = to.trim() || null
   await prisma.criterion.updateMany({
     where: { sessionId, section: from },
@@ -366,6 +384,7 @@ export async function renameSection(sessionId: string, from: string | null, to: 
 
 // 심사에 평가 대상(기업) 편입 — 기존 기업 선택(companyId) 또는 신규 기업명(newName)
 export async function addSubject(sessionId: string, formData: FormData) {
+  await assertSessionAccess(sessionId)
   const companyId = String(formData.get('companyId') ?? '').trim()
   const newName = String(formData.get('newName') ?? '').trim()
 
@@ -404,12 +423,14 @@ export async function addSubject(sessionId: string, formData: FormData) {
 }
 
 export async function deleteSubject(sessionId: string, subjectId: string) {
+  await assertSessionAccess(sessionId)
   await prisma.subject.delete({ where: { id: subjectId } })
   revalidatePath(`/admin/sessions/${sessionId}/subjects`)
 }
 
 // 평가 대상(기업) 자료 업로드 — 이 심사 전용(sessionId)으로 저장. 사업계획/현장실태조사서/사전검토표 등
 export async function uploadSubjectDocument(sessionId: string, companyId: string, formData: FormData) {
+  await assertSessionAccess(sessionId)
   // PDF만 허용
   const files = formData.getAll('file').filter((f): f is File => f instanceof File && f.size > 0 && isPdf(f))
   if (files.length === 0) return
@@ -431,6 +452,7 @@ export async function uploadSubjectDocument(sessionId: string, companyId: string
 }
 
 export async function deleteSubjectDocument(sessionId: string, documentId: string) {
+  await assertSessionAccess(sessionId)
   const doc = await prisma.document.findUnique({ where: { id: documentId } })
   if (!doc) return
   await prisma.document.delete({ where: { id: documentId } })
@@ -439,6 +461,7 @@ export async function deleteSubjectDocument(sessionId: string, documentId: strin
 }
 
 export async function removeEvaluator(sessionId: string, userId: string) {
+  await assertSessionAccess(sessionId)
   await prisma.assignment.delete({ where: { sessionId_userId: { sessionId, userId } } })
   // 배정 해제된 위원이 위원장이었다면 위원장 해제
   const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { chairId: true } })
@@ -450,6 +473,7 @@ export async function removeEvaluator(sessionId: string, userId: string) {
 
 // 평가위원장 지정/해제 — 배정된 위원 중 1인. userId 비우면 해제.
 export async function setChair(sessionId: string, formData: FormData) {
+  await assertSessionAccess(sessionId)
   const userId = String(formData.get('userId') ?? '').trim()
   if (userId) {
     // 배정된 위원만 위원장이 될 수 있음
@@ -462,6 +486,7 @@ export async function setChair(sessionId: string, formData: FormData) {
 
 // 평가위원 관리에서 등록한 기존 위원을 이 심사에 배정(폼: userId)
 export async function assignEvaluator(sessionId: string, formData: FormData) {
+  await assertSessionAccess(sessionId)
   const userId = String(formData.get('userId') ?? '').trim()
   if (!userId) return
   await prisma.assignment.upsert({
@@ -475,6 +500,7 @@ export async function assignEvaluator(sessionId: string, formData: FormData) {
 // ---- 심사 복사 ----
 
 export async function duplicateSession(sessionId: string) {
+  await assertSessionAccess(sessionId)
   const src = await prisma.evaluationSession.findUnique({
     where: { id: sessionId },
     include: { criteria: true, subjects: true },
@@ -488,6 +514,8 @@ export async function duplicateSession(sessionId: string) {
       location: src.location,
       eventDate: src.eventDate,
       status: 'DRAFT',
+      projectId: src.projectId,
+      secretaryId: src.secretaryId,
       criteria: {
         create: src.criteria.map((c) => ({
           section: c.section,

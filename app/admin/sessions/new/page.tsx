@@ -1,10 +1,37 @@
 import Link from 'next/link'
+import { prisma } from '@/lib/db'
+import { requireAdminUser } from '@/lib/authz'
 import { createSession } from '../actions'
 
 const labelCls = 'block text-sm font-medium text-slate-700'
 const inputCls = 'mt-1.5 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500'
 
-export default function NewSessionPage() {
+export default async function NewSessionPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ projectId?: string }>
+}) {
+  const user = await requireAdminUser()
+  const { projectId } = await searchParams
+  // 접근 가능한 과제: 마스터=전체, 간사=배정된 과제
+  const projects = await prisma.project.findMany({
+    where: user.role === 'MASTER' ? {} : { secretaries: { some: { id: user.id } } },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, name: true },
+  })
+
+  if (projects.length === 0) {
+    return (
+      <div className="max-w-2xl">
+        <Link href="/admin/sessions" className="text-sm text-slate-400 hover:text-slate-600">← 분과 목록</Link>
+        <h1 className="mt-1 text-2xl font-bold">새 분과 등록</h1>
+        <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
+          배정된 과제가 없어 분과를 만들 수 없습니다. {user.role === 'MASTER' ? '먼저 과제를 만들고 담당 간사를 배정하세요.' : '마스터에게 과제 배정을 요청하세요.'}
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-2xl">
       <Link href="/admin/sessions" className="text-sm text-slate-400 hover:text-slate-600">← 분과 목록</Link>
@@ -13,6 +40,15 @@ export default function NewSessionPage() {
 
       <form action={createSession} className="mt-5 overflow-hidden rounded-lg border border-slate-200 bg-white">
         <div className="space-y-4 p-5">
+          <div>
+            <label className={labelCls}>과제 <span className="text-rose-500">*</span></label>
+            <select name="projectId" required defaultValue={projectId ?? ''} className={inputCls}>
+              <option value="" disabled>과제 선택</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
           <div>
             <label className={labelCls}>분과명 <span className="text-rose-500">*</span></label>
             <input name="name" required className={inputCls} placeholder="예) 2026년 상반기 사업 평가" />

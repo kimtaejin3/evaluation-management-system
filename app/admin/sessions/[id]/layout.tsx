@@ -1,7 +1,6 @@
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
-import { prisma } from '@/lib/db'
 import StatusBadge from '@/components/StatusBadge'
+import { assertSessionAccess } from '@/lib/authz'
 
 export default async function SessionLayout({
   children,
@@ -11,8 +10,8 @@ export default async function SessionLayout({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const session = await prisma.evaluationSession.findUnique({ where: { id } })
-  if (!session) notFound()
+  // 로그인·소유(간사=자기 분과)·마스터 권한 검증. 권한 없으면 notFound.
+  const { session } = await assertSessionAccess(id)
 
   return (
     <div className="space-y-6">
