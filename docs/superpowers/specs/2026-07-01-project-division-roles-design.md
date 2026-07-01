@@ -8,7 +8,8 @@
 과거에 `SECRETARY` 역할을 추가했다가 제거한 이력이 있다(마이그레이션 `role_secretary`→`remove_secretary_role`). 이번에 재도입한다.
 
 ## 확정된 요구사항 (브레인스토밍 결과)
-- **계층/생성 주체**: 과제 = **마스터**가 생성. 분과 = **간사**가 (과제 아래에) 생성.
+- **계층/생성 주체**: 과제 = **마스터**가 생성. 분과 = **간사**가 (배정된 과제 아래에) 생성.
+- **과제-간사 배정**: 과제마다 담당 간사를 **마스터가 배정**한다(과제 1개에 여러 간사 = 분과별 담당). 간사는 **배정된 과제** 하위에서만 분과를 만들 수 있다.
 - **역할**: **마스터 / 간사 / 평가위원** 3역할. 간사는 **자기 분과**에 한해 현재 관리자 기능 수행.
 - **책임자**: 기존 **위원장(chairId)** 개념을 그대로 씀 — 간사가 자기 분과에서 지정.
 - **1차 범위**: 구조·역할·메뉴 개편 + 간사의 분과 생성·구성(=평가계획 등록). **모니터링/결과는 기존 분과별 화면 유지**, 마스터 통합 대시보드는 **2차**.
@@ -23,9 +24,12 @@ model Project {
   description String?
   dueDate     DateTime?           // 과제 평가 마감/기준일(선택)
   sessions    EvaluationSession[]
+  secretaries User[]   @relation("ProjectSecretaries") // 담당 간사(마스터가 배정, 다대다)
   createdAt   DateTime @default(now())
 }
 ```
+- **과제-간사 배정**: `Project.secretaries ↔ User.assignedProjects` 다대다(암시적 m2m). 마스터가 배정/해제. 간사는 배정된 과제 하위에서만 분과 생성 가능.
+- `User`에 `assignedProjects Project[] @relation("ProjectSecretaries")` 추가.
 
 ### 수정: `EvaluationSession` (분과)
 - `projectId String?` + `project Project? @relation(...)` — 소속 과제(마이그레이션 위해 nullable; null=미분류).
@@ -38,13 +42,13 @@ model Project {
 enum Role { MASTER  SECRETARY  EVALUATOR }
 ```
 - 기존 `ADMIN` → `MASTER` 로 데이터 이관. `SECRETARY` 재도입.
-- `User`에 역방향 관계: `secretariedSessions EvaluationSession[] @relation("SessionSecretary")`.
+- `User`에 역방향 관계: `secretariedSessions EvaluationSession[] @relation("SessionSecretary")`, `assignedProjects Project[] @relation("ProjectSecretaries")`.
 
 ## 역할·권한
 | 역할 | 접근 범위 | 주요 기능 |
 |---|---|---|
-| **마스터(MASTER)** | 전역 | 과제 생성·관리, 과제에 분과 배치/간사 배정, 평가위원·기업 전역 관리, 모든 분과 열람 |
-| **간사(SECRETARY)** | **자기 분과만** (secretaryId=본인) | 분과 생성(과제 하위) + 평가항목·대상·위원 설정(=평가계획 등록) + 책임자(위원장) 지정 + 진행 모니터링 |
+| **마스터(MASTER)** | 전역 | 과제 생성·관리, **과제에 담당 간사 배정**, 평가위원·기업 전역 관리, 모든 과제·분과 열람 |
+| **간사(SECRETARY)** | **배정된 과제 + 자기 분과** (secretaryId=본인) | 배정 과제 하위에 분과 생성 + 평가항목·대상·위원 설정(=평가계획 등록) + 책임자(위원장) 지정 + 진행 모니터링 |
 | **평가위원(EVALUATOR)** | 배정 분과 | 채점 (현행 `/evaluate` 그대로) |
 
 **스코핑 규칙(서버 강제)**: 간사가 `/admin/sessions/[id]/*` 접근 시 `session.secretaryId === user.id` 아니면 403/notFound. 마스터는 전부 허용. 이 검증은 **세션 하위 레이아웃(server component)** 과 **모든 분과 관련 서버 액션** 진입부에 공통 헬퍼(`assertSessionAccess(userId, role, sessionId)`)로 적용.
@@ -53,12 +57,12 @@ enum Role { MASTER  SECRETARY  EVALUATOR }
 ### 신규 라우트
 - `/admin/projects` — 과제 목록(마스터). 과제별 분과 수·상태 요약.
 - `/admin/projects/new` — 과제 생성(마스터).
-- `/admin/projects/[id]` — 과제 상세: 소속 분과 목록 + (마스터) 간사 배정·분과 추가 진입.
+- `/admin/projects/[id]` — 과제 상세: 소속 분과 목록 + **(마스터) 담당 간사 배정/해제** + 분과 추가 진입. (간사는 배정된 과제만 열람)
 
 ### 기존 라우트 (권한만 조정)
 - `/admin/sessions/[id]/*` — 분과 상세/항목/대상/위원/집계. **간사=자기 분과만**, 마스터=전부.
 - `/admin/evaluators`, `/admin/companies` — 전역 관리. 1차엔 **마스터·간사 모두 접근 허용**(간사도 위원/기업을 등록해야 배정 가능). 필요 시 2차에 스코프 강화.
-- `/admin/sessions/new` — 분과 생성. **과제 선택 필수**(간사=자신이 접근 가능한 과제 하위, 마스터=임의). 생성 시 `secretaryId`=생성자(간사) 자동 지정.
+- `/admin/sessions/new` — 분과 생성. **과제 선택 필수**(간사=**자신이 배정된 과제**만 선택 가능, 마스터=임의). 생성 시 `secretaryId`=생성자(간사) 자동 지정. 서버에서 "간사가 그 과제에 배정됐는지" 검증.
 
 ### 사이드바(AdminSidebar) 역할 분기
 - **마스터**: `과제 관리`(→ 과제 목록/상세, 그 아래 분과) · `평가위원 관리` · `기업 관리`
@@ -85,7 +89,7 @@ enum Role { MASTER  SECRETARY  EVALUATOR }
 
 ## 신규/변경 파일 (개요)
 - `prisma/schema.prisma` (+마이그레이션): Project 모델, Session 필드, Role enum.
-- `app/admin/projects/**` (신규): 과제 목록/생성/상세 페이지 + 서버 액션(`createProject`, `assignSecretary`, `attachSessionToProject` 등).
+- `app/admin/projects/**` (신규): 과제 목록/생성/상세 페이지 + 서버 액션(`createProject`, `assignSecretaryToProject`/`removeSecretaryFromProject`, `attachSessionToProject` 등).
 - `app/admin/sessions/actions.ts`, `app/admin/sessions/[id]/layout.tsx`: 소유/역할 가드, `createSession`에 projectId·secretaryId.
 - `components/AdminSidebar.tsx`: 역할별 메뉴 분기.
 - `app/login/actions.ts`: 역할별 리다이렉트.
@@ -105,6 +109,7 @@ enum Role { MASTER  SECRETARY  EVALUATOR }
 - 마스터 **통합 모니터링 대시보드**("오늘 N개 분과·총 M과제 평가 예정").
 - 결과관리(과제 단위 집계/내보내기), 간사에 대한 평가위원·기업 스코프 강화.
 
-## 열린 가정(구현 중 확정)
-- 간사↔과제 관계: 1차에선 **간사는 어떤 과제 아래로든 분과 생성 가능**(과제별 간사 제한 없음)으로 단순화. 필요 시 2차에 과제-간사 배정 도입.
-- `secretaryId`가 null인 분과는 마스터만 관리.
+## 확정된 세부
+- **간사↔과제**: 마스터가 과제에 담당 간사를 배정(다대다). 간사는 **배정된 과제** 하위에서만 분과 생성. 배정되지 않은 과제/분과는 접근 불가(notFound).
+- `secretaryId`가 null인 분과(마이그레이션 기존분)는 마스터만 관리.
+- 서버 가드 `assertSessionSecretaryOrMaster`와 함께 `assertProjectSecretaryOrMaster(projectId)`(분과 생성/과제 접근용) 추가.
