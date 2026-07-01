@@ -11,10 +11,10 @@ describe('password hashing', () => {
 
 describe('jwt', () => {
   it('발급한 토큰을 검증하면 payload 복원', async () => {
-    const token = await signToken({ userId: 'u1', role: 'ADMIN' })
+    const token = await signToken({ userId: 'u1', role: 'MASTER' })
     const payload = await verifyToken(token)
     expect(payload?.userId).toBe('u1')
-    expect(payload?.role).toBe('ADMIN')
+    expect(payload?.role).toBe('MASTER')
   })
   it('잘못된 토큰은 null', async () => {
     expect(await verifyToken('garbage')).toBeNull()

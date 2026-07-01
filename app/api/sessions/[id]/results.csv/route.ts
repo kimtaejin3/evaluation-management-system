@@ -4,7 +4,7 @@ import { getCurrentToken } from '@/lib/session'
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const token = await getCurrentToken()
-  if (!token || token.role !== 'ADMIN') {
+  if (!token || token.role === 'EVALUATOR') {
     return new Response('Unauthorized', { status: 401 })
   }
 

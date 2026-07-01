@@ -9,7 +9,7 @@ async function main() {
   const kim = await prisma.user.findUnique({ where: { username: 'kim' } })
   const s1 = await prisma.evaluationSession.findFirst({ where: { name: '2026 상반기 사업 평가' } })
   const sub = await prisma.subject.findFirst({ where: { sessionId: s1!.id }, orderBy: { order: 'asc' } })
-  const adminTok = await signToken({ userId: admin!.id, role: 'ADMIN' })
+  const adminTok = await signToken({ userId: admin!.id, role: 'MASTER' })
   const evalTok = await signToken({ userId: kim!.id, role: 'EVALUATOR' })
 
   const browser = await chromium.launch({ executablePath: EXEC })

@@ -179,7 +179,7 @@ async function main() {
   // 진행중 심사가 마감되면 다시 차단되는지
   await prisma.evaluationSession.update({ where: { id: sActive.id }, data: { status: 'CLOSED' } })
   assert(evaluatorLoginError('EVALUATOR', await activeCount(gActive.id)) === EVALUATOR_NO_ACTIVE_SESSION_MESSAGE, 'L4 진행중→마감 전환 시 로그인 차단')
-  assert(evaluatorLoginError('ADMIN', 0) === null, 'L5 관리자는 진행중 심사 없어도 허용')
+  assert(evaluatorLoginError('MASTER', 0) === null, 'L5 관리자는 진행중 심사 없어도 허용')
 
   await cleanup()
   console.log(`\n✅ 통합 E2E 통과 — 단언 ${passed}건`)

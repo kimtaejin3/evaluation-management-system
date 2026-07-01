@@ -12,6 +12,6 @@ describe('evaluatorLoginError', () => {
   })
 
   it('관리자: 진행중 심사가 없어도 항상 허용(null)', () => {
-    expect(evaluatorLoginError('ADMIN', 0)).toBeNull()
+    expect(evaluatorLoginError('MASTER', 0)).toBeNull()
   })
 })
