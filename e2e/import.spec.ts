@@ -15,14 +15,15 @@ async function loginAsAdmin(page: Page) {
   await page.getByPlaceholder('아이디 입력').fill('admin')
   await page.getByPlaceholder('비밀번호 입력').fill('admin1234')
   await page.getByRole('button', { name: '로그인' }).click()
-  await page.waitForURL('**/admin/sessions')
+  await page.waitForURL('**/admin/projects')
 }
 
 test('엑셀·한글 가져오기 모달 — 붙여넣기 → 자동 매핑/미리보기', async ({ page }) => {
   await loginAsAdmin(page)
 
-  // 새 분과 생성
+  // 새 분과 생성 (과제 선택 필수 — 시드 '샘플 과제')
   await page.goto('/admin/sessions/new')
+  await page.locator('select[name="projectId"]').selectOption({ index: 1 })
   await page.getByPlaceholder('예) 2026년 상반기 사업 평가').fill(SESSION_NAME)
   await page.getByRole('button', { name: '분과 생성' }).click()
   // 생성 후 세션 상세(cuid)로 리다이렉트 — "new"에 오매칭되지 않도록 길이로 구분
