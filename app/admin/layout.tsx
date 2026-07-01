@@ -1,7 +1,7 @@
 import AdminSidebar from "@/components/AdminSidebar";
 import HeaderTitle from "@/components/HeaderTitle";
 import TopProgressBar from "@/components/TopProgressBar";
-import { getCurrentUser } from "@/lib/session";
+import { requireAdminUser } from "@/lib/authz";
 import { logout } from "@/app/login/actions";
 import { prisma } from "@/lib/db";
 
@@ -10,26 +10,26 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [user, sessions] = await Promise.all([
-    getCurrentUser(),
-    prisma.evaluationSession.findMany({
-      orderBy: { createdAt: "desc" },
-      select: { id: true, name: true, status: true },
-    }),
-  ]);
+  const user = await requireAdminUser();
+  const isMaster = user.role === "MASTER";
+  const sessions = await prisma.evaluationSession.findMany({
+    where: isMaster ? {} : { secretaryId: user.id },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, name: true, status: true },
+  });
   return (
     <div className="flex min-h-screen bg-slate-100 text-slate-900">
       <TopProgressBar />
-      <AdminSidebar sessions={sessions} />
+      <AdminSidebar sessions={sessions} role={user.role as "MASTER" | "SECRETARY"} />
       <div className="flex min-h-screen flex-1 flex-col overflow-x-auto">
         <header className="flex items-center justify-between border-b border-slate-200 px-8 py-3">
           <HeaderTitle sessions={sessions} />
           <div className="flex items-center gap-4 text-sm text-slate-500">
             <span>
               <span className="font-medium text-slate-700">
-                {user?.name ?? "관리자"}
+                {user.name}
               </span>{" "}
-              님 · 관리자
+              님 · {isMaster ? "마스터" : "간사"}
             </span>
             <form action={logout}>
               <button className="rounded-md border border-slate-300 px-3 py-1.5 text-slate-600 transition hover:bg-slate-50">

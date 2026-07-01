@@ -159,8 +159,15 @@ function SessionSwitcher({
   );
 }
 
-export default function AdminSidebar({ sessions }: { sessions: Session[] }) {
+export default function AdminSidebar({
+  sessions,
+  role = "MASTER",
+}: {
+  sessions: Session[];
+  role?: "MASTER" | "SECRETARY";
+}) {
   const pathname = usePathname();
+  const isMaster = role === "MASTER";
   const m = pathname.match(/^\/admin\/sessions\/([^/]+)/);
   const sid = m && m[1] !== "new" ? m[1] : null;
   const current = sid ? sessions.find((s) => s.id === sid) : null;
@@ -168,6 +175,7 @@ export default function AdminSidebar({ sessions }: { sessions: Session[] }) {
   const isExact = (p: string) => pathname === p;
   const sessionsActive =
     pathname === "/admin/sessions" || pathname === "/admin/sessions/new";
+  const projectsActive = pathname.startsWith("/admin/projects");
   const leafActive = (suffix: string) =>
     suffix === ""
       ? isExact(`/admin/sessions/${sid}`)
@@ -232,10 +240,16 @@ export default function AdminSidebar({ sessions }: { sessions: Session[] }) {
       ) : (
         /* ── 글로벌 모드: 관리 메뉴 ── */
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+          {isMaster && (
+            <Link href="/admin/projects" className={topCls(projectsActive)}>
+              <SessionsIcon />
+              과제 관리
+            </Link>
+          )}
           <div>
             <Link href="/admin/sessions" className={topCls(sessionsActive)}>
               <SessionsIcon />
-              분과 관리
+              {isMaster ? "분과 관리" : "내 분과"}
             </Link>
             <div className="mt-1 ml-3 space-y-0.5 border-l border-white/15 pl-2">
               {sessions.length === 0 && (
