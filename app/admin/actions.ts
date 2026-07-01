@@ -5,31 +5,39 @@ import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
 import { hashPassword } from '@/lib/auth'
 import { saveUpload, deleteUpload, isPdf } from '@/lib/storage'
+import { requireAdminUser } from '@/lib/authz'
 
-// ---- 평가위원 관리(전역) ----
+// ---- 평가위원·간사 계정 관리(전역) ----
 
 export async function createEvaluator(formData: FormData) {
+  const actor = await requireAdminUser()
   const username = String(formData.get('username') ?? '').trim()
   const name = String(formData.get('name') ?? '').trim()
   const password = String(formData.get('password') ?? '')
   const phone = String(formData.get('phone') ?? '').trim() || null
+  // 역할: 간사(SECRETARY) 생성은 마스터만. 그 외/간사 아닌 요청은 평가위원.
+  let role: 'SECRETARY' | 'EVALUATOR' =
+    String(formData.get('role') ?? 'EVALUATOR') === 'SECRETARY' ? 'SECRETARY' : 'EVALUATOR'
+  if (role === 'SECRETARY' && actor.role !== 'MASTER') role = 'EVALUATOR'
   if (!username || !name || !password) return
 
   await prisma.user.upsert({
     where: { username },
-    update: { name, phone: phone ?? undefined },
-    create: { username, name, phone, role: 'EVALUATOR', passwordHash: await hashPassword(password), tempPassword: password },
+    update: { name, phone: phone ?? undefined, role },
+    create: { username, name, phone, role, passwordHash: await hashPassword(password), tempPassword: password },
   })
   revalidatePath('/admin/evaluators')
 }
 
 export async function deleteEvaluator(userId: string) {
+  await requireAdminUser()
   await prisma.user.delete({ where: { id: userId } })
   revalidatePath('/admin/evaluators')
 }
 
-// 임시 비밀번호 재발급(관리자) — 새 임시 비번 생성·저장
+// 임시 비밀번호 재발급 — 새 임시 비번 생성·저장
 export async function resetEvaluatorPassword(userId: string) {
+  await requireAdminUser()
   const newPw = randomUUID().replace(/-/g, '').slice(0, 8)
   await prisma.user.update({
     where: { id: userId },

@@ -2,19 +2,21 @@ import { Suspense } from "react";
 import { prisma } from "@/lib/db";
 import PasswordCell from "@/components/PasswordCell";
 import { createEvaluator, deleteEvaluator, resetEvaluatorPassword } from "../actions";
+import { requireAdminUser } from "@/lib/authz";
 import { SkeletonTable } from "@/components/Skeletons";
 
 const inputCls =
   "rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500";
 
-export default function EvaluatorsAdminPage() {
+export default async function EvaluatorsAdminPage() {
+  const user = await requireAdminUser();
+  const isMaster = user.role === "MASTER";
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold">평가위원 관리</h1>
+        <h1 className="text-2xl font-bold">{isMaster ? "평가위원·간사 관리" : "평가위원 관리"}</h1>
         <p className="mt-1 text-sm text-slate-500">
-          전체 평가위원 계정을 관리합니다. 분과 배정은 분과별 화면에서
-          진행하세요.
+          계정을 등록·관리합니다. 분과 배정은 분과별 화면에서 진행하세요.
         </p>
       </div>
 
@@ -27,7 +29,7 @@ export default function EvaluatorsAdminPage() {
         className="grid grid-cols-2 gap-3 rounded-lg border border-slate-200 bg-white p-4"
       >
         <div className="col-span-2 text-sm font-semibold text-slate-700">
-          위원 계정 추가
+          {isMaster ? "계정 추가 (평가위원 / 간사)" : "위원 계정 추가"}
         </div>
         <input name="name" placeholder="이름" required className={inputCls} />
         <input
@@ -43,11 +45,17 @@ export default function EvaluatorsAdminPage() {
           className={inputCls}
         />
         <input name="phone" placeholder="연락처(선택)" className={inputCls} />
+        {isMaster && (
+          <select name="role" defaultValue="EVALUATOR" className={`col-span-2 ${inputCls}`}>
+            <option value="EVALUATOR">평가위원</option>
+            <option value="SECRETARY">간사</option>
+          </select>
+        )}
         <button className="col-span-2 rounded-md bg-indigo-600 py-2 text-sm font-medium text-white transition hover:bg-indigo-700">
-          + 위원 추가
+          + 계정 추가
         </button>
         <p className="col-span-2 text-xs text-slate-400">
-          기존 아이디면 이름·연락처를 갱신합니다.
+          기존 아이디면 이름·연락처{isMaster ? "·역할" : ""}을 갱신합니다.
         </p>
       </form>
     </div>
@@ -56,8 +64,8 @@ export default function EvaluatorsAdminPage() {
 
 async function EvaluatorTable() {
   const evaluators = await prisma.user.findMany({
-    where: { role: "EVALUATOR" },
-    orderBy: { createdAt: "asc" },
+    where: { role: { in: ["EVALUATOR", "SECRETARY"] } },
+    orderBy: [{ role: "asc" }, { createdAt: "asc" }],
     include: {
       assignments: {
         include: {
@@ -74,6 +82,7 @@ async function EvaluatorTable() {
           <thead className="text-left text-slate-500">
             <tr className="border-b border-slate-100 bg-slate-50/60">
               <th className="px-4 py-2.5 font-medium">이름</th>
+              <th className="px-4 py-2.5 font-medium">역할</th>
               <th className="px-4 py-2.5 font-medium">아이디</th>
               <th className="px-4 py-2.5 font-medium">연락처</th>
               <th className="px-4 py-2.5 font-medium">임시 비밀번호</th>
@@ -87,6 +96,11 @@ async function EvaluatorTable() {
                 <td className="px-4 py-2.5">
                   <span className="inline-flex items-center gap-2">
                     <span className="font-medium text-slate-800">{u.name}</span>
+                  </span>
+                </td>
+                <td className="px-4 py-2.5">
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${u.role === "SECRETARY" ? "bg-amber-50 text-amber-700 ring-amber-200" : "bg-slate-100 text-slate-600 ring-slate-200"}`}>
+                    {u.role === "SECRETARY" ? "간사" : "평가위원"}
                   </span>
                 </td>
                 <td className="px-4 py-2.5 text-slate-600">{u.username}</td>
@@ -139,7 +153,7 @@ async function EvaluatorTable() {
             {evaluators.length === 0 && (
               <tr>
                 <td
-                  colSpan={6}
+                  colSpan={7}
                   className="px-4 py-10 text-center text-slate-400"
                 >
                   등록된 평가위원이 없습니다.
