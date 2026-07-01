@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { canManageSession, canAccessProject } from './authz'
+import { canManageSession, canAccessProject } from './authz-rules'
 
 describe('canManageSession', () => {
   it('마스터는 모든 분과 관리', () => {

@@ -1,22 +1,10 @@
 import { redirect, notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/session'
+import { canManageSession, canAccessProject, type Role } from './authz-rules'
 
-export type Role = 'MASTER' | 'SECRETARY' | 'EVALUATOR'
-
-// 순수 판정 — 분과 관리 권한
-export function canManageSession(role: Role, userId: string, session: { secretaryId: string | null }): boolean {
-  if (role === 'MASTER') return true
-  if (role === 'SECRETARY') return !!session.secretaryId && session.secretaryId === userId
-  return false
-}
-
-// 순수 판정 — 과제 접근 권한
-export function canAccessProject(role: Role, userId: string, project: { secretaries: { id: string }[] }): boolean {
-  if (role === 'MASTER') return true
-  if (role === 'SECRETARY') return project.secretaries.some((s) => s.id === userId)
-  return false
-}
+export { canManageSession, canAccessProject }
+export type { Role }
 
 // 로그인 + 관리영역(마스터/간사) 강제
 export async function requireAdminUser() {
