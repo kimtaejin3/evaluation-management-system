@@ -59,11 +59,22 @@ async function main() {
   const lee = await prisma.user.create({ data: { username: 'lee', name: '이심사', role: 'EVALUATOR', passwordHash: pw, tempPassword: 'eval1234' } })
   await prisma.user.create({ data: { username: 'park', name: '박위원', role: 'EVALUATOR', passwordHash: pw, tempPassword: 'eval1234' } })
 
+  // 간사 + 과제(데모 분과를 이 과제 아래 배치)
+  const gansa = await prisma.user.upsert({
+    where: { username: 'gansa' },
+    update: { role: 'SECRETARY' },
+    create: { username: 'gansa', name: '간사', role: 'SECRETARY', passwordHash: await bcrypt.hash('gansa1234', 10), tempPassword: 'gansa1234' },
+  })
+  const project = await prisma.project.create({
+    data: { name: '2026 데모 과제', description: '데모 시드 과제', secretaries: { connect: { id: gansa.id } } },
+  })
+
   // 진행중 회차 (점수 포함)
   const s1 = await prisma.evaluationSession.create({
     data: {
       name: '2026 상반기 사업 평가', description: '상반기 신규 사업 지원 대상 평가', location: '본관 대회의실',
       eventDate: new Date('2026-06-20T14:00:00'), status: 'IN_PROGRESS',
+      projectId: project.id, secretaryId: gansa.id,
     },
   })
   const c1 = await prisma.criterion.create({ data: { sessionId: s1.id, section: '사업계획', name: '사업 타당성', description: '시장 규모·성장성 및 수익모델의 타당성', type: 'QUANTITATIVE', maxScore: 40, weight: 1, order: 0 } })
@@ -160,10 +171,10 @@ async function main() {
 
   // 초안 회차
   await prisma.evaluationSession.create({
-    data: { name: '2026 신규 과제 심사', description: '하반기 과제 공모', location: '미정', status: 'DRAFT' },
+    data: { name: '2026 신규 과제 심사', description: '하반기 과제 공모', location: '미정', status: 'DRAFT', projectId: project.id, secretaryId: gansa.id },
   })
 
-  console.log('데모 데이터 생성 완료. (평가위원 kim/lee/park · pw eval1234)')
+  console.log('데모 데이터 생성 완료. (마스터 admin/admin1234 · 간사 gansa/gansa1234 · 평가위원 kim/lee/park pw eval1234)')
 }
 
 main().catch((e) => { console.error(e); process.exit(1) }).finally(() => prisma.$disconnect())
