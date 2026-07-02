@@ -53,3 +53,6 @@ storage/
 /test-results/
 /playwright-report/
 /playwright/.cache/
+
+# Superpowers scratch
+.superpowers/
