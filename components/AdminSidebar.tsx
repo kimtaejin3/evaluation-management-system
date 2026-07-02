@@ -160,13 +160,101 @@ function SessionSwitcher({
   );
 }
 
+type ProjectItem = {
+  id: string;
+  name: string;
+  status: string;
+  sessions: Session[];
+};
+
+// 마스터 사이드바: 과제 노드(접기/펼치기) + 하위 분과 목록
+function ProjectNode({
+  project,
+  pathname,
+}: {
+  project: ProjectItem;
+  pathname: string;
+}) {
+  const projActive = pathname === `/admin/projects/${project.id}`;
+  const [open, setOpen] = useState(
+    pathname.startsWith(`/admin/projects/${project.id}`),
+  );
+  const statusLabel =
+    PROJECT_STATUS_LABEL[project.status as "DRAFT" | "IN_PROGRESS" | "CLOSED"] ??
+    project.status;
+  return (
+    <div>
+      <div className="flex items-center">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="shrink-0 rounded p-1 text-slate-400 transition hover:text-white"
+          aria-label={open ? "분과 접기" : "분과 펼치기"}
+          aria-expanded={open}
+        >
+          <svg
+            viewBox="0 0 20 20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-90" : ""}`}
+            aria-hidden
+          >
+            <path d="m7 5 5 5-5 5" />
+          </svg>
+        </button>
+        <Link
+          href={`/admin/projects/${project.id}`}
+          className={`${sessionCls(projActive)} flex-1`}
+          title={`${project.name} · ${statusLabel}`}
+        >
+          <span className="flex items-center gap-1.5">
+            <span
+              className={`shrink-0 text-[10px] font-medium ${STATUS_TEXT[project.status] ?? "text-slate-400"}`}
+            >
+              {statusLabel}
+            </span>
+            <span className="truncate">{project.name}</span>
+          </span>
+        </Link>
+      </div>
+      {open && (
+        <div className="ml-4 space-y-0.5 border-l border-white/10 pl-2">
+          {project.sessions.length === 0 && (
+            <div className="px-3 py-1 text-[11px] text-slate-500">분과 없음</div>
+          )}
+          {project.sessions.map((s) => (
+            <Link
+              key={s.id}
+              href={`/admin/sessions/${s.id}`}
+              className={sessionCls(false)}
+              title={`${s.name} · ${STATUS[s.status]?.label ?? s.status}`}
+            >
+              <span className="flex items-center gap-1.5">
+                <span
+                  className={`shrink-0 text-[10px] font-medium ${STATUS_TEXT[s.status] ?? "text-slate-400"}`}
+                >
+                  {STATUS[s.status]?.label ?? s.status}
+                </span>
+                <span className="truncate">{s.name}</span>
+              </span>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminSidebar({
   sessions,
   projects = [],
   role = "MASTER",
 }: {
   sessions: Session[];
-  projects?: { id: string; name: string; status: string }[];
+  projects?: ProjectItem[];
   role?: "MASTER" | "SECRETARY";
 }) {
   const pathname = usePathname();
@@ -250,26 +338,12 @@ export default function AdminSidebar({
                 <SessionsIcon />
                 과제 관리
               </Link>
-              <div className="mt-1 ml-3 space-y-0.5 border-l border-white/15 pl-2">
+              <div className="mt-1 ml-1 space-y-0.5">
                 {projects.length === 0 && (
                   <div className="px-3 py-1.5 text-xs text-slate-500">등록된 과제 없음</div>
                 )}
                 {projects.map((p) => (
-                  <Link
-                    key={p.id}
-                    href={`/admin/projects/${p.id}`}
-                    className={sessionCls(pathname.startsWith(`/admin/projects/${p.id}`))}
-                    title={`${p.name} · ${PROJECT_STATUS_LABEL[p.status as "DRAFT" | "IN_PROGRESS" | "CLOSED"] ?? p.status}`}
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <span
-                        className={`shrink-0 text-[10px] font-medium ${STATUS_TEXT[p.status] ?? "text-slate-400"}`}
-                      >
-                        {PROJECT_STATUS_LABEL[p.status as "DRAFT" | "IN_PROGRESS" | "CLOSED"] ?? p.status}
-                      </span>
-                      <span className="truncate">{p.name}</span>
-                    </span>
-                  </Link>
+                  <ProjectNode key={p.id} project={p} pathname={pathname} />
                 ))}
               </div>
             </div>

@@ -22,7 +22,14 @@ export default async function AdminLayout({
     isMaster
       ? prisma.project.findMany({
           orderBy: { createdAt: "desc" },
-          select: { id: true, name: true, sessions: { select: { status: true } } },
+          select: {
+            id: true,
+            name: true,
+            sessions: {
+              orderBy: { createdAt: "desc" },
+              select: { id: true, name: true, status: true },
+            },
+          },
         })
       : Promise.resolve([]),
   ]);
@@ -30,6 +37,7 @@ export default async function AdminLayout({
     id: p.id,
     name: p.name,
     status: deriveProjectStatus(p.sessions.map((s) => s.status)),
+    sessions: p.sessions.map((s) => ({ id: s.id, name: s.name, status: s.status })),
   }));
   return (
     <div className="flex min-h-screen bg-slate-100 text-slate-900">
