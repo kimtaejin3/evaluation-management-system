@@ -1,14 +1,17 @@
 import { prisma } from '@/lib/db'
 import { computeFinalScores, rankSubjects } from '@/lib/scoring'
 import { getCurrentToken } from '@/lib/session'
+import { canTokenAccessSession } from '@/lib/authz'
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const token = await getCurrentToken()
-  if (!token || token.role === 'EVALUATOR') {
-    return new Response('Unauthorized', { status: 401 })
-  }
+  if (!token) return new Response('Unauthorized', { status: 401 })
 
   const { id } = await params
+  // 간사는 자기 분과만(마스터 전부, 평가위원 불가)
+  if (!(await canTokenAccessSession(token, id))) {
+    return new Response('Unauthorized', { status: 401 })
+  }
   const subjects = await prisma.subject.findMany({ where: { sessionId: id } })
   const criteria = await prisma.criterion.findMany({ where: { sessionId: id } })
   const scores = await prisma.score.findMany({ where: { sessionId: id } })

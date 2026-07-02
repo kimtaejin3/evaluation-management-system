@@ -1,5 +1,6 @@
 import { getCurrentToken } from '@/lib/session'
 import { getProgressVersion } from '@/lib/progress'
+import { canTokenAccessSession } from '@/lib/authz'
 
 // SSE 스트림은 항상 동적 + Node 런타임(Vercel Fluid Compute·사내 Node 서버 동일)
 export const dynamic = 'force-dynamic'
@@ -27,9 +28,11 @@ function wait(ms: number, signal: AbortSignal): Promise<void> {
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const token = await getCurrentToken()
-  if (!token || token.role === 'EVALUATOR') return new Response('Unauthorized', { status: 401 })
+  if (!token) return new Response('Unauthorized', { status: 401 })
 
   const { id } = await params
+  // 간사는 자기 분과만(마스터 전부, 평가위원 불가)
+  if (!(await canTokenAccessSession(token, id))) return new Response('Unauthorized', { status: 401 })
   const encoder = new TextEncoder()
   const signal = req.signal
 

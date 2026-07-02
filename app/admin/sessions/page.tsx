@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import type { Prisma } from "@prisma/client";
+import { requireAdminUser } from "@/lib/authz";
 import StatusBadge from "@/components/StatusBadge";
 import DeleteSessionButton from "@/components/DeleteSessionButton";
 import { SkeletonTable } from "@/components/Skeletons";
@@ -53,7 +54,10 @@ async function SessionList({
   searchParams: Promise<{ year?: string; status?: string }>;
 }) {
   const { year, status } = await searchParams;
+  const user = await requireAdminUser();
   const where: Prisma.EvaluationSessionWhereInput = {};
+  // 간사는 자기 분과만(마스터 전부)
+  if (user.role !== "MASTER") where.secretaryId = user.id;
   if (status === "DRAFT" || status === "IN_PROGRESS" || status === "CLOSED")
     where.status = status;
 

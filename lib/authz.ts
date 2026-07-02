@@ -29,6 +29,18 @@ export async function assertSessionAccess(sessionId: string) {
   return { user, session }
 }
 
+// API 라우트용 — 토큰(payload)으로 분과 접근 가능 여부(마스터 전부, 간사=자기 분과, 평가위원 불가)
+export async function canTokenAccessSession(
+  token: { userId: string; role: string },
+  sessionId: string,
+): Promise<boolean> {
+  if (token.role === 'EVALUATOR') return false
+  if (token.role === 'MASTER') return true
+  if (token.role !== 'SECRETARY') return false
+  const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { secretaryId: true } })
+  return !!s && canManageSession('SECRETARY', token.userId, s)
+}
+
 // 과제 접근 — 권한 없으면 notFound
 export async function assertProjectAccess(projectId: string) {
   const user = await requireAdminUser()
