@@ -1,7 +1,6 @@
 import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
-import { duplicateSession } from '../actions'
 import { getSessionProgress, getSessionInsights } from '@/lib/progress'
 import MonitoringGrid from '@/components/MonitoringGrid'
 import DashboardInsights from '@/components/DashboardInsights'
@@ -57,16 +56,11 @@ async function SessionInfo({ id }: { id: string }) {
     <div className="rounded-xl border border-slate-200 bg-white p-5">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="font-semibold">분과 정보</h2>
-        <div className="flex items-center gap-2">
-          <SessionStatusControl
-            sessionId={session.id}
-            status={session.status}
-            eventDate={session.eventDate ? session.eventDate.toISOString() : null}
-          />
-          <form action={async () => { 'use server'; await duplicateSession(id) }}>
-            <button className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50">분과 복사</button>
-          </form>
-        </div>
+        <SessionStatusControl
+          sessionId={session.id}
+          status={session.status}
+          eventDate={session.eventDate ? session.eventDate.toISOString() : null}
+        />
       </div>
       {session.description && <p className="mb-4 text-sm text-slate-600">{session.description}</p>}
       <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3 lg:grid-cols-5">
