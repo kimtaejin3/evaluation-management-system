@@ -35,11 +35,17 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
 async function SessionInfo({ id }: { id: string }) {
   const session = await prisma.evaluationSession.findUnique({
     where: { id },
-    include: { _count: { select: { criteria: true, subjects: true, assignments: true } } },
+    include: {
+      _count: { select: { criteria: true, subjects: true, assignments: true } },
+      secretary: { select: { name: true } },
+      project: { select: { name: true } },
+    },
   })
   if (!session) notFound()
 
   const meta: { label: string; value: string }[] = [
+    { label: '과제', value: session.project?.name ?? '미분류' },
+    { label: '담당 간사', value: session.secretary?.name ?? '미배정' },
     { label: '일시', value: session.eventDate ? new Date(session.eventDate).toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }) : '—' },
     { label: '장소', value: session.location || '—' },
     { label: '평가 항목', value: `${session._count.criteria}개` },
