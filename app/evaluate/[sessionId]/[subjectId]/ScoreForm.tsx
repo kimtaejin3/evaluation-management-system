@@ -2,7 +2,7 @@
 
 /* eslint-disable react-hooks/refs -- 디바운스 타이머·입력중 heartbeat용 ref는 이벤트 핸들러/이펙트에서만 접근(렌더 중 접근 아님). 규칙이 ref를 닫는 핸들러를 과하게 잡는 false-positive */
 
-import { Fragment, useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   saveScores,
@@ -44,8 +44,6 @@ export default function ScoreForm({
   criteria,
   initialComment,
   subjects = [],
-  compareSubjects = [],
-  compareScores = {},
   onSelectSubject,
   onDirty,
 }: {
@@ -63,9 +61,6 @@ export default function ScoreForm({
   subjects?: { id: string; name: string }[];
   otherScores?: Record<string, { name: string; value: number }[]>;
   otherPending?: Record<string, string[]>;
-  // 비교용: 내가 채점한 다른 대상 + (대상→항목→점수)
-  compareSubjects?: { id: string; name: string }[];
-  compareScores?: Record<string, Record<string, number>>;
   // CSR 모드 호환(현재 미사용)
   initialStep?: string;
   // CSR 모드: 대상 전환을 라우트 이동 없이 처리
@@ -79,13 +74,6 @@ export default function ScoreForm({
   );
   const [confirm, setConfirm] = useState(false);
   const [comment, setComment] = useState(initialComment);
-  // 비교 컬럼: 화살표로 다른 대상(기업) 선택 → 항목별로 그 대상에 매긴 점수 표시
-  const [cmpIdx, setCmpIdx] = useState(0);
-  const hasCompare = compareSubjects.length > 0;
-  const cmpSubject = hasCompare
-    ? compareSubjects[((cmpIdx % compareSubjects.length) + compareSubjects.length) % compareSubjects.length]
-    : null;
-  const cmpRow = cmpSubject ? compareScores[cmpSubject.id] ?? {} : {};
   const [vals, setVals] = useState<Record<string, string>>(() => {
     const o: Record<string, string> = {};
     for (const c of criteria) o[c.id] = c.value != null ? String(c.value) : "";
@@ -173,30 +161,21 @@ export default function ScoreForm({
   const allInRange = criteria.every((c) => isInRange(c));
   const canSubmit = allFilled && allInRange;
 
-  // 평가항목(대분류) → 세부항목(중분류) 2단 중첩 + 번호 체계(1-1-1 등) — criteria는 이미 group.order→subitem.order→criterion.order로 정렬되어 옴
-  type Item = { c: CriterionView; code: string };
-  type SubGroup = { name: string; items: Item[] };
-  const groups: { no: number; name: string; subgroups: SubGroup[] }[] = [];
+  // 평가항목(group) → 세부항목(subitem) → 평가지표(criterion). criteria는 이미 group.order→subitem.order→criterion.order로 정렬되어 옴.
+  type Grp = { no: number; name: string; subs: { name: string; items: CriterionView[] }[] };
+  const groups: Grp[] = [];
   criteria.forEach((c) => {
     let g = groups.find((x) => x.name === c.groupName);
     if (!g) {
-      g = { no: 0, name: c.groupName, subgroups: [] };
+      g = { no: groups.length + 1, name: c.groupName, subs: [] };
       groups.push(g);
     }
-    let sg = g.subgroups.find((x) => x.name === c.subitemName);
+    let sg = g.subs.find((x) => x.name === c.subitemName);
     if (!sg) {
       sg = { name: c.subitemName, items: [] };
-      g.subgroups.push(sg);
+      g.subs.push(sg);
     }
-    sg.items.push({ c, code: "" });
-  });
-  groups.forEach((g, gi) => {
-    g.no = gi + 1;
-    g.subgroups.forEach((sg, si) => {
-      sg.items.forEach((it, ii) => {
-        it.code = `${g.no}-${si + 1}-${ii + 1}`;
-      });
-    });
+    sg.items.push(c);
   });
 
   const deadline = eventDate
@@ -294,106 +273,77 @@ export default function ScoreForm({
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-left text-slate-500">
                 <tr className="border-b border-slate-200">
-                  <th className="w-px whitespace-nowrap px-3 py-2 text-center font-medium">번호</th>
-                  <th className="px-3 py-2 font-medium">평가 항목</th>
+                  <th className="px-3 py-2 font-medium">평가항목</th>
+                  <th className="px-3 py-2 font-medium">세부항목</th>
+                  <th className="px-3 py-2 font-medium">평가지표</th>
                   <th className="w-px whitespace-nowrap px-3 py-2 text-right font-medium">배점</th>
                   <th className="w-44 px-3 py-2 text-right font-medium">점수</th>
-                  {hasCompare && (
-                    <th className="w-36 px-3 py-2 text-right font-medium">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          type="button"
-                          onClick={() => setCmpIdx((i) => i - 1)}
-                          className="rounded p-0.5 text-slate-400 transition hover:bg-slate-200 hover:text-slate-600"
-                          aria-label="이전 대상"
-                          title="이전 대상"
-                        >
-                          ◀
-                        </button>
-                        <span className="max-w-[5.5rem] truncate font-medium text-slate-600" title={cmpSubject?.name}>
-                          {cmpSubject?.name}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setCmpIdx((i) => i + 1)}
-                          className="rounded p-0.5 text-slate-400 transition hover:bg-slate-200 hover:text-slate-600"
-                          aria-label="다음 대상"
-                          title="다음 대상"
-                        >
-                          ▶
-                        </button>
-                      </div>
-                      <div className="text-[10px] font-normal text-slate-400">이 대상에 매긴 점수</div>
-                    </th>
-                  )}
                 </tr>
               </thead>
               <tbody>
-                {groups.map((g) => (
-                  <Fragment key={g.no}>
-                    <tr>
-                      <td colSpan={hasCompare ? 5 : 4} className="border-b border-slate-100 bg-slate-50/60 px-3 py-1.5">
-                        <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-semibold text-indigo-700">{g.no}</span>
-                        <span className="ml-1.5 text-xs font-semibold text-slate-600">{g.name}</span>
-                      </td>
-                    </tr>
-                    {g.subgroups.map((sg, si) => (
-                      <Fragment key={si}>
-                        {sg.name && (
-                          <tr>
-                            <td colSpan={hasCompare ? 5 : 4} className="border-b border-slate-100 px-3 py-1">
-                              <span className="ml-4 text-xs font-medium text-slate-500">
-                                {g.no}-{si + 1}. {sg.name}
-                              </span>
-                            </td>
-                          </tr>
-                        )}
-                        {sg.items.map((it) => {
-                          const c = it.c;
-                          const cmpVal = cmpRow[c.id];
-                          const outOfRange = !isInRange(c);
-                          return (
-                            <tr key={c.id} className="border-b border-slate-50 last:border-0">
-                              <td className="px-3 py-2.5 text-center align-top tabular-nums text-indigo-600">{it.code}</td>
-                              <td className="px-3 py-2.5 align-top">
-                                <div className="font-medium text-slate-800">{c.name}</div>
-                              </td>
-                              <td className="px-3 py-2.5 text-right align-top tabular-nums text-slate-400">{c.maxScore}</td>
-                              <td className="px-3 py-2.5 align-top">
-                                <div className="flex items-center justify-end gap-1">
-                                  <input
-                                    type="number"
-                                    step="any"
-                                    min={0}
-                                    max={c.maxScore}
-                                    value={vals[c.id]}
-                                    onChange={(e) => setVal(c.id, e.target.value)}
-                                    onFocus={() => startEditing(c.id)}
-                                    onBlur={stopEditing}
-                                    placeholder="입력"
-                                    className={`w-20 rounded-md border px-2 py-1.5 text-right text-sm font-semibold focus:outline-none focus:ring-1 ${outOfRange ? "border-rose-400 text-rose-600 focus:border-rose-500 focus:ring-rose-500" : "border-slate-300 text-slate-800 focus:border-indigo-500 focus:ring-indigo-500"}`}
-                                  />
-                                  <span className="text-xs text-slate-400">/ {c.maxScore}</span>
-                                </div>
-                                {outOfRange && (
-                                  <div className="mt-0.5 text-right text-xs text-rose-500">0~{c.maxScore} 범위로 입력하세요</div>
-                                )}
-                              </td>
-                              {hasCompare && (
-                                <td className="px-3 py-2.5 text-right align-top tabular-nums text-slate-500">
-                                  {cmpVal === undefined ? <span className="text-slate-300">—</span> : fmt(cmpVal)}
-                                </td>
-                              )}
-                            </tr>
-                          );
-                        })}
-                      </Fragment>
-                    ))}
-                  </Fragment>
-                ))}
+                {groups.map((g) => {
+                  const groupRowSpan = g.subs.reduce((n, s) => n + Math.max(1, s.items.length), 0) || 1;
+                  let groupPlaced = false;
+                  return g.subs.map((sg) => {
+                    const subRowSpan = Math.max(1, sg.items.length);
+                    return sg.items.map((c, cIdx) => {
+                      const outOfRange = !isInRange(c);
+                      const cells: React.ReactNode[] = [];
+                      if (!groupPlaced) {
+                        cells.push(
+                          <td key="g" rowSpan={groupRowSpan} className="border-r border-slate-100 px-3 py-3 align-top">
+                            <span className="flex items-center gap-1.5">
+                              <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-semibold text-indigo-700">{g.no}</span>
+                              <span className="font-semibold text-slate-700">{g.name}</span>
+                            </span>
+                          </td>,
+                        );
+                        groupPlaced = true;
+                      }
+                      if (cIdx === 0) {
+                        cells.push(
+                          <td key="s" rowSpan={subRowSpan} className="border-r border-slate-100 px-3 py-3 align-top text-slate-600">
+                            {sg.name || <span className="text-slate-400">—</span>}
+                          </td>,
+                        );
+                      }
+                      cells.push(
+                        <td key="c" className="px-3 py-2.5 align-top">
+                          <div className="font-medium text-slate-800">{c.name}</div>
+                        </td>,
+                        <td key="m" className="px-3 py-2.5 text-right align-top tabular-nums text-slate-400">{c.maxScore}</td>,
+                        <td key="v" className="px-3 py-2.5 align-top">
+                          <div className="flex items-center justify-end gap-1">
+                            <input
+                              type="number"
+                              step="any"
+                              min={0}
+                              max={c.maxScore}
+                              value={vals[c.id]}
+                              onChange={(e) => setVal(c.id, e.target.value)}
+                              onFocus={() => startEditing(c.id)}
+                              onBlur={stopEditing}
+                              placeholder="입력"
+                              className={`w-20 rounded-md border px-2 py-1.5 text-right text-sm font-semibold focus:outline-none focus:ring-1 ${outOfRange ? "border-rose-400 text-rose-600 focus:border-rose-500 focus:ring-rose-500" : "border-slate-300 text-slate-800 focus:border-indigo-500 focus:ring-indigo-500"}`}
+                            />
+                            <span className="text-xs text-slate-400">/ {c.maxScore}</span>
+                          </div>
+                          {outOfRange && (
+                            <div className="mt-0.5 text-right text-xs text-rose-500">0~{c.maxScore} 범위로 입력하세요</div>
+                          )}
+                        </td>,
+                      );
+                      return (
+                        <tr key={c.id} className="border-b border-slate-50 last:border-0">
+                          {cells}
+                        </tr>
+                      );
+                    });
+                  });
+                })}
                 {criteria.length === 0 && (
                   <tr>
-                    <td colSpan={hasCompare ? 5 : 4} className="px-3 py-10 text-center text-slate-400">평가 항목이 없습니다.</td>
+                    <td colSpan={5} className="px-3 py-10 text-center text-slate-400">평가 항목이 없습니다.</td>
                   </tr>
                 )}
               </tbody>

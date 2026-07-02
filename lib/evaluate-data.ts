@@ -24,9 +24,6 @@ export interface SheetData {
   subjects: { id: string; name: string }[]
   otherScores: Record<string, { name: string; value: number }[]>
   otherPending: Record<string, string[]>
-  // 비교용: 내가 채점한 다른 대상(기업) 목록 + (대상→항목→점수) — 평가표에서 화살표로 대상 전환해 비교
-  compareSubjects: { id: string; name: string }[]
-  compareScores: Record<string, Record<string, number>>
 }
 
 // 점수 입력 화면(ScoreForm)에 필요한 전체 데이터 — 서버 페이지/ API 라우트 공용
@@ -104,15 +101,6 @@ export async function getSheetData(
     }
   })
 
-  // 비교용: 내가 점수를 매긴 다른 대상만(대상→항목→점수). 화살표로 대상 전환해 항목별 비교.
-  const scoredOtherIds = new Set(myScores.filter((s) => s.subjectId !== subjectId).map((s) => s.subjectId))
-  const compareSubjects = otherSubjects.filter((s) => scoredOtherIds.has(s.id))
-  const compareScores: Record<string, Record<string, number>> = {}
-  for (const s of myScores) {
-    if (s.subjectId === subjectId) continue
-    ;(compareScores[s.subjectId] ??= {})[s.criterionId] = s.value
-  }
-
   return {
     subjectName: subject.name,
     sessionName: session.name,
@@ -126,8 +114,6 @@ export async function getSheetData(
     subjects,
     otherScores,
     otherPending,
-    compareSubjects,
-    compareScores,
   }
 }
 
