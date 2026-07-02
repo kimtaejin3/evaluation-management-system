@@ -115,7 +115,7 @@ async function SessionList({
               <th className="px-5 py-3 font-semibold">항목</th>
               <th className="px-5 py-3 font-semibold">대상</th>
               <th className="px-5 py-3 font-semibold">위원</th>
-              <th className="px-5 py-3 font-semibold">일시</th>
+              <th className="px-5 py-3 font-semibold">종료일</th>
               <th className="px-5 py-3 font-semibold">동작</th>
             </tr>
           </thead>
@@ -129,9 +129,6 @@ async function SessionList({
                   {/* 행 전체 클릭 → 관리 진입 */}
                   <Link href={`/admin/sessions/${s.id}`} aria-label={`${s.name} 관리`} className="absolute inset-0" />
                   {s.name}
-                  {s.location && (
-                    <div className="text-xs text-slate-400">{s.location}</div>
-                  )}
                 </td>
                 <td className="px-5 py-3">
                   <StatusBadge status={s.status} />
@@ -146,10 +143,11 @@ async function SessionList({
                   {s._count.assignments}
                 </td>
                 <td className="px-5 py-3 text-slate-500">
-                  {s.eventDate
-                    ? new Date(s.eventDate).toLocaleString("ko-KR", {
-                        dateStyle: "medium",
-                        timeStyle: "short",
+                  {s.endDate
+                    ? new Date(s.endDate).toLocaleDateString("ko-KR", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
                       })
                     : "—"}
                 </td>

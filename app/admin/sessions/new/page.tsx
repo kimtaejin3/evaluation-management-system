@@ -59,12 +59,12 @@ export default async function NewSessionPage({
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className={labelCls}>일시</label>
-              <input name="eventDate" type="datetime-local" className={inputCls} />
+              <label className={labelCls}>시작일</label>
+              <input name="startDate" type="date" className={inputCls} />
             </div>
             <div>
-              <label className={labelCls}>장소</label>
-              <input name="location" className={inputCls} placeholder="예) 본관 3층 회의실" />
+              <label className={labelCls}>종료일</label>
+              <input name="endDate" type="date" className={inputCls} />
             </div>
           </div>
         </div>

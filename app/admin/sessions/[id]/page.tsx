@@ -42,11 +42,15 @@ async function SessionInfo({ id }: { id: string }) {
   })
   if (!session) notFound()
 
+  const fmtDate = (d: Date | null) =>
+    d ? new Date(d).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'
+  const period =
+    session.startDate || session.endDate ? `${fmtDate(session.startDate)} ~ ${fmtDate(session.endDate)}` : '—'
+
   const meta: { label: string; value: string }[] = [
     { label: '과제', value: session.project?.name ?? '미분류' },
     { label: '담당 간사', value: session.secretary?.name ?? '미배정' },
-    { label: '일시', value: session.eventDate ? new Date(session.eventDate).toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }) : '—' },
-    { label: '장소', value: session.location || '—' },
+    { label: '평가 기간', value: period },
     { label: '평가 항목', value: `${session._count.criteria}개` },
     { label: '평가 대상', value: `${session._count.subjects}개` },
     { label: '평가위원', value: `${session._count.assignments}명` },

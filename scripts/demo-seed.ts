@@ -72,8 +72,9 @@ async function main() {
   // 진행중 회차 (점수 포함)
   const s1 = await prisma.evaluationSession.create({
     data: {
-      name: '2026 상반기 사업 평가', description: '상반기 신규 사업 지원 대상 평가', location: '본관 대회의실',
-      eventDate: new Date('2026-06-20T14:00:00'), status: 'IN_PROGRESS',
+      name: '2026 상반기 사업 평가', description: '상반기 신규 사업 지원 대상 평가',
+      startDate: new Date('2026-06-01'), endDate: new Date('2026-06-20'), eventDate: new Date('2026-06-20'),
+      status: 'IN_PROGRESS',
       projectId: project.id, secretaryId: gansa.id,
     },
   })
@@ -171,7 +172,7 @@ async function main() {
 
   // 초안 회차
   await prisma.evaluationSession.create({
-    data: { name: '2026 신규 과제 심사', description: '하반기 과제 공모', location: '미정', status: 'DRAFT', projectId: project.id, secretaryId: gansa.id },
+    data: { name: '2026 신규 과제 심사', description: '하반기 과제 공모', status: 'DRAFT', projectId: project.id, secretaryId: gansa.id },
   })
 
   console.log('데모 데이터 생성 완료. (마스터 admin/admin1234 · 간사 gansa/gansa1234 · 평가위원 kim/lee/park pw eval1234)')

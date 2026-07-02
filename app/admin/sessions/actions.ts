@@ -21,12 +21,16 @@ export async function createSession(formData: FormData) {
   if (!name || !projectId) return
   // 과제 접근 권한 검증(간사는 배정된 과제만)
   await assertProjectAccess(projectId)
+  const startDate = formData.get('startDate') ? new Date(String(formData.get('startDate'))) : null
+  const endDate = formData.get('endDate') ? new Date(String(formData.get('endDate'))) : null
   const session = await prisma.evaluationSession.create({
     data: {
       name,
       description: String(formData.get('description') ?? '') || null,
-      location: String(formData.get('location') ?? '') || null,
-      eventDate: formData.get('eventDate') ? new Date(String(formData.get('eventDate'))) : null,
+      startDate,
+      endDate,
+      // 마감 판정·평가화면 안내는 종료일 기준(eventDate에 동기화)
+      eventDate: endDate,
       projectId,
       // 간사가 만들면 본인이 담당, 마스터가 만들면 폼의 secretaryId(선택)
       secretaryId: user.role === 'SECRETARY' ? user.id : (String(formData.get('secretaryId') ?? '') || null),

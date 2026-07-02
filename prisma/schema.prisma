@@ -57,6 +57,9 @@ model EvaluationSession {
   id          String            @id @default(cuid())
   name        String
   description String?
+  // 평가 기간(시작일/종료일). eventDate는 마감 판정·평가화면 안내용으로 종료일과 동기화 유지.
+  startDate   DateTime?
+  endDate     DateTime?
   eventDate   DateTime?
   location    String?
   status      SessionStatus     @default(DRAFT)

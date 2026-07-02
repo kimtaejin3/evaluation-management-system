@@ -114,14 +114,16 @@ async function ResultsContent({ id }: { id: string }) {
             <tr>
               <th className="w-28 border border-black bg-slate-100 px-3 py-1.5 text-left font-medium">분과명</th>
               <td className="border border-black px-3 py-1.5">{session?.name}</td>
-              <th className="w-28 border border-black bg-slate-100 px-3 py-1.5 text-left font-medium">평가 일시</th>
-              <td className="border border-black px-3 py-1.5">{fmtDate(session?.eventDate ?? null)}</td>
+              <th className="w-28 border border-black bg-slate-100 px-3 py-1.5 text-left font-medium">평가 기간</th>
+              <td className="border border-black px-3 py-1.5">
+                {session?.startDate || session?.endDate
+                  ? `${fmtDate(session?.startDate ?? null)} ~ ${fmtDate(session?.endDate ?? null)}`
+                  : "—"}
+              </td>
             </tr>
             <tr>
-              <th className="border border-black bg-slate-100 px-3 py-1.5 text-left font-medium">장소</th>
-              <td className="border border-black px-3 py-1.5">{session?.location ?? "—"}</td>
               <th className="border border-black bg-slate-100 px-3 py-1.5 text-left font-medium">평가 대상</th>
-              <td className="border border-black px-3 py-1.5">{subjects.length}개 · 위원 {assignments.length}명</td>
+              <td className="border border-black px-3 py-1.5" colSpan={3}>{subjects.length}개 · 위원 {assignments.length}명</td>
             </tr>
             <tr>
               <th className="border border-black bg-slate-100 px-3 py-1.5 text-left font-medium">출력일</th>
