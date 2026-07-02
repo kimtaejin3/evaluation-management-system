@@ -4,6 +4,7 @@ import { computeFinalScores, rankSubjects } from "@/lib/scoring";
 import { getSessionInsights } from "@/lib/progress";
 import PrintButton from "./PrintButton";
 import RankingTable from "@/components/RankingTable";
+import SheetPrintPicker from "@/components/SheetPrintPicker";
 import { SkeletonCard, SkeletonTable } from "@/components/Skeletons";
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
@@ -200,6 +201,19 @@ async function ResultsContent({ id }: { id: string }) {
           />
         </>
       )}
+
+      {/* 위원별 평가표 인쇄 (화면 전용) */}
+      <div className="rounded-xl border border-slate-200 bg-white p-5 print:hidden">
+        <div className="mb-1 text-sm font-semibold text-slate-700">위원별 평가표 인쇄</div>
+        <p className="mb-3 text-xs text-slate-400">
+          과제별로 각 평가위원이 작성한 평가표를 공식 양식으로 인쇄/PDF 저장합니다.
+        </p>
+        <SheetPrintPicker
+          sessionId={id}
+          evaluators={assignments.map((a) => ({ id: a.userId, name: a.user.name }))}
+          subjects={orderedSubjects.map((s) => ({ id: s.id, name: s.name }))}
+        />
+      </div>
 
       {/* 위원장 총괄평가 */}
       {session?.chairSummary && (
