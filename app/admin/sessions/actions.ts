@@ -71,82 +71,86 @@ export async function setSessionStatus(sessionId: string, status: 'DRAFT' | 'IN_
   revalidatePath(`/admin/sessions/${sessionId}`)
 }
 
-export async function addCriterion(sessionId: string, formData: FormData) {
+// ── 평가항목(그룹) ──
+export async function addGroup(sessionId: string, formData: FormData) {
   await assertSessionAccess(sessionId)
   const name = String(formData.get('name') ?? '').trim()
   if (!name) return
-  const type = String(formData.get('type')) === 'QUALITATIVE' ? 'QUALITATIVE' : 'QUANTITATIVE'
-  const weight = Number(formData.get('weight') ?? 1)
-  const description = String(formData.get('description') ?? '') || null
-  const section = String(formData.get('section') ?? '').trim() || null
-
-  let maxScore: number
-  let gradeOptions: { label: string; points: number }[] | undefined
-
-  if (type === 'QUALITATIVE') {
-    // 등급(답) 옵션: optLabel[] + optPoints[]
-    const labels = formData.getAll('optLabel').map((v) => String(v).trim())
-    const points = formData.getAll('optPoints').map((v) => Number(v))
-    const opts = labels
-      .map((label, i) => ({ label, points: points[i] }))
-      .filter((o) => o.label && Number.isFinite(o.points))
-    if (opts.length === 0) return
-    gradeOptions = opts
-    maxScore = Math.max(...opts.map((o) => o.points))
-  } else {
-    maxScore = Number(formData.get('maxScore') ?? 0)
-  }
-
+  const maxScore = Number(formData.get('maxScore') ?? 0) || 0
+  const count = await prisma.criterionGroup.count({ where: { sessionId } })
+  await prisma.criterionGroup.create({ data: { sessionId, name, maxScore, order: count } })
+  revalidatePath(`/admin/sessions/${sessionId}/criteria`)
+}
+export async function updateGroup(groupId: string, formData: FormData) {
+  const g = await prisma.criterionGroup.findUnique({ where: { id: groupId }, select: { sessionId: true } })
+  if (!g) return
+  await assertSessionAccess(g.sessionId)
+  const name = String(formData.get('name') ?? '').trim()
+  const maxScore = Number(formData.get('maxScore') ?? 0) || 0
+  await prisma.criterionGroup.update({ where: { id: groupId }, data: { ...(name ? { name } : {}), maxScore } })
+  revalidatePath(`/admin/sessions/${g.sessionId}/criteria`)
+}
+export async function deleteGroup(groupId: string) {
+  const g = await prisma.criterionGroup.findUnique({ where: { id: groupId }, select: { sessionId: true } })
+  if (!g) return
+  await assertSessionAccess(g.sessionId)
+  await prisma.criterionGroup.delete({ where: { id: groupId } })
+  revalidatePath(`/admin/sessions/${g.sessionId}/criteria`)
+}
+// ── 세부항목 ──
+export async function addSubitem(groupId: string, formData: FormData) {
+  const g = await prisma.criterionGroup.findUnique({ where: { id: groupId }, select: { sessionId: true } })
+  if (!g) return
+  await assertSessionAccess(g.sessionId)
+  const name = String(formData.get('name') ?? '').trim()
+  if (!name) return
+  const count = await prisma.criterionSubitem.count({ where: { groupId } })
+  await prisma.criterionSubitem.create({ data: { groupId, name, order: count } })
+  revalidatePath(`/admin/sessions/${g.sessionId}/criteria`)
+}
+export async function updateSubitem(subitemId: string, formData: FormData) {
+  const s = await prisma.criterionSubitem.findUnique({ where: { id: subitemId }, select: { group: { select: { sessionId: true } } } })
+  if (!s) return
+  await assertSessionAccess(s.group.sessionId)
+  const name = String(formData.get('name') ?? '').trim()
+  if (name) await prisma.criterionSubitem.update({ where: { id: subitemId }, data: { name } })
+  revalidatePath(`/admin/sessions/${s.group.sessionId}/criteria`)
+}
+export async function deleteSubitem(subitemId: string) {
+  const s = await prisma.criterionSubitem.findUnique({ where: { id: subitemId }, select: { group: { select: { sessionId: true } } } })
+  if (!s) return
+  await assertSessionAccess(s.group.sessionId)
+  await prisma.criterionSubitem.delete({ where: { id: subitemId } })
+  revalidatePath(`/admin/sessions/${s.group.sessionId}/criteria`)
+}
+// ── 평가지표(리프) ──
+export async function addCriterion(subitemId: string, formData: FormData) {
+  const s = await prisma.criterionSubitem.findUnique({ where: { id: subitemId }, select: { group: { select: { sessionId: true } } } })
+  if (!s) return
+  const sessionId = s.group.sessionId
+  await assertSessionAccess(sessionId)
+  const name = String(formData.get('name') ?? '').trim()
+  if (!name) return
+  const maxScore = Number(formData.get('maxScore') ?? 0) || 0
   const count = await prisma.criterion.count({ where: { sessionId } })
-  await prisma.criterion.create({
-    data: { sessionId, section, name, description, type, maxScore, weight, order: count, gradeOptions },
-  })
+  await prisma.criterion.create({ data: { sessionId, subitemId, name, maxScore, order: count } })
   revalidatePath(`/admin/sessions/${sessionId}/criteria`)
 }
-
-export async function updateCriterion(sessionId: string, criterionId: string, formData: FormData) {
-  await assertSessionAccess(sessionId)
+export async function updateCriterion(criterionId: string, formData: FormData) {
+  const c = await prisma.criterion.findUnique({ where: { id: criterionId }, select: { sessionId: true } })
+  if (!c) return
+  await assertSessionAccess(c.sessionId)
   const name = String(formData.get('name') ?? '').trim()
-  if (!name) return
-  const type = String(formData.get('type')) === 'QUALITATIVE' ? 'QUALITATIVE' : 'QUANTITATIVE'
-  const description = String(formData.get('description') ?? '') || null
-  const section = String(formData.get('section') ?? '').trim() || null
-
-  let maxScore: number
-  let gradeOptions: { label: string; points: number }[] | null = null
-
-  if (type === 'QUALITATIVE') {
-    const labels = formData.getAll('optLabel').map((v) => String(v).trim())
-    const points = formData.getAll('optPoints').map((v) => Number(v))
-    const opts = labels
-      .map((label, i) => ({ label, points: points[i] }))
-      .filter((o) => o.label && Number.isFinite(o.points))
-    if (opts.length === 0) return
-    gradeOptions = opts
-    maxScore = Math.max(...opts.map((o) => o.points))
-  } else {
-    maxScore = Number(formData.get('maxScore') ?? 0)
-  }
-
-  await prisma.criterion.update({
-    where: { id: criterionId },
-    data: {
-      section,
-      name,
-      description,
-      type,
-      maxScore,
-      // 정성이면 등급 옵션 저장, 정량으로 바꾸면 등급 옵션 제거
-      gradeOptions: gradeOptions ?? Prisma.DbNull,
-    },
-  })
-  revalidatePath(`/admin/sessions/${sessionId}/criteria`)
+  const maxScore = Number(formData.get('maxScore') ?? 0) || 0
+  await prisma.criterion.update({ where: { id: criterionId }, data: { ...(name ? { name } : {}), maxScore } })
+  revalidatePath(`/admin/sessions/${c.sessionId}/criteria`)
 }
-
-export async function deleteCriterion(sessionId: string, criterionId: string) {
-  await assertSessionAccess(sessionId)
+export async function deleteCriterion(criterionId: string) {
+  const c = await prisma.criterion.findUnique({ where: { id: criterionId }, select: { sessionId: true } })
+  if (!c) return
+  await assertSessionAccess(c.sessionId)
   await prisma.criterion.delete({ where: { id: criterionId } })
-  revalidatePath(`/admin/sessions/${sessionId}/criteria`)
+  revalidatePath(`/admin/sessions/${c.sessionId}/criteria`)
 }
 
 // ── 평가표 엑셀 임포트(파일 업로드 + 복붙) ──
@@ -378,17 +382,6 @@ export async function commitSubjectImport(
   revalidatePath(`/admin/sessions/${sessionId}/subjects`)
   revalidatePath('/admin/companies')
   return { ok: true, created, skipped, warnings }
-}
-
-// 항목(대제목/섹션) 이름 일괄 변경 — 해당 항목의 모든 세부항목에 적용. from=null이면 '미분류' 그룹.
-export async function renameSection(sessionId: string, from: string | null, to: string) {
-  await assertSessionAccess(sessionId)
-  const next = to.trim() || null
-  await prisma.criterion.updateMany({
-    where: { sessionId, section: from },
-    data: { section: next },
-  })
-  revalidatePath(`/admin/sessions/${sessionId}/criteria`)
 }
 
 // 심사에 평가 대상(기업) 편입 — 기존 기업 선택(companyId) 또는 신규 기업명(newName)
