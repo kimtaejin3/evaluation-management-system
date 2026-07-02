@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { SessionsIcon, UsersIcon, CompanyIcon } from "./icons";
+import { SessionsIcon, UsersIcon, CompanyIcon, DashboardIcon } from "./icons";
 import { PROJECT_STATUS_LABEL } from "@/lib/project-status";
 
 const APP_VERSION = "0.1.0";
@@ -285,12 +285,21 @@ export default function AdminSidebar({
         /* ── 세션 모드: 이 분과의 메뉴만 ── */
         <>
           <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-            <Link
-              href="/admin/sessions"
-              className="mb-1 flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-400 transition hover:text-white"
-            >
-              <span aria-hidden>←</span> 전체 메뉴
-            </Link>
+            {(() => {
+              // 마스터: 소속 과제로 복귀 / 간사(과제 정보 없음): 분과 목록으로
+              const parent = projects.find((p) => p.sessions.some((s) => s.id === sid));
+              const backHref = parent ? `/admin/projects/${parent.id}` : "/admin/sessions";
+              const backLabel = parent ? parent.name : "분과 목록";
+              return (
+                <Link
+                  href={backHref}
+                  className="mb-1 flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-400 transition hover:text-white"
+                  title={backLabel}
+                >
+                  <span aria-hidden>←</span> <span className="truncate">{backLabel}</span>
+                </Link>
+              );
+            })()}
             <div className="px-3 pb-2">
               <div
                 className="truncate text-sm font-bold text-white"
@@ -346,6 +355,10 @@ export default function AdminSidebar({
                   <ProjectNode key={p.id} project={p} pathname={pathname} />
                 ))}
               </div>
+              <Link href="/admin/sessions" className={`mt-1 ${topCls(sessionsActive)}`}>
+                <DashboardIcon />
+                분과 관리
+              </Link>
             </div>
           ) : (
             /* 간사: 내 분과 목록 */
