@@ -17,7 +17,13 @@ export default async function AdminLayout({
     prisma.evaluationSession.findMany({
       where: isMaster ? {} : { secretaryId: user.id },
       orderBy: { createdAt: "desc" },
-      select: { id: true, name: true, status: true },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        projectId: true,
+        project: { select: { name: true } },
+      },
     }),
     isMaster
       ? prisma.project.findMany({
@@ -33,6 +39,13 @@ export default async function AdminLayout({
         })
       : Promise.resolve([]),
   ]);
+  const sessionItems = sessions.map((s) => ({
+    id: s.id,
+    name: s.name,
+    status: s.status,
+    projectId: s.projectId,
+    projectName: s.project?.name ?? null,
+  }));
   const projectItems = projects.map((p) => ({
     id: p.id,
     name: p.name,
@@ -42,7 +55,7 @@ export default async function AdminLayout({
   return (
     <div className="flex min-h-screen bg-slate-100 text-slate-900">
       <TopProgressBar />
-      <AdminSidebar sessions={sessions} projects={projectItems} role={user.role as "MASTER" | "SECRETARY"} />
+      <AdminSidebar sessions={sessionItems} projects={projectItems} role={user.role as "MASTER" | "SECRETARY"} />
       <div className="flex min-h-screen flex-1 flex-col overflow-x-auto">
         <header className="flex items-center justify-between border-b border-slate-200 px-8 py-3">
           <HeaderTitle sessions={sessions} />

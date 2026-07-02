@@ -32,7 +32,13 @@ const STATUS_TEXT: Record<string, string> = {
   CLOSED: "text-slate-500",
 };
 
-type Session = { id: string; name: string; status: string };
+type Session = {
+  id: string;
+  name: string;
+  status: string;
+  projectId?: string | null;
+  projectName?: string | null;
+};
 
 function topCls(active: boolean) {
   return `flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition ${
@@ -286,10 +292,11 @@ export default function AdminSidebar({
         <>
           <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
             {(() => {
-              // 마스터: 소속 과제로 복귀 / 간사(과제 정보 없음): 분과 목록으로
-              const parent = projects.find((p) => p.sessions.some((s) => s.id === sid));
-              const backHref = parent ? `/admin/projects/${parent.id}` : "/admin/sessions";
-              const backLabel = parent ? parent.name : "분과 목록";
+              // 분과의 소속 과제로 복귀(역할 무관). 미분류 분과만 분과 목록으로.
+              const backHref = current?.projectId
+                ? `/admin/projects/${current.projectId}`
+                : "/admin/sessions";
+              const backLabel = current?.projectName ?? "분과 목록";
               return (
                 <Link
                   href={backHref}
