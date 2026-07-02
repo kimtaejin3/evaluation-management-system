@@ -90,7 +90,7 @@ async function EvaluatorsContent({ id }: { id: string }) {
               <th className="px-5 py-3 font-medium">이름</th>
               <th className="px-5 py-3 font-medium">아이디</th>
               <th className="px-5 py-3 font-medium">연락처</th>
-              <th className="px-5 py-3 font-medium">임시 비밀번호</th>
+              <th className="px-5 py-3 font-medium">비밀번호</th>
               <th className="px-5 py-3 font-medium">위원장</th>
               {!locked && <th className="px-5 py-3"></th>}
             </tr>

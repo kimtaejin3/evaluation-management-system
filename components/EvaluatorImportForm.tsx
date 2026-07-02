@@ -131,7 +131,7 @@ export default function EvaluatorImportForm({
     return (
       <div className="space-y-4">
         <p className="text-sm font-medium text-emerald-600">
-          {result.accounts.length}명을 배정했습니다. 새로 생성된 계정의 임시 비밀번호를 안내하세요.
+          {result.accounts.length}명을 배정했습니다. 새로 생성된 계정의 비밀번호를 안내하세요.
         </p>
         <div className="max-h-72 overflow-auto rounded-xl border border-slate-200">
           <table className="w-full text-sm">
@@ -139,7 +139,7 @@ export default function EvaluatorImportForm({
               <tr className="border-b border-slate-200">
                 <th className="px-3 py-2 font-medium">성명</th>
                 <th className="px-3 py-2 font-medium">아이디</th>
-                <th className="px-3 py-2 font-medium">임시 비밀번호</th>
+                <th className="px-3 py-2 font-medium">비밀번호</th>
               </tr>
             </thead>
             <tbody>
@@ -208,7 +208,7 @@ export default function EvaluatorImportForm({
           className={`w-full font-mono text-xs ${inputCls} disabled:bg-slate-50`}
         />
         <p className="text-xs text-slate-400">
-          연락처는 필수이며, 임시 비밀번호는 연락처 끝 4자리로 발급됩니다. 아이디(이메일) 열이 없으면 자동 생성합니다.
+          연락처는 필수이며, 비밀번호는 연락처 끝 4자리로 발급됩니다. 아이디(이메일) 열이 없으면 자동 생성합니다.
         </p>
       </section>
 
@@ -260,7 +260,7 @@ export default function EvaluatorImportForm({
               </tbody>
             </table>
             {!nameMapped && <p className="text-xs font-medium text-rose-600">* 한 열을 반드시 “성명”으로 지정하세요.</p>}
-            {!phoneMapped && <p className="text-xs font-medium text-rose-600">* 한 열을 반드시 “연락처”로 지정하세요. (임시 비밀번호가 연락처 끝 4자리로 발급됩니다)</p>}
+            {!phoneMapped && <p className="text-xs font-medium text-rose-600">* 한 열을 반드시 “연락처”로 지정하세요. (비밀번호가 연락처 끝 4자리로 발급됩니다)</p>}
           </section>
 
           <section className="space-y-2">

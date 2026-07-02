@@ -54,7 +54,7 @@ export default async function EvaluatorsAdminPage() {
           + 계정 추가
         </button>
         <p className="col-span-2 text-xs text-slate-400">
-          임시 비밀번호는 연락처 끝 4자리로 발급됩니다. 기존 아이디면 이름·연락처{isMaster ? "·역할" : ""}을 갱신합니다.
+          비밀번호는 연락처 끝 4자리로 발급됩니다. 기존 아이디면 이름·연락처{isMaster ? "·역할" : ""}을 갱신합니다.
         </p>
       </form>
     </div>
@@ -84,7 +84,7 @@ async function EvaluatorTable() {
               <th className="px-4 py-2.5 font-medium">역할</th>
               <th className="px-4 py-2.5 font-medium">아이디</th>
               <th className="px-4 py-2.5 font-medium">연락처</th>
-              <th className="px-4 py-2.5 font-medium">임시 비밀번호</th>
+              <th className="px-4 py-2.5 font-medium">비밀번호</th>
               <th className="px-4 py-2.5 font-medium">배정 분과</th>
               <th className="px-4 py-2.5 text-right"></th>
             </tr>
