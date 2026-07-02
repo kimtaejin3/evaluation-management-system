@@ -36,7 +36,10 @@ async function ResultsContent({ id }: { id: string }) {
   const [session, subjects, criteria, scores, assignments, insights] = await Promise.all([
     prisma.evaluationSession.findUnique({ where: { id } }),
     prisma.subject.findMany({ where: { sessionId: id } }),
-    prisma.criterion.findMany({ where: { sessionId: id } }),
+    prisma.criterion.findMany({
+      where: { sessionId: id },
+      include: { subitem: { include: { group: true } } },
+    }),
     prisma.score.findMany({ where: { sessionId: id } }),
     prisma.assignment.findMany({ where: { sessionId: id }, include: { user: { select: { id: true, name: true } } } }),
     getSessionInsights(id),
@@ -53,7 +56,15 @@ async function ResultsContent({ id }: { id: string }) {
   );
   const ranked = rankSubjects(finalScores);
   const subjectName = new Map(subjects.map((s) => [s.id, s.name]));
-  const orderedCriteria = [...criteria].sort((a, b) => a.order - b.order);
+  const orderedCriteria = [...criteria].sort((a, b) => {
+    const ga = a.subitem?.group.order ?? 0;
+    const gb = b.subitem?.group.order ?? 0;
+    if (ga !== gb) return ga - gb;
+    const sa = a.subitem?.order ?? 0;
+    const sb = b.subitem?.order ?? 0;
+    if (sa !== sb) return sa - sb;
+    return a.order - b.order;
+  });
   const maxTotal = criteria.reduce((s, c) => s + c.maxScore * c.weight, 0);
   const divergent = insights.rows.filter((r) => r.spread !== null && r.spread >= 10);
   // (위원:대상:항목) → 점수 (RankingTable에 전달, 클라이언트에서 평균·위원별 계산)
@@ -70,16 +81,16 @@ async function ResultsContent({ id }: { id: string }) {
       .filter((s) => !rankInfo.has(s.id))
       .map((s) => ({ id: s.id, name: s.name, finalScore: 0, rank: null as number | null })),
   ];
-  // 항목을 구분(섹션)별로 그룹핑 — 첫 행에 rowSpan
-  const NO_SECTION = "미분류";
+  // 항목을 평가항목(그룹)별로 그룹핑 — 첫 행에 rowSpan
+  const NO_GROUP = "미분류";
   const sectionGroups: { section: string; items: typeof orderedCriteria }[] = [];
   for (const c of orderedCriteria) {
-    const key = c.section || NO_SECTION;
+    const key = c.subitem?.group.name || NO_GROUP;
     const last = sectionGroups[sectionGroups.length - 1];
     if (last && last.section === key) last.items.push(c);
     else sectionGroups.push({ section: key, items: [c] });
   }
-  // 항목 번호 체계: 섹션 1,2,3… / 세부항목 1-1,1-2…
+  // 항목 번호 체계: 평가항목 1,2,3… / 세부항목 1-1,1-2…
   const sectionNo = new Map<string, number>();
   const itemCode = new Map<string, string>();
   sectionGroups.forEach((g, gi) => {
@@ -145,9 +156,10 @@ async function ResultsContent({ id }: { id: string }) {
             <table className="w-full text-sm">
               <thead className="text-slate-500 print:text-black">
                 <tr className="border-b border-slate-200 bg-slate-50 print:border-black print:bg-transparent">
-                  <th className="px-3 py-2 text-left font-medium print:border print:border-black">구분</th>
+                  <th className="px-3 py-2 text-left font-medium print:border print:border-black">평가항목</th>
                   <th className="w-px whitespace-nowrap px-3 py-2 text-center font-medium print:border print:border-black">번호</th>
-                  <th className="px-3 py-2 text-left font-medium print:border print:border-black">평가 항목</th>
+                  <th className="px-3 py-2 text-left font-medium print:border print:border-black">세부항목</th>
+                  <th className="px-3 py-2 text-left font-medium print:border print:border-black">항목명</th>
                   <th className="w-px whitespace-nowrap px-3 py-2 text-center font-medium print:border print:border-black">배점</th>
                 </tr>
               </thead>
@@ -162,6 +174,7 @@ async function ResultsContent({ id }: { id: string }) {
                         </td>
                       )}
                       <td className="px-3 py-2 text-center font-semibold tabular-nums text-indigo-600 print:border print:border-black print:text-black">{itemCode.get(c.id)}</td>
+                      <td className="px-3 py-2 text-left text-slate-600 print:border print:border-black">{c.subitem?.name ?? "—"}</td>
                       <td className="px-3 py-2 text-left font-medium text-slate-800 print:border print:border-black">{c.name}</td>
                       <td className="px-3 py-2 text-center tabular-nums text-slate-500 print:border print:border-black print:text-black">{c.maxScore}</td>
                     </tr>
@@ -170,7 +183,7 @@ async function ResultsContent({ id }: { id: string }) {
               </tbody>
               <tfoot>
                 <tr className="border-t border-slate-200 bg-slate-50 font-semibold text-slate-700 print:border-black print:bg-transparent">
-                  <td colSpan={3} className="px-3 py-2 text-right print:border print:border-black">배점 합계</td>
+                  <td colSpan={4} className="px-3 py-2 text-right print:border print:border-black">배점 합계</td>
                   <td className="px-3 py-2 text-center tabular-nums print:border print:border-black">{fmt(criteria.reduce((s, c) => s + c.maxScore, 0))}</td>
                 </tr>
               </tfoot>
