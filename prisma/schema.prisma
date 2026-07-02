@@ -20,11 +20,6 @@ enum SessionStatus {
   CLOSED
 }
 
-enum CriterionType {
-  QUANTITATIVE
-  QUALITATIVE
-}
-
 model User {
   id           String       @id @default(cuid())
   username     String       @unique
@@ -82,22 +77,16 @@ model EvaluationSession {
 }
 
 model Criterion {
-  id           String            @id @default(cuid())
-  sessionId    String
-  session      EvaluationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  // 대제목(섹션): 사업계획/추진역량/기대효과 등. 이 아래의 세부항목이 곧 Criterion.
-  section      String?
-  name         String
-  description  String?
-  type         CriterionType     @default(QUANTITATIVE)
-  maxScore     Float
-  weight       Float             @default(1)
-  order        Int               @default(0)
-  // 정성 항목의 등급(답) 정의: [{ label, points }] — 없으면 기본 A~E 척도
-  gradeOptions Json?
-  subitemId    String?
-  subitem      CriterionSubitem? @relation(fields: [subitemId], references: [id], onDelete: Cascade)
-  scores       Score[]
+  id        String            @id @default(cuid())
+  sessionId String
+  session   EvaluationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  name      String
+  maxScore  Float
+  weight    Float             @default(1)
+  order     Int               @default(0)
+  subitemId String
+  subitem   CriterionSubitem  @relation(fields: [subitemId], references: [id], onDelete: Cascade)
+  scores    Score[]
 }
 
 model CriterionGroup {
@@ -163,25 +152,6 @@ model Document {
   mimeType     String
   size         Int
   createdAt    DateTime           @default(now())
-}
-
-model CriterionTemplate {
-  id        String                  @id @default(cuid())
-  name      String                  @unique
-  items     CriterionTemplateItem[]
-  createdAt DateTime                @default(now())
-}
-
-model CriterionTemplateItem {
-  id          String            @id @default(cuid())
-  templateId  String
-  template    CriterionTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  name        String
-  description String?
-  type        CriterionType
-  maxScore    Float
-  weight      Float             @default(1)
-  order       Int               @default(0)
 }
 
 model Assignment {
