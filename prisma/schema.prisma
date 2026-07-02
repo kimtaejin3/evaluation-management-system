@@ -54,47 +54,73 @@ model Project {
 }
 
 model EvaluationSession {
-  id          String            @id @default(cuid())
-  name        String
-  description String?
+  id              String           @id @default(cuid())
+  name            String
+  description     String?
   // 평가 기간(시작일/종료일). eventDate는 마감 판정·평가화면 안내용으로 종료일과 동기화 유지.
-  startDate   DateTime?
-  endDate     DateTime?
-  eventDate   DateTime?
-  location    String?
-  status      SessionStatus     @default(DRAFT)
+  startDate       DateTime?
+  endDate         DateTime?
+  eventDate       DateTime?
+  location        String?
+  status          SessionStatus    @default(DRAFT)
   // 평가위원장(배정 위원 중 1인)의 userId — 총괄평가/타 위원 점수 열람 권한
-  chairId      String?
+  chairId         String?
   // 위원장이 작성하는 심사 전체 총평(1건)
-  chairSummary String?
-  criteria    Criterion[]
-  subjects    Subject[]
-  assignments Assignment[]
-  scores      Score[]
-  documents   Document[]
-  createdAt   DateTime          @default(now())
+  chairSummary    String?
+  criteria        Criterion[]
+  criterionGroups CriterionGroup[]
+  subjects        Subject[]
+  assignments     Assignment[]
+  scores          Score[]
+  documents       Document[]
+  createdAt       DateTime         @default(now())
 
   projectId   String?
-  project     Project?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
   secretaryId String?
-  secretary   User?             @relation("SessionSecretary", fields: [secretaryId], references: [id], onDelete: SetNull)
+  secretary   User?    @relation("SessionSecretary", fields: [secretaryId], references: [id], onDelete: SetNull)
 }
 
 model Criterion {
-  id          String            @id @default(cuid())
-  sessionId   String
-  session     EvaluationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  id           String            @id @default(cuid())
+  sessionId    String
+  session      EvaluationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   // 대제목(섹션): 사업계획/추진역량/기대효과 등. 이 아래의 세부항목이 곧 Criterion.
-  section     String?
-  name        String
-  description String?
-  type        CriterionType
-  maxScore    Float
-  weight      Float             @default(1)
-  order       Int               @default(0)
+  section      String?
+  name         String
+  description  String?
+  type         CriterionType     @default(QUANTITATIVE)
+  maxScore     Float
+  weight       Float             @default(1)
+  order        Int               @default(0)
   // 정성 항목의 등급(답) 정의: [{ label, points }] — 없으면 기본 A~E 척도
   gradeOptions Json?
-  scores      Score[]
+  subitemId    String?
+  subitem      CriterionSubitem? @relation(fields: [subitemId], references: [id], onDelete: Cascade)
+  scores       Score[]
+}
+
+model CriterionGroup {
+  id        String             @id @default(cuid())
+  sessionId String
+  session   EvaluationSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  name      String
+  maxScore  Float              @default(0)
+  order     Int                @default(0)
+  subitems  CriterionSubitem[]
+
+  @@index([sessionId])
+}
+
+model CriterionSubitem {
+  id       String         @id @default(cuid())
+  groupId  String
+  group    CriterionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  name     String
+  order    Int            @default(0)
+  criteria Criterion[]
+
+  @@index([groupId])
 }
 
 // 전역 기업(평가 대상 원본) — 회차에 묶이지 않으며 자료를 회차 간 공유
