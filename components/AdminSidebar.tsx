@@ -161,9 +161,11 @@ function SessionSwitcher({
 
 export default function AdminSidebar({
   sessions,
+  projects = [],
   role = "MASTER",
 }: {
   sessions: Session[];
+  projects?: { id: string; name: string }[];
   role?: "MASTER" | "SECRETARY";
 }) {
   const pathname = usePathname();
@@ -240,42 +242,60 @@ export default function AdminSidebar({
       ) : (
         /* ── 글로벌 모드: 관리 메뉴 ── */
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-          {isMaster && (
-            <Link href="/admin/projects" className={topCls(projectsActive)}>
-              <SessionsIcon />
-              과제 관리
-            </Link>
-          )}
-          <div>
-            <Link href="/admin/sessions" className={topCls(sessionsActive)}>
-              <SessionsIcon />
-              {isMaster ? "분과 관리" : "내 분과"}
-            </Link>
-            <div className="mt-1 ml-3 space-y-0.5 border-l border-white/15 pl-2">
-              {sessions.length === 0 && (
-                <div className="px-3 py-1.5 text-xs text-slate-500">
-                  등록된 분과 없음
-                </div>
-              )}
-              {sessions.map((s) => (
-                <Link
-                  key={s.id}
-                  href={`/admin/sessions/${s.id}`}
-                  className={sessionCls(false)}
-                  title={`${s.name} · ${STATUS[s.status]?.label ?? s.status}`}
-                >
-                  <span className="flex items-center gap-1.5">
-                    <span
-                      className={`shrink-0 text-[10px] font-medium ${STATUS_TEXT[s.status] ?? "text-slate-400"}`}
-                    >
-                      {STATUS[s.status]?.label ?? s.status}
-                    </span>
-                    <span className="truncate">{s.name}</span>
-                  </span>
-                </Link>
-              ))}
+          {isMaster ? (
+            /* 마스터: 과제 관리 + 과제 목록(클릭 시 그 과제의 분과 목록) */
+            <div>
+              <Link href="/admin/projects" className={topCls(projectsActive)}>
+                <SessionsIcon />
+                과제 관리
+              </Link>
+              <div className="mt-1 ml-3 space-y-0.5 border-l border-white/15 pl-2">
+                {projects.length === 0 && (
+                  <div className="px-3 py-1.5 text-xs text-slate-500">등록된 과제 없음</div>
+                )}
+                {projects.map((p) => (
+                  <Link
+                    key={p.id}
+                    href={`/admin/projects/${p.id}`}
+                    className={sessionCls(pathname.startsWith(`/admin/projects/${p.id}`))}
+                    title={p.name}
+                  >
+                    <span className="truncate">{p.name}</span>
+                  </Link>
+                ))}
+              </div>
             </div>
-          </div>
+          ) : (
+            /* 간사: 내 분과 목록 */
+            <div>
+              <Link href="/admin/sessions" className={topCls(sessionsActive)}>
+                <SessionsIcon />
+                내 분과
+              </Link>
+              <div className="mt-1 ml-3 space-y-0.5 border-l border-white/15 pl-2">
+                {sessions.length === 0 && (
+                  <div className="px-3 py-1.5 text-xs text-slate-500">등록된 분과 없음</div>
+                )}
+                {sessions.map((s) => (
+                  <Link
+                    key={s.id}
+                    href={`/admin/sessions/${s.id}`}
+                    className={sessionCls(false)}
+                    title={`${s.name} · ${STATUS[s.status]?.label ?? s.status}`}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <span
+                        className={`shrink-0 text-[10px] font-medium ${STATUS_TEXT[s.status] ?? "text-slate-400"}`}
+                      >
+                        {STATUS[s.status]?.label ?? s.status}
+                      </span>
+                      <span className="truncate">{s.name}</span>
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
 
           <Link
             href="/admin/evaluators"

@@ -12,15 +12,20 @@ export default async function AdminLayout({
 }) {
   const user = await requireAdminUser();
   const isMaster = user.role === "MASTER";
-  const sessions = await prisma.evaluationSession.findMany({
-    where: isMaster ? {} : { secretaryId: user.id },
-    orderBy: { createdAt: "desc" },
-    select: { id: true, name: true, status: true },
-  });
+  const [sessions, projects] = await Promise.all([
+    prisma.evaluationSession.findMany({
+      where: isMaster ? {} : { secretaryId: user.id },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, name: true, status: true },
+    }),
+    isMaster
+      ? prisma.project.findMany({ orderBy: { createdAt: "desc" }, select: { id: true, name: true } })
+      : Promise.resolve([]),
+  ]);
   return (
     <div className="flex min-h-screen bg-slate-100 text-slate-900">
       <TopProgressBar />
-      <AdminSidebar sessions={sessions} role={user.role as "MASTER" | "SECRETARY"} />
+      <AdminSidebar sessions={sessions} projects={projects} role={user.role as "MASTER" | "SECRETARY"} />
       <div className="flex min-h-screen flex-1 flex-col overflow-x-auto">
         <header className="flex items-center justify-between border-b border-slate-200 px-8 py-3">
           <HeaderTitle sessions={sessions} />
