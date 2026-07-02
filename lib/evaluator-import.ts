@@ -12,7 +12,7 @@ export interface EvalFieldDef {
 export const EVALUATOR_FIELDS: EvalFieldDef[] = [
   { field: 'name', label: '성명', required: true },
   { field: 'username', label: '아이디/이메일(있으면)', required: false },
-  { field: 'phone', label: '연락처', required: false },
+  { field: 'phone', label: '연락처', required: true },
 ]
 
 const SYNONYMS: Record<EvaluatorField, string[]> = {
@@ -67,7 +67,7 @@ export function evaluatorLooksLikeHeader(firstRow: string[]): boolean {
 export interface EvaluatorDraft {
   name: string
   username: string | null // 비었으면 가져오기 시 자동 생성
-  phone: string | null
+  phone: string // 필수 — 임시 비밀번호를 연락처 끝 4자리로 발급
 }
 
 export interface EvalBuildResult {
@@ -90,20 +90,27 @@ export function buildEvaluators(
     warnings.push('필수 필드 "성명"이 어느 열에도 매핑되지 않았습니다. 한 열을 "성명"으로 지정하세요.')
     return { rows: [], warnings }
   }
+  if (phoneCol < 0) {
+    warnings.push('필수 필드 "연락처"가 어느 열에도 매핑되지 않았습니다. 임시 비밀번호가 연락처 끝 4자리로 발급되므로 연락처는 필수입니다.')
+    return { rows: [], warnings }
+  }
 
   const rows: EvaluatorDraft[] = []
   const seen = new Set<string>()
+  let missingPhone = 0
   dataRows.forEach((r) => {
     const name = (r[nameCol] ?? '').trim()
     if (!name || /^(합계|소계|계|성명|이름)$/.test(name)) return
     const username = userCol >= 0 ? (r[userCol] ?? '').trim() || null : null
-    const phone = phoneCol >= 0 ? (r[phoneCol] ?? '').trim() || null : null
+    const phone = (r[phoneCol] ?? '').trim()
+    if (!phone) { missingPhone++; return } // 연락처 없는 행은 제외
     const key = (username ?? `name:${name}`).toLowerCase()
     if (seen.has(key)) return // 같은 입력 내 중복 제거
     seen.add(key)
     rows.push({ name, username, phone })
   })
 
+  if (missingPhone > 0) warnings.push(`연락처가 없는 ${missingPhone}명은 제외했습니다. (임시 비밀번호가 연락처 끝 4자리로 발급됩니다)`)
   if (rows.length === 0) warnings.push('가져올 위원이 없습니다. 매핑과 "헤더 포함" 설정을 확인하세요.')
   return { rows, warnings }
 }

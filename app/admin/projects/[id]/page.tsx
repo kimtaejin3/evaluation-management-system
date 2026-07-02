@@ -110,11 +110,11 @@ export default async function ProjectDetailPage({
                 </select>
                 <input name="name" placeholder="이름" required className={inputCls} />
                 <input name="username" placeholder="아이디" required className={inputCls} />
-                <input name="password" placeholder="임시 비밀번호" required className={inputCls} />
-                <input name="phone" placeholder="연락처(선택)" className={inputCls} />
+                <input name="phone" placeholder="연락처 (예: 010-1234-5678)" required className={`col-span-2 ${inputCls}`} />
                 <button className="col-span-2 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 transition hover:bg-indigo-100">
                   + 간사 생성·배정
                 </button>
+                <p className="col-span-2 text-xs text-slate-400">임시 비밀번호는 연락처 끝 4자리로 발급됩니다.</p>
               </form>
             </div>
           )}

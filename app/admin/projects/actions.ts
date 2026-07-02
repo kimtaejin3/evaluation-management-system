@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { assertMaster } from '@/lib/authz'
 import { hashPassword } from '@/lib/auth'
+import { passwordFromPhone } from '@/lib/phone'
 
 export async function createProject(formData: FormData) {
   await assertMaster()
@@ -38,14 +39,15 @@ export async function createSecretaryAndAssignToSession(projectId: string, formD
   const sessionId = String(formData.get('sessionId') ?? '').trim()
   const username = String(formData.get('username') ?? '').trim()
   const name = String(formData.get('name') ?? '').trim()
-  const password = String(formData.get('password') ?? '')
-  const phone = String(formData.get('phone') ?? '').trim() || null
-  if (!sessionId || !username || !name || !password) return
+  const phone = String(formData.get('phone') ?? '').trim()
+  // 임시 비밀번호 = 연락처 끝 4자리(연락처 필수)
+  const password = passwordFromPhone(phone)
+  if (!sessionId || !username || !name || !phone || !password) return
   const session = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { projectId: true } })
   if (!session || session.projectId !== projectId) return
   const user = await prisma.user.upsert({
     where: { username },
-    update: { name, phone: phone ?? undefined, role: 'SECRETARY' },
+    update: { name, phone, role: 'SECRETARY' },
     create: { username, name, phone, role: 'SECRETARY', passwordHash: await hashPassword(password), tempPassword: password },
   })
   await prisma.project.update({ where: { id: projectId }, data: { secretaries: { connect: { id: user.id } } } })

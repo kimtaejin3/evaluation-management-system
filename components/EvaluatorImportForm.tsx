@@ -21,7 +21,7 @@ import { parseHtmlTable } from "./clipboard-table";
 const inputCls =
   "rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500";
 
-const SAMPLE = `성명\t아이디\t연락처\n홍길동\thong\t010-1234-5678\n김평가\t\t010-2222-3333\n이심사\tlee\t`;
+const SAMPLE = `성명\t아이디\t연락처\n홍길동\thong\t010-1234-5678\n김평가\t\t010-2222-3333\n이심사\tlee\t010-4444-5555`;
 
 export default function EvaluatorImportForm({
   sessionId,
@@ -65,6 +65,7 @@ export default function EvaluatorImportForm({
   const preview = useMemo(() => buildEvaluators(grid, mapping, { hasHeader }), [grid, mapping, hasHeader]);
   const sampleRows = (hasHeader ? grid.slice(1) : grid).slice(0, 3);
   const nameMapped = mapping.includes("name");
+  const phoneMapped = mapping.includes("phone");
 
   const resetSource = () => {
     setOverride({});
@@ -207,7 +208,7 @@ export default function EvaluatorImportForm({
           className={`w-full font-mono text-xs ${inputCls} disabled:bg-slate-50`}
         />
         <p className="text-xs text-slate-400">
-          아이디(이메일) 열이 없으면 자동 생성하고 임시 비밀번호를 발급합니다.
+          연락처는 필수이며, 임시 비밀번호는 연락처 끝 4자리로 발급됩니다. 아이디(이메일) 열이 없으면 자동 생성합니다.
         </p>
       </section>
 
@@ -259,6 +260,7 @@ export default function EvaluatorImportForm({
               </tbody>
             </table>
             {!nameMapped && <p className="text-xs font-medium text-rose-600">* 한 열을 반드시 “성명”으로 지정하세요.</p>}
+            {!phoneMapped && <p className="text-xs font-medium text-rose-600">* 한 열을 반드시 “연락처”로 지정하세요. (임시 비밀번호가 연락처 끝 4자리로 발급됩니다)</p>}
           </section>
 
           <section className="space-y-2">
@@ -305,7 +307,7 @@ export default function EvaluatorImportForm({
             </button>
             <button
               type="button"
-              disabled={pending || preview.rows.length === 0 || !nameMapped}
+              disabled={pending || preview.rows.length === 0 || !nameMapped || !phoneMapped}
               onClick={submit}
               className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
             >

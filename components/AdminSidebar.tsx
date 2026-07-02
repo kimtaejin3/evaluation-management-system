@@ -384,7 +384,7 @@ export default function AdminSidebar({
             className={topCls(pathname.startsWith("/admin/evaluators"))}
           >
             <UsersIcon />
-            평가위원 관리
+            {isMaster ? "평가위원·간사 관리" : "평가위원 관리"}
           </Link>
           <Link
             href="/admin/companies"

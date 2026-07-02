@@ -39,12 +39,11 @@ export default async function EvaluatorsAdminPage() {
           className={inputCls}
         />
         <input
-          name="password"
-          placeholder="임시 비밀번호"
+          name="phone"
+          placeholder="연락처 (예: 010-1234-5678)"
           required
-          className={inputCls}
+          className={`col-span-2 ${inputCls}`}
         />
-        <input name="phone" placeholder="연락처(선택)" className={inputCls} />
         {isMaster && (
           <select name="role" defaultValue="EVALUATOR" className={`col-span-2 ${inputCls}`}>
             <option value="EVALUATOR">평가위원</option>
@@ -55,7 +54,7 @@ export default async function EvaluatorsAdminPage() {
           + 계정 추가
         </button>
         <p className="col-span-2 text-xs text-slate-400">
-          기존 아이디면 이름·연락처{isMaster ? "·역할" : ""}을 갱신합니다.
+          임시 비밀번호는 연락처 끝 4자리로 발급됩니다. 기존 아이디면 이름·연락처{isMaster ? "·역할" : ""}을 갱신합니다.
         </p>
       </form>
     </div>

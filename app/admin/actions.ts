@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
 import { hashPassword } from '@/lib/auth'
+import { passwordFromPhone } from '@/lib/phone'
 import { saveUpload, deleteUpload, isPdf } from '@/lib/storage'
 import { requireAdminUser } from '@/lib/authz'
 
@@ -13,17 +14,18 @@ export async function createEvaluator(formData: FormData) {
   const actor = await requireAdminUser()
   const username = String(formData.get('username') ?? '').trim()
   const name = String(formData.get('name') ?? '').trim()
-  const password = String(formData.get('password') ?? '')
-  const phone = String(formData.get('phone') ?? '').trim() || null
+  const phone = String(formData.get('phone') ?? '').trim()
+  // 임시 비밀번호 = 연락처 끝 4자리(연락처 필수)
+  const password = passwordFromPhone(phone)
   // 역할: 간사(SECRETARY) 생성은 마스터만. 그 외/간사 아닌 요청은 평가위원.
   let role: 'SECRETARY' | 'EVALUATOR' =
     String(formData.get('role') ?? 'EVALUATOR') === 'SECRETARY' ? 'SECRETARY' : 'EVALUATOR'
   if (role === 'SECRETARY' && actor.role !== 'MASTER') role = 'EVALUATOR'
-  if (!username || !name || !password) return
+  if (!username || !name || !phone || !password) return
 
   await prisma.user.upsert({
     where: { username },
-    update: { name, phone: phone ?? undefined, role },
+    update: { name, phone, role },
     create: { username, name, phone, role, passwordHash: await hashPassword(password), tempPassword: password },
   })
   revalidatePath('/admin/evaluators')

@@ -10,6 +10,7 @@ import { randomUUID } from 'crypto'
 import { hashPassword } from '@/lib/auth'
 import { buildCriteria, type ColumnMapping, type BuildOptions } from '@/lib/kpass-import'
 import { buildEvaluators, type EvalColumnMapping } from '@/lib/evaluator-import'
+import { passwordFromPhone } from '@/lib/phone'
 import { buildSubjects, type SubjectColumnMapping } from '@/lib/subject-import'
 import { parseSheet } from '@/lib/kpass-sheet'
 import { assertSessionAccess, assertProjectAccess, requireAdminUser } from '@/lib/authz'
@@ -278,7 +279,8 @@ export async function commitEvaluatorImport(
       if (existing) {
         return { kind: 'existing' as const, username, name: r.name, phone: r.phone, id: existing.id, nameChanged: existing.name !== r.name }
       }
-      const pw = genPassword()
+      // 임시 비밀번호 = 연락처 끝 4자리(연락처는 임포트에서 필수). 4자리 미만 등 예외 시에만 자동 생성.
+      const pw = passwordFromPhone(r.phone) ?? genPassword()
       return { kind: 'new' as const, username, name: r.name, phone: r.phone, pw, hash: await hashPassword(pw) }
     }),
   )
