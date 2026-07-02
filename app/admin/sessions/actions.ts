@@ -45,6 +45,7 @@ export async function createSession(formData: FormData) {
 // Opinion·EditingPresence는 관계가 없어 별도 정리.
 export async function deleteSession(sessionId: string) {
   await assertSessionAccess(sessionId)
+  const session = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { projectId: true } })
   const docs = await prisma.document.findMany({ where: { sessionId } })
   for (const d of docs) {
     await deleteUpload(d.storedName, d.url)
@@ -54,6 +55,8 @@ export async function deleteSession(sessionId: string) {
   await prisma.editingPresence.deleteMany({ where: { sessionId } })
   await prisma.evaluationSession.delete({ where: { id: sessionId } })
   revalidatePath('/admin/sessions')
+  revalidatePath('/admin/projects')
+  if (session?.projectId) revalidatePath(`/admin/projects/${session.projectId}`)
 }
 
 export async function setSessionStatus(sessionId: string, status: 'DRAFT' | 'IN_PROGRESS' | 'CLOSED') {

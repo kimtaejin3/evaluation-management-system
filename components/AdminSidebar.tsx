@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { SessionsIcon, UsersIcon, CompanyIcon, DashboardIcon } from "./icons";
+import { SessionsIcon, UsersIcon, CompanyIcon } from "./icons";
 import { PROJECT_STATUS_LABEL } from "@/lib/project-status";
 
 const APP_VERSION = "0.1.0";
@@ -355,10 +355,6 @@ export default function AdminSidebar({
                   <ProjectNode key={p.id} project={p} pathname={pathname} />
                 ))}
               </div>
-              <Link href="/admin/sessions" className={`mt-1 ${topCls(sessionsActive)}`}>
-                <DashboardIcon />
-                분과 관리
-              </Link>
             </div>
           ) : (
             /* 간사: 내 분과 목록 */
