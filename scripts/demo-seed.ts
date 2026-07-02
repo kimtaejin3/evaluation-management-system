@@ -50,6 +50,15 @@ const COMPANY_NAMES = [
 ]
 
 async function main() {
+  // 안전 가드: 이 스크립트는 위 이름의 세션/계정/기업을 '삭제 후 재생성'한다.
+  // 실데이터와 이름이 겹치면 지워지므로, 명시적으로 ALLOW_DEMO_SEED=1 일 때만 실행한다.
+  if (process.env.ALLOW_DEMO_SEED !== '1') {
+    console.error(
+      "[중단] demo-seed는 파괴적입니다. '2026 상반기 사업 평가'·'2026 신규 과제 심사' 세션과 kim/lee/park 계정, 데모 기업을 삭제 후 재생성합니다.\n" +
+      '실행하려면 ALLOW_DEMO_SEED=1 을 설정하세요. (실데이터가 있는 DB에서는 실행 금지)',
+    )
+    process.exit(1)
+  }
   await prisma.evaluationSession.deleteMany({ where: { name: { in: ['2026 상반기 사업 평가', '2026 신규 과제 심사'] } } })
   await prisma.user.deleteMany({ where: { username: { in: ['kim', 'lee', 'park'] } } })
   await prisma.company.deleteMany({ where: { name: { in: COMPANY_NAMES } } })
