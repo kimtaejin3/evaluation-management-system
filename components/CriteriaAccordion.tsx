@@ -1,29 +1,29 @@
 'use client'
 
 import { Fragment, useState } from 'react'
-import { parseGradeOptions, defaultGradeOptions } from '@/lib/scoring'
 
 export interface PreviewCriterion {
   id: string
-  section: string | null
+  groupName: string
+  subitemName: string
   name: string
-  description: string | null
-  type: 'QUANTITATIVE' | 'QUALITATIVE'
   maxScore: number
-  gradeOptions: unknown
 }
 
-// 평가 대상 목록에서 분과별 평가 항목을 접었다 폈다(아코디언) 조회
+// 평가 대상 목록에서 평가항목별 세부항목·평가지표를 접었다 폈다(아코디언) 조회
 export default function CriteriaAccordion({ criteria }: { criteria: PreviewCriterion[] }) {
   const [open, setOpen] = useState(false)
 
-  // 항목(섹션)별 그룹 + 번호(1 / 1-1)
-  const sections: { no: number; name: string | null; items: { c: PreviewCriterion; code: string }[] }[] = []
+  // 평가항목(대분류) → 세부항목(중분류) 그룹 + 번호(1-1-1) — criteria는 이미 정렬되어 옴
+  type Item = { c: PreviewCriterion; code: string }
+  type SubGroup = { name: string; items: Item[] }
+  const groups: { no: number; name: string; subgroups: SubGroup[] }[] = []
   criteria.forEach((c) => {
-    const key = c.section || null
-    let g = sections.find((x) => x.name === key)
-    if (!g) { g = { no: sections.length + 1, name: key, items: [] }; sections.push(g) }
-    g.items.push({ c, code: `${g.no}-${g.items.length + 1}` })
+    let g = groups.find((x) => x.name === c.groupName)
+    if (!g) { g = { no: groups.length + 1, name: c.groupName, subgroups: [] }; groups.push(g) }
+    let sg = g.subgroups.find((x) => x.name === c.subitemName)
+    if (!sg) { sg = { name: c.subitemName, items: [] }; g.subgroups.push(sg) }
+    sg.items.push({ c, code: `${g.no}-${g.subgroups.length}-${sg.items.length + 1}` })
   })
   const total = criteria.reduce((s, c) => s + c.maxScore, 0)
 
@@ -55,46 +55,39 @@ export default function CriteriaAccordion({ criteria }: { criteria: PreviewCrite
                   <th className="w-px whitespace-nowrap px-4 py-2 text-center font-medium">번호</th>
                   <th className="px-4 py-2 font-medium">평가 항목</th>
                   <th className="w-px whitespace-nowrap px-4 py-2 text-right font-medium">배점</th>
-                  <th className="px-4 py-2 font-medium">등급별 환산점수 (답)</th>
                 </tr>
               </thead>
               <tbody>
-                {sections.map((g) => (
+                {groups.map((g) => (
                   <Fragment key={g.no}>
                     <tr className="bg-slate-50/70">
-                      <td colSpan={4} className="px-4 py-1.5">
+                      <td colSpan={3} className="px-4 py-1.5">
                         <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-semibold text-indigo-700">{g.no}</span>
-                        <span className="ml-1.5 text-xs font-semibold text-slate-600">{g.name ?? '미분류'}</span>
+                        <span className="ml-1.5 text-xs font-semibold text-slate-600">{g.name}</span>
                       </td>
                     </tr>
-                    {g.items.map(({ c, code }) => {
-                      const isQual = c.type === 'QUALITATIVE'
-                      const opts = isQual ? (parseGradeOptions(c.gradeOptions) ?? defaultGradeOptions(c.maxScore)) : []
-                      return (
-                        <tr key={c.id} className="border-b border-slate-100 align-top last:border-0">
-                          <td className="px-4 py-2.5 text-center font-semibold tabular-nums text-indigo-600">{code}</td>
-                          <td className="px-4 py-2.5">
-                            <div className="font-medium text-slate-800">{c.name}</div>
-                            {c.description && <div className="mt-0.5 text-xs text-slate-400">{c.description}</div>}
-                          </td>
-                          <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-slate-800">{c.maxScore}</td>
-                          <td className="px-4 py-2.5">
-                            {isQual ? (
-                              <div className="flex flex-wrap gap-1.5">
-                                {opts.map((o, k) => (
-                                  <span key={k} className="inline-flex items-baseline gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs">
-                                    <span className="font-medium text-slate-700">{o.label}</span>
-                                    <span className="text-slate-400 tabular-nums">{o.points}</span>
-                                  </span>
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="text-xs text-slate-400">0 ~ {c.maxScore}점 직접 입력</span>
-                            )}
-                          </td>
-                        </tr>
-                      )
-                    })}
+                    {g.subgroups.map((sg, si) => (
+                      <Fragment key={si}>
+                        {sg.name && (
+                          <tr>
+                            <td colSpan={3} className="px-4 py-1">
+                              <span className="ml-4 text-xs font-medium text-slate-500">
+                                {g.no}-{si + 1}. {sg.name}
+                              </span>
+                            </td>
+                          </tr>
+                        )}
+                        {sg.items.map(({ c, code }) => (
+                          <tr key={c.id} className="border-b border-slate-100 align-top last:border-0">
+                            <td className="px-4 py-2.5 text-center font-semibold tabular-nums text-indigo-600">{code}</td>
+                            <td className="px-4 py-2.5">
+                              <div className="font-medium text-slate-800">{c.name}</div>
+                            </td>
+                            <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-slate-800">{c.maxScore}</td>
+                          </tr>
+                        ))}
+                      </Fragment>
+                    ))}
                   </Fragment>
                 ))}
               </tbody>

@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/session'
-import { isValidScoreValue, parseGradeOptions, defaultGradeOptions } from '@/lib/scoring'
+import { isValidScoreValue } from '@/lib/scoring'
 
 // 평가위원장이 심사 전체 총평(1건)을 저장 — 위원장 본인만 가능.
 export async function saveChairSummary(sessionId: string, formData: FormData): Promise<{ ok: boolean; error?: string }> {
@@ -63,23 +63,13 @@ export async function autoSaveScore(
     return { ok: true, cleared: true }
   }
 
-  let value: number
-  let grade: string | null = null
-  if (c.type === 'QUALITATIVE') {
-    const options = parseGradeOptions(c.gradeOptions) ?? defaultGradeOptions(c.maxScore)
-    const opt = options[Number(raw)]
-    if (!opt) return { ok: false, error: 'bad-grade' }
-    grade = opt.label
-    value = opt.points
-  } else {
-    value = Number(raw)
-    if (!isValidScoreValue(value, c.maxScore)) return { ok: false, error: 'range' }
-  }
+  const value = Number(raw)
+  if (!isValidScoreValue(value, c.maxScore)) return { ok: false, error: 'range' }
 
   await prisma.score.upsert({
     where: { evaluatorId_subjectId_criterionId: { evaluatorId: user.id, subjectId, criterionId } },
-    update: { value, grade, sessionId },
-    create: { evaluatorId: user.id, subjectId, criterionId, sessionId, value, grade },
+    update: { value, grade: null, sessionId },
+    create: { evaluatorId: user.id, subjectId, criterionId, sessionId, value, grade: null },
   })
   return { ok: true }
 }
@@ -115,28 +105,15 @@ export async function saveScores(
       continue // 임시저장: 비어 있으면 건너뜀
     }
 
-    let value: number
-    let grade: string | null = null
-    if (c.type === 'QUALITATIVE') {
-      const options = parseGradeOptions(c.gradeOptions) ?? defaultGradeOptions(c.maxScore)
-      const opt = options[Number(raw)]
-      if (!opt) {
-        if (intent === 'submit') return { error: `'${c.name}' 등급을 선택하세요.` }
-        continue
-      }
-      grade = opt.label
-      value = opt.points
-    } else {
-      value = Number(raw)
-      if (!isValidScoreValue(value, c.maxScore)) {
-        return { error: `'${c.name}'은 0~${c.maxScore} 범위로 입력하세요.` }
-      }
+    const value = Number(raw)
+    if (!isValidScoreValue(value, c.maxScore)) {
+      return { error: `'${c.name}'은 0~${c.maxScore} 범위로 입력하세요.` }
     }
 
     await prisma.score.upsert({
       where: { evaluatorId_subjectId_criterionId: { evaluatorId: user.id, subjectId, criterionId: c.id } },
-      update: { value, grade, sessionId },
-      create: { evaluatorId: user.id, subjectId, criterionId: c.id, sessionId, value, grade },
+      update: { value, grade: null, sessionId },
+      create: { evaluatorId: user.id, subjectId, criterionId: c.id, sessionId, value, grade: null },
     })
   }
 

@@ -1,17 +1,14 @@
 import { prisma } from '@/lib/db'
-import { parseGradeOptions, defaultGradeOptions, computeWeightedScore, type GradeOption } from '@/lib/scoring'
+import { computeWeightedScore } from '@/lib/scoring'
 
 export interface CriterionView {
   id: string
-  section: string | null
+  groupName: string
+  subitemName: string
   name: string
-  description: string | null
-  type: 'QUANTITATIVE' | 'QUALITATIVE'
   maxScore: number
   weight: number
   value: number | null
-  options: GradeOption[] | null
-  selectedIndex: number | null
 }
 
 export interface SheetData {
@@ -51,13 +48,27 @@ export async function getSheetData(
       },
     }),
     prisma.evaluationSession.findUnique({ where: { id: sessionId } }),
-    prisma.criterion.findMany({ where: { sessionId }, orderBy: { order: 'asc' } }),
+    prisma.criterion.findMany({
+      where: { sessionId },
+      include: { subitem: { include: { group: true } } },
+    }),
     prisma.score.findMany({ where: { evaluatorId: userId, subjectId } }),
     prisma.opinion.findUnique({ where: { evaluatorId_subjectId: { evaluatorId: userId, subjectId } } }),
     prisma.subject.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } }),
     prisma.score.findMany({ where: { evaluatorId: userId, sessionId }, select: { subjectId: true, criterionId: true, value: true } }),
   ])
   if (!subject || !session) return null
+
+  // 평가항목(group) → 세부항목(subitem) → 평가지표(criterion) 순 정렬
+  criteria.sort((a, b) => {
+    const gA = a.subitem?.group.order ?? 0
+    const gB = b.subitem?.group.order ?? 0
+    if (gA !== gB) return gA - gB
+    const sA = a.subitem?.order ?? 0
+    const sB = b.subitem?.order ?? 0
+    if (sA !== sB) return sA - sB
+    return a.order - b.order
+  })
 
   const byCriterion = new Map(existing.map((s) => [s.criterionId, s]))
   const totalCriteria = criteria.length
@@ -82,24 +93,14 @@ export async function getSheetData(
 
   const criteriaView: CriterionView[] = criteria.map((c) => {
     const cur = byCriterion.get(c.id)
-    const options = c.type === 'QUALITATIVE' ? (parseGradeOptions(c.gradeOptions) ?? defaultGradeOptions(c.maxScore)) : null
-    let selectedIndex: number | null = null
-    if (options && cur) {
-      const byLabel = options.findIndex((o) => o.label === cur.grade)
-      selectedIndex = byLabel >= 0 ? byLabel : options.findIndex((o) => o.points === cur.value)
-      if (selectedIndex < 0) selectedIndex = null
-    }
     return {
       id: c.id,
-      section: c.section,
+      groupName: c.subitem?.group.name ?? '미분류',
+      subitemName: c.subitem?.name ?? '',
       name: c.name,
-      description: c.description,
-      type: c.type,
       maxScore: c.maxScore,
       weight: c.weight,
       value: cur ? cur.value : null,
-      options,
-      selectedIndex,
     }
   })
 
@@ -133,12 +134,10 @@ export async function getSheetData(
 // ── 평가위원 홈(배정 심사 목록) ──
 export interface AccordionCriterion {
   id: string
-  section: string | null
+  groupName: string
+  subitemName: string
   name: string
-  description: string | null
-  type: 'QUANTITATIVE' | 'QUALITATIVE'
   maxScore: number
-  gradeOptions: unknown
 }
 export interface HomeSubject {
   id: string
@@ -177,7 +176,7 @@ export async function getHomeData(userId: string): Promise<HomeSession[]> {
                 },
               },
             },
-            criteria: true,
+            criteria: { include: { subitem: { include: { group: true } } } },
           },
         },
       },
@@ -219,8 +218,22 @@ export async function getHomeData(userId: string): Promise<HomeSession[]> {
       totalSubjects: subjects.length,
       criteria: a.session.criteria
         .slice()
-        .sort((x, y) => x.order - y.order)
-        .map((c) => ({ id: c.id, section: c.section, name: c.name, description: c.description, type: c.type, maxScore: c.maxScore, gradeOptions: c.gradeOptions })),
+        .sort((x, y) => {
+          const gX = x.subitem?.group.order ?? 0
+          const gY = y.subitem?.group.order ?? 0
+          if (gX !== gY) return gX - gY
+          const sX = x.subitem?.order ?? 0
+          const sY = y.subitem?.order ?? 0
+          if (sX !== sY) return sX - sY
+          return x.order - y.order
+        })
+        .map((c) => ({
+          id: c.id,
+          groupName: c.subitem?.group.name ?? '미분류',
+          subitemName: c.subitem?.name ?? '',
+          name: c.name,
+          maxScore: c.maxScore,
+        })),
       subjects,
     }
   })

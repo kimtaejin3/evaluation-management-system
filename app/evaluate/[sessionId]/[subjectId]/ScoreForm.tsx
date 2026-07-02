@@ -10,21 +10,17 @@ import {
   pingEditing,
   clearEditing,
 } from "@/app/evaluate/actions";
-import type { GradeOption } from "@/lib/scoring";
 import DocPreviewBoard from "@/components/DocPreviewBoard";
 import SubjectPicker from "@/components/SubjectPicker";
 
 export interface CriterionView {
   id: string;
-  section: string | null;
+  groupName: string;
+  subitemName: string;
   name: string;
-  description: string | null;
-  type: "QUANTITATIVE" | "QUALITATIVE";
   maxScore: number;
   weight: number;
   value: number | null;
-  options: GradeOption[] | null;
-  selectedIndex: number | null;
 }
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
@@ -92,15 +88,7 @@ export default function ScoreForm({
   const cmpRow = cmpSubject ? compareScores[cmpSubject.id] ?? {} : {};
   const [vals, setVals] = useState<Record<string, string>>(() => {
     const o: Record<string, string> = {};
-    for (const c of criteria)
-      o[c.id] =
-        c.type === "QUALITATIVE"
-          ? c.selectedIndex != null
-            ? String(c.selectedIndex)
-            : ""
-          : c.value != null
-            ? String(c.value)
-            : "";
+    for (const c of criteria) o[c.id] = c.value != null ? String(c.value) : "";
     return o;
   });
 
@@ -159,45 +147,55 @@ export default function ScoreForm({
     };
   }, []);
 
+  // 값이 0~maxScore 범위인지(빈 값은 범위 판정에서 제외 — isFilled로 별도 처리)
+  const isInRange = (c: CriterionView): boolean => {
+    const raw = vals[c.id];
+    if (raw === "") return true;
+    const n = Number(raw);
+    return Number.isFinite(n) && n >= 0 && n <= c.maxScore;
+  };
   const contrib = (c: CriterionView): number | null => {
     const raw = vals[c.id];
     if (raw === "") return null;
-    if (c.type === "QUALITATIVE") {
-      const opt = c.options?.[Number(raw)];
-      return opt ? opt.points * c.weight : null;
-    }
     const n = Number(raw);
     return Number.isFinite(n) ? n * c.weight : null;
   };
-  // 입력 완료 판정 — 빈칸만 '미입력'. 0점은 유효 입력(가점/감점 등)으로 인정. 정성은 선택(인덱스 0 포함) 인정
+  // 입력 완료 판정 — 빈칸만 '미입력'. 0점은 유효 입력(가점/감점 등)으로 인정.
   const isFilled = (c: CriterionView): boolean => {
     const raw = vals[c.id];
     if (raw === "") return false;
-    if (c.type === "QUANTITATIVE") return Number.isFinite(Number(raw));
-    return true;
+    return Number.isFinite(Number(raw));
   };
   const total = criteria.reduce((s, c) => s + (contrib(c) ?? 0), 0);
   const maxTotal = criteria.reduce((s, c) => s + c.maxScore * c.weight, 0);
   const filledCount = criteria.filter((c) => isFilled(c)).length;
   const allFilled = filledCount === criteria.length && criteria.length > 0;
+  const allInRange = criteria.every((c) => isInRange(c));
+  const canSubmit = allFilled && allInRange;
 
-  // 항목(섹션)별 그룹 + 번호 체계(1 / 1-1) — 미분류는 맨 끝
+  // 평가항목(대분류) → 세부항목(중분류) 2단 중첩 + 번호 체계(1-1-1 등) — criteria는 이미 group.order→subitem.order→criterion.order로 정렬되어 옴
   type Item = { c: CriterionView; code: string };
-  const sections: { no: number; name: string | null; items: Item[] }[] = [];
+  type SubGroup = { name: string; items: Item[] };
+  const groups: { no: number; name: string; subgroups: SubGroup[] }[] = [];
   criteria.forEach((c) => {
-    const key = c.section || null;
-    let g = sections.find((x) => x.name === key);
+    let g = groups.find((x) => x.name === c.groupName);
     if (!g) {
-      g = { no: 0, name: key, items: [] };
-      sections.push(g);
+      g = { no: 0, name: c.groupName, subgroups: [] };
+      groups.push(g);
     }
-    g.items.push({ c, code: "" });
+    let sg = g.subgroups.find((x) => x.name === c.subitemName);
+    if (!sg) {
+      sg = { name: c.subitemName, items: [] };
+      g.subgroups.push(sg);
+    }
+    sg.items.push({ c, code: "" });
   });
-  sections.sort((a, b) => (a.name === null ? 1 : b.name === null ? -1 : 0));
-  sections.forEach((g, gi) => {
+  groups.forEach((g, gi) => {
     g.no = gi + 1;
-    g.items.forEach((it, ii) => {
-      it.code = `${g.no}-${ii + 1}`;
+    g.subgroups.forEach((sg, si) => {
+      sg.items.forEach((it, ii) => {
+        it.code = `${g.no}-${si + 1}-${ii + 1}`;
+      });
     });
   });
 
@@ -331,69 +329,66 @@ export default function ScoreForm({
                 </tr>
               </thead>
               <tbody>
-                {sections.map((g) => (
+                {groups.map((g) => (
                   <Fragment key={g.no}>
                     <tr>
                       <td colSpan={hasCompare ? 5 : 4} className="border-b border-slate-100 bg-slate-50/60 px-3 py-1.5">
                         <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-semibold text-indigo-700">{g.no}</span>
-                        <span className="ml-1.5 text-xs font-semibold text-slate-600">{g.name ?? "미분류"}</span>
+                        <span className="ml-1.5 text-xs font-semibold text-slate-600">{g.name}</span>
                       </td>
                     </tr>
-                    {g.items.map((it) => {
-                      const c = it.c;
-                      const cmpVal = cmpRow[c.id];
-                      return (
-                        <tr key={c.id} className="border-b border-slate-50 last:border-0">
-                          <td className="px-3 py-2.5 text-center align-top tabular-nums text-indigo-600">{it.code}</td>
-                          <td className="px-3 py-2.5 align-top">
-                            <div className="font-medium text-slate-800">{c.name}</div>
-                            {c.description && (
-                              <div className="mt-0.5 text-xs leading-snug text-slate-400">{c.description}</div>
-                            )}
-                          </td>
-                          <td className="px-3 py-2.5 text-right align-top tabular-nums text-slate-400">{c.maxScore}</td>
-                          <td className="px-3 py-2.5 align-top">
-                            {c.type === "QUALITATIVE" ? (
-                              <select
-                                value={vals[c.id]}
-                                onChange={(e) => setVal(c.id, e.target.value, true)}
-                                onFocus={() => startEditing(c.id)}
-                                onBlur={stopEditing}
-                                className={`w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 ${vals[c.id] === "" ? "text-slate-400" : "text-slate-800"}`}
-                              >
-                                <option value="">선택</option>
-                                {(c.options ?? []).map((o, idx) => (
-                                  <option key={idx} value={idx}>
-                                    {o.label} · {o.points}점
-                                  </option>
-                                ))}
-                              </select>
-                            ) : (
-                              <div className="flex items-center justify-end gap-1">
-                                <input
-                                  type="number"
-                                  step="any"
-                                  min={0}
-                                  max={c.maxScore}
-                                  value={vals[c.id]}
-                                  onChange={(e) => setVal(c.id, e.target.value)}
-                                  onFocus={() => startEditing(c.id)}
-                                  onBlur={stopEditing}
-                                  placeholder="입력"
-                                  className="w-20 rounded-md border border-slate-300 px-2 py-1.5 text-right text-sm font-semibold text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                                />
-                                <span className="text-xs text-slate-400">/ {c.maxScore}</span>
-                              </div>
-                            )}
-                          </td>
-                          {hasCompare && (
-                            <td className="px-3 py-2.5 text-right align-top tabular-nums text-slate-500">
-                              {cmpVal === undefined ? <span className="text-slate-300">—</span> : fmt(cmpVal)}
+                    {g.subgroups.map((sg, si) => (
+                      <Fragment key={si}>
+                        {sg.name && (
+                          <tr>
+                            <td colSpan={hasCompare ? 5 : 4} className="border-b border-slate-100 px-3 py-1">
+                              <span className="ml-4 text-xs font-medium text-slate-500">
+                                {g.no}-{si + 1}. {sg.name}
+                              </span>
                             </td>
-                          )}
-                        </tr>
-                      );
-                    })}
+                          </tr>
+                        )}
+                        {sg.items.map((it) => {
+                          const c = it.c;
+                          const cmpVal = cmpRow[c.id];
+                          const outOfRange = !isInRange(c);
+                          return (
+                            <tr key={c.id} className="border-b border-slate-50 last:border-0">
+                              <td className="px-3 py-2.5 text-center align-top tabular-nums text-indigo-600">{it.code}</td>
+                              <td className="px-3 py-2.5 align-top">
+                                <div className="font-medium text-slate-800">{c.name}</div>
+                              </td>
+                              <td className="px-3 py-2.5 text-right align-top tabular-nums text-slate-400">{c.maxScore}</td>
+                              <td className="px-3 py-2.5 align-top">
+                                <div className="flex items-center justify-end gap-1">
+                                  <input
+                                    type="number"
+                                    step="any"
+                                    min={0}
+                                    max={c.maxScore}
+                                    value={vals[c.id]}
+                                    onChange={(e) => setVal(c.id, e.target.value)}
+                                    onFocus={() => startEditing(c.id)}
+                                    onBlur={stopEditing}
+                                    placeholder="입력"
+                                    className={`w-20 rounded-md border px-2 py-1.5 text-right text-sm font-semibold focus:outline-none focus:ring-1 ${outOfRange ? "border-rose-400 text-rose-600 focus:border-rose-500 focus:ring-rose-500" : "border-slate-300 text-slate-800 focus:border-indigo-500 focus:ring-indigo-500"}`}
+                                  />
+                                  <span className="text-xs text-slate-400">/ {c.maxScore}</span>
+                                </div>
+                                {outOfRange && (
+                                  <div className="mt-0.5 text-right text-xs text-rose-500">0~{c.maxScore} 범위로 입력하세요</div>
+                                )}
+                              </td>
+                              {hasCompare && (
+                                <td className="px-3 py-2.5 text-right align-top tabular-nums text-slate-500">
+                                  {cmpVal === undefined ? <span className="text-slate-300">—</span> : fmt(cmpVal)}
+                                </td>
+                              )}
+                            </tr>
+                          );
+                        })}
+                      </Fragment>
+                    ))}
                   </Fragment>
                 ))}
                 {criteria.length === 0 && (
@@ -457,7 +452,7 @@ export default function ScoreForm({
               <button
                 type="button"
                 onClick={() => setConfirm(true)}
-                disabled={!allFilled || isPending}
+                disabled={!canSubmit || isPending}
                 className="w-full rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-40"
               >
                 제출 전 확인 →
@@ -465,13 +460,17 @@ export default function ScoreForm({
               <button
                 name="intent"
                 value="save"
-                disabled={isPending}
+                disabled={!allInRange || isPending}
                 className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
               >
                 임시 저장
               </button>
-              {!allFilled && (
-                <p className="text-center text-xs text-slate-400">모든 항목 입력 시 제출할 수 있습니다.</p>
+              {!allInRange ? (
+                <p className="text-center text-xs text-rose-500">배점을 초과하거나 0 미만인 항목이 있습니다.</p>
+              ) : (
+                !allFilled && (
+                  <p className="text-center text-xs text-slate-400">모든 항목 입력 시 제출할 수 있습니다.</p>
+                )
               )}
             </div>
           </div>
