@@ -78,18 +78,18 @@ async function main() {
       projectId: project.id, secretaryId: gansa.id,
     },
   })
-  const c1 = await prisma.criterion.create({ data: { sessionId: s1.id, section: '사업계획', name: '사업 타당성', description: '시장 규모·성장성 및 수익모델의 타당성', type: 'QUANTITATIVE', maxScore: 40, weight: 1, order: 0 } })
-  const c2 = await prisma.criterion.create({ data: { sessionId: s1.id, section: '추진역량', name: '추진 역량', description: '조직·인력 구성과 실행 계획의 구체성', type: 'QUANTITATIVE', maxScore: 30, weight: 1, order: 1 } })
-  // 정성 항목: 등급(답) 옵션 정의
-  const GRADE_OPTS = [
-    { label: '매우 우수', points: 30 },
-    { label: '우수', points: 24 },
-    { label: '보통', points: 18 },
-    { label: '미흡', points: 12 },
-    { label: '매우 미흡', points: 6 },
-  ]
-  const gradeIdx: Record<string, number> = { A: 0, B: 1, C: 2, D: 3, E: 4 }
-  const c3 = await prisma.criterion.create({ data: { sessionId: s1.id, section: '기대효과', name: '발표 평가', description: '발표 전달력·질의응답 충실도', type: 'QUALITATIVE', maxScore: 30, weight: 1, order: 2, gradeOptions: GRADE_OPTS } })
+  // 평가항목(그룹) → 세부항목 → 평가지표(리프, 숫자 배점) 3단 구조
+  const g1 = await prisma.criterionGroup.create({ data: { sessionId: s1.id, name: '사업계획', maxScore: 40, order: 0 } })
+  const sub1 = await prisma.criterionSubitem.create({ data: { groupId: g1.id, name: '사업 타당성', order: 0 } })
+  const c1 = await prisma.criterion.create({ data: { sessionId: s1.id, subitemId: sub1.id, name: '사업 타당성', maxScore: 40, weight: 1, order: 0 } })
+
+  const g2 = await prisma.criterionGroup.create({ data: { sessionId: s1.id, name: '추진역량', maxScore: 30, order: 1 } })
+  const sub2 = await prisma.criterionSubitem.create({ data: { groupId: g2.id, name: '추진 역량', order: 0 } })
+  const c2 = await prisma.criterion.create({ data: { sessionId: s1.id, subitemId: sub2.id, name: '추진 역량', maxScore: 30, weight: 1, order: 1 } })
+
+  const g3 = await prisma.criterionGroup.create({ data: { sessionId: s1.id, name: '기대효과', maxScore: 30, order: 2 } })
+  const sub3 = await prisma.criterionSubitem.create({ data: { groupId: g3.id, name: '발표 평가', order: 0 } })
+  const c3 = await prisma.criterion.create({ data: { sessionId: s1.id, subitemId: sub3.id, name: '발표 평가', maxScore: 30, weight: 1, order: 2 } })
   const names = COMPANY_NAMES
   // 전역 기업 등록(회차에 묶이지 않음)
   const companies: Record<string, { id: string }> = {}
@@ -141,31 +141,30 @@ async function main() {
   // 모니터링이 완료/입력중/미평가를 두루 보여주도록 위원별 진행 상태를 섞음
   type Mode = 'done' | 'partial' | 'none'
   // leeBias: 이심사 점수에 적용할 편차(기본 -2, 큰 값이면 위원 간 이견 시연)
-  // 기업 순서(names)와 동일한 인덱스로 매핑
-  const plan: { kim: Mode; lee: Mode; q1: number; q2: number; g: string; leeBias?: number }[] = [
-    { kim: 'done', lee: 'done', q1: 36, q2: 27, g: 'A' },
-    { kim: 'done', lee: 'done', q1: 30, q2: 24, g: 'B', leeBias: -13 },
-    { kim: 'done', lee: 'done', q1: 33, q2: 21, g: 'A' },
-    { kim: 'done', lee: 'partial', q1: 34, q2: 26, g: 'A' },
-    { kim: 'partial', lee: 'none', q1: 28, q2: 22, g: 'B' },
-    { kim: 'none', lee: 'none', q1: 0, q2: 0, g: 'C' },
-    { kim: 'done', lee: 'done', q1: 31, q2: 25, g: 'A' },
-    { kim: 'none', lee: 'partial', q1: 26, q2: 20, g: 'B' },
+  // 기업 순서(names)와 동일한 인덱스로 매핑. q3: 발표 평가(숫자, maxScore 30)
+  const plan: { kim: Mode; lee: Mode; q1: number; q2: number; q3: number; leeBias?: number }[] = [
+    { kim: 'done', lee: 'done', q1: 36, q2: 27, q3: 30 },
+    { kim: 'done', lee: 'done', q1: 30, q2: 24, q3: 24, leeBias: -13 },
+    { kim: 'done', lee: 'done', q1: 33, q2: 21, q3: 30 },
+    { kim: 'done', lee: 'partial', q1: 34, q2: 26, q3: 30 },
+    { kim: 'partial', lee: 'none', q1: 28, q2: 22, q3: 24 },
+    { kim: 'none', lee: 'none', q1: 0, q2: 0, q3: 18 },
+    { kim: 'done', lee: 'done', q1: 31, q2: 25, q3: 30 },
+    { kim: 'none', lee: 'partial', q1: 26, q2: 20, q3: 24 },
   ]
   for (const [i, sub] of subs.entries()) {
     const p = plan[i]
     for (const ev of [kim, lee]) {
       const mode = ev.id === kim.id ? p.kim : p.lee
       const jitter = ev.id === lee.id ? (p.leeBias ?? -2) : 0
-      const mk = (criterionId: string, value: number, grade: string | null) =>
-        prisma.score.create({ data: { sessionId: s1.id, evaluatorId: ev.id, subjectId: sub.id, criterionId, value, grade } })
+      const mk = (criterionId: string, value: number) =>
+        prisma.score.create({ data: { sessionId: s1.id, evaluatorId: ev.id, subjectId: sub.id, criterionId, value } })
       if (mode === 'done') {
-        await mk(c1.id, p.q1 + jitter, null)
-        await mk(c2.id, p.q2 + jitter, null)
-        const opt = GRADE_OPTS[gradeIdx[p.g] ?? 2]
-        await mk(c3.id, opt.points, opt.label)
+        await mk(c1.id, p.q1 + jitter)
+        await mk(c2.id, p.q2 + jitter)
+        await mk(c3.id, p.q3 + jitter)
       } else if (mode === 'partial') {
-        await mk(c1.id, p.q1 + jitter, null) // 항목 1개만 입력 → 입력중
+        await mk(c1.id, p.q1 + jitter) // 항목 1개만 입력 → 입력중
       }
     }
   }

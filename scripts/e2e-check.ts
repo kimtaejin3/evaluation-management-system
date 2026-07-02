@@ -3,8 +3,6 @@ import {
   computeWeightedScore,
   computeFinalScores,
   rankSubjects,
-  parseGradeOptions,
-  defaultGradeOptions,
   isValidScoreValue,
 } from '../lib/scoring'
 import { canCloseSession } from '../lib/session-rules'
@@ -46,21 +44,17 @@ async function main() {
   const session = await prisma.evaluationSession.create({ data: { name: 'E2E 회차' } })
   assert(session.status === 'DRAFT', 'S1 생성 시 기본 DRAFT')
 
-  console.log('\n[4] 평가 항목 — 정량/정성(등급 옵션)')
-  const cQuant = await prisma.criterion.create({ data: { sessionId: session.id, name: 'E2E 정량', type: 'QUANTITATIVE', maxScore: 40, weight: 1, order: 0 } })
-  const gradeOpts = [
-    { label: '매우 우수', points: 30 },
-    { label: '우수', points: 24 },
-    { label: '보통', points: 18 },
-    { label: '미흡', points: 12 },
-    { label: '매우 미흡', points: 6 },
-  ]
-  const cQual = await prisma.criterion.create({ data: { sessionId: session.id, name: 'E2E 정성', type: 'QUALITATIVE', maxScore: 30, weight: 1, order: 1, gradeOptions: gradeOpts } })
+  console.log('\n[4] 평가 항목 — 그룹→세부항목→리프(평가지표), 전부 숫자 배점')
+  const gA = await prisma.criterionGroup.create({ data: { sessionId: session.id, name: 'E2E 그룹A', maxScore: 40, order: 0 } })
+  const subA1 = await prisma.criterionSubitem.create({ data: { groupId: gA.id, name: 'E2E 세부A', order: 0 } })
+  const cQuant = await prisma.criterion.create({ data: { sessionId: session.id, subitemId: subA1.id, name: 'E2E 정량', maxScore: 40, weight: 1, order: 0 } })
+
+  const gB = await prisma.criterionGroup.create({ data: { sessionId: session.id, name: 'E2E 그룹B', maxScore: 30, order: 1 } })
+  const subB1 = await prisma.criterionSubitem.create({ data: { groupId: gB.id, name: 'E2E 세부B', order: 0 } })
+  const cQual = await prisma.criterion.create({ data: { sessionId: session.id, subitemId: subB1.id, name: 'E2E 항목2', maxScore: 30, weight: 1, order: 1 } })
   assert(isValidScoreValue(40, cQuant.maxScore) && !isValidScoreValue(41, cQuant.maxScore), 'K1 정량 범위 검증')
-  const reloadedQual = await prisma.criterion.findUnique({ where: { id: cQual.id } })
-  const parsed = parseGradeOptions(reloadedQual!.gradeOptions)
-  assert(!!parsed && parsed.length === 5 && parsed[0].points === 30, 'K2 정성 등급 옵션 저장·복원')
-  assert(defaultGradeOptions(30).length === 5, 'K3 옵션 미지정 시 기본 A~E 폴백')
+  assert(!isValidScoreValue(31, cQual.maxScore), 'K2 배점 상한(30) 초과값은 무효')
+  assert(cQuant.subitemId === subA1.id && cQual.subitemId === subB1.id, 'K3 리프가 각자의 세부항목에 연결됨')
 
   console.log('\n[3] 기업·자료(전역) + 회차 편입')
   const coA = await prisma.company.create({ data: { name: 'E2E 기업 A' } })
@@ -100,25 +94,23 @@ async function main() {
     { sessionId: session.id, userId: e2.id },
   ] })
 
-  console.log('\n[5] 점수 입력(정량 + 정성 등급)')
-  const optDoneA = parsed![0] // 매우 우수 30
-  const optDoneB = parsed![1] // 우수 24
-  // 대상 A: e1 정량40 + 정성30 = 70 ; e2 정량30 + 정성24 = 54 → 평균 62
-  // 대상 B: e1 정량20 + 정성18 = 38 ; (e2 미입력 → partial)
+  console.log('\n[5] 점수 입력(항목1 + 항목2, 전부 숫자)')
+  // 대상 A: e1 정량40 + 항목2=30 = 70 ; e2 정량30 + 항목2=24 = 54 → 평균 62
+  // 대상 B: e1 정량20 + 항목2=18 = 38 ; (e2 항목2 미입력 → partial)
   const inserts = [
-    { ev: e1.id, sub: subA.id, cr: cQuant.id, value: 40, grade: null },
-    { ev: e1.id, sub: subA.id, cr: cQual.id, value: optDoneA.points, grade: optDoneA.label },
-    { ev: e2.id, sub: subA.id, cr: cQuant.id, value: 30, grade: null },
-    { ev: e2.id, sub: subA.id, cr: cQual.id, value: optDoneB.points, grade: optDoneB.label },
-    { ev: e1.id, sub: subB.id, cr: cQuant.id, value: 20, grade: null },
-    { ev: e1.id, sub: subB.id, cr: cQual.id, value: parsed![2].points, grade: parsed![2].label },
-    { ev: e2.id, sub: subB.id, cr: cQuant.id, value: 10, grade: null }, // 정성 미입력 → partial
+    { ev: e1.id, sub: subA.id, cr: cQuant.id, value: 40 },
+    { ev: e1.id, sub: subA.id, cr: cQual.id, value: 30 },
+    { ev: e2.id, sub: subA.id, cr: cQuant.id, value: 30 },
+    { ev: e2.id, sub: subA.id, cr: cQual.id, value: 24 },
+    { ev: e1.id, sub: subB.id, cr: cQuant.id, value: 20 },
+    { ev: e1.id, sub: subB.id, cr: cQual.id, value: 18 },
+    { ev: e2.id, sub: subB.id, cr: cQuant.id, value: 10 }, // 항목2 미입력 → partial
   ]
   for (const i of inserts) {
-    await prisma.score.create({ data: { sessionId: session.id, evaluatorId: i.ev, subjectId: i.sub, criterionId: i.cr, value: i.value, grade: i.grade } })
+    await prisma.score.create({ data: { sessionId: session.id, evaluatorId: i.ev, subjectId: i.sub, criterionId: i.cr, value: i.value } })
   }
   const savedQual = await prisma.score.findFirst({ where: { evaluatorId: e1.id, subjectId: subA.id, criterionId: cQual.id } })
-  assert(savedQual?.value === 30 && savedQual?.grade === '매우 우수', 'G4 정성 등급 → 점수/라벨 저장')
+  assert(savedQual?.value === 30, 'G4 숫자 점수 저장 확인')
 
   console.log('\n[5] 집계·순위')
   const scores = await prisma.score.findMany({ where: { sessionId: session.id } })
