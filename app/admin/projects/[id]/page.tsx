@@ -2,7 +2,13 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { assertProjectAccess } from "@/lib/authz";
 import { deriveProjectStatus } from "@/lib/project-status";
-import { assignSecretaryToProject, removeSecretaryFromProject, deleteProject } from "../actions";
+import {
+  assignSecretaryToProject,
+  removeSecretaryFromProject,
+  deleteProject,
+  createSecretaryForProject,
+  setSessionSecretary,
+} from "../actions";
 
 const inputCls =
   "rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500";
@@ -92,17 +98,30 @@ export default async function ProjectDetailPage({
           </ul>
         )}
         {isMaster && (
-          <form action={assignSecretaryToProject.bind(null, id)} className="mt-3 flex gap-2">
-            <select name="userId" defaultValue="" required className={`flex-1 ${inputCls}`}>
-              <option value="" disabled>간사 선택 (평가위원 관리에서 등록)</option>
-              {availableSecretaries.map((s) => (
-                <option key={s.id} value={s.id}>{s.name} · {s.username}</option>
-              ))}
-            </select>
-            <button disabled={availableSecretaries.length === 0} className="shrink-0 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-40">
-              배정
-            </button>
-          </form>
+          <>
+            <form action={assignSecretaryToProject.bind(null, id)} className="mt-3 flex gap-2">
+              <select name="userId" defaultValue="" required className={`flex-1 ${inputCls}`}>
+                <option value="" disabled>기존 간사 배정</option>
+                {availableSecretaries.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name} · {s.username}</option>
+                ))}
+              </select>
+              <button disabled={availableSecretaries.length === 0} className="shrink-0 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-40">
+                배정
+              </button>
+            </form>
+            {/* 간사 계정 인라인 생성 + 이 과제에 바로 배정 */}
+            <form action={createSecretaryForProject.bind(null, id)} className="mt-2 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3">
+              <div className="col-span-2 text-xs font-medium text-slate-500">새 간사 계정 만들어 배정</div>
+              <input name="name" placeholder="이름" required className={inputCls} />
+              <input name="username" placeholder="아이디" required className={inputCls} />
+              <input name="password" placeholder="임시 비밀번호" required className={inputCls} />
+              <input name="phone" placeholder="연락처(선택)" className={inputCls} />
+              <button className="col-span-2 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 transition hover:bg-indigo-100">
+                + 간사 생성·배정
+              </button>
+            </form>
+          </>
         )}
       </div>
 
@@ -124,14 +143,30 @@ export default async function ProjectDetailPage({
             {project.sessions.map((s) => {
               const st = STATUS[s.status] ?? { label: s.status, cls: "bg-slate-100 text-slate-600 ring-slate-200" };
               return (
-                <li key={s.id}>
-                  <Link href={`/admin/sessions/${s.id}`} className="flex items-center justify-between px-5 py-3 transition hover:bg-slate-50">
-                    <span className="font-medium text-slate-800">{s.name}</span>
-                    <span className="flex items-center gap-3 text-xs">
-                      <span className="text-slate-400">간사 {s.secretary?.name ?? "미배정"}</span>
-                      <span className={`rounded-full px-2 py-0.5 font-medium ring-1 ring-inset ${st.cls}`}>{st.label}</span>
-                    </span>
+                <li key={s.id} className="flex items-center justify-between gap-3 px-5 py-3">
+                  <Link href={`/admin/sessions/${s.id}`} className="min-w-0 flex-1 truncate font-medium text-slate-800 hover:text-indigo-700 hover:underline">
+                    {s.name}
                   </Link>
+                  <div className="flex shrink-0 items-center gap-3 text-xs">
+                    {isMaster ? (
+                      <form action={setSessionSecretary.bind(null, id, s.id)}>
+                        <select
+                          name="userId"
+                          defaultValue={s.secretaryId ?? ""}
+                          className="rounded-md border border-slate-300 px-2 py-1 text-xs focus:border-indigo-500 focus:outline-none"
+                        >
+                          <option value="">담당 간사 미지정</option>
+                          {project.secretaries.map((sec) => (
+                            <option key={sec.id} value={sec.id}>{sec.name}</option>
+                          ))}
+                        </select>
+                        <button className="ml-1 rounded border border-slate-200 px-2 py-1 text-slate-600 transition hover:bg-slate-50">지정</button>
+                      </form>
+                    ) : (
+                      <span className="text-slate-400">간사 {s.secretary?.name ?? "미배정"}</span>
+                    )}
+                    <span className={`rounded-full px-2 py-0.5 font-medium ring-1 ring-inset ${st.cls}`}>{st.label}</span>
+                  </div>
                 </li>
               );
             })}
