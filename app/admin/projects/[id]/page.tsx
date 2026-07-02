@@ -3,11 +3,10 @@ import { prisma } from "@/lib/db";
 import { assertProjectAccess } from "@/lib/authz";
 import { deriveProjectStatus } from "@/lib/project-status";
 import {
-  assignSecretaryToProject,
-  removeSecretaryFromProject,
+  assignSecretaryToSession,
+  createSecretaryAndAssignToSession,
+  unassignSessionSecretary,
   deleteProject,
-  createSecretaryForProject,
-  setSessionSecretary,
 } from "../actions";
 
 const inputCls =
@@ -31,17 +30,15 @@ export default async function ProjectDetailPage({
   const project = await prisma.project.findUnique({
     where: { id },
     include: {
-      secretaries: { select: { id: true, name: true, username: true } },
       sessions: { orderBy: { createdAt: "desc" }, include: { secretary: { select: { name: true } } } },
     },
   });
   if (!project) return null;
 
-  const assignedIds = project.secretaries.map((s) => s.id);
-  // 배정 후보: 아직 배정되지 않은 간사(SECRETARY)
-  const availableSecretaries = isMaster
+  // 기존 간사 후보(전체 SECRETARY) — 배정 시 분과에 바로 매핑
+  const allSecretaries = isMaster
     ? await prisma.user.findMany({
-        where: { role: "SECRETARY", id: { notIn: assignedIds.length ? assignedIds : [""] } },
+        where: { role: "SECRETARY" },
         orderBy: { name: "asc" },
         select: { id: true, name: true, username: true },
       })
@@ -76,54 +73,53 @@ export default async function ProjectDetailPage({
         {project.description && <p className="mt-1 text-sm text-slate-600">{project.description}</p>}
       </div>
 
-      {/* 담당 간사 */}
-      <div className="rounded-xl border border-slate-200 bg-white p-5">
-        <div className="mb-3 text-sm font-semibold text-slate-700">담당 간사</div>
-        {project.secretaries.length === 0 ? (
-          <p className="text-sm text-slate-400">배정된 간사가 없습니다.</p>
-        ) : (
-          <ul className="space-y-1.5">
-            {project.secretaries.map((s) => (
-              <li key={s.id} className="flex items-center justify-between text-sm">
-                <span className="text-slate-700">
-                  {s.name} <span className="text-slate-400">· {s.username}</span>
-                </span>
-                {isMaster && (
-                  <form action={async () => { "use server"; await removeSecretaryFromProject(id, s.id); }}>
-                    <button className="text-xs text-rose-600 hover:underline">배정 해제</button>
-                  </form>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-        {isMaster && (
-          <>
-            <form action={assignSecretaryToProject.bind(null, id)} className="mt-3 flex gap-2">
-              <select name="userId" defaultValue="" required className={`flex-1 ${inputCls}`}>
-                <option value="" disabled>기존 간사 배정</option>
-                {availableSecretaries.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name} · {s.username}</option>
-                ))}
-              </select>
-              <button disabled={availableSecretaries.length === 0} className="shrink-0 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-40">
-                배정
-              </button>
-            </form>
-            {/* 간사 계정 인라인 생성 + 이 과제에 바로 배정 */}
-            <form action={createSecretaryForProject.bind(null, id)} className="mt-2 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3">
-              <div className="col-span-2 text-xs font-medium text-slate-500">새 간사 계정 만들어 배정</div>
-              <input name="name" placeholder="이름" required className={inputCls} />
-              <input name="username" placeholder="아이디" required className={inputCls} />
-              <input name="password" placeholder="임시 비밀번호" required className={inputCls} />
-              <input name="phone" placeholder="연락처(선택)" className={inputCls} />
-              <button className="col-span-2 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 transition hover:bg-indigo-100">
-                + 간사 생성·배정
-              </button>
-            </form>
-          </>
-        )}
-      </div>
+      {/* 간사 배정 — 간사를 (기존 선택 또는 신규 생성) 분과에 바로 배정 */}
+      {isMaster && (
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
+          <div className="mb-3 text-sm font-semibold text-slate-700">간사 배정</div>
+          {project.sessions.length === 0 ? (
+            <p className="text-sm text-slate-400">먼저 아래에서 분과를 추가한 뒤 간사를 배정하세요.</p>
+          ) : (
+            <div className="space-y-3">
+              {/* 기존 간사를 분과에 배정 */}
+              <form action={assignSecretaryToSession.bind(null, id)} className="flex flex-wrap items-end gap-2">
+                <select name="sessionId" required defaultValue="" className={`min-w-40 flex-1 ${inputCls}`}>
+                  <option value="" disabled>대상 분과</option>
+                  {project.sessions.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+                <select name="userId" required defaultValue="" className={`min-w-40 flex-1 ${inputCls}`}>
+                  <option value="" disabled>기존 간사 선택</option>
+                  {allSecretaries.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name} · {s.username}</option>
+                  ))}
+                </select>
+                <button disabled={allSecretaries.length === 0} className="shrink-0 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-40">
+                  배정
+                </button>
+              </form>
+              {/* 새 간사 만들어 분과에 배정 */}
+              <form action={createSecretaryAndAssignToSession.bind(null, id)} className="grid grid-cols-2 gap-2 border-t border-slate-100 pt-3">
+                <div className="col-span-2 text-xs font-medium text-slate-500">새 간사 만들어 분과에 배정</div>
+                <select name="sessionId" required defaultValue="" className={`col-span-2 ${inputCls}`}>
+                  <option value="" disabled>대상 분과</option>
+                  {project.sessions.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+                <input name="name" placeholder="이름" required className={inputCls} />
+                <input name="username" placeholder="아이디" required className={inputCls} />
+                <input name="password" placeholder="임시 비밀번호" required className={inputCls} />
+                <input name="phone" placeholder="연락처(선택)" className={inputCls} />
+                <button className="col-span-2 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 transition hover:bg-indigo-100">
+                  + 간사 생성·배정
+                </button>
+              </form>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 소속 분과 */}
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
@@ -148,22 +144,13 @@ export default async function ProjectDetailPage({
                     {s.name}
                   </Link>
                   <div className="flex shrink-0 items-center gap-3 text-xs">
-                    {isMaster ? (
-                      <form action={setSessionSecretary.bind(null, id, s.id)}>
-                        <select
-                          name="userId"
-                          defaultValue={s.secretaryId ?? ""}
-                          className="rounded-md border border-slate-300 px-2 py-1 text-xs focus:border-indigo-500 focus:outline-none"
-                        >
-                          <option value="">담당 간사 미지정</option>
-                          {project.secretaries.map((sec) => (
-                            <option key={sec.id} value={sec.id}>{sec.name}</option>
-                          ))}
-                        </select>
-                        <button className="ml-1 rounded border border-slate-200 px-2 py-1 text-slate-600 transition hover:bg-slate-50">지정</button>
+                    <span className="text-slate-400">
+                      간사 {s.secretary?.name ?? "미배정"}
+                    </span>
+                    {isMaster && s.secretaryId && (
+                      <form action={async () => { "use server"; await unassignSessionSecretary(id, s.id); }}>
+                        <button className="text-rose-600 hover:underline">해제</button>
                       </form>
-                    ) : (
-                      <span className="text-slate-400">간사 {s.secretary?.name ?? "미배정"}</span>
                     )}
                     <span className={`rounded-full px-2 py-0.5 font-medium ring-1 ring-inset ${st.cls}`}>{st.label}</span>
                   </div>

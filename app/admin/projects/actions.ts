@@ -19,45 +19,46 @@ export async function createProject(formData: FormData) {
   redirect(`/admin/projects/${p.id}`)
 }
 
-export async function assignSecretaryToProject(projectId: string, formData: FormData) {
+// "배정" = 간사(기존 선택)를 분과에 배정. 과제 접근 권한도 함께 부여(project.secretaries).
+export async function assignSecretaryToSession(projectId: string, formData: FormData) {
   await assertMaster()
+  const sessionId = String(formData.get('sessionId') ?? '').trim()
   const userId = String(formData.get('userId') ?? '').trim()
-  if (!userId) return
+  if (!sessionId || !userId) return
+  const session = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { projectId: true } })
+  if (!session || session.projectId !== projectId) return
   await prisma.project.update({ where: { id: projectId }, data: { secretaries: { connect: { id: userId } } } })
+  await prisma.evaluationSession.update({ where: { id: sessionId }, data: { secretaryId: userId } })
   revalidatePath(`/admin/projects/${projectId}`)
 }
 
-export async function removeSecretaryFromProject(projectId: string, userId: string) {
+// "배정" = 간사 계정을 새로 만들고 곧바로 분과에 배정(+과제 접근 부여).
+export async function createSecretaryAndAssignToSession(projectId: string, formData: FormData) {
   await assertMaster()
-  await prisma.project.update({ where: { id: projectId }, data: { secretaries: { disconnect: { id: userId } } } })
-  revalidatePath(`/admin/projects/${projectId}`)
-}
-
-// 간사 계정 인라인 생성 + 이 과제에 바로 배정
-export async function createSecretaryForProject(projectId: string, formData: FormData) {
-  await assertMaster()
+  const sessionId = String(formData.get('sessionId') ?? '').trim()
   const username = String(formData.get('username') ?? '').trim()
   const name = String(formData.get('name') ?? '').trim()
   const password = String(formData.get('password') ?? '')
   const phone = String(formData.get('phone') ?? '').trim() || null
-  if (!username || !name || !password) return
+  if (!sessionId || !username || !name || !password) return
+  const session = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { projectId: true } })
+  if (!session || session.projectId !== projectId) return
   const user = await prisma.user.upsert({
     where: { username },
     update: { name, phone: phone ?? undefined, role: 'SECRETARY' },
     create: { username, name, phone, role: 'SECRETARY', passwordHash: await hashPassword(password), tempPassword: password },
   })
   await prisma.project.update({ where: { id: projectId }, data: { secretaries: { connect: { id: user.id } } } })
+  await prisma.evaluationSession.update({ where: { id: sessionId }, data: { secretaryId: user.id } })
   revalidatePath(`/admin/projects/${projectId}`)
 }
 
-// 분과별 담당 간사 지정/해제 (마스터). userId 비면 미지정.
-export async function setSessionSecretary(projectId: string, sessionId: string, formData: FormData) {
+// 분과 담당 간사 해제(마스터)
+export async function unassignSessionSecretary(projectId: string, sessionId: string) {
   await assertMaster()
-  const userId = String(formData.get('userId') ?? '').trim() || null
-  // 분과가 이 과제 소속인지 확인
   const session = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { projectId: true } })
   if (!session || session.projectId !== projectId) return
-  await prisma.evaluationSession.update({ where: { id: sessionId }, data: { secretaryId: userId } })
+  await prisma.evaluationSession.update({ where: { id: sessionId }, data: { secretaryId: null } })
   revalidatePath(`/admin/projects/${projectId}`)
 }
 
