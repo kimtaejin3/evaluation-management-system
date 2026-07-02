@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { assertMaster } from "@/lib/authz";
+import { deriveProjectStatus } from "@/lib/project-status";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
-  DRAFT: { label: "초안", cls: "bg-slate-100 text-slate-600 ring-slate-200" },
+  DRAFT: { label: "준비중", cls: "bg-slate-100 text-slate-600 ring-slate-200" },
   IN_PROGRESS: { label: "진행중", cls: "bg-indigo-50 text-indigo-700 ring-indigo-200" },
   CLOSED: { label: "마감", cls: "bg-slate-200 text-slate-600 ring-slate-300" },
 };
@@ -44,13 +45,19 @@ export default async function ProjectsPage() {
           {projects.map((p) => {
             const total = p.sessions.length;
             const inProgress = p.sessions.filter((s) => s.status === "IN_PROGRESS").length;
+            const st = STATUS[deriveProjectStatus(p.sessions.map((s) => s.status))];
             return (
               <Link
                 key={p.id}
                 href={`/admin/projects/${p.id}`}
                 className="rounded-xl border border-slate-200 bg-white p-5 transition hover:border-indigo-300 hover:shadow-sm"
               >
-                <div className="font-semibold text-slate-800">{p.name}</div>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="font-semibold text-slate-800">{p.name}</div>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${st.cls}`}>
+                    {st.label}
+                  </span>
+                </div>
                 {p.description && <p className="mt-1 line-clamp-2 text-sm text-slate-500">{p.description}</p>}
                 <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                   <span className="rounded-md bg-slate-100 px-2 py-0.5">분과 {total}개{inProgress > 0 ? ` · 진행중 ${inProgress}` : ""}</span>

@@ -2,6 +2,7 @@ import AdminSidebar from "@/components/AdminSidebar";
 import HeaderTitle from "@/components/HeaderTitle";
 import TopProgressBar from "@/components/TopProgressBar";
 import { requireAdminUser } from "@/lib/authz";
+import { deriveProjectStatus } from "@/lib/project-status";
 import { logout } from "@/app/login/actions";
 import { prisma } from "@/lib/db";
 
@@ -19,13 +20,21 @@ export default async function AdminLayout({
       select: { id: true, name: true, status: true },
     }),
     isMaster
-      ? prisma.project.findMany({ orderBy: { createdAt: "desc" }, select: { id: true, name: true } })
+      ? prisma.project.findMany({
+          orderBy: { createdAt: "desc" },
+          select: { id: true, name: true, sessions: { select: { status: true } } },
+        })
       : Promise.resolve([]),
   ]);
+  const projectItems = projects.map((p) => ({
+    id: p.id,
+    name: p.name,
+    status: deriveProjectStatus(p.sessions.map((s) => s.status)),
+  }));
   return (
     <div className="flex min-h-screen bg-slate-100 text-slate-900">
       <TopProgressBar />
-      <AdminSidebar sessions={sessions} projects={projects} role={user.role as "MASTER" | "SECRETARY"} />
+      <AdminSidebar sessions={sessions} projects={projectItems} role={user.role as "MASTER" | "SECRETARY"} />
       <div className="flex min-h-screen flex-1 flex-col overflow-x-auto">
         <header className="flex items-center justify-between border-b border-slate-200 px-8 py-3">
           <HeaderTitle sessions={sessions} />

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { SessionsIcon, UsersIcon, CompanyIcon } from "./icons";
+import { PROJECT_STATUS_LABEL } from "@/lib/project-status";
 
 const APP_VERSION = "0.1.0";
 
@@ -165,7 +166,7 @@ export default function AdminSidebar({
   role = "MASTER",
 }: {
   sessions: Session[];
-  projects?: { id: string; name: string }[];
+  projects?: { id: string; name: string; status: string }[];
   role?: "MASTER" | "SECRETARY";
 }) {
   const pathname = usePathname();
@@ -258,9 +259,16 @@ export default function AdminSidebar({
                     key={p.id}
                     href={`/admin/projects/${p.id}`}
                     className={sessionCls(pathname.startsWith(`/admin/projects/${p.id}`))}
-                    title={p.name}
+                    title={`${p.name} · ${PROJECT_STATUS_LABEL[p.status as "DRAFT" | "IN_PROGRESS" | "CLOSED"] ?? p.status}`}
                   >
-                    <span className="truncate">{p.name}</span>
+                    <span className="flex items-center gap-1.5">
+                      <span
+                        className={`shrink-0 text-[10px] font-medium ${STATUS_TEXT[p.status] ?? "text-slate-400"}`}
+                      >
+                        {PROJECT_STATUS_LABEL[p.status as "DRAFT" | "IN_PROGRESS" | "CLOSED"] ?? p.status}
+                      </span>
+                      <span className="truncate">{p.name}</span>
+                    </span>
                   </Link>
                 ))}
               </div>
