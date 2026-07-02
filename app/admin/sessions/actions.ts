@@ -2,7 +2,6 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { saveUpload, deleteUpload, isPdf } from '@/lib/storage'
 import { canCloseSession, CLOSE_BLOCKED_MESSAGE } from '@/lib/session-rules'
@@ -190,6 +189,9 @@ export async function commitKpassImport(sessionId: string, payload: KpassImportP
   const grid = payload.grid ?? []
   if (grid.length === 0) return { ok: false, error: '가져올 내용이 없습니다.' }
 
+  // buildCriteria는 여전히 평탄한 초안(CriterionDraft[])을 반환한다(변경 없음).
+  // 등급열(type/gradeOptions)은 숫자 전용 임포트라 무시하고, section/name/description/maxScore/weight만
+  // 항목(그룹)→세부항목→평가지표(리프) 3단으로 변환해 반영한다.
   const { rows, warnings } = buildCriteria(grid, payload.mapping, {
     hasHeader: payload.hasHeader,
     typeMode: payload.typeMode,
@@ -206,32 +208,65 @@ export async function commitKpassImport(sessionId: string, payload: KpassImportP
     }
   }
 
-  await prisma.$transaction(async (tx) => {
-    let order: number
-    if (payload.replaceCriteria) {
-      await tx.criterion.deleteMany({ where: { sessionId } })
-      order = 0
-    } else {
-      order = await tx.criterion.count({ where: { sessionId } })
+  // draft.section(첫 등장 순, null/빈값 → '기타') 별로 그룹을 묶는다. 트랜잭션 밖에서 준비.
+  type GroupBucket = { section: string; leaves: typeof rows }
+  const buckets: GroupBucket[] = []
+  const bucketBySection = new Map<string, GroupBucket>()
+  for (const r of rows) {
+    const section = r.section?.trim() || '기타'
+    let bucket = bucketBySection.get(section)
+    if (!bucket) {
+      bucket = { section, leaves: [] }
+      bucketBySection.set(section, bucket)
+      buckets.push(bucket)
     }
-    for (const r of rows) {
-      await tx.criterion.create({
-        data: {
-          sessionId,
-          section: r.section,
-          name: r.name,
-          description: r.description,
-          type: r.type,
-          maxScore: r.maxScore,
-          weight: r.weight,
-          order: order++,
-          gradeOptions: r.gradeOptions
-            ? (r.gradeOptions as unknown as Prisma.InputJsonValue)
-            : Prisma.DbNull,
-        },
-      })
-    }
-  })
+    bucket.leaves.push(r)
+  }
+
+  await prisma.$transaction(
+    async (tx) => {
+      let groupOrder: number
+      let criterionOrder: number
+      if (payload.replaceCriteria) {
+        // CriterionGroup 삭제 → cascade로 하위 CriterionSubitem/Criterion/Score까지 함께 삭제
+        await tx.criterionGroup.deleteMany({ where: { sessionId } })
+        groupOrder = 0
+        criterionOrder = 0
+      } else {
+        groupOrder = await tx.criterionGroup.count({ where: { sessionId } })
+        criterionOrder = await tx.criterion.count({ where: { sessionId } })
+      }
+
+      for (const bucket of buckets) {
+        const group = await tx.criterionGroup.create({
+          data: {
+            sessionId,
+            name: bucket.section,
+            maxScore: bucket.leaves.reduce((sum, r) => sum + r.maxScore, 0),
+            order: groupOrder++,
+          },
+        })
+
+        let subitemOrder = 0
+        for (const r of bucket.leaves) {
+          const subitem = await tx.criterionSubitem.create({
+            data: { groupId: group.id, name: r.name, order: subitemOrder++ },
+          })
+          await tx.criterion.create({
+            data: {
+              sessionId,
+              subitemId: subitem.id,
+              name: r.description || r.name,
+              maxScore: r.maxScore,
+              weight: r.weight ?? 1,
+              order: criterionOrder++,
+            },
+          })
+        }
+      }
+    },
+    { timeout: 20000 },
+  )
 
   revalidatePath(`/admin/sessions/${sessionId}/criteria`)
   return { ok: true, created: rows.length, warnings }
