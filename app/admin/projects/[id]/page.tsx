@@ -37,6 +37,11 @@ export default async function ProjectDetailPage({
   });
   if (!project) return null;
 
+  // 간사에게는 본인이 담당(secretaryId)인 분과만 노출(미배정·타 간사 분과 숨김). 마스터는 전체.
+  const visibleSessions = isMaster
+    ? project.sessions
+    : project.sessions.filter((s) => s.secretaryId === user.id);
+
   // 기존 간사 후보(전체 SECRETARY) — 배정 시 분과에 바로 매핑
   const allSecretaries = isMaster
     ? await prisma.user.findMany({
@@ -74,7 +79,7 @@ export default async function ProjectDetailPage({
       {/* 소속 분과 — 과제별 분과 관리 */}
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-          <div className="font-semibold">소속 분과 ({project.sessions.length})</div>
+          <div className="font-semibold">소속 분과 ({visibleSessions.length})</div>
           <div className="flex items-center gap-2">
             {isMaster && (
               <AssignSecretaryModal
@@ -91,7 +96,7 @@ export default async function ProjectDetailPage({
             </Link>
           </div>
         </div>
-        {project.sessions.length === 0 ? (
+        {visibleSessions.length === 0 ? (
           <p className="px-5 py-8 text-center text-sm text-slate-400">아직 분과가 없습니다. ‘분과 추가’로 시작하세요.</p>
         ) : (
           <table className="w-full text-sm">
@@ -107,7 +112,7 @@ export default async function ProjectDetailPage({
               </tr>
             </thead>
             <tbody>
-              {project.sessions.map((s) => (
+              {visibleSessions.map((s) => (
                 <tr key={s.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60">
                   <td className="px-5 py-3">
                     <Link href={`/admin/sessions/${s.id}`} className="font-medium text-slate-800 hover:text-indigo-700 hover:underline">
