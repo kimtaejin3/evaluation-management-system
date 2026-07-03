@@ -101,8 +101,8 @@ export default async function AdminSheetPrintPage({
         </div>
       </div>
 
-      {/* 평가표 문서 */}
-      <div className="mx-auto max-w-[210mm] bg-white text-slate-900">
+      {/* 평가표 문서 — 화면에서는 여백·그림자로 A4 미리보기처럼, 인쇄 시 여백은 @page가 담당(문서 패딩 제거) */}
+      <div className="mx-auto max-w-[210mm] rounded-lg bg-white p-8 text-slate-900 shadow-sm ring-1 ring-slate-200 sm:p-12 print:rounded-none print:p-0 print:shadow-none print:ring-0">
         <h1 className="text-center text-xl font-bold tracking-tight">{session.name} 평가표</h1>
 
         {/* 헤더 메타 */}
