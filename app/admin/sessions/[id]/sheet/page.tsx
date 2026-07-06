@@ -72,7 +72,8 @@ export default async function AdminSheetPrintPage({
   const filled = criteria.filter((c) => valueOf.get(c.id) != null).length;
   const printedDate = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
 
-  const th = "border border-black bg-slate-100 px-3 py-1.5 text-left text-sm font-medium print:bg-transparent";
+  // 사진 양식: 배경 없음(흰 바탕) + 얇은 검은 격자. 헤더/라벨은 중앙정렬.
+  const th = "border border-black px-2 py-1.5 text-center text-sm font-medium";
   const td = "border border-black px-3 py-1.5 text-sm";
 
   return (
@@ -103,10 +104,12 @@ export default async function AdminSheetPrintPage({
 
       {/* 평가표 문서 — 화면에서는 여백·그림자로 A4 미리보기처럼, 인쇄 시 여백은 @page가 담당(문서 패딩 제거) */}
       <div className="mx-auto max-w-[210mm] rounded-lg bg-white p-8 text-slate-900 shadow-sm ring-1 ring-slate-200 sm:p-12 print:rounded-none print:p-0 print:shadow-none print:ring-0">
-        <h1 className="text-center text-xl font-bold tracking-tight">{session.name} 평가표</h1>
+        <h1 className="text-center text-2xl font-extrabold tracking-tight underline decoration-2 underline-offset-[6px]">
+          {session.name} 평가표
+        </h1>
 
         {/* 헤더 메타 */}
-        <table className="mt-4 w-full border-collapse">
+        <table className="mt-4 w-full border-collapse border border-black">
           <tbody>
             <tr>
               <th className={`${th} w-32`}>지역</th>
@@ -127,15 +130,14 @@ export default async function AdminSheetPrintPage({
           </tbody>
         </table>
 
-        {/* 평가표 */}
-        <table className="mt-3 w-full border-collapse">
+        {/* 평가표 — K-PASS 양식: 평가 항목(2열 병합 머리글) | 평가 지표(○ 불릿) | 배점·평점(세부항목 단위 병합) */}
+        <table className="-mt-px w-full border-collapse border border-black">
           <thead>
             <tr>
-              <th className={`${th} text-center`}>평가 항목</th>
-              <th className={`${th} text-center`}>세부항목</th>
+              <th colSpan={2} className={`${th} text-center`}>평가 항목</th>
               <th className={`${th} text-center`}>평가 지표</th>
-              <th className={`${th} w-16 text-center`}>배점</th>
-              <th className={`${th} w-16 text-center`}>평점</th>
+              <th className={`${th} w-14 text-center`}>배점</th>
+              <th className={`${th} w-14 text-center`}>평점</th>
             </tr>
           </thead>
           <tbody>
@@ -145,31 +147,45 @@ export default async function AdminSheetPrintPage({
               let groupPlaced = false;
               return g.subs.map((sg) => {
                 const subRowSpan = Math.max(1, sg.items.length);
+                const subMax = sg.items.reduce((m, i) => m + i.maxScore, 0);
+                const subFilled = sg.items.length > 0 && sg.items.every((i) => i.value != null);
+                const subScore = sg.items.reduce((m, i) => m + (i.value ?? 0), 0);
                 return sg.items.map((c, cIdx) => {
                   const cells: React.ReactNode[] = [];
                   if (!groupPlaced) {
                     cells.push(
-                      <td key="g" rowSpan={groupRowSpan} className={`${td} align-top`}>
-                        <span className="font-semibold">{g.name}</span>
-                        <span className="ml-1 text-xs text-slate-500">({gTotal})</span>
+                      <td key="g" rowSpan={groupRowSpan} className={`${td} w-14 px-1 text-center align-middle font-bold`}>
+                        {g.name}
+                        <div className="font-semibold">({fmt(gTotal)})</div>
                       </td>,
                     );
                     groupPlaced = true;
                   }
                   if (cIdx === 0) {
                     cells.push(
-                      <td key="s" rowSpan={subRowSpan} className={`${td} align-top`}>
+                      <td key="s" rowSpan={subRowSpan} className={`${td} w-24 px-1.5 text-center align-middle`}>
                         {sg.name || "—"}
                       </td>,
                     );
                   }
                   cells.push(
-                    <td key="c" className={`${td} align-top`}>{c.name}</td>,
-                    <td key="m" className={`${td} text-center tabular-nums align-top`}>{c.maxScore}</td>,
-                    <td key="v" className={`${td} text-center font-semibold tabular-nums align-top`}>
-                      {c.value != null ? fmt(c.value) : ""}
+                    <td key="c" className={`${td} py-1 align-middle`}>
+                      <div className="flex gap-1.5">
+                        <span aria-hidden>○</span>
+                        <span>{c.name}</span>
+                      </div>
                     </td>,
                   );
+                  if (cIdx === 0) {
+                    cells.push(
+                      <td key="m" rowSpan={subRowSpan} className={`${td} text-center align-middle tabular-nums`}>
+                        {fmt(subMax)}
+                      </td>,
+                      <td key="v" rowSpan={subRowSpan} className={`${td} text-center align-middle font-semibold tabular-nums`}>
+                        {subFilled ? fmt(subScore) : ""}
+                      </td>,
+                    );
+                  }
                   return <tr key={c.id}>{cells}</tr>;
                 });
               });
@@ -179,33 +195,37 @@ export default async function AdminSheetPrintPage({
                 <td colSpan={5} className={`${td} py-8 text-center text-slate-400`}>평가 항목이 없습니다.</td>
               </tr>
             )}
-            <tr className="font-semibold">
+            <tr className="font-bold">
               <td colSpan={3} className={`${td} text-center`}>합 계</td>
               <td className={`${td} text-center tabular-nums`}>{fmt(maxTotal)}</td>
-              <td className={`${td} text-center tabular-nums`}>{fmt(total)}</td>
+              <td className={`${td} text-center tabular-nums`}>{filled === criteria.length && criteria.length > 0 ? fmt(total) : ""}</td>
             </tr>
           </tbody>
         </table>
 
-        {/* 평가의견 */}
-        <table className="mt-3 w-full border-collapse">
+        {/* 평가의견 — 좌측 세로 라벨 + 넓은 기재란 */}
+        <table className="-mt-px w-full border-collapse border border-black">
           <tbody>
             <tr>
-              <th className={`${th} w-32 align-top`}>평가의견</th>
+              <th className={`${th} w-14 px-1 text-center align-middle`}>
+                평가
+                <br />
+                의견
+              </th>
               <td className={`${td} align-top`}>
-                <div className="min-h-24 whitespace-pre-wrap">{opinion?.text || ""}</div>
+                <div className="min-h-48 whitespace-pre-wrap py-1">{opinion?.text || ""}</div>
               </td>
             </tr>
           </tbody>
         </table>
 
-        {/* 서명란 */}
-        <div className="mt-8 text-center text-sm">
-          <div>{printedDate}</div>
-          <div className="mt-3">
+        {/* 하단 — 날짜(좌) · 평가위원 서명(우) */}
+        <div className="mt-6 flex items-end justify-between text-sm">
+          <span>{printedDate}</span>
+          <span>
             평가위원 : <span className="font-semibold">{evaluator.name}</span>
-            <span className="ml-1 text-slate-500">(인)</span>
-          </div>
+            <span className="ml-1">(인)</span>
+          </span>
         </div>
       </div>
     </div>

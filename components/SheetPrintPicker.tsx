@@ -21,8 +21,28 @@ export default function SheetPrintPicker({
     return <p className="text-sm text-slate-400">평가 대상이 없습니다.</p>
   }
 
+  // 페이지 이동 없이 숨김 iframe에 평가표(sheet)를 로드해 그 문서만 바로 인쇄.
   const print = (subjectId: string) => {
-    window.location.href = `/admin/sessions/${sessionId}/sheet?subjectId=${subjectId}&evaluatorId=${evaluatorId}`
+    const url = `/admin/sessions/${sessionId}/sheet?subjectId=${subjectId}&evaluatorId=${evaluatorId}`
+    const iframe = document.createElement('iframe')
+    iframe.setAttribute('aria-hidden', 'true')
+    iframe.style.position = 'fixed'
+    iframe.style.left = '-9999px'
+    iframe.style.width = '0'
+    iframe.style.height = '0'
+    iframe.style.border = '0'
+    iframe.onload = () => {
+      const w = iframe.contentWindow
+      if (!w) return
+      const done = () => iframe.remove()
+      w.addEventListener('afterprint', done, { once: true })
+      w.focus()
+      w.print()
+      // afterprint 미발생(취소/미지원) 대비 폴백 정리
+      setTimeout(done, 60_000)
+    }
+    iframe.src = url
+    document.body.appendChild(iframe)
   }
 
   return (

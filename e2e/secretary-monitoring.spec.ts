@@ -12,6 +12,8 @@ const NOT_OWNED = `${SESSION_PREFIX}모니터링 비담당분과`
 let ownedId = ''
 let notOwnedId = ''
 let projectId = ''
+let subjectId = ''
+let evaluatorId = ''
 
 test.beforeAll(async () => {
   // 시드 간사(gansa)를 담당 간사로 사용. 프로젝트 접근 권한(project.secretaries)도 부여.
@@ -33,7 +35,9 @@ test.beforeAll(async () => {
   })
   const company = await prisma.company.create({ data: { name: `${COMPANY_PREFIX}모니터링 기업` } })
   const subject = await prisma.subject.create({ data: { sessionId: owned.id, companyId: company.id, name: company.name, order: 0 } })
+  subjectId = subject.id
   const evaluator = await createEvaluator(prisma, 'mon1', 'E2E 모니터링 위원')
+  evaluatorId = evaluator.id
   await prisma.assignment.create({ data: { sessionId: owned.id, userId: evaluator.id } })
   await prisma.score.create({
     data: { sessionId: owned.id, evaluatorId: evaluator.id, subjectId: subject.id, criterionId: criterion.id, value: 8 },
@@ -79,4 +83,21 @@ test('과제 페이지의 소속 분과 목록에는 담당 분과만 보이고 
   // 담당 분과는 보이고, 미배정(비담당) 분과는 목록에 없다
   await expect(page.getByText(OWNED).first()).toBeVisible()
   await expect(page.getByText(NOT_OWNED)).toHaveCount(0)
+})
+
+test('담당 간사는 집계결과에서 위원별 평가표를 인쇄할 수 있다(접근·양식 확인)', async ({ page }) => {
+  // 인쇄 대화상자가 테스트를 막지 않도록 window.print 무력화(실제 인쇄 트리거는 별도 확인 불필요)
+  await page.addInitScript(() => { window.print = () => {} })
+  await loginAs(page, 'gansa', 'gansa1234', '**/admin/sessions')
+
+  // 집계결과 페이지 접근 + 위원별 평가표 인쇄 UI 노출(위원 드롭다운·인쇄 버튼)
+  await page.goto(`/admin/sessions/${ownedId}/results`)
+  await expect(page.getByText('위원별 평가표 인쇄')).toBeVisible()
+  await expect(page.getByRole('button', { name: '인쇄' }).first()).toBeVisible()
+
+  // 인쇄 대상 문서(sheet)에 담당 간사가 접근 가능(200) + 평가표·해당 위원 렌더 → 실제 출력 가능
+  const res = await page.goto(`/admin/sessions/${ownedId}/sheet?subjectId=${subjectId}&evaluatorId=${evaluatorId}`)
+  expect(res?.status()).toBe(200)
+  await expect(page.getByRole('heading', { name: /평가표/ })).toBeVisible()
+  await expect(page.getByText('E2E 모니터링 위원')).toBeVisible()
 })
