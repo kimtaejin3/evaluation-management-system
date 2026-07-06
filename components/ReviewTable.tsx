@@ -76,8 +76,8 @@ export default function ReviewTable({ sessionId, rows }: { sessionId: string; ro
             <p className="mt-1 text-sm text-slate-500">이 평가를 승인 또는 반려합니다.</p>
             <div className="mt-5 flex items-center justify-end gap-2">
               <button type="button" onClick={() => setTarget(null)} disabled={busy} className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-600">취소</button>
-              <button type="button" onClick={() => decide(false)} disabled={busy} className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">반려</button>
-              <button type="button" onClick={() => decide(true)} disabled={busy} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">승인</button>
+              <button type="button" onClick={() => decide(false)} disabled={busy} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50">반려</button>
+              <button type="button" onClick={() => decide(true)} disabled={busy} className="rounded-lg bg-[var(--gov-navy)] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[var(--gov-navy-hover)] disabled:opacity-50">승인</button>
             </div>
           </div>
         </div>

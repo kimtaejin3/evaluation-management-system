@@ -1,7 +1,5 @@
 "use client";
 
-/* eslint-disable react-hooks/refs -- 디바운스 타이머·입력중 heartbeat용 ref는 이벤트 핸들러/이펙트에서만 접근(렌더 중 접근 아님). 규칙이 ref를 닫는 핸들러를 과하게 잡는 false-positive */
-
 import { useActionState, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
@@ -166,7 +164,11 @@ export default function ScoreForm({
   const canSubmit = allFilled && allInRange;
 
   // 평가항목(group) → 세부항목(subitem) → 평가지표(criterion). criteria는 이미 group.order→subitem.order→criterion.order로 정렬되어 옴.
-  type Grp = { no: number; name: string; subs: { name: string; items: CriterionView[] }[] };
+  type Grp = {
+    no: number;
+    name: string;
+    subs: { name: string; items: CriterionView[] }[];
+  };
   const groups: Grp[] = [];
   criteria.forEach((c) => {
     let g = groups.find((x) => x.name === c.groupName);
@@ -206,7 +208,9 @@ export default function ScoreForm({
               sessionId={sessionId}
               currentId={subjectId}
               subjects={subjects}
-              onSelect={onSelectSubject ? (id) => onSelectSubject(id, "") : undefined}
+              onSelect={
+                onSelectSubject ? (id) => onSelectSubject(id, "") : undefined
+              }
             />
           ) : (
             <span className="font-semibold text-slate-800">{subjectName}</span>
@@ -225,7 +229,9 @@ export default function ScoreForm({
             </>
           )}
           {deadline && (
-            <span className="ml-auto text-xs text-slate-400">마감 {deadline}</span>
+            <span className="ml-auto text-xs text-slate-400">
+              마감 {deadline}
+            </span>
           )}
         </div>
       </div>
@@ -278,7 +284,8 @@ export default function ScoreForm({
                 평가표 · {evaluatorName} 위원
               </h2>
               <span className="text-sm">
-                합계 <b className="text-indigo-700 tabular-nums">{fmt(total)}</b>{" "}
+                합계{" "}
+                <b className="text-indigo-700 tabular-nums">{fmt(total)}</b>{" "}
                 <span className="text-slate-400">/ {fmt(maxTotal)}</span>
               </span>
             </div>
@@ -288,13 +295,21 @@ export default function ScoreForm({
                   <th className="px-3 py-2 font-medium">평가항목</th>
                   <th className="px-3 py-2 font-medium">세부항목</th>
                   <th className="px-3 py-2 font-medium">평가지표</th>
-                  <th className="w-px whitespace-nowrap px-3 py-2 text-right font-medium">배점</th>
-                  <th className="w-44 px-3 py-2 text-right font-medium">점수</th>
+                  <th className="w-px whitespace-nowrap px-3 py-2 text-right font-medium">
+                    배점
+                  </th>
+                  <th className="w-44 px-3 py-2 text-right font-medium">
+                    점수
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {groups.map((g) => {
-                  const groupRowSpan = g.subs.reduce((n, s) => n + Math.max(1, s.items.length), 0) || 1;
+                  const groupRowSpan =
+                    g.subs.reduce(
+                      (n, s) => n + Math.max(1, s.items.length),
+                      0,
+                    ) || 1;
                   let groupPlaced = false;
                   return g.subs.map((sg) => {
                     const subRowSpan = Math.max(1, sg.items.length);
@@ -303,10 +318,18 @@ export default function ScoreForm({
                       const cells: React.ReactNode[] = [];
                       if (!groupPlaced) {
                         cells.push(
-                          <td key="g" rowSpan={groupRowSpan} className="border-r border-slate-100 px-3 py-3 align-top">
+                          <td
+                            key="g"
+                            rowSpan={groupRowSpan}
+                            className="border-r border-slate-100 px-3 py-3 align-top"
+                          >
                             <span className="flex items-center gap-1.5">
-                              <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-semibold text-indigo-700">{g.no}</span>
-                              <span className="font-semibold text-slate-700">{g.name}</span>
+                              <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-semibold text-indigo-700">
+                                {g.no}
+                              </span>
+                              <span className="font-semibold text-slate-700">
+                                {g.name}
+                              </span>
                             </span>
                           </td>,
                         );
@@ -314,16 +337,29 @@ export default function ScoreForm({
                       }
                       if (cIdx === 0) {
                         cells.push(
-                          <td key="s" rowSpan={subRowSpan} className="border-r border-slate-100 px-3 py-3 align-top text-slate-600">
-                            {sg.name || <span className="text-slate-400">—</span>}
+                          <td
+                            key="s"
+                            rowSpan={subRowSpan}
+                            className="border-r border-slate-100 px-3 py-3 align-top text-slate-600"
+                          >
+                            {sg.name || (
+                              <span className="text-slate-400">—</span>
+                            )}
                           </td>,
                         );
                       }
                       cells.push(
                         <td key="c" className="px-3 py-2.5 align-top">
-                          <div className="font-medium text-slate-800">{c.name}</div>
+                          <div className="font-medium text-slate-800">
+                            {c.name}
+                          </div>
                         </td>,
-                        <td key="m" className="px-3 py-2.5 text-right align-top tabular-nums text-slate-400">{c.maxScore}</td>,
+                        <td
+                          key="m"
+                          className="px-3 py-2.5 text-right align-top tabular-nums text-slate-400"
+                        >
+                          {c.maxScore}
+                        </td>,
                         <td key="v" className="px-3 py-2.5 align-top">
                           <div className="flex items-center justify-end gap-1">
                             <input
@@ -339,15 +375,22 @@ export default function ScoreForm({
                               placeholder="입력"
                               className={`w-20 rounded-md border px-2 py-1.5 text-right text-sm font-semibold focus:outline-none focus:ring-1 ${outOfRange ? "border-rose-400 text-rose-600 focus:border-rose-500 focus:ring-rose-500" : "border-slate-300 text-slate-800 focus:border-indigo-500 focus:ring-indigo-500"}`}
                             />
-                            <span className="text-xs text-slate-400">/ {c.maxScore}</span>
+                            <span className="text-xs text-slate-400">
+                              / {c.maxScore}
+                            </span>
                           </div>
                           {outOfRange && (
-                            <div className="mt-0.5 text-right text-xs text-rose-500">0~{c.maxScore} 범위로 입력하세요</div>
+                            <div className="mt-0.5 text-right text-xs text-rose-500">
+                              0~{c.maxScore} 범위로 입력하세요
+                            </div>
                           )}
                         </td>,
                       );
                       return (
-                        <tr key={c.id} className="border-b border-slate-50 last:border-0">
+                        <tr
+                          key={c.id}
+                          className="border-b border-slate-50 last:border-0"
+                        >
                           {cells}
                         </tr>
                       );
@@ -356,7 +399,12 @@ export default function ScoreForm({
                 })}
                 {criteria.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-3 py-10 text-center text-slate-400">평가 항목이 없습니다.</td>
+                    <td
+                      colSpan={5}
+                      className="px-3 py-10 text-center text-slate-400"
+                    >
+                      평가 항목이 없습니다.
+                    </td>
                   </tr>
                 )}
               </tbody>
@@ -370,16 +418,25 @@ export default function ScoreForm({
                 <div className="text-xs text-slate-400">현재 점수</div>
                 <div className="text-3xl font-bold text-indigo-700 tabular-nums">
                   {fmt(total)}
-                  <span className="text-base font-normal text-slate-400"> / {fmt(maxTotal)}</span>
+                  <span className="text-base font-normal text-slate-400">
+                    {" "}
+                    / {fmt(maxTotal)}
+                  </span>
                 </div>
-                <div className="mt-1 text-xs text-slate-400">입력 {filledCount}/{criteria.length}</div>
+                <div className="mt-1 text-xs text-slate-400">
+                  입력 {filledCount}/{criteria.length}
+                </div>
               </div>
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-white p-4">
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-sm font-semibold text-slate-700">종합의견</span>
-                <span className="text-xs text-slate-400">{comment.length} / 1000</span>
+                <span className="text-sm font-semibold text-slate-700">
+                  종합의견
+                </span>
+                <span className="text-xs text-slate-400">
+                  {comment.length} / 1000
+                </span>
               </div>
               <textarea
                 name="comment"
@@ -406,17 +463,25 @@ export default function ScoreForm({
             </div>
 
             {state?.error && (
-              <p className="rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-inset ring-rose-200">{state.error}</p>
+              <p className="rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-inset ring-rose-200">
+                {state.error}
+              </p>
             )}
             {state?.saved && (
-              <p className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700 ring-1 ring-inset ring-emerald-200">임시 저장되었습니다.</p>
+              <p className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                임시 저장되었습니다.
+              </p>
             )}
 
             {submissionStatus === "SUBMITTED" && (
-              <p className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-700 ring-1 ring-inset ring-amber-200">제출됨 · 간사 승인 대기 (수정하려면 간사에게 반려를 요청하세요)</p>
+              <p className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-700 ring-1 ring-inset ring-amber-200">
+                제출됨 · 승인 대기
+              </p>
             )}
             {submissionStatus === "APPROVED" && (
-              <p className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700 ring-1 ring-inset ring-emerald-200">승인 완료</p>
+              <p className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                승인 완료
+              </p>
             )}
 
             {!locked && (
@@ -427,7 +492,9 @@ export default function ScoreForm({
                   disabled={!canSubmit || isPending}
                   className="w-full rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-40"
                 >
-                  {submissionStatus === "REJECTED" ? "재제출 확인 →" : "제출 전 확인 →"}
+                  {submissionStatus === "REJECTED"
+                    ? "재제출 확인 →"
+                    : "제출 전 확인 →"}
                 </button>
                 <button
                   name="intent"
@@ -438,10 +505,14 @@ export default function ScoreForm({
                   임시 저장
                 </button>
                 {!allInRange ? (
-                  <p className="text-center text-xs text-rose-500">배점을 초과하거나 0 미만인 항목이 있습니다.</p>
+                  <p className="text-center text-xs text-rose-500">
+                    배점을 초과하거나 0 미만인 항목이 있습니다.
+                  </p>
                 ) : (
                   !allFilled && (
-                    <p className="text-center text-xs text-slate-400">모든 항목 입력 시 제출할 수 있습니다.</p>
+                    <p className="text-center text-xs text-slate-400">
+                      모든 항목 입력 시 제출할 수 있습니다.
+                    </p>
                   )
                 )}
               </div>
@@ -454,13 +525,20 @@ export default function ScoreForm({
       {confirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
           <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6">
-            <div className="text-xs text-slate-400">제출 확인 · 제출 후에는 관리자만 재오픈할 수 있습니다</div>
-            <h2 className="mt-1 text-lg font-bold text-slate-900">{subjectName} 평가를 제출할까요?</h2>
+            <div className="text-xs text-slate-400">
+              제출 확인 · 제출 후에는 관리자만 재오픈할 수 있습니다
+            </div>
+            <h2 className="mt-1 text-lg font-bold text-slate-900">
+              {subjectName} 평가를 제출할까요?
+            </h2>
             <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
               <div className="flex items-end justify-between">
                 <span className="text-sm text-slate-500">합계 점수</span>
                 <span className="text-2xl font-bold text-indigo-700 tabular-nums">
-                  {fmt(total)} <span className="text-sm font-normal text-slate-400">/ {fmt(maxTotal)}</span>
+                  {fmt(total)}{" "}
+                  <span className="text-sm font-normal text-slate-400">
+                    / {fmt(maxTotal)}
+                  </span>
                 </span>
               </div>
             </div>

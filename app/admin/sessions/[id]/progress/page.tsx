@@ -31,7 +31,7 @@ async function ProgressContent({ id }: { id: string }) {
         <StatCard label="입력 완료 위원" value={`${p.completedEvaluators}/${p.assignedCount}`} />
         <StatCard label="평가 항목" value={`${p.totalCriteria}개`} />
       </div>
-      <MonitoringGrid data={p} />
+      <MonitoringGrid data={p} sessionId={id} />
       <ReviewTable sessionId={id} rows={p.review} />
     </div>
   )

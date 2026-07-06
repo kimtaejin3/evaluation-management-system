@@ -106,7 +106,7 @@ async function MonitoringSection({ id }: { id: string }) {
         ))}
       </div>
 
-      <MonitoringGrid data={p} />
+      <MonitoringGrid data={p} sessionId={id} />
       <DashboardInsights data={insights} sessionId={id} />
     </section>
   )

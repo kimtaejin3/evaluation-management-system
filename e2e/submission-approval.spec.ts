@@ -52,7 +52,7 @@ test('제출→잠금→반려→재제출→승인→집계 반영', async ({ p
   // 재진입 시 잠금(입력 비활성 + 대기 배너)
   await openSheet(page)
   await expect(page.locator('input[type="number"]').first()).toBeDisabled()
-  await expect(page.getByText('제출됨 · 간사 승인 대기')).toBeVisible()
+  await expect(page.getByText('제출됨 · 승인 대기')).toBeVisible()
 
   // 2) 간사 반려
   await loginAs(page, 'gansa', 'gansa1234', '**/admin/sessions')

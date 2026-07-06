@@ -2,7 +2,7 @@ import type { ProgressData } from "@/lib/progress";
 import MonitoringCell from "@/components/MonitoringCell";
 
 // 행 = 대상(기업), 열 = 평가위원. 각 칸은 상태 텍스트(입력완료/입력중/미입력) + 클릭 시 항목 현황 모달.
-export default function MonitoringGrid({ data }: { data: ProgressData }) {
+export default function MonitoringGrid({ data, sessionId }: { data: ProgressData; sessionId: string }) {
   const evaluators = data.rows; // userId, name, isChair, cells(대상 순서와 동일)
   const subjects = data.subjects;
 
@@ -36,7 +36,7 @@ export default function MonitoringGrid({ data }: { data: ProgressData }) {
                 </td>
                 {evaluators.map((e) => (
                   <td key={e.userId} className="border-b border-slate-100 px-2 py-2 text-center group-last:border-b-0">
-                    <MonitoringCell cell={e.cells[si]} subjectName={s.name} evaluatorName={e.name} />
+                    <MonitoringCell cell={e.cells[si]} subjectName={s.name} evaluatorName={e.name} sessionId={sessionId} evaluatorId={e.userId} />
                   </td>
                 ))}
               </tr>
