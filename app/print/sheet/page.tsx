@@ -69,9 +69,9 @@ export default async function SheetPrintPage({
   const filled = criteria.filter((c) => valueOf.get(c.id) != null).length;
   const printedDate = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
 
-  // 사진 양식: 배경 없음(흰 바탕) + 얇은 검은 격자. 헤더/라벨은 중앙정렬.
-  const th = "border border-black px-2 py-1.5 text-center text-sm font-medium";
-  const td = "border border-black px-3 py-1.5 text-sm";
+  // 헤더/라벨 칸은 회색 배경으로 구분, 행 높이는 컴팩트하게(py-1).
+  const th = "border border-black bg-slate-200 px-2 py-1 text-center text-sm font-bold print:bg-slate-200";
+  const td = "border border-black px-3 py-1 text-sm";
 
   return (
     <div className="min-h-screen bg-slate-100 py-6 print:bg-white print:py-0">
@@ -106,7 +106,7 @@ export default async function SheetPrintPage({
         </h1>
 
         {/* 헤더 메타 */}
-        <table className="mt-4 w-full border-collapse border border-black">
+        <table className="mt-4 w-full border-collapse">
           <tbody>
             <tr>
               <th className={`${th} w-32`}>지역</th>
@@ -128,7 +128,7 @@ export default async function SheetPrintPage({
         </table>
 
         {/* 평가표 — K-PASS 양식: 평가 항목(2열 병합 머리글) | 평가 지표(○ 불릿) | 배점·평점(세부항목 단위 병합) */}
-        <table className="-mt-px w-full border-collapse border border-black">
+        <table className="-mt-px w-full border-collapse">
           <thead>
             <tr>
               <th colSpan={2} className={`${th} text-center`}>평가 항목</th>
@@ -201,7 +201,7 @@ export default async function SheetPrintPage({
         </table>
 
         {/* 평가의견 — 좌측 세로 라벨 + 넓은 기재란 */}
-        <table className="-mt-px w-full border-collapse border border-black">
+        <table className="-mt-px w-full border-collapse">
           <tbody>
             <tr>
               <th className={`${th} w-14 px-1 text-center align-middle`}>
@@ -210,7 +210,7 @@ export default async function SheetPrintPage({
                 의견
               </th>
               <td className={`${td} align-top`}>
-                <div className="min-h-48 whitespace-pre-wrap py-1">{opinion?.text || ""}</div>
+                <div className="min-h-28 whitespace-pre-wrap py-0.5">{opinion?.text || ""}</div>
               </td>
             </tr>
           </tbody>
