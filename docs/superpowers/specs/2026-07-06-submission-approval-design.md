@@ -30,7 +30,6 @@ model Submission {
   evaluatorId  String
   subjectId    String
   status       SubmissionStatus @default(DRAFT)
-  rejectReason String?
   submittedAt  DateTime?
   decidedAt    DateTime?
   decidedById  String?
@@ -46,7 +45,7 @@ model Submission {
    │  위원 '제출'(전 항목 필수)
    ▼
 SUBMITTED(제출완료) ── 간사 '승인' ──▶ APPROVED(승인, 최종·잠금)
-   │  간사 '반려'(+사유)
+   │  간사 '반려'
    ▼
 REJECTED(반려) ── 편집 재개(점수 유지) ── 위원 '재제출' ──▶ SUBMITTED …
 ```
@@ -59,11 +58,11 @@ REJECTED(반려) ── 편집 재개(점수 유지) ── 위원 '재제출' �
 
 - `saveScores`(intent=`submit`): 전 항목 유효 입력 확인 후 점수 upsert + `Submission` 상태 `SUBMITTED`(submittedAt 기록). 재제출 시에도 동일.
 - **잠금 가드**: `autoSaveScore`·`saveScores`는 현재 상태가 `SUBMITTED`/`APPROVED`면 저장 거부(`error: 'locked'`). `REJECTED`/`DRAFT`/없음이면 허용.
-- `getSheetData`: 현재 (위원,대상)의 `status`·`rejectReason` 포함 반환.
+- `getSheetData`: 현재 (위원,대상)의 `status` 포함 반환.
 - **ScoreForm UI**:
   - `SUBMITTED`: 입력 read-only, 배너 "제출됨 · 간사 승인 대기", 제출/임시저장 숨김.
   - `APPROVED`: read-only, 배너 "승인 완료".
-  - `REJECTED`: 편집 가능, 배너 "반려됨 · 사유: {reason} · 수정 후 재제출", 제출 버튼 라벨 "재제출".
+  - `REJECTED`: 편집 가능, 배너 "반려됨 · 수정 후 재제출", 제출 버튼 라벨 "재제출".
   - 없음/`DRAFT`: 현재와 동일(입력·임시저장·제출).
 - 위원 홈(`getHomeData`) 대상 상태 배지에 제출완료/승인/반려 반영.
 
@@ -71,10 +70,10 @@ REJECTED(반려) ── 편집 재개(점수 유지) ── 위원 '재제출' �
 
 - **위치:** 분과 상세 > 실시간 모니터링(`/admin/sessions/[id]/progress`) 하단에 "제출 검토" 표 추가(신규 컴포넌트 `ReviewTable`, client).
 - **표(사진 양식):** `대상 | 위원 | 점수(총점) | 현황 | 승인·반려`. 행 = (대상 × 배정 위원). 현황 = 작성중/입력완료/제출완료/승인/반려.
-- **버튼:** `제출완료` 행에서만 승인/반려 활성(그 외 비활성). 클릭 시 **확인 모달**(승인은 즉시 확인, 반려는 사유 입력란 — 선택). 새 창 아님(모달).
+- **버튼:** `제출완료` 행에서만 "승인/반려" 버튼 활성(그 외 비활성). 클릭 시 **확인 모달**이 열리고, 모달에서 **[승인] 또는 [반려] 중 하나를 선택해 확정**한다(사유 입력 없음). 새 창 아님(모달).
 - **서버 액션**(`app/admin/sessions/actions.ts`):
   - `approveEvaluation(sessionId, subjectId, evaluatorId)`: `assertSessionAccess`(담당 간사·마스터), 상태가 `SUBMITTED`일 때만 `APPROVED`. `revalidatePath` progress·results.
-  - `rejectEvaluation(sessionId, subjectId, evaluatorId, reason?)`: 동일 권한, `SUBMITTED`일 때만 `REJECTED`+reason. revalidate.
+  - `rejectEvaluation(sessionId, subjectId, evaluatorId)`: 동일 권한, `SUBMITTED`일 때만 `REJECTED`. revalidate.
 - 데이터: `getSessionProgress`(또는 신규 함수)가 (위원,대상) submission 맵과 총점을 함께 반환.
 
 ## 집계 변경 (승인분만)
@@ -96,7 +95,7 @@ REJECTED(반려) ── 편집 재개(점수 유지) ── 위원 '재제출' �
 ## 테스트
 
 - **unit(`lib/submission.ts`)**: 상태별 편집 가능 여부, 파생 셀 상태, 집계 필터 헬퍼.
-- **component**: `ReviewTable` — 상태별 승인/반려 버튼 활성·비활성, 반려 모달 사유 입력, 확인 시 액션 호출.
+- **component**: `ReviewTable` — 상태별 승인/반려 버튼 활성·비활성, 확인 모달에서 승인/반려 선택 시 해당 액션 호출.
 - **e2e(안전 픽스처)**: 위원 제출 → 잠금(수정 불가) → 간사 반려 → 위원 재편집·재제출 → 간사 승인 → 집계에 반영. 권한: 담당 간사만 승인/반려, 타 분과 불가.
 
 ## 파일 (신규/변경)
@@ -111,5 +110,5 @@ REJECTED(반려) ── 편집 재개(점수 유지) ── 위원 '재제출' �
 ## 미해결/비범위(YAGNI)
 
 - 승인 취소·승인본 재오픈: 범위 밖(필요 시 후속).
-- 반려 사유: 선택 입력(필수 아님).
+- 반려 사유: **없음**(승인/반려는 모달에서 선택 확정만). 사유 기록이 필요하면 후속.
 - 위원별 개별 항목 코멘트(사진의 3분할 의견 등)는 별개 기능.
