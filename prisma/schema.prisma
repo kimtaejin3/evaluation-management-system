@@ -20,6 +20,13 @@ enum SessionStatus {
   CLOSED
 }
 
+enum SubmissionStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
 model User {
   id           String       @id @default(cuid())
   username     String       @unique
@@ -67,6 +74,7 @@ model EvaluationSession {
   subjects        Subject[]
   assignments     Assignment[]
   scores          Score[]
+  submissions     Submission[]
   documents       Document[]
   createdAt       DateTime         @default(now())
 
@@ -206,4 +214,21 @@ model Score {
   updatedAt   DateTime          @updatedAt
 
   @@unique([evaluatorId, subjectId, criterionId])
+}
+
+// (위원 × 대상)별 제출/승인 상태
+model Submission {
+  id          String            @id @default(cuid())
+  sessionId   String
+  session     EvaluationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  evaluatorId String
+  subjectId   String
+  status      SubmissionStatus  @default(DRAFT)
+  submittedAt DateTime?
+  decidedAt   DateTime?
+  decidedById String?
+  updatedAt   DateTime          @updatedAt
+
+  @@unique([evaluatorId, subjectId])
+  @@index([sessionId])
 }
