@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/session'
 import { isValidScoreValue } from '@/lib/scoring'
+import { canEvaluatorEdit } from '@/lib/submission'
 
 // 평가위원장이 심사 전체 총평(1건)을 저장 — 위원장 본인만 가능.
 export async function saveChairSummary(sessionId: string, formData: FormData): Promise<{ ok: boolean; error?: string }> {
@@ -55,6 +56,12 @@ export async function autoSaveScore(
   })
   if (!assigned) return { ok: false, error: 'not-assigned' }
 
+  const sub = await prisma.submission.findUnique({
+    where: { evaluatorId_subjectId: { evaluatorId: user.id, subjectId } },
+    select: { status: true },
+  })
+  if (!canEvaluatorEdit(sub?.status ?? null)) return { ok: false, error: 'locked' }
+
   const c = await prisma.criterion.findUnique({ where: { id: criterionId } })
   if (!c || c.sessionId !== sessionId) return { ok: false, error: 'bad-criterion' }
 
@@ -96,6 +103,14 @@ export async function saveScores(
   })
   if (!assigned) return { error: '배정되지 않은 심사입니다.' }
 
+  const existingSub = await prisma.submission.findUnique({
+    where: { evaluatorId_subjectId: { evaluatorId: user.id, subjectId } },
+    select: { status: true },
+  })
+  if (!canEvaluatorEdit(existingSub?.status ?? null)) {
+    return { error: '이미 제출/승인되어 수정할 수 없습니다.' }
+  }
+
   const criteria = await prisma.criterion.findMany({ where: { sessionId } })
 
   for (const c of criteria) {
@@ -133,6 +148,13 @@ export async function saveScores(
     revalidatePath(`/evaluate/${sessionId}/${subjectId}`)
     return { saved: true }
   }
+
+  // 제출: 제출완료 상태로 기록(재제출 시에도 SUBMITTED로 갱신)
+  await prisma.submission.upsert({
+    where: { evaluatorId_subjectId: { evaluatorId: user.id, subjectId } },
+    update: { status: 'SUBMITTED', submittedAt: new Date() },
+    create: { sessionId, evaluatorId: user.id, subjectId, status: 'SUBMITTED', submittedAt: new Date() },
+  })
 
   // 제출 후: 같은 심사의 다음 평가대상으로 이동. 마지막이면 목록으로(제출 안내).
   const subjects = await prisma.subject.findMany({
