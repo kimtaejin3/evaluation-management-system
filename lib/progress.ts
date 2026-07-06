@@ -185,12 +185,17 @@ export interface SessionInsights {
 }
 
 export async function getSessionInsights(sessionId: string): Promise<SessionInsights> {
-  const [subjects, criteria, assignments, scores] = await Promise.all([
+  const [subjects, criteria, assignments, allScores, approvedSubs] = await Promise.all([
     prisma.subject.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } }),
     prisma.criterion.findMany({ where: { sessionId }, select: { id: true, weight: true } }),
     prisma.assignment.findMany({ where: { sessionId }, select: { userId: true } }),
     prisma.score.findMany({ where: { sessionId }, select: { evaluatorId: true, subjectId: true, criterionId: true, value: true } }),
+    prisma.submission.findMany({ where: { sessionId, status: 'APPROVED' }, select: { evaluatorId: true, subjectId: true } }),
   ])
+
+  // 잠정 순위·편차도 승인분만 반영
+  const approved = new Set(approvedSubs.map((s) => `${s.evaluatorId}:${s.subjectId}`))
+  const scores = allScores.filter((s) => approved.has(`${s.evaluatorId}:${s.subjectId}`))
 
   const totalCriteria = criteria.length
   const evaluatorIds = assignments.map((a) => a.userId)

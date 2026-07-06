@@ -34,7 +34,7 @@ export default async function ResultsPage({
 }
 
 async function ResultsContent({ id }: { id: string }) {
-  const [session, subjects, criteria, scores, assignments, insights] = await Promise.all([
+  const [session, subjects, criteria, scores, assignments, insights, approvedSubs] = await Promise.all([
     prisma.evaluationSession.findUnique({ where: { id } }),
     prisma.subject.findMany({ where: { sessionId: id } }),
     prisma.criterion.findMany({
@@ -44,10 +44,15 @@ async function ResultsContent({ id }: { id: string }) {
     prisma.score.findMany({ where: { sessionId: id } }),
     prisma.assignment.findMany({ where: { sessionId: id }, include: { user: { select: { id: true, name: true } } } }),
     getSessionInsights(id),
+    prisma.submission.findMany({ where: { sessionId: id, status: "APPROVED" }, select: { evaluatorId: true, subjectId: true } }),
   ]);
 
+  // 집계는 승인(APPROVED)된 (위원, 대상)의 점수만 사용
+  const approved = new Set(approvedSubs.map((s) => `${s.evaluatorId}:${s.subjectId}`));
+  const approvedScores = scores.filter((s) => approved.has(`${s.evaluatorId}:${s.subjectId}`));
+
   const finalScores = computeFinalScores(
-    scores.map((s) => ({
+    approvedScores.map((s) => ({
       evaluatorId: s.evaluatorId,
       subjectId: s.subjectId,
       criterionId: s.criterionId,
@@ -70,7 +75,7 @@ async function ResultsContent({ id }: { id: string }) {
   const divergent = insights.rows.filter((r) => r.spread !== null && r.spread >= 10);
   // (위원:대상:항목) → 점수 (RankingTable에 전달, 클라이언트에서 평균·위원별 계산)
   const scoreVal = new Map<string, number>();
-  for (const s of scores) scoreVal.set(`${s.evaluatorId}:${s.subjectId}:${s.criterionId}`, s.value);
+  for (const s of approvedScores) scoreVal.set(`${s.evaluatorId}:${s.subjectId}:${s.criterionId}`, s.value);
   const printedAt = new Date().toLocaleString("ko-KR", { dateStyle: "long", timeStyle: "short" });
   const chair = session?.chairId ? await prisma.user.findUnique({ where: { id: session.chairId }, select: { name: true } }) : null;
 

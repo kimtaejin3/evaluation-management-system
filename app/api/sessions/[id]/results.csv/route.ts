@@ -15,9 +15,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const subjects = await prisma.subject.findMany({ where: { sessionId: id } })
   const criteria = await prisma.criterion.findMany({ where: { sessionId: id } })
   const scores = await prisma.score.findMany({ where: { sessionId: id } })
+  const approvedSubs = await prisma.submission.findMany({ where: { sessionId: id, status: 'APPROVED' }, select: { evaluatorId: true, subjectId: true } })
+
+  // 집계는 승인분만
+  const approved = new Set(approvedSubs.map((s) => `${s.evaluatorId}:${s.subjectId}`))
+  const approvedScores = scores.filter((s) => approved.has(`${s.evaluatorId}:${s.subjectId}`))
 
   const finalScores = computeFinalScores(
-    scores.map((s) => ({ evaluatorId: s.evaluatorId, subjectId: s.subjectId, criterionId: s.criterionId, value: s.value })),
+    approvedScores.map((s) => ({ evaluatorId: s.evaluatorId, subjectId: s.subjectId, criterionId: s.criterionId, value: s.value })),
     criteria.map((c) => ({ id: c.id, weight: c.weight })),
   )
   const ranked = rankSubjects(finalScores)
