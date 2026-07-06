@@ -23,13 +23,6 @@ export interface CriterionView {
 }
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
-const QUICK = [
-  "전략 명확함",
-  "리스크 우려",
-  "조직 안정",
-  "실적 우수",
-  "보완 필요",
-];
 
 export default function ScoreForm({
   sessionId,
@@ -448,18 +441,6 @@ export default function ScoreForm({
                 placeholder="대상에 대한 종합적인 평가 의견을 입력하세요. (선택)"
                 className="w-full resize-none rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {QUICK.map((q) => (
-                  <button
-                    key={q}
-                    type="button"
-                    onClick={() => setComment((c) => (c ? `${c} ${q}` : q))}
-                    className="rounded-full border border-slate-200 px-2.5 py-0.5 text-xs text-slate-500 transition hover:border-indigo-300 hover:text-indigo-600"
-                  >
-                    {q}
-                  </button>
-                ))}
-              </div>
             </div>
 
             {state?.error && (
