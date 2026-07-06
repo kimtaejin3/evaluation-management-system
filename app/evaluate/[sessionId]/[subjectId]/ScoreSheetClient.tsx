@@ -75,7 +75,7 @@ export default function ScoreSheetClient({
     let ignore = false
     setData(null)
     setError(false)
-    fetch(`/api/evaluate/sheet?sessionId=${encodeURIComponent(sessionId)}&subjectId=${encodeURIComponent(cur)}`)
+    fetch(`/api/evaluate/sheet?sessionId=${encodeURIComponent(sessionId)}&subjectId=${encodeURIComponent(cur)}`, { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then((d: SheetData) => {
         if (ignore) return

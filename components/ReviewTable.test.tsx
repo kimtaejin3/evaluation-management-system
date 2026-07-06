@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }))
 vi.mock('@/app/admin/sessions/actions', () => ({
   approveEvaluation: vi.fn(() => Promise.resolve()),
   rejectEvaluation: vi.fn(() => Promise.resolve()),

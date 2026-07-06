@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { approveEvaluation, rejectEvaluation } from '@/app/admin/sessions/actions'
 import { cellStatusLabel } from '@/lib/submission'
 import type { ReviewRow } from '@/lib/progress'
@@ -11,6 +12,7 @@ const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1))
 export default function ReviewTable({ sessionId, rows }: { sessionId: string; rows: ReviewRow[] }) {
   const [target, setTarget] = useState<ReviewRow | null>(null)
   const [busy, setBusy] = useState(false)
+  const router = useRouter()
 
   const decide = async (approve: boolean) => {
     if (!target) return
@@ -19,6 +21,7 @@ export default function ReviewTable({ sessionId, rows }: { sessionId: string; ro
       if (approve) await approveEvaluation(sessionId, target.subjectId, target.evaluatorId)
       else await rejectEvaluation(sessionId, target.subjectId, target.evaluatorId)
       setTarget(null)
+      router.refresh()
     } finally {
       setBusy(false)
     }
