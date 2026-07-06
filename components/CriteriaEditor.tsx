@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { type FormEvent, useOptimistic, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   addGroup,
@@ -29,6 +29,30 @@ type SubitemDTO = { id: string; name: string; criteria: LeafDTO[] };
 type GroupDTO = { id: string; name: string; maxScore: number; subitems: SubitemDTO[] };
 
 type RunFn = (fn: () => Promise<void>) => void;
+type AddFn = (id: string, fd: FormData) => void;
+
+// 추가(그룹·세부항목·평가지표) 낙관적 업데이트 — 임시 id로 즉시 삽입, 서버 확정 후 revalidate로 교체
+type OptAction =
+  | { kind: "group"; id: string; name: string; maxScore: number }
+  | { kind: "subitem"; id: string; groupId: string; name: string }
+  | { kind: "criterion"; id: string; subitemId: string; name: string; maxScore: number };
+
+export function optReducer(state: GroupDTO[], a: OptAction): GroupDTO[] {
+  if (a.kind === "group") {
+    return [...state, { id: a.id, name: a.name, maxScore: a.maxScore, subitems: [] }];
+  }
+  if (a.kind === "subitem") {
+    return state.map((g) =>
+      g.id === a.groupId ? { ...g, subitems: [...g.subitems, { id: a.id, name: a.name, criteria: [] }] } : g,
+    );
+  }
+  return state.map((g) => ({
+    ...g,
+    subitems: g.subitems.map((s) =>
+      s.id === a.subitemId ? { ...s, criteria: [...s.criteria, { id: a.id, name: a.name, maxScore: a.maxScore }] } : s,
+    ),
+  }));
+}
 
 const COL_COUNT = 7;
 
@@ -43,6 +67,9 @@ export default function CriteriaEditor({
   const [pending, start] = useTransition();
   const [preview, setPreview] = useState(false);
   const [addingGroup, setAddingGroup] = useState(false);
+  const [optimisticGroups, applyOptimistic] = useOptimistic<GroupDTO[], OptAction>(groups, optReducer);
+  const tmpRef = useRef(0);
+  const nextTmp = () => `tmp-${tmpRef.current++}`;
 
   const run: RunFn = (fn) => {
     start(async () => {
@@ -51,10 +78,38 @@ export default function CriteriaEditor({
     });
   };
 
-  const submitAddGroup = (fd: FormData) => {
-    run(async () => {
+  const submitAddGroup = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const name = String(fd.get("name") ?? "").trim();
+    if (!name) return;
+    const maxScore = Number(fd.get("maxScore") ?? 0) || 0;
+    setAddingGroup(false); // 입력창 즉시 닫기(urgent)
+    start(async () => {
+      applyOptimistic({ kind: "group", id: nextTmp(), name, maxScore });
       await addGroup(sessionId, fd);
-      setAddingGroup(false);
+      router.refresh();
+    });
+  };
+
+  const addSubitemOpt: AddFn = (groupId, fd) => {
+    const name = String(fd.get("name") ?? "").trim();
+    if (!name) return;
+    start(async () => {
+      applyOptimistic({ kind: "subitem", id: nextTmp(), groupId, name });
+      await addSubitem(groupId, fd);
+      router.refresh();
+    });
+  };
+
+  const addCriterionOpt: AddFn = (subitemId, fd) => {
+    const name = String(fd.get("name") ?? "").trim();
+    if (!name) return;
+    const maxScore = Number(fd.get("maxScore") ?? 0) || 0;
+    start(async () => {
+      applyOptimistic({ kind: "criterion", id: nextTmp(), subitemId, name, maxScore });
+      await addCriterion(subitemId, fd);
+      router.refresh();
     });
   };
 
@@ -80,7 +135,7 @@ export default function CriteriaEditor({
       </div>
 
       {preview ? (
-        <CriteriaPreviewTable groups={groups} />
+        <CriteriaPreviewTable groups={optimisticGroups} />
       ) : (
         <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
           <table className="w-full text-sm">
@@ -99,7 +154,7 @@ export default function CriteriaEditor({
               {addingGroup && (
                 <tr className="border-b border-indigo-100 bg-indigo-50/40">
                   <td colSpan={COL_COUNT} className="px-4 py-3">
-                    <form action={submitAddGroup} className="flex flex-wrap items-end gap-3">
+                    <form onSubmit={submitAddGroup} className="flex flex-wrap items-end gap-3">
                       <label className="flex flex-col gap-1 text-xs text-slate-500">
                         평가항목명
                         <input name="name" required placeholder="예: 사업계획" className={`w-56 ${inputCls}`} autoFocus />
@@ -116,10 +171,17 @@ export default function CriteriaEditor({
                   </td>
                 </tr>
               )}
-              {groups.map((g) => (
-                <GroupBlock key={g.id} group={g} run={run} pending={pending} />
+              {optimisticGroups.map((g) => (
+                <GroupBlock
+                  key={g.id}
+                  group={g}
+                  run={run}
+                  pending={pending}
+                  onAddSubitem={addSubitemOpt}
+                  onAddCriterion={addCriterionOpt}
+                />
               ))}
-              {groups.length === 0 && !addingGroup && (
+              {optimisticGroups.length === 0 && !addingGroup && (
                 <tr>
                   <td colSpan={COL_COUNT} className="px-4 py-10 text-center text-slate-400">
                     등록된 평가항목이 없습니다. 위에서 추가하세요.
@@ -136,7 +198,19 @@ export default function CriteriaEditor({
 
 // 한 평가항목(그룹)의 모든 행을 생성. 각 셀 컴포넌트가 자체 편집/추가 토글을 소유하므로
 // 클라이언트 상태와 무관하게 매 <tr>의 열 구조는 항상 7칸으로 고정된다(정렬·하이드레이션 안전).
-function GroupBlock({ group, run, pending }: { group: GroupDTO; run: RunFn; pending: boolean }) {
+function GroupBlock({
+  group,
+  run,
+  pending,
+  onAddSubitem,
+  onAddCriterion,
+}: {
+  group: GroupDTO;
+  run: RunFn;
+  pending: boolean;
+  onAddSubitem: AddFn;
+  onAddCriterion: AddFn;
+}) {
   const groupRowSpan =
     group.subitems.reduce((n, s) => n + Math.max(1, s.criteria.length), 0) || 1;
 
@@ -146,7 +220,7 @@ function GroupBlock({ group, run, pending }: { group: GroupDTO; run: RunFn; pend
     rows.push(
       <tr key={`${group.id}-empty`} className="border-b border-slate-100 last:border-0">
         <GroupNameCell group={group} rowSpan={1} run={run} pending={pending} />
-        <AddSubitemCell groupId={group.id} rowSpan={1} run={run} pending={pending} />
+        <AddSubitemCell groupId={group.id} rowSpan={1} onAdd={onAddSubitem} pending={pending} />
         <td className="border-r border-slate-100 px-4 py-3 text-xs text-slate-400">—</td>
         <td className="border-r border-slate-100 px-3 py-3" />
         <td className="px-4 py-3 text-xs text-slate-400">세부항목을 추가하세요.</td>
@@ -164,14 +238,14 @@ function GroupBlock({ group, run, pending }: { group: GroupDTO; run: RunFn; pend
         if (!groupPlaced) {
           cells.push(
             <GroupNameCell key="g" group={group} rowSpan={groupRowSpan} run={run} pending={pending} />,
-            <AddSubitemCell key="as" groupId={group.id} rowSpan={groupRowSpan} run={run} pending={pending} />,
+            <AddSubitemCell key="as" groupId={group.id} rowSpan={groupRowSpan} onAdd={onAddSubitem} pending={pending} />,
           );
           groupPlaced = true;
         }
         if (cIdx === 0) {
           cells.push(
             <SubitemNameCell key="s" subitem={s} rowSpan={subRowSpan} run={run} pending={pending} />,
-            <AddCriterionCell key="ac" subitemId={s.id} rowSpan={subRowSpan} run={run} pending={pending} />,
+            <AddCriterionCell key="ac" subitemId={s.id} rowSpan={subRowSpan} onAdd={onAddCriterion} pending={pending} />,
           );
         }
         if (c === null) {
@@ -258,24 +332,25 @@ function GroupNameCell({
 function AddSubitemCell({
   groupId,
   rowSpan,
-  run,
+  onAdd,
   pending,
 }: {
   groupId: string;
   rowSpan: number;
-  run: RunFn;
+  onAdd: AddFn;
   pending: boolean;
 }) {
   const [adding, setAdding] = useState(false);
-  const submit = (fd: FormData) =>
-    run(async () => {
-      await addSubitem(groupId, fd);
-      setAdding(false);
-    });
+  const submit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    setAdding(false); // 입력창 즉시 닫기
+    onAdd(groupId, fd);
+  };
   return (
     <td rowSpan={rowSpan} className="border-r border-slate-100 px-3 py-3 align-top">
       {adding ? (
-        <form action={submit} className="flex flex-col gap-1.5">
+        <form onSubmit={submit} className="flex flex-col gap-1.5">
           <input name="name" required placeholder="세부항목명" className={`w-40 ${inputCls}`} autoFocus />
           <div className="flex gap-2">
             <button type="button" onClick={() => setAdding(false)} className={miniBtn}>취소</button>
@@ -340,24 +415,25 @@ function SubitemNameCell({
 function AddCriterionCell({
   subitemId,
   rowSpan,
-  run,
+  onAdd,
   pending,
 }: {
   subitemId: string;
   rowSpan: number;
-  run: RunFn;
+  onAdd: AddFn;
   pending: boolean;
 }) {
   const [adding, setAdding] = useState(false);
-  const submit = (fd: FormData) =>
-    run(async () => {
-      await addCriterion(subitemId, fd);
-      setAdding(false);
-    });
+  const submit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    setAdding(false); // 입력창 즉시 닫기
+    onAdd(subitemId, fd);
+  };
   return (
     <td rowSpan={rowSpan} className="border-r border-slate-100 px-3 py-3 align-top">
       {adding ? (
-        <form action={submit} className="flex flex-col gap-1.5">
+        <form onSubmit={submit} className="flex flex-col gap-1.5">
           <input name="name" required placeholder="평가지표명" className={`w-48 ${inputCls}`} autoFocus />
           <input name="maxScore" type="number" step="any" placeholder="배점" defaultValue={0} className={`w-24 ${inputCls}`} />
           <div className="flex gap-2">
