@@ -24,6 +24,7 @@ export interface SheetData {
   subjects: { id: string; name: string }[]
   otherScores: Record<string, { name: string; value: number }[]>
   otherPending: Record<string, string[]>
+  submissionStatus: import('./submission').SubmissionStatus | null
 }
 
 // 점수 입력 화면(ScoreForm)에 필요한 전체 데이터 — 서버 페이지/ API 라우트 공용
@@ -33,7 +34,7 @@ export async function getSheetData(
   sessionId: string,
   subjectId: string,
 ): Promise<SheetData | null> {
-  const [subject, session, criteria, existing, opinion, subjects, myScores] = await Promise.all([
+  const [subject, session, criteria, existing, opinion, subjects, myScores, submission] = await Promise.all([
     prisma.subject.findUnique({
       where: { id: subjectId },
       include: {
@@ -53,6 +54,7 @@ export async function getSheetData(
     prisma.opinion.findUnique({ where: { evaluatorId_subjectId: { evaluatorId: userId, subjectId } } }),
     prisma.subject.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } }),
     prisma.score.findMany({ where: { evaluatorId: userId, sessionId }, select: { subjectId: true, criterionId: true, value: true } }),
+    prisma.submission.findUnique({ where: { evaluatorId_subjectId: { evaluatorId: userId, subjectId } }, select: { status: true } }),
   ])
   if (!subject || !session) return null
 
@@ -114,6 +116,7 @@ export async function getSheetData(
     subjects,
     otherScores,
     otherPending,
+    submissionStatus: submission?.status ?? null,
   }
 }
 

@@ -12,6 +12,7 @@ import {
 } from "@/app/evaluate/actions";
 import DocPreviewBoard from "@/components/DocPreviewBoard";
 import SubjectPicker from "@/components/SubjectPicker";
+import { canEvaluatorEdit } from "@/lib/submission";
 
 export interface CriterionView {
   id: string;
@@ -44,6 +45,7 @@ export default function ScoreForm({
   criteria,
   initialComment,
   subjects = [],
+  submissionStatus = null,
   onSelectSubject,
   onDirty,
 }: {
@@ -61,6 +63,7 @@ export default function ScoreForm({
   subjects?: { id: string; name: string }[];
   otherScores?: Record<string, { name: string; value: number }[]>;
   otherPending?: Record<string, string[]>;
+  submissionStatus?: "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED" | null;
   // CSR 모드 호환(현재 미사용)
   initialStep?: string;
   // CSR 모드: 대상 전환을 라우트 이동 없이 처리
@@ -154,6 +157,7 @@ export default function ScoreForm({
     if (raw === "") return false;
     return Number.isFinite(Number(raw));
   };
+  const locked = !canEvaluatorEdit(submissionStatus);
   const total = criteria.reduce((s, c) => s + (contrib(c) ?? 0), 0);
   const maxTotal = criteria.reduce((s, c) => s + c.maxScore * c.weight, 0);
   const filledCount = criteria.filter((c) => isFilled(c)).length;
@@ -251,6 +255,14 @@ export default function ScoreForm({
         </span>
       </div>
 
+      {submissionStatus === "REJECTED" && (
+        <div className="mx-auto mt-3 max-w-[1600px] px-6">
+          <p className="rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-inset ring-rose-200">
+            반려됨 · 점수·의견을 수정한 뒤 다시 제출하세요.
+          </p>
+        </div>
+      )}
+
       {/* 작업 영역 — 좌:자료 / 중:평가표 / 우:종합의견 (넓게) */}
       <div className="mx-auto max-w-[1600px] px-6 py-4">
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,0.4fr)_minmax(0,1.75fr)_320px]">
@@ -323,6 +335,7 @@ export default function ScoreForm({
                               onChange={(e) => setVal(c.id, e.target.value)}
                               onFocus={() => startEditing(c.id)}
                               onBlur={stopEditing}
+                              disabled={locked}
                               placeholder="입력"
                               className={`w-20 rounded-md border px-2 py-1.5 text-right text-sm font-semibold focus:outline-none focus:ring-1 ${outOfRange ? "border-rose-400 text-rose-600 focus:border-rose-500 focus:ring-rose-500" : "border-slate-300 text-slate-800 focus:border-indigo-500 focus:ring-indigo-500"}`}
                             />
@@ -373,6 +386,7 @@ export default function ScoreForm({
                 value={comment}
                 maxLength={1000}
                 onChange={(e) => setComment(e.target.value)}
+                disabled={locked}
                 rows={8}
                 placeholder="대상에 대한 종합적인 평가 의견을 입력하세요. (선택)"
                 className="w-full resize-none rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -398,31 +412,40 @@ export default function ScoreForm({
               <p className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700 ring-1 ring-inset ring-emerald-200">임시 저장되었습니다.</p>
             )}
 
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => setConfirm(true)}
-                disabled={!canSubmit || isPending}
-                className="w-full rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-40"
-              >
-                제출 전 확인 →
-              </button>
-              <button
-                name="intent"
-                value="save"
-                disabled={!allInRange || isPending}
-                className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
-              >
-                임시 저장
-              </button>
-              {!allInRange ? (
-                <p className="text-center text-xs text-rose-500">배점을 초과하거나 0 미만인 항목이 있습니다.</p>
-              ) : (
-                !allFilled && (
-                  <p className="text-center text-xs text-slate-400">모든 항목 입력 시 제출할 수 있습니다.</p>
-                )
-              )}
-            </div>
+            {submissionStatus === "SUBMITTED" && (
+              <p className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-700 ring-1 ring-inset ring-amber-200">제출됨 · 간사 승인 대기 (수정하려면 간사에게 반려를 요청하세요)</p>
+            )}
+            {submissionStatus === "APPROVED" && (
+              <p className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700 ring-1 ring-inset ring-emerald-200">승인 완료</p>
+            )}
+
+            {!locked && (
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirm(true)}
+                  disabled={!canSubmit || isPending}
+                  className="w-full rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-40"
+                >
+                  {submissionStatus === "REJECTED" ? "재제출 확인 →" : "제출 전 확인 →"}
+                </button>
+                <button
+                  name="intent"
+                  value="save"
+                  disabled={!allInRange || isPending}
+                  className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+                >
+                  임시 저장
+                </button>
+                {!allInRange ? (
+                  <p className="text-center text-xs text-rose-500">배점을 초과하거나 0 미만인 항목이 있습니다.</p>
+                ) : (
+                  !allFilled && (
+                    <p className="text-center text-xs text-slate-400">모든 항목 입력 시 제출할 수 있습니다.</p>
+                  )
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
