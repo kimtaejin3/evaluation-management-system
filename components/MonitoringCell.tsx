@@ -98,13 +98,13 @@ export default function MonitoringCell({
               </button>
             </div>
             {cell.status === "submitted" ? (
-              // 제출완료: 항목별 입력 현황 대신 승인/반려만
-              <div className="mt-4 flex items-center justify-end gap-2">
+              // 제출완료: 항목별 입력 현황 대신 승인/반려만 (버튼 너비 꽉 차게)
+              <div className="mt-4 flex gap-2">
                 <button
                   type="button"
                   onClick={() => decide(false)}
                   disabled={busy}
-                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+                  className="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
                 >
                   반려
                 </button>
@@ -112,7 +112,7 @@ export default function MonitoringCell({
                   type="button"
                   onClick={() => decide(true)}
                   disabled={busy}
-                  className="rounded-lg bg-[var(--gov-navy)] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[var(--gov-navy-hover)] disabled:opacity-50"
+                  className="flex-1 rounded-lg bg-[var(--gov-navy)] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[var(--gov-navy-hover)] disabled:opacity-50"
                 >
                   승인
                 </button>
