@@ -554,3 +554,35 @@ export async function assignEvaluator(sessionId: string, formData: FormData) {
   })
   revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
 }
+
+// 담당 간사(+마스터)가 제출완료 평가를 승인
+export async function approveEvaluation(sessionId: string, subjectId: string, evaluatorId: string) {
+  const { user } = await assertSessionAccess(sessionId)
+  const sub = await prisma.submission.findUnique({
+    where: { evaluatorId_subjectId: { evaluatorId, subjectId } },
+    select: { status: true, sessionId: true },
+  })
+  if (!sub || sub.sessionId !== sessionId || sub.status !== 'SUBMITTED') return
+  await prisma.submission.update({
+    where: { evaluatorId_subjectId: { evaluatorId, subjectId } },
+    data: { status: 'APPROVED', decidedAt: new Date(), decidedById: user.id },
+  })
+  revalidatePath(`/admin/sessions/${sessionId}/progress`)
+  revalidatePath(`/admin/sessions/${sessionId}/results`)
+}
+
+// 담당 간사(+마스터)가 제출완료 평가를 반려(위원 편집 재개)
+export async function rejectEvaluation(sessionId: string, subjectId: string, evaluatorId: string) {
+  const { user } = await assertSessionAccess(sessionId)
+  const sub = await prisma.submission.findUnique({
+    where: { evaluatorId_subjectId: { evaluatorId, subjectId } },
+    select: { status: true, sessionId: true },
+  })
+  if (!sub || sub.sessionId !== sessionId || sub.status !== 'SUBMITTED') return
+  await prisma.submission.update({
+    where: { evaluatorId_subjectId: { evaluatorId, subjectId } },
+    data: { status: 'REJECTED', decidedAt: new Date(), decidedById: user.id },
+  })
+  revalidatePath(`/admin/sessions/${sessionId}/progress`)
+  revalidatePath(`/admin/sessions/${sessionId}/results`)
+}
