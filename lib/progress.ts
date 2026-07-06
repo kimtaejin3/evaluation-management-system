@@ -1,7 +1,18 @@
 import { prisma } from './db'
 import { computeWeightedScore } from './scoring'
+import { cellStatus, type CellStatus, type SubmissionStatus } from './submission'
 
 export type CellState = 'done' | 'partial' | 'none'
+
+// 간사 제출 검토 표의 한 행 (대상 × 위원)
+export interface ReviewRow {
+  subjectId: string
+  subjectName: string
+  evaluatorId: string
+  evaluatorName: string
+  status: CellStatus
+  total: number | null
+}
 
 export interface CellItem {
   id: string
@@ -13,6 +24,7 @@ export interface CellItem {
 export interface Cell {
   subjectId: string
   state: CellState
+  status: CellStatus // 제출/승인 상태까지 반영한 표시 상태
   items: CellItem[]
   done: number // 입력된 항목 수
   total: number // 전체 항목 수
@@ -31,6 +43,7 @@ export interface ProgressData {
     totalItems: number
   }[]
   subjectSummary: { id: string; name: string; done: number; total: number }[]
+  review: ReviewRow[]
   assignedCount: number
   completedEvaluators: number
   pct: number
@@ -39,15 +52,25 @@ export interface ProgressData {
 }
 
 export async function getSessionProgress(sessionId: string): Promise<ProgressData> {
-  const [session, subjects, criteria, assignments, scores, editing] = await Promise.all([
+  const [session, subjects, criteria, assignments, scores, editing, submissions] = await Promise.all([
     prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { chairId: true } }),
     prisma.subject.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } }),
-    prisma.criterion.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } }),
+    prisma.criterion.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true, weight: true } }),
     prisma.assignment.findMany({ where: { sessionId }, include: { user: true } }),
-    prisma.score.findMany({ where: { sessionId }, select: { evaluatorId: true, subjectId: true, criterionId: true } }),
+    prisma.score.findMany({ where: { sessionId }, select: { evaluatorId: true, subjectId: true, criterionId: true, value: true } }),
     prisma.editingPresence.findMany({ where: { sessionId }, select: { evaluatorId: true, subjectId: true, criterionId: true, updatedAt: true } }),
+    prisma.submission.findMany({ where: { sessionId }, select: { evaluatorId: true, subjectId: true, status: true } }),
   ])
   const chairId = session?.chairId ?? null
+  const subOf = new Map<string, SubmissionStatus>()
+  for (const s of submissions) subOf.set(`${s.evaluatorId}:${s.subjectId}`, s.status)
+  const weights = criteria.map((c) => ({ id: c.id, weight: c.weight }))
+  const scoreRowsOf = new Map<string, { criterionId: string; value: number }[]>()
+  for (const s of scores) {
+    const k = `${s.evaluatorId}:${s.subjectId}`
+    if (!scoreRowsOf.has(k)) scoreRowsOf.set(k, [])
+    scoreRowsOf.get(k)!.push({ criterionId: s.criterionId, value: s.value })
+  }
 
   const totalCriteria = criteria.length
   // 입력된 (위원:대상:항목) 집합
@@ -69,7 +92,8 @@ export async function getSessionProgress(sessionId: string): Promise<ProgressDat
     })
     const done = items.filter((it) => it.done).length
     const state: CellState = totalCriteria > 0 && done >= totalCriteria ? 'done' : done > 0 ? 'partial' : 'none'
-    return { subjectId: subId, state, items, done, total: totalCriteria }
+    const status = cellStatus(subOf.get(`${evId}:${subId}`) ?? null, done, totalCriteria)
+    return { subjectId: subId, state, status, items, done, total: totalCriteria }
   }
 
   // 위원장을 맨 앞으로
@@ -96,6 +120,18 @@ export async function getSessionProgress(sessionId: string): Promise<ProgressDat
     total: assignments.length,
   }))
 
+  // 간사 제출 검토 표 데이터 (대상 × 위원). 총점은 전 항목 입력 시에만 산출.
+  const review: ReviewRow[] = []
+  for (const s of subjects) {
+    for (const a of orderedAssignments) {
+      const key = `${a.userId}:${s.id}`
+      const rows0 = scoreRowsOf.get(key) ?? []
+      const status = cellStatus(subOf.get(key) ?? null, rows0.length, totalCriteria)
+      const total = totalCriteria > 0 && rows0.length >= totalCriteria ? computeWeightedScore(rows0, weights) : null
+      review.push({ subjectId: s.id, subjectName: s.name, evaluatorId: a.userId, evaluatorName: a.user.name, status, total })
+    }
+  }
+
   const totalCells = assignments.length * subjects.length
   let doneCells = 0
   for (const r of rows) doneCells += r.cells.filter((c) => c.state === 'done').length
@@ -106,6 +142,7 @@ export async function getSessionProgress(sessionId: string): Promise<ProgressDat
     criteria,
     totalCriteria,
     rows,
+    review,
     subjectSummary,
     assignedCount: assignments.length,
     completedEvaluators,
