@@ -13,6 +13,7 @@ export default function SheetPrintPicker({
   subjects: { id: string; name: string }[]
 }) {
   const [evaluatorId, setEvaluatorId] = useState(evaluators[0]?.id ?? '')
+  const [preparing, setPreparing] = useState(false)
 
   if (evaluators.length === 0) {
     return <p className="text-sm text-slate-400">배정된 위원이 없습니다.</p>
@@ -22,8 +23,10 @@ export default function SheetPrintPicker({
   }
 
   // 페이지 이동 없이 숨김 iframe에 평가표(sheet)를 로드해 그 문서만 바로 인쇄.
+  // 로드가 끝나 인쇄 대화상자가 뜰 때까지 "인쇄 준비 중…" 오버레이 표시.
   const print = (subjectId: string) => {
-    const url = `/admin/sessions/${sessionId}/sheet?subjectId=${subjectId}&evaluatorId=${evaluatorId}`
+    setPreparing(true)
+    const url = `/print/sheet?sessionId=${sessionId}&subjectId=${subjectId}&evaluatorId=${evaluatorId}`
     const iframe = document.createElement('iframe')
     iframe.setAttribute('aria-hidden', 'true')
     iframe.style.position = 'fixed'
@@ -33,13 +36,21 @@ export default function SheetPrintPicker({
     iframe.style.border = '0'
     iframe.onload = () => {
       const w = iframe.contentWindow
-      if (!w) return
+      if (!w) {
+        setPreparing(false)
+        return
+      }
       const done = () => iframe.remove()
       w.addEventListener('afterprint', done, { once: true })
+      setPreparing(false) // 로드 완료 → 대화상자 표시
       w.focus()
       w.print()
       // afterprint 미발생(취소/미지원) 대비 폴백 정리
       setTimeout(done, 60_000)
+    }
+    iframe.onerror = () => {
+      setPreparing(false)
+      iframe.remove()
     }
     iframe.src = url
     document.body.appendChild(iframe)
@@ -47,6 +58,14 @@ export default function SheetPrintPicker({
 
   return (
     <div className="space-y-3">
+      {preparing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30">
+          <div className="flex items-center gap-3 rounded-xl bg-white px-5 py-4 shadow-lg">
+            <span className="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-indigo-600" aria-hidden />
+            <span className="text-sm text-slate-600">인쇄 준비 중…</span>
+          </div>
+        </div>
+      )}
       <label className="flex items-center gap-2 text-sm">
         <span className="text-slate-500">평가위원</span>
         <select
@@ -69,7 +88,8 @@ export default function SheetPrintPicker({
             <button
               type="button"
               onClick={() => print(s.id)}
-              className="rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-indigo-300 hover:text-indigo-700"
+              disabled={preparing}
+              className="rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-indigo-300 hover:text-indigo-700 disabled:opacity-50"
             >
               인쇄
             </button>

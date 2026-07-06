@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { assertSessionAccess } from "@/lib/authz";
 import { prisma } from "@/lib/db";
-import PrintButton from "../results/PrintButton";
+import PrintButton from "@/app/admin/sessions/[id]/results/PrintButton";
 import AutoPrint from "./AutoPrint";
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
@@ -11,32 +11,29 @@ type Item = { id: string; name: string; maxScore: number; value: number | null }
 type Sub = { name: string; items: Item[] };
 type Grp = { name: string; subs: Sub[] };
 
-// 관리자용 — 특정 평가위원이 특정 과제에 매긴 평가표를 공식 양식으로 인쇄/PDF.
-// 진입: 집계결과(results) 페이지의 "위원별 평가표 인쇄" 링크.
-export default async function AdminSheetPrintPage({
-  params,
+// 위원별 평가표 인쇄 — 관리자 레이아웃(사이드바) 없이 문서만 렌더해 iframe 로드가 빠르다.
+// 자체 인증(assertSessionAccess). 진입: 집계결과의 "위원별 평가표 인쇄".
+export default async function SheetPrintPage({
   searchParams,
 }: {
-  params: Promise<{ id: string }>;
-  searchParams: Promise<{ subjectId?: string; evaluatorId?: string }>;
+  searchParams: Promise<{ sessionId?: string; subjectId?: string; evaluatorId?: string }>;
 }) {
-  const { id } = await params;
-  const { subjectId, evaluatorId } = await searchParams;
-  await assertSessionAccess(id);
-  if (!subjectId || !evaluatorId) notFound();
+  const { sessionId, subjectId, evaluatorId } = await searchParams;
+  if (!sessionId || !subjectId || !evaluatorId) notFound();
+  await assertSessionAccess(sessionId);
 
   const [session, subject, evaluator, criteria, scores, opinion] = await Promise.all([
-    prisma.evaluationSession.findUnique({ where: { id } }),
+    prisma.evaluationSession.findUnique({ where: { id: sessionId } }),
     prisma.subject.findUnique({ where: { id: subjectId }, include: { company: true } }),
     prisma.user.findUnique({ where: { id: evaluatorId }, select: { name: true } }),
     prisma.criterion.findMany({
-      where: { sessionId: id },
+      where: { sessionId },
       include: { subitem: { include: { group: true } } },
     }),
-    prisma.score.findMany({ where: { sessionId: id, subjectId, evaluatorId }, select: { criterionId: true, value: true } }),
+    prisma.score.findMany({ where: { sessionId, subjectId, evaluatorId }, select: { criterionId: true, value: true } }),
     prisma.opinion.findUnique({ where: { evaluatorId_subjectId: { evaluatorId, subjectId } }, select: { text: true } }),
   ]);
-  if (!session || !subject || !evaluator || subject.sessionId !== id) notFound();
+  if (!session || !subject || !evaluator || subject.sessionId !== sessionId) notFound();
 
   // 평가항목(group) → 세부항목(subitem) → 평가지표(criterion) 순 정렬
   criteria.sort((a, b) => {
@@ -77,17 +74,17 @@ export default async function AdminSheetPrintPage({
   const td = "border border-black px-3 py-1.5 text-sm";
 
   return (
-    <div>
+    <div className="min-h-screen bg-slate-100 py-6 print:bg-white print:py-0">
       {/* A4 여백 */}
       <style>{`@page { size: A4; margin: 14mm; }`}</style>
       {/* 진입 시 브라우저 인쇄 대화상자 자동 표시 */}
       <AutoPrint />
 
       {/* 화면 전용 툴바 */}
-      <div className="mb-4 flex items-center justify-between print:hidden">
+      <div className="mx-auto mb-4 flex max-w-[210mm] items-center justify-between px-4 print:hidden">
         <Link
-          href={`/admin/sessions/${id}/results`}
-          className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-600 transition hover:bg-slate-50"
+          href={`/admin/sessions/${sessionId}/results`}
+          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-600 transition hover:bg-slate-50"
         >
           ← 집계결과로
         </Link>
@@ -102,7 +99,7 @@ export default async function AdminSheetPrintPage({
         </div>
       </div>
 
-      {/* 평가표 문서 — 화면에서는 여백·그림자로 A4 미리보기처럼, 인쇄 시 여백은 @page가 담당(문서 패딩 제거) */}
+      {/* 평가표 문서 */}
       <div className="mx-auto max-w-[210mm] rounded-lg bg-white p-8 text-slate-900 shadow-sm ring-1 ring-slate-200 sm:p-12 print:rounded-none print:p-0 print:shadow-none print:ring-0">
         <h1 className="text-center text-2xl font-extrabold tracking-tight underline decoration-2 underline-offset-[6px]">
           {session.name} 평가표

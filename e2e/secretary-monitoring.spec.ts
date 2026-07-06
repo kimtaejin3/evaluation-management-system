@@ -96,7 +96,7 @@ test('담당 간사는 집계결과에서 위원별 평가표를 인쇄할 수 �
   await expect(page.getByRole('button', { name: '인쇄' }).first()).toBeVisible()
 
   // 인쇄 대상 문서(sheet)에 담당 간사가 접근 가능(200) + 평가표·해당 위원 렌더 → 실제 출력 가능
-  const res = await page.goto(`/admin/sessions/${ownedId}/sheet?subjectId=${subjectId}&evaluatorId=${evaluatorId}`)
+  const res = await page.goto(`/print/sheet?sessionId=${ownedId}&subjectId=${subjectId}&evaluatorId=${evaluatorId}`)
   expect(res?.status()).toBe(200)
   await expect(page.getByRole('heading', { name: /평가표/ })).toBeVisible()
   await expect(page.getByText('E2E 모니터링 위원')).toBeVisible()
