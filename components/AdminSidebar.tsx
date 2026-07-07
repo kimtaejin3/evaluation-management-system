@@ -9,20 +9,24 @@ import { PROJECT_STATUS_LABEL } from "@/lib/project-status";
 const APP_VERSION = "0.1.0";
 
 const SUB_ITEMS = [
-  { suffix: "", label: "상세", desc: "분과 정보· 실시간 모니터링" },
-  { suffix: "/criteria", label: "평가 항목", desc: "배점·등급 설정·엑셀·한글 가져오기" },
+  { suffix: "", label: "실시간 진행 상황", desc: "분과 정보·실시간 모니터링" },
+  {
+    suffix: "/criteria",
+    label: "평가 항목",
+    desc: "배점·등급 설정·엑셀·한글 가져오기",
+  },
   { suffix: "/subjects", label: "평가 대상", desc: "기업 편입·자료" },
   { suffix: "/evaluators", label: "평가위원", desc: "위원 배정·위원장" },
   { suffix: "/results", label: "집계 결과", desc: "순위·환산·등급 총괄표" },
 ] as const;
 
 const STATUS: Record<string, { label: string; cls: string }> = {
-  DRAFT: { label: "초안", cls: "bg-slate-100 text-slate-600 ring-slate-200" },
+  DRAFT: { label: "준비", cls: "bg-slate-100 text-slate-600 ring-slate-200" },
   IN_PROGRESS: {
     label: "진행중",
     cls: "bg-indigo-50 text-indigo-700 ring-indigo-200",
   },
-  CLOSED: { label: "마감", cls: "bg-slate-200 text-slate-600 ring-slate-300" },
+  CLOSED: { label: "완료", cls: "bg-slate-200 text-slate-600 ring-slate-300" },
 };
 
 // 사이드바(어두운 배경)에서 분과 이름 옆 진행상태 텍스트 색상
@@ -186,8 +190,9 @@ function ProjectNode({
     pathname.startsWith(`/admin/projects/${project.id}`),
   );
   const statusLabel =
-    PROJECT_STATUS_LABEL[project.status as "DRAFT" | "IN_PROGRESS" | "CLOSED"] ??
-    project.status;
+    PROJECT_STATUS_LABEL[
+      project.status as "DRAFT" | "IN_PROGRESS" | "CLOSED"
+    ] ?? project.status;
   return (
     <div>
       <div className="flex items-center">
@@ -229,7 +234,9 @@ function ProjectNode({
       {open && (
         <div className="ml-4 space-y-0.5 border-l border-white/10 pl-2">
           {project.sessions.length === 0 && (
-            <div className="px-3 py-1 text-[11px] text-slate-500">분과 없음</div>
+            <div className="px-3 py-1 text-[11px] text-slate-500">
+              분과 없음
+            </div>
           )}
           {project.sessions.map((s) => (
             <Link
@@ -303,7 +310,8 @@ export default function AdminSidebar({
                   className="mb-1 flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-400 transition hover:text-white"
                   title={backLabel}
                 >
-                  <span aria-hidden>←</span> <span className="truncate">{backLabel}</span>
+                  <span aria-hidden>←</span>{" "}
+                  <span className="truncate">{backLabel}</span>
                 </Link>
               );
             })()}
@@ -356,7 +364,9 @@ export default function AdminSidebar({
               </Link>
               <div className="mt-1 ml-1 space-y-0.5">
                 {projects.length === 0 && (
-                  <div className="px-3 py-1.5 text-xs text-slate-500">등록된 과제 없음</div>
+                  <div className="px-3 py-1.5 text-xs text-slate-500">
+                    등록된 과제 없음
+                  </div>
                 )}
                 {projects.map((p) => (
                   <ProjectNode key={p.id} project={p} pathname={pathname} />
@@ -367,12 +377,13 @@ export default function AdminSidebar({
             /* 간사: 내 분과 목록 */
             <div>
               <Link href="/admin/sessions" className={topCls(sessionsActive)}>
-                <SessionsIcon />
-                내 분과
+                <SessionsIcon />내 분과
               </Link>
               <div className="mt-1 ml-3 space-y-0.5 border-l border-white/15 pl-2">
                 {sessions.length === 0 && (
-                  <div className="px-3 py-1.5 text-xs text-slate-500">등록된 분과 없음</div>
+                  <div className="px-3 py-1.5 text-xs text-slate-500">
+                    등록된 분과 없음
+                  </div>
                 )}
                 {sessions.map((s) => (
                   <Link

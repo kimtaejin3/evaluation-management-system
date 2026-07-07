@@ -2,9 +2,9 @@
 export type DerivedProjectStatus = 'DRAFT' | 'IN_PROGRESS' | 'CLOSED'
 
 export const PROJECT_STATUS_LABEL: Record<DerivedProjectStatus, string> = {
-  DRAFT: '준비중',
+  DRAFT: '준비',
   IN_PROGRESS: '진행중',
-  CLOSED: '마감',
+  CLOSED: '완료',
 }
 
 /**

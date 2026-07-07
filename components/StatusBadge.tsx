@@ -1,7 +1,7 @@
 const MAP = {
-  DRAFT: { label: '초안', cls: 'bg-slate-100 text-slate-600 ring-slate-200' },
+  DRAFT: { label: '준비', cls: 'bg-slate-100 text-slate-600 ring-slate-200' },
   IN_PROGRESS: { label: '진행중', cls: 'bg-indigo-50 text-indigo-700 ring-indigo-200' },
-  CLOSED: { label: '마감', cls: 'bg-slate-200 text-slate-600 ring-slate-300' },
+  CLOSED: { label: '완료', cls: 'bg-slate-200 text-slate-600 ring-slate-300' },
 } as const
 
 export type SessionStatus = keyof typeof MAP
