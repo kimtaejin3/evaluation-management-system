@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import StatusBadge from '@/components/StatusBadge'
+import DeleteSessionButton from '@/components/DeleteSessionButton'
 import { assertSessionAccess } from '@/lib/authz'
 
 export default async function SessionLayout({
@@ -22,9 +23,12 @@ export default async function SessionLayout({
         >
           ← {session.projectId ? "과제로" : "분과 목록"}
         </Link>
-        <div className="mt-1 flex items-center gap-3">
-          <h1 className="text-2xl font-bold">{session.name}</h1>
-          <StatusBadge status={session.status} />
+        <div className="mt-1 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold">{session.name}</h1>
+            <StatusBadge status={session.status} />
+          </div>
+          <DeleteSessionButton sessionId={session.id} sessionName={session.name} />
         </div>
       </div>
       <div>{children}</div>

@@ -3,7 +3,6 @@ import { prisma } from "@/lib/db";
 import { assertProjectAccess } from "@/lib/authz";
 import { deriveProjectStatus } from "@/lib/project-status";
 import StatusBadge from "@/components/StatusBadge";
-import DeleteSessionButton from "@/components/DeleteSessionButton";
 import DeleteProjectButton from "@/components/DeleteProjectButton";
 import AssignSecretaryModal from "@/components/AssignSecretaryModal";
 import { unassignSessionSecretary } from "../actions";
@@ -76,26 +75,24 @@ export default async function ProjectDetailPage({
         {project.description && <p className="mt-1 text-sm text-slate-600">{project.description}</p>}
       </div>
 
-      {/* 소속 분과 — 과제별 분과 관리 */}
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-          <div className="font-semibold">소속 분과 ({visibleSessions.length})</div>
-          <div className="flex items-center gap-2">
-            {isMaster && (
-              <AssignSecretaryModal
-                projectId={id}
-                sessions={project.sessions.map((s) => ({ id: s.id, name: s.name }))}
-                secretaries={allSecretaries}
-              />
-            )}
-            <Link
-              href={`/admin/sessions/new?projectId=${id}`}
-              className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700"
-            >
-              + 분과 추가
-            </Link>
-          </div>
+      {/* 소속 분과 — 버튼은 카드 밖(배경), 표만 카드 안 */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-end gap-2">
+          {isMaster && (
+            <AssignSecretaryModal
+              projectId={id}
+              sessions={project.sessions.map((s) => ({ id: s.id, name: s.name }))}
+              secretaries={allSecretaries}
+            />
+          )}
+          <Link
+            href={`/admin/sessions/new?projectId=${id}`}
+            className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700"
+          >
+            + 분과 추가
+          </Link>
         </div>
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         {visibleSessions.length === 0 ? (
           <p className="px-5 py-8 text-center text-sm text-slate-400">아직 분과가 없습니다. ‘분과 추가’로 시작하세요.</p>
         ) : (
@@ -103,12 +100,10 @@ export default async function ProjectDetailPage({
             <thead className="text-left text-slate-500">
               <tr className="border-b border-slate-100 bg-slate-50/60">
                 <th className="px-5 py-3 font-medium">분과명</th>
-                <th className="px-5 py-3 font-medium">상태</th>
-                <th className="px-5 py-3 font-medium">항목</th>
+                <th className="px-5 py-3 font-medium">평가 상태</th>
                 <th className="px-5 py-3 font-medium">대상</th>
                 <th className="px-5 py-3 font-medium">위원</th>
                 <th className="px-5 py-3 font-medium">담당 간사</th>
-                <th className="px-5 py-3 text-right"></th>
               </tr>
             </thead>
             <tbody>
@@ -122,7 +117,6 @@ export default async function ProjectDetailPage({
                   <td className="px-5 py-3">
                     <StatusBadge status={s.status} />
                   </td>
-                  <td className="px-5 py-3 text-slate-600">{s._count.criteria}</td>
                   <td className="px-5 py-3 text-slate-600">{s._count.subjects}</td>
                   <td className="px-5 py-3 text-slate-600">{s._count.assignments}</td>
                   <td className="px-5 py-3">
@@ -139,19 +133,12 @@ export default async function ProjectDetailPage({
                       <span className="text-xs text-slate-400">미배정</span>
                     )}
                   </td>
-                  <td className="px-5 py-3">
-                    <div className="flex items-center justify-end gap-3">
-                      <Link href={`/admin/sessions/${s.id}`} className="text-[var(--gov-primary)] hover:underline">
-                        관리
-                      </Link>
-                      <DeleteSessionButton sessionId={s.id} sessionName={s.name} />
-                    </div>
-                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
+        </div>
       </div>
     </div>
   );

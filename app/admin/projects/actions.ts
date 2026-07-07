@@ -9,12 +9,15 @@ import { passwordFromPhone } from '@/lib/phone'
 export async function createProject(formData: FormData) {
   await assertMaster()
   const name = String(formData.get('name') ?? '').trim()
-  if (!name) return
+  const description = String(formData.get('description') ?? '').trim()
+  const dueRaw = String(formData.get('dueDate') ?? '').trim()
+  // 과제명·과제 개요·평가일 모두 필수
+  if (!name || !description || !dueRaw) return
   const p = await prisma.project.create({
     data: {
       name,
-      description: String(formData.get('description') ?? '') || null,
-      dueDate: formData.get('dueDate') ? new Date(String(formData.get('dueDate'))) : null,
+      description,
+      dueDate: new Date(dueRaw),
     },
   })
   redirect(`/admin/projects/${p.id}`)

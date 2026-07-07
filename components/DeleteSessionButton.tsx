@@ -24,7 +24,11 @@ export default function DeleteSessionButton({ sessionId, sessionName }: { sessio
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="text-rose-600 hover:underline">
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="shrink-0 rounded-lg border border-rose-300 px-4 py-1.5 text-sm font-medium text-rose-600 transition hover:bg-rose-50"
+      >
         삭제
       </button>
 

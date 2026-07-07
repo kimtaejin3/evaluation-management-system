@@ -19,12 +19,12 @@ export default async function NewProjectPage() {
           <input name="name" required className={inputCls} placeholder="예) 2026년 상반기 R&D 지원사업" />
         </div>
         <div>
-          <label className="text-sm font-medium text-slate-700">설명(선택)</label>
-          <textarea name="description" rows={2} className={`${inputCls} resize-none`} placeholder="과제 개요" />
+          <label className="text-sm font-medium text-slate-700">과제 개요</label>
+          <textarea name="description" rows={2} required className={`${inputCls} resize-none`} placeholder="예) 사업 목적·범위, 주요 평가 관점 등 과제 개요를 입력하세요" />
         </div>
         <div>
-          <label className="text-sm font-medium text-slate-700">평가 기준일(선택)</label>
-          <input name="dueDate" type="datetime-local" className={inputCls} />
+          <label className="text-sm font-medium text-slate-700">평가일</label>
+          <input name="dueDate" type="datetime-local" required className={inputCls} />
         </div>
         <button className="rounded-md bg-indigo-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-indigo-700">
           과제 생성
