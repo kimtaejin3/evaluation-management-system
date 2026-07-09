@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/db'
+import { initialAssignmentStatus } from '@/lib/assignment'
 import { saveUpload, deleteUpload, isPdf } from '@/lib/storage'
 import { canCloseSession, CLOSE_BLOCKED_MESSAGE } from '@/lib/session-rules'
 import { randomUUID } from 'crypto'
@@ -542,15 +543,34 @@ export async function setChair(sessionId: string, formData: FormData) {
   revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
 }
 
-// 평가위원 관리에서 등록한 기존 위원을 이 심사에 배정(폼: userId)
+// 전역 풀의 기존 위원을 이 분과에 배정(폼: userId). 간사 배정은 PENDING, 관리자 배정은 즉시 APPROVED.
 export async function assignEvaluator(sessionId: string, formData: FormData) {
-  await assertSessionAccess(sessionId)
+  const { user } = await assertSessionAccess(sessionId)
   const userId = String(formData.get('userId') ?? '').trim()
   if (!userId) return
+  const status = initialAssignmentStatus(user.role as 'MASTER' | 'SECRETARY')
   await prisma.assignment.upsert({
     where: { sessionId_userId: { sessionId, userId } },
-    update: {},
-    create: { sessionId, userId },
+    update: { status, createdById: user.id, decidedAt: status === 'APPROVED' ? new Date() : null },
+    create: { sessionId, userId, status, createdById: user.id, decidedAt: status === 'APPROVED' ? new Date() : null },
+  })
+  revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
+}
+
+// 담당 간사(+관리자)가 이 분과에 새 위원 계정을 만들어 즉시 배정. 아이디/임시비번 자동.
+export async function createEvaluatorForSession(sessionId: string, formData: FormData) {
+  const { user } = await assertSessionAccess(sessionId)
+  const name = String(formData.get('name') ?? '').trim()
+  const phone = String(formData.get('phone') ?? '').trim()
+  const password = passwordFromPhone(phone)
+  if (!name || !phone || !password) return
+  const username = 'ev' + randomUUID().replace(/-/g, '').slice(0, 8)
+  const created = await prisma.user.create({
+    data: { username, name, phone, role: 'EVALUATOR', passwordHash: await hashPassword(password), tempPassword: password },
+  })
+  const status = initialAssignmentStatus(user.role as 'MASTER' | 'SECRETARY')
+  await prisma.assignment.create({
+    data: { sessionId, userId: created.id, status, createdById: user.id, decidedAt: status === 'APPROVED' ? new Date() : null },
   })
   revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
 }
