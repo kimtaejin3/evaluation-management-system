@@ -185,7 +185,6 @@ model Assignment {
   decidedAt   DateTime?
 
   @@unique([sessionId, userId])
-  @@index([sessionId])
 }
 
 // 위원이 대상별로 남기는 종합의견
