@@ -13,9 +13,11 @@ import {
   updateCriterion,
   deleteCriterion,
 } from "@/app/admin/sessions/actions";
-import { groupTotal, isGroupBalanced } from "@/lib/criteria";
+import { groupTotal, isGroupBalanced, criteriaGrandTotal, isTotalValid, TOTAL_SCORE } from "@/lib/criteria";
 import { TrashIcon, PencilIcon } from "@/components/icons";
 import CriteriaPreviewTable from "@/components/CriteriaPreviewTable";
+
+const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
 const inputCls =
   "rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500";
@@ -155,8 +157,33 @@ export default function CriteriaEditor({
     });
   };
 
+  const grandTotal = criteriaGrandTotal(optimisticGroups);
+  const totalValid = isTotalValid(grandTotal);
+
   return (
     <div className="space-y-4">
+      {/* 전체 배점 합계 검증 — 반드시 100이어야 함 */}
+      <div
+        className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border px-4 py-2.5 text-sm ${
+          totalValid
+            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+            : "border-amber-300 bg-amber-50 text-amber-700"
+        }`}
+      >
+        <span className="font-semibold">
+          총 배점 합계 {fmt(grandTotal)} / {TOTAL_SCORE}
+        </span>
+        <span className="text-xs font-medium">
+          {totalValid
+            ? "✓ 배점 합계가 100입니다"
+            : `⚠ 배점 합계는 100이어야 합니다 — 현재 ${
+                grandTotal > TOTAL_SCORE
+                  ? `${fmt(grandTotal - TOTAL_SCORE)} 초과`
+                  : `${fmt(TOTAL_SCORE - grandTotal)} 부족`
+              }`}
+        </span>
+      </div>
+
       <div className="flex items-center justify-end gap-2">
         <button
           type="button"

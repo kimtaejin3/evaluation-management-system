@@ -2,9 +2,8 @@ import { Suspense } from "react";
 import { prisma } from "@/lib/db";
 import { computeFinalScores, rankSubjects } from "@/lib/scoring";
 import { getSessionInsights } from "@/lib/progress";
-import PrintButton from "./PrintButton";
-import RankingTable from "@/components/RankingTable";
-import SheetPrintPicker from "@/components/SheetPrintPicker";
+import { TOTAL_SCORE } from "@/lib/criteria";
+import ResultsView from "./ResultsView";
 import { SkeletonCard, SkeletonTable } from "@/components/Skeletons";
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
@@ -71,7 +70,8 @@ async function ResultsContent({ id }: { id: string }) {
     if (sa !== sb) return sa - sb;
     return a.order - b.order;
   });
-  const maxTotal = criteria.reduce((s, c) => s + c.maxScore * c.weight, 0);
+  // 환산·등급 기준 총배점은 항상 100 (평가항목 배점 합계 = 100 규칙)
+  const maxTotal = TOTAL_SCORE;
   const divergent = insights.rows.filter((r) => r.spread !== null && r.spread >= 10);
   // (위원:대상:항목) → 점수 (RankingTable에 전달, 클라이언트에서 평균·위원별 계산)
   const scoreVal = new Map<string, number>();
@@ -97,28 +97,17 @@ async function ResultsContent({ id }: { id: string }) {
     else sectionGroups.push({ section: key, items: [c] });
   }
   // 항목 번호 체계: 평가항목 1,2,3… / 세부항목 1-1,1-2…
-  const sectionNo = new Map<string, number>();
   const itemCode = new Map<string, string>();
   sectionGroups.forEach((g, gi) => {
-    sectionNo.set(g.section, gi + 1);
     g.items.forEach((c, ci) => itemCode.set(c.id, `${gi + 1}-${ci + 1}`));
   });
+  // 선정(1위) 대상 — 동점이면 복수
+  const winners = orderedSubjects.filter((s) => s.rank === 1);
 
   return (
     <div className="space-y-5">
       {/* 화면 전용 컨트롤 */}
-      <div className="flex items-center justify-between print:hidden">
-        <p className="text-sm text-slate-500">위원 평균 점수 기준 순위입니다.</p>
-        <div className="flex gap-2">
-          <a
-            href={`/api/sessions/${id}/results.csv`}
-            className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 transition hover:bg-slate-50"
-          >
-            CSV 다운로드
-          </a>
-          <PrintButton />
-        </div>
-      </div>
+      <p className="text-sm text-slate-500 print:hidden">위원 평균 점수 기준 선정 결과입니다.</p>
 
       {/* 인쇄 문서 머리글 */}
       <div className="hidden print:block">
@@ -155,70 +144,16 @@ async function ResultsContent({ id }: { id: string }) {
           집계할 항목·대상이 없습니다.
         </div>
       ) : (
-        <>
-          {/* (A) 평가 항목 정의표 */}
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white print:mt-4 print:rounded-none print:border-black">
-            <div className="border-b border-slate-100 px-5 py-3 text-sm font-semibold text-slate-700 print:border-black">평가 항목</div>
-            <table className="w-full text-sm">
-              <thead className="text-slate-500 print:text-black">
-                <tr className="border-b border-slate-200 bg-slate-50 print:border-black print:bg-transparent">
-                  <th className="px-3 py-2 text-left font-medium print:border print:border-black">평가항목</th>
-                  <th className="w-px whitespace-nowrap px-3 py-2 text-center font-medium print:border print:border-black">번호</th>
-                  <th className="px-3 py-2 text-left font-medium print:border print:border-black">세부항목</th>
-                  <th className="px-3 py-2 text-left font-medium print:border print:border-black">항목명</th>
-                  <th className="w-px whitespace-nowrap px-3 py-2 text-center font-medium print:border print:border-black">배점</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sectionGroups.map((g) =>
-                  g.items.map((c, idx) => (
-                    <tr key={c.id} className="border-b border-slate-100 last:border-0 print:border-black">
-                      {idx === 0 && (
-                        <td rowSpan={g.items.length} className="px-3 py-2 align-middle text-xs font-semibold text-slate-600 print:border print:border-black">
-                          <span className="mr-1 text-indigo-600 print:text-black">{sectionNo.get(g.section)}</span>
-                          {g.section}
-                        </td>
-                      )}
-                      <td className="px-3 py-2 text-center font-semibold tabular-nums text-indigo-600 print:border print:border-black print:text-black">{itemCode.get(c.id)}</td>
-                      <td className="px-3 py-2 text-left text-slate-600 print:border print:border-black">{c.subitem?.name ?? "—"}</td>
-                      <td className="px-3 py-2 text-left font-medium text-slate-800 print:border print:border-black">{c.name}</td>
-                      <td className="px-3 py-2 text-center tabular-nums text-slate-500 print:border print:border-black print:text-black">{c.maxScore}</td>
-                    </tr>
-                  )),
-                )}
-              </tbody>
-              <tfoot>
-                <tr className="border-t border-slate-200 bg-slate-50 font-semibold text-slate-700 print:border-black print:bg-transparent">
-                  <td colSpan={4} className="px-3 py-2 text-right print:border print:border-black">배점 합계</td>
-                  <td className="px-3 py-2 text-center tabular-nums print:border print:border-black">{fmt(criteria.reduce((s, c) => s + c.maxScore, 0))}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-
-          {/* (B) 순위 결과표 — 기업=행. 기업 옆 '위원별' 토글로 위원 행+평균 펼침 */}
-          <RankingTable
-            subjects={orderedSubjects}
-            criteria={orderedCriteria.map((c) => ({ id: c.id, code: itemCode.get(c.id) ?? "", name: c.name, weight: c.weight }))}
-            evaluators={assignments.map((a) => ({ id: a.userId, name: a.user.name }))}
-            scores={Object.fromEntries(scoreVal)}
-            maxTotal={maxTotal}
-          />
-        </>
-      )}
-
-      {/* 위원별 평가표 인쇄 (화면 전용) */}
-      <div className="rounded-xl border border-slate-200 bg-white p-5 print:hidden">
-        <div className="mb-1 text-sm font-semibold text-slate-700">위원별 평가표 인쇄</div>
-        <p className="mb-3 text-xs text-slate-400">
-          과제별로 각 평가위원이 작성한 평가표를 공식 양식으로 인쇄/PDF 저장합니다.
-        </p>
-        <SheetPrintPicker
+        <ResultsView
           sessionId={id}
+          winners={winners.map((w) => ({ id: w.id, name: w.name, finalScore: w.finalScore }))}
+          subjects={orderedSubjects}
+          criteria={orderedCriteria.map((c) => ({ id: c.id, code: itemCode.get(c.id) ?? "", name: c.name, weight: c.weight }))}
           evaluators={assignments.map((a) => ({ id: a.userId, name: a.user.name }))}
-          subjects={orderedSubjects.map((s) => ({ id: s.id, name: s.name }))}
+          scores={Object.fromEntries(scoreVal)}
+          maxTotal={maxTotal}
         />
-      </div>
+      )}
 
       {/* 위원장 총괄평가 */}
       {session?.chairSummary && (
@@ -236,10 +171,9 @@ async function ResultsContent({ id }: { id: string }) {
         <div className="rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-500">
           <div className="mb-1.5 font-semibold text-slate-600">합산 공식</div>
           <ul className="space-y-1">
-            <li>· 위원 점수 = Σ(항목 점수)</li>
+            <li>· 위원 점수 = Σ(항목 점수) · 총배점 100점</li>
             <li>· 최종 점수 = 배정 위원 점수의 평균 (만점 {fmt(maxTotal)}점)</li>
-            <li>· 환산 = 최종 ÷ {fmt(maxTotal)} × 100</li>
-            <li>· 등급 = 환산 90↑ S · 80↑ A · 70↑ B · 60↑ C · 그 외 D</li>
+            <li>· 등급 = 최종 90↑ S · 80↑ A · 70↑ B · 60↑ C · 그 외 D</li>
           </ul>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-500">

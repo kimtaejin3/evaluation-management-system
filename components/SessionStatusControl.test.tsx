@@ -34,9 +34,9 @@ describe('SessionStatusControl', () => {
     render(<SessionStatusControl sessionId="s1" status="DRAFT" eventDate={null} />)
     await openModal()
     expect(screen.getByRole('button', { name: '평가 시작' })).toBeEnabled()
-    expect(screen.getByRole('button', { name: '마감·잠금' })).toBeDisabled()
-    // CLOSED 상태가 아니므로 마감 해제 버튼은 없다
-    expect(screen.queryByRole('button', { name: /마감 해제/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '완료·잠금' })).toBeDisabled()
+    // CLOSED 상태가 아니므로 완료 해제 버튼은 없다
+    expect(screen.queryByRole('button', { name: /완료 해제/ })).not.toBeInTheDocument()
   })
 
   it('DRAFT에서 평가 시작 클릭 시 IN_PROGRESS로 상태 변경 액션을 호출한다', async () => {
@@ -50,26 +50,26 @@ describe('SessionStatusControl', () => {
     render(<SessionStatusControl sessionId="s1" status="IN_PROGRESS" eventDate={null} />)
     await openModal()
     expect(screen.getByRole('button', { name: '평가 시작' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: '마감·잠금' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: '완료·잠금' })).toBeEnabled()
   })
 
   it('IN_PROGRESS이고 평가 일시가 과거면 마감 버튼이 활성화된다', async () => {
     render(<SessionStatusControl sessionId="s1" status="IN_PROGRESS" eventDate={PAST} />)
     await openModal()
-    expect(screen.getByRole('button', { name: '마감·잠금' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: '완료·잠금' })).toBeEnabled()
   })
 
   it('IN_PROGRESS이고 평가 일시가 미래면 마감 버튼이 비활성화되고 안내 문구를 보여준다', async () => {
     render(<SessionStatusControl sessionId="s1" status="IN_PROGRESS" eventDate={FUTURE} />)
     await openModal()
-    expect(screen.getByRole('button', { name: '마감·잠금' })).toBeDisabled()
-    expect(screen.getByText(/이후에 마감할 수 있습니다/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '완료·잠금' })).toBeDisabled()
+    expect(screen.getByText(/이후에 완료할 수 있습니다/)).toBeInTheDocument()
   })
 
-  it('CLOSED에서는 마감 해제 버튼이 보이고 클릭 시 IN_PROGRESS로 되돌린다', async () => {
+  it('CLOSED에서는 완료 해제 버튼이 보이고 클릭 시 IN_PROGRESS로 되돌린다', async () => {
     render(<SessionStatusControl sessionId="s1" status="CLOSED" eventDate={null} />)
     const user = await openModal()
-    const unlock = screen.getByRole('button', { name: /마감 해제/ })
+    const unlock = screen.getByRole('button', { name: /완료 해제/ })
     expect(unlock).toBeEnabled()
     await user.click(unlock)
     expect(setSessionStatus).toHaveBeenCalledWith('s1', 'IN_PROGRESS')

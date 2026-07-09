@@ -108,7 +108,6 @@ export default function RankingTable({
             <th className="w-px whitespace-nowrap px-4 py-2 text-right font-medium print:border print:border-black">
               최종<div className="text-xs font-normal text-slate-400 print:text-black">/{fmt(maxTotal)}</div>
             </th>
-            <th className="w-px whitespace-nowrap px-3 py-2 text-right font-medium print:border print:border-black">환산</th>
             <th className="w-px whitespace-nowrap px-3 py-2 text-center font-medium print:border print:border-black">등급</th>
           </tr>
         </thead>
@@ -138,9 +137,6 @@ export default function RankingTable({
                 ))}
                 <td className="px-4 py-2.5 text-right text-base font-bold text-slate-900 tabular-nums print:border print:border-black">
                   {fin != null ? fin.toFixed(2) : <span className="text-slate-300">–</span>}
-                </td>
-                <td className="px-3 py-2.5 text-right tabular-nums text-slate-600 print:border print:border-black">
-                  {fin != null && maxTotal > 0 ? ((fin / maxTotal) * 100).toFixed(1) : '–'}
                 </td>
                 <td className="px-3 py-2.5 text-center print:border print:border-black">
                   {fin != null ? <span className={gradeBadge}>{overallGrade(fin, maxTotal)}</span> : <span className="text-slate-300">–</span>}

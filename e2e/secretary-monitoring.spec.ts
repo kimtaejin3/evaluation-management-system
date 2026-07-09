@@ -90,8 +90,9 @@ test('담당 간사는 집계결과에서 위원별 평가표를 인쇄할 수 �
   await page.addInitScript(() => { window.print = () => {} })
   await loginAs(page, 'gansa', 'gansa1234', '**/admin/sessions')
 
-  // 집계결과 페이지 접근 + 위원별 평가표 인쇄 UI 노출(위원 드롭다운·인쇄 버튼)
+  // 집계결과 페이지 접근 → '자세히 보기' 모달에서 위원별 평가표 인쇄 UI 노출(위원 드롭다운·인쇄 버튼)
   await page.goto(`/admin/sessions/${ownedId}/results`)
+  await page.getByRole('button', { name: /자세히 보기/ }).click()
   await expect(page.getByText('위원별 평가표 인쇄')).toBeVisible()
   await expect(page.getByRole('button', { name: '인쇄' }).first()).toBeVisible()
 
@@ -99,5 +100,11 @@ test('담당 간사는 집계결과에서 위원별 평가표를 인쇄할 수 �
   const res = await page.goto(`/print/sheet?sessionId=${ownedId}&subjectId=${subjectId}&evaluatorId=${evaluatorId}`)
   expect(res?.status()).toBe(200)
   await expect(page.getByRole('heading', { name: /평가표/ })).toBeVisible()
+  await expect(page.getByText('E2E 모니터링 위원')).toBeVisible()
+
+  // 기업별 위원 점수 인쇄 문서도 담당 간사가 접근 가능(200) + 위원 열 렌더
+  const res2 = await page.goto(`/print/subject-scores?sessionId=${ownedId}&subjectId=${subjectId}`)
+  expect(res2?.status()).toBe(200)
+  await expect(page.getByRole('heading', { name: /위원별 점수/ })).toBeVisible()
   await expect(page.getByText('E2E 모니터링 위원')).toBeVisible()
 })

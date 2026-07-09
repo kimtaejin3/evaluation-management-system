@@ -5,20 +5,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { SessionsIcon, UsersIcon, CompanyIcon } from "./icons";
 import { PROJECT_STATUS_LABEL } from "@/lib/project-status";
+import { SESSION_TABS as SUB_ITEMS } from "@/lib/session-nav";
 
 const APP_VERSION = "0.1.0";
-
-const SUB_ITEMS = [
-  { suffix: "", label: "실시간 진행 상황", desc: "분과 정보·실시간 모니터링" },
-  {
-    suffix: "/criteria",
-    label: "평가 항목",
-    desc: "배점·등급 설정·엑셀·한글 가져오기",
-  },
-  { suffix: "/subjects", label: "평가 대상", desc: "기업 편입·자료" },
-  { suffix: "/evaluators", label: "평가위원", desc: "위원 배정·위원장" },
-  { suffix: "/results", label: "집계 결과", desc: "순위·환산·등급 총괄표" },
-] as const;
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   DRAFT: { label: "준비", cls: "bg-slate-100 text-slate-600 ring-slate-200" },

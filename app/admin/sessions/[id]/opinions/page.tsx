@@ -1,0 +1,59 @@
+import { Suspense } from "react";
+import { prisma } from "@/lib/db";
+import { SkeletonCard } from "@/components/Skeletons";
+import OpinionViewer from "./OpinionViewer";
+
+export default async function OpinionsPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-6">
+          <SkeletonCard lines={3} />
+          <SkeletonCard lines={3} />
+        </div>
+      }
+    >
+      <OpinionsContent id={id} />
+    </Suspense>
+  );
+}
+
+async function OpinionsContent({ id }: { id: string }) {
+  const [session, assignments, subjects, opinions] = await Promise.all([
+    prisma.evaluationSession.findUnique({ where: { id } }),
+    prisma.assignment.findMany({ where: { sessionId: id }, include: { user: { select: { id: true, name: true } } } }),
+    prisma.subject.findMany({ where: { sessionId: id }, orderBy: { name: "asc" } }),
+    prisma.opinion.findMany({ where: { sessionId: id }, select: { evaluatorId: true, subjectId: true, text: true } }),
+  ]);
+
+  // (위원:대상) → 종합의견 텍스트
+  const opinionOf = new Map<string, string>();
+  for (const o of opinions) if (o.text.trim()) opinionOf.set(`${o.evaluatorId}:${o.subjectId}`, o.text);
+
+  // 위원장을 맨 앞에
+  const chairId = session?.chairId ?? null;
+  const evaluators = [...assignments]
+    .sort((a, b) => (b.userId === chairId ? 1 : 0) - (a.userId === chairId ? 1 : 0))
+    .map((a) => ({ id: a.userId, name: a.user.name, isChair: a.userId === chairId }));
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-slate-500">
+        평가위원이 각 지원기업에 대해 평가 화면에서 작성한 종합의견입니다. 위원을 선택해 확인하세요.
+      </p>
+
+      {evaluators.length === 0 ? (
+        <div className="rounded-xl border border-slate-200 bg-white px-5 py-10 text-center text-slate-400">
+          배정된 평가위원이 없습니다.
+        </div>
+      ) : (
+        <OpinionViewer evaluators={evaluators} subjects={subjects.map((s) => ({ id: s.id, name: s.name }))} opinions={Object.fromEntries(opinionOf)} />
+      )}
+    </div>
+  );
+}

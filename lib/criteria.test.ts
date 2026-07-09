@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { groupTotal, isGroupBalanced } from './criteria'
+import { groupTotal, isGroupBalanced, criteriaGrandTotal, isTotalValid, TOTAL_SCORE } from './criteria'
 
 describe('groupTotal', () => {
   it('배점 합을 반환', () => {
@@ -18,5 +18,30 @@ describe('isGroupBalanced', () => {
   })
   it('다르면 false', () => {
     expect(isGroupBalanced(50, 45)).toBe(false)
+  })
+})
+
+describe('criteriaGrandTotal', () => {
+  const groups = [
+    { subitems: [{ criteria: [{ maxScore: 30 }, { maxScore: 10 }] }, { criteria: [{ maxScore: 10 }] }] },
+    { subitems: [{ criteria: [{ maxScore: 50 }] }] },
+  ]
+  it('모든 평가지표 배점의 합을 반환', () => {
+    expect(criteriaGrandTotal(groups)).toBe(100)
+  })
+  it('빈 구조는 0', () => {
+    expect(criteriaGrandTotal([])).toBe(0)
+    expect(criteriaGrandTotal([{ subitems: [] }])).toBe(0)
+  })
+})
+
+describe('isTotalValid', () => {
+  it('100이면 true(부동소수 허용)', () => {
+    expect(isTotalValid(TOTAL_SCORE)).toBe(true)
+    expect(isTotalValid(40 + 30 + 30)).toBe(true)
+  })
+  it('100이 아니면 false', () => {
+    expect(isTotalValid(90)).toBe(false)
+    expect(isTotalValid(110)).toBe(false)
   })
 })

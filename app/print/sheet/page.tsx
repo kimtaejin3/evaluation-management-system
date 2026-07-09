@@ -4,39 +4,10 @@ import { assertSessionAccess } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import PrintButton from "@/app/admin/sessions/[id]/results/PrintButton";
 import AutoPrint from "./AutoPrint";
+import SheetDoc, { type SheetCriterion, type SheetDocData } from "./SheetDoc";
 
-const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
-
-type Item = { id: string; name: string; maxScore: number; value: number | null };
-type Sub = { name: string; items: Item[] };
-type Grp = { name: string; subs: Sub[] };
-
-// 위원별 평가표 인쇄 — 관리자 레이아웃(사이드바) 없이 문서만 렌더해 iframe 로드가 빠르다.
-// 자체 인증(assertSessionAccess). 진입: 집계결과의 "위원별 평가표 인쇄".
-export default async function SheetPrintPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ sessionId?: string; subjectId?: string; evaluatorId?: string }>;
-}) {
-  const { sessionId, subjectId, evaluatorId } = await searchParams;
-  if (!sessionId || !subjectId || !evaluatorId) notFound();
-  await assertSessionAccess(sessionId);
-
-  const [session, subject, evaluator, criteria, scores, opinion] = await Promise.all([
-    prisma.evaluationSession.findUnique({ where: { id: sessionId } }),
-    prisma.subject.findUnique({ where: { id: subjectId }, include: { company: true } }),
-    prisma.user.findUnique({ where: { id: evaluatorId }, select: { name: true } }),
-    prisma.criterion.findMany({
-      where: { sessionId },
-      include: { subitem: { include: { group: true } } },
-    }),
-    prisma.score.findMany({ where: { sessionId, subjectId, evaluatorId }, select: { criterionId: true, value: true } }),
-    prisma.opinion.findUnique({ where: { evaluatorId_subjectId: { evaluatorId, subjectId } }, select: { text: true } }),
-  ]);
-  if (!session || !subject || !evaluator || subject.sessionId !== sessionId) notFound();
-
-  // 평가항목(group) → 세부항목(subitem) → 평가지표(criterion) 순 정렬
-  criteria.sort((a, b) => {
+const sortCriteria = <T extends SheetCriterion & { subitem: { order: number; group: { order: number } } | null; order: number }>(arr: T[]) =>
+  arr.sort((a, b) => {
     const ga = a.subitem?.group.order ?? 0;
     const gb = b.subitem?.group.order ?? 0;
     if (ga !== gb) return ga - gb;
@@ -46,38 +17,64 @@ export default async function SheetPrintPage({
     return a.order - b.order;
   });
 
-  const valueOf = new Map(scores.map((s) => [s.criterionId, s.value]));
-  const groups: Grp[] = [];
-  for (const c of criteria) {
-    const gName = c.subitem?.group.name ?? "미분류";
-    const sName = c.subitem?.name ?? "";
-    let g = groups.find((x) => x.name === gName);
-    if (!g) {
-      g = { name: gName, subs: [] };
-      groups.push(g);
-    }
-    let sg = g.subs.find((x) => x.name === sName);
-    if (!sg) {
-      sg = { name: sName, items: [] };
-      g.subs.push(sg);
-    }
-    sg.items.push({ id: c.id, name: c.name, maxScore: c.maxScore, value: valueOf.get(c.id) ?? null });
-  }
+// 위원별 평가표 인쇄 — 관리자 레이아웃(사이드바) 없이 문서만 렌더해 iframe 로드가 빠르다.
+// subjectId=all 이면 해당 위원의 모든 대상 평가표를 페이지 나눔으로 이어서 인쇄. 자체 인증(assertSessionAccess).
+export default async function SheetPrintPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ sessionId?: string; subjectId?: string; evaluatorId?: string }>;
+}) {
+  const { sessionId, subjectId, evaluatorId } = await searchParams;
+  if (!sessionId || !subjectId || !evaluatorId) notFound();
+  await assertSessionAccess(sessionId);
 
-  const maxTotal = criteria.reduce((s, c) => s + c.maxScore, 0);
-  const total = criteria.reduce((s, c) => s + (valueOf.get(c.id) ?? 0), 0);
-  const filled = criteria.filter((c) => valueOf.get(c.id) != null).length;
   const printedDate = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
+  const all = subjectId === "all";
 
-  // 헤더/라벨 칸은 회색 배경으로 구분, 행 높이는 컴팩트하게(py-1).
-  const th = "border border-black bg-slate-200 px-2 py-1 text-center text-sm font-bold print:bg-slate-200";
-  const td = "border border-black px-3 py-1 text-sm";
+  const [session, evaluator, criteria] = await Promise.all([
+    prisma.evaluationSession.findUnique({ where: { id: sessionId } }),
+    prisma.user.findUnique({ where: { id: evaluatorId }, select: { name: true } }),
+    prisma.criterion.findMany({ where: { sessionId }, include: { subitem: { include: { group: true } } } }),
+  ]);
+  if (!session || !evaluator) notFound();
+  sortCriteria(criteria);
+
+  const subjects = all
+    ? await prisma.subject.findMany({ where: { sessionId }, include: { company: true }, orderBy: { name: "asc" } })
+    : await prisma.subject.findMany({ where: { id: subjectId, sessionId }, include: { company: true } });
+  if (subjects.length === 0) notFound();
+
+  const subjectIds = subjects.map((s) => s.id);
+  const [scores, opinions] = await Promise.all([
+    prisma.score.findMany({ where: { sessionId, evaluatorId, subjectId: { in: subjectIds } }, select: { subjectId: true, criterionId: true, value: true } }),
+    prisma.opinion.findMany({ where: { evaluatorId, subjectId: { in: subjectIds } }, select: { subjectId: true, text: true } }),
+  ]);
+  const opinionOf = new Map(opinions.map((o) => [o.subjectId, o.text]));
+
+  // 단일 모드 진행 표시용(전체 모드는 대상 수만 표시)
+  const singleFilled = all ? 0 : scores.filter((s) => s.subjectId === subjects[0].id && s.value != null).length;
+
+  const docs: SheetDocData[] = subjects.map((subject) => {
+    const valueOf = new Map<string, number | null>();
+    for (const s of scores) if (s.subjectId === subject.id) valueOf.set(s.criterionId, s.value);
+    return {
+      sessionName: session.name,
+      region: subject.region,
+      taskType: subject.taskType,
+      taskName: subject.taskName,
+      companyName: subject.company.name,
+      leadResearcher: subject.leadResearcher,
+      evaluatorName: evaluator.name,
+      criteria,
+      valueOf,
+      opinionText: opinionOf.get(subject.id) ?? "",
+      printedDate,
+    };
+  });
 
   return (
     <div className="min-h-screen bg-slate-100 py-6 print:bg-white print:py-0">
-      {/* A4 여백 */}
       <style>{`@page { size: A4; margin: 14mm; }`}</style>
-      {/* 진입 시 브라우저 인쇄 대화상자 자동 표시 */}
       <AutoPrint />
 
       {/* 화면 전용 툴바 */}
@@ -89,142 +86,23 @@ export default async function SheetPrintPage({
           ← 집계결과로
         </Link>
         <div className="flex items-center gap-3 text-sm text-slate-500">
-          <span>
-            평가지표 {filled}/{criteria.length} 입력
-            {criteria.length > 0 && filled < criteria.length && (
-              <span className="ml-1 text-amber-600">· 미입력 {criteria.length - filled}</span>
-            )}
-          </span>
+          {all ? (
+            <span>전체 {subjects.length}건</span>
+          ) : (
+            <span>
+              평가지표 {singleFilled}/{criteria.length} 입력
+              {criteria.length > 0 && singleFilled < criteria.length && (
+                <span className="ml-1 text-amber-600">· 미입력 {criteria.length - singleFilled}</span>
+              )}
+            </span>
+          )}
           <PrintButton />
         </div>
       </div>
 
-      {/* 평가표 문서 */}
-      <div className="mx-auto max-w-[210mm] rounded-lg bg-white p-8 text-slate-900 shadow-sm ring-1 ring-slate-200 sm:p-12 print:rounded-none print:p-0 print:shadow-none print:ring-0">
-        <h1 className="text-center text-2xl font-extrabold tracking-tight underline decoration-2 underline-offset-[6px]">
-          {session.name} 평가표
-        </h1>
-
-        {/* 헤더 메타 */}
-        <table className="mt-4 w-full border-collapse">
-          <tbody>
-            <tr>
-              <th className={`${th} w-32`}>지역</th>
-              <td className={td}>{subject.region ?? ""}</td>
-              <th className={`${th} w-32`}>과제유형</th>
-              <td className={td}>{subject.taskType ?? ""}</td>
-            </tr>
-            <tr>
-              <th className={th}>과제명</th>
-              <td className={td} colSpan={3}>{subject.taskName ?? ""}</td>
-            </tr>
-            <tr>
-              <th className={th}>주관연구개발기관</th>
-              <td className={td}>{subject.company.name}</td>
-              <th className={th}>연구책임자</th>
-              <td className={td}>{subject.leadResearcher ?? ""}</td>
-            </tr>
-          </tbody>
-        </table>
-
-        {/* 평가표 — K-PASS 양식: 평가 항목(2열 병합 머리글) | 평가 지표(○ 불릿) | 배점·평점(세부항목 단위 병합) */}
-        <table className="-mt-px w-full border-collapse">
-          <thead>
-            <tr>
-              <th colSpan={2} className={`${th} text-center`}>평가 항목</th>
-              <th className={`${th} text-center`}>평가 지표</th>
-              <th className={`${th} w-14 text-center`}>배점</th>
-              <th className={`${th} w-14 text-center`}>평점</th>
-            </tr>
-          </thead>
-          <tbody>
-            {groups.map((g) => {
-              const groupRowSpan = g.subs.reduce((n, s) => n + Math.max(1, s.items.length), 0) || 1;
-              const gTotal = g.subs.reduce((n, s) => n + s.items.reduce((m, i) => m + i.maxScore, 0), 0);
-              let groupPlaced = false;
-              return g.subs.map((sg) => {
-                const subRowSpan = Math.max(1, sg.items.length);
-                const subMax = sg.items.reduce((m, i) => m + i.maxScore, 0);
-                const subFilled = sg.items.length > 0 && sg.items.every((i) => i.value != null);
-                const subScore = sg.items.reduce((m, i) => m + (i.value ?? 0), 0);
-                return sg.items.map((c, cIdx) => {
-                  const cells: React.ReactNode[] = [];
-                  if (!groupPlaced) {
-                    cells.push(
-                      <td key="g" rowSpan={groupRowSpan} className={`${td} w-14 px-1 text-center align-middle font-bold`}>
-                        {g.name}
-                        <div className="font-semibold">({fmt(gTotal)})</div>
-                      </td>,
-                    );
-                    groupPlaced = true;
-                  }
-                  if (cIdx === 0) {
-                    cells.push(
-                      <td key="s" rowSpan={subRowSpan} className={`${td} w-24 px-1.5 text-center align-middle`}>
-                        {sg.name || "—"}
-                      </td>,
-                    );
-                  }
-                  cells.push(
-                    <td key="c" className={`${td} py-1 align-middle`}>
-                      <div className="flex gap-1.5">
-                        <span aria-hidden>○</span>
-                        <span>{c.name}</span>
-                      </div>
-                    </td>,
-                  );
-                  if (cIdx === 0) {
-                    cells.push(
-                      <td key="m" rowSpan={subRowSpan} className={`${td} text-center align-middle tabular-nums`}>
-                        {fmt(subMax)}
-                      </td>,
-                      <td key="v" rowSpan={subRowSpan} className={`${td} text-center align-middle font-semibold tabular-nums`}>
-                        {subFilled ? fmt(subScore) : ""}
-                      </td>,
-                    );
-                  }
-                  return <tr key={c.id}>{cells}</tr>;
-                });
-              });
-            })}
-            {criteria.length === 0 && (
-              <tr>
-                <td colSpan={5} className={`${td} py-8 text-center text-slate-400`}>평가 항목이 없습니다.</td>
-              </tr>
-            )}
-            <tr className="font-bold">
-              <td colSpan={3} className={`${td} text-center`}>합 계</td>
-              <td className={`${td} text-center tabular-nums`}>{fmt(maxTotal)}</td>
-              <td className={`${td} text-center tabular-nums`}>{filled === criteria.length && criteria.length > 0 ? fmt(total) : ""}</td>
-            </tr>
-          </tbody>
-        </table>
-
-        {/* 평가의견 — 좌측 세로 라벨 + 넓은 기재란 */}
-        <table className="-mt-px w-full border-collapse">
-          <tbody>
-            <tr>
-              <th className={`${th} w-14 px-1 text-center align-middle`}>
-                평가
-                <br />
-                의견
-              </th>
-              <td className={`${td} align-top`}>
-                <div className="min-h-28 whitespace-pre-wrap py-0.5">{opinion?.text || ""}</div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-
-        {/* 하단 — 날짜(좌) · 평가위원 서명(우) */}
-        <div className="mt-6 flex items-end justify-between text-sm">
-          <span>{printedDate}</span>
-          <span>
-            평가위원 : <span className="font-semibold">{evaluator.name}</span>
-            <span className="ml-1">(인)</span>
-          </span>
-        </div>
-      </div>
+      {docs.map((data, i) => (
+        <SheetDoc key={subjects[i].id} data={data} pageBreak={i > 0} />
+      ))}
     </div>
   );
 }

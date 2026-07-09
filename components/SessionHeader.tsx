@@ -3,15 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import DeleteSessionButton from "@/components/DeleteSessionButton";
-
-// 분과 하위 탭 경로 → 탭 이름 (사이드바 SUB_ITEMS와 동일)
-const TAB_LABEL: Record<string, string> = {
-  "": "실시간 진행 상황",
-  "/criteria": "평가 항목",
-  "/subjects": "평가 대상",
-  "/evaluators": "평가위원",
-  "/results": "집계 결과",
-};
+import { SESSION_TAB_LABEL as TAB_LABEL } from "@/lib/session-nav";
 
 export default function SessionHeader({
   sessionId,
