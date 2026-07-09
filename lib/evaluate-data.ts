@@ -34,7 +34,7 @@ export async function getSheetData(
   sessionId: string,
   subjectId: string,
 ): Promise<SheetData | null> {
-  const [subject, session, criteria, existing, opinion, subjects, myScores, submission] = await Promise.all([
+  const [subject, session, criteria, existing, opinion, subjects, myScores, submission, assignment] = await Promise.all([
     prisma.subject.findUnique({
       where: { id: subjectId },
       include: {
@@ -55,8 +55,10 @@ export async function getSheetData(
     prisma.subject.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } }),
     prisma.score.findMany({ where: { evaluatorId: userId, sessionId }, select: { subjectId: true, criterionId: true, value: true } }),
     prisma.submission.findUnique({ where: { evaluatorId_subjectId: { evaluatorId: userId, subjectId } }, select: { status: true } }),
+    prisma.assignment.findUnique({ where: { sessionId_userId: { sessionId, userId } }, select: { status: true } }),
   ])
   if (!subject || !session) return null
+  if (assignment?.status !== 'APPROVED') return null
 
   // 평가항목(group) → 세부항목(subitem) → 평가지표(criterion) 순 정렬
   criteria.sort((a, b) => {
@@ -151,7 +153,7 @@ export interface HomeSession {
 export async function getHomeData(userId: string): Promise<HomeSession[]> {
   const [assignments, myScores] = await Promise.all([
     prisma.assignment.findMany({
-      where: { userId, session: { status: 'IN_PROGRESS' } },
+      where: { userId, status: 'APPROVED', session: { status: 'IN_PROGRESS' } },
       include: {
         session: {
           include: {

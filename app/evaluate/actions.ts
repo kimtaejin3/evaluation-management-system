@@ -53,8 +53,9 @@ export async function autoSaveScore(
 
   const assigned = await prisma.assignment.findUnique({
     where: { sessionId_userId: { sessionId, userId: user.id } },
+    select: { status: true },
   })
-  if (!assigned) return { ok: false, error: 'not-assigned' }
+  if (!assigned || assigned.status !== 'APPROVED') return { ok: false, error: 'not-assigned' }
 
   const sub = await prisma.submission.findUnique({
     where: { evaluatorId_subjectId: { evaluatorId: user.id, subjectId } },
@@ -100,8 +101,9 @@ export async function saveScores(
 
   const assigned = await prisma.assignment.findUnique({
     where: { sessionId_userId: { sessionId, userId: user.id } },
+    select: { status: true },
   })
-  if (!assigned) return { error: '배정되지 않은 심사입니다.' }
+  if (!assigned || assigned.status !== 'APPROVED') return { error: '배정되지 않은 심사입니다.' }
 
   const existingSub = await prisma.submission.findUnique({
     where: { evaluatorId_subjectId: { evaluatorId: user.id, subjectId } },
