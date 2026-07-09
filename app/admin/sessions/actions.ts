@@ -13,7 +13,7 @@ import { buildEvaluators, type EvalColumnMapping } from '@/lib/evaluator-import'
 import { passwordFromPhone } from '@/lib/phone'
 import { buildSubjects, type SubjectColumnMapping } from '@/lib/subject-import'
 import { parseSheet } from '@/lib/kpass-sheet'
-import { assertSessionAccess, assertProjectAccess, requireAdminUser } from '@/lib/authz'
+import { assertSessionAccess, assertProjectAccess, requireAdminUser, assertMaster } from '@/lib/authz'
 
 export async function createSession(formData: FormData) {
   const user = await requireAdminUser()
@@ -604,5 +604,47 @@ export async function rejectEvaluation(sessionId: string, subjectId: string, eva
     data: { status: 'REJECTED', decidedAt: new Date(), decidedById: user.id },
   })
   revalidatePath(`/admin/sessions/${sessionId}/progress`)
+  revalidatePath(`/admin/sessions/${sessionId}/results`)
+}
+
+// ── 관리자: 배정 위원 승인/반려/검토완료 (MASTER 전용) ──
+
+export async function approveAssignment(sessionId: string, userId: string) {
+  await assertMaster()
+  await prisma.assignment.update({
+    where: { sessionId_userId: { sessionId, userId } },
+    data: { status: 'APPROVED', decidedAt: new Date() },
+  })
+  revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
+}
+
+export async function rejectAssignment(sessionId: string, userId: string) {
+  await assertMaster()
+  await prisma.assignment.update({
+    where: { sessionId_userId: { sessionId, userId } },
+    data: { status: 'REJECTED', decidedAt: new Date() },
+  })
+  // 반려된 위원이 위원장이면 해제
+  const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { chairId: true } })
+  if (s?.chairId === userId) {
+    await prisma.evaluationSession.update({ where: { id: sessionId }, data: { chairId: null } })
+  }
+  revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
+}
+
+export async function approveAllAssignments(sessionId: string) {
+  await assertMaster()
+  await prisma.assignment.updateMany({
+    where: { sessionId, status: 'PENDING' },
+    data: { status: 'APPROVED', decidedAt: new Date() },
+  })
+  revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
+}
+
+// 관리자 검토 완료 → 분과 완료(CLOSED). 사전 조건 없음.
+export async function completeReview(sessionId: string) {
+  await assertMaster()
+  await prisma.evaluationSession.update({ where: { id: sessionId }, data: { status: 'CLOSED' } })
+  revalidatePath(`/admin/sessions/${sessionId}`)
   revalidatePath(`/admin/sessions/${sessionId}/results`)
 }
