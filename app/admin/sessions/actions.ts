@@ -611,8 +611,9 @@ export async function rejectEvaluation(sessionId: string, subjectId: string, eva
 
 export async function approveAssignment(sessionId: string, userId: string) {
   await assertMaster()
-  await prisma.assignment.update({
-    where: { sessionId_userId: { sessionId, userId } },
+  // updateMany: 대상 배정이 이미 삭제됐거나(레이스) 없으면 조용히 무시(P2025 방지)
+  await prisma.assignment.updateMany({
+    where: { sessionId, userId },
     data: { status: 'APPROVED', decidedAt: new Date() },
   })
   revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
@@ -620,8 +621,9 @@ export async function approveAssignment(sessionId: string, userId: string) {
 
 export async function rejectAssignment(sessionId: string, userId: string) {
   await assertMaster()
-  await prisma.assignment.update({
-    where: { sessionId_userId: { sessionId, userId } },
+  // updateMany: 대상 배정이 이미 삭제됐거나(레이스) 없으면 조용히 무시(P2025 방지)
+  await prisma.assignment.updateMany({
+    where: { sessionId, userId },
     data: { status: 'REJECTED', decidedAt: new Date() },
   })
   // 반려된 위원이 위원장이면 해제
@@ -641,7 +643,8 @@ export async function approveAllAssignments(sessionId: string) {
   revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
 }
 
-// 관리자 검토 완료 → 분과 완료(CLOSED). 사전 조건 없음.
+// 관리자 검토 완료 → 분과 완료(CLOSED). 사전 조건 없음: setSessionStatus와 달리
+// canCloseSession/CLOSE_BLOCKED_MESSAGE의 eventDate 마감 가드를 의도적으로 건너뛴다(스펙상 "사전 조건 없음").
 export async function completeReview(sessionId: string) {
   await assertMaster()
   await prisma.evaluationSession.update({ where: { id: sessionId }, data: { status: 'CLOSED' } })

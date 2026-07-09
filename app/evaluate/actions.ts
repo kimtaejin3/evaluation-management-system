@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/session'
 import { isValidScoreValue } from '@/lib/scoring'
 import { canEvaluatorEdit } from '@/lib/submission'
+import { isAssignmentActive } from '@/lib/assignment'
 
 // 평가위원장이 심사 전체 총평(1건)을 저장 — 위원장 본인만 가능.
 export async function saveChairSummary(sessionId: string, formData: FormData): Promise<{ ok: boolean; error?: string }> {
@@ -55,7 +56,7 @@ export async function autoSaveScore(
     where: { sessionId_userId: { sessionId, userId: user.id } },
     select: { status: true },
   })
-  if (!assigned || assigned.status !== 'APPROVED') return { ok: false, error: 'not-assigned' }
+  if (!assigned || !isAssignmentActive(assigned.status)) return { ok: false, error: 'not-assigned' }
 
   const sub = await prisma.submission.findUnique({
     where: { evaluatorId_subjectId: { evaluatorId: user.id, subjectId } },
@@ -103,7 +104,7 @@ export async function saveScores(
     where: { sessionId_userId: { sessionId, userId: user.id } },
     select: { status: true },
   })
-  if (!assigned || assigned.status !== 'APPROVED') return { error: '배정되지 않은 심사입니다.' }
+  if (!assigned || !isAssignmentActive(assigned.status)) return { error: '배정되지 않은 심사입니다.' }
 
   const existingSub = await prisma.submission.findUnique({
     where: { evaluatorId_subjectId: { evaluatorId: user.id, subjectId } },

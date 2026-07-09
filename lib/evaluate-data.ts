@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { computeWeightedScore } from '@/lib/scoring'
+import { isAssignmentActive } from '@/lib/assignment'
 
 export interface CriterionView {
   id: string
@@ -58,7 +59,7 @@ export async function getSheetData(
     prisma.assignment.findUnique({ where: { sessionId_userId: { sessionId, userId } }, select: { status: true } }),
   ])
   if (!subject || !session) return null
-  if (assignment?.status !== 'APPROVED') return null
+  if (!assignment || !isAssignmentActive(assignment.status)) return null
 
   // 평가항목(group) → 세부항목(subitem) → 평가지표(criterion) 순 정렬
   criteria.sort((a, b) => {
