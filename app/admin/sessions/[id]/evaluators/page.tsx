@@ -143,19 +143,25 @@ async function EvaluatorsContent({ id }: { id: string }) {
                     {isChair && <span className="ml-2 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">위원장</span>}
                   </td>
                   <td className="px-5 py-3">
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badgeCls[a.status as AssignmentStatus]}`}>
-                      {assignmentStatusLabel(a.status as AssignmentStatus)}
-                    </span>
-                    {isMaster && a.status !== "APPROVED" && (
-                      <form action={approveAssignment.bind(null, id, a.userId)} className="mt-1 inline-block">
-                        <button className="text-xs text-emerald-700 hover:underline">승인</button>
-                      </form>
-                    )}
-                    {isMaster && a.status !== "REJECTED" && (
-                      <form action={rejectAssignment.bind(null, id, a.userId)} className="ml-2 mt-1 inline-block">
-                        <button className="text-xs text-rose-600 hover:underline">비승인</button>
-                      </form>
-                    )}
+                    <div className="flex flex-col items-start gap-1.5">
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badgeCls[a.status as AssignmentStatus]}`}>
+                        {assignmentStatusLabel(a.status as AssignmentStatus)}
+                      </span>
+                      {isMaster && (
+                        <div className="flex items-center gap-3">
+                          {a.status !== "APPROVED" && (
+                            <form action={approveAssignment.bind(null, id, a.userId)}>
+                              <button className="text-xs font-medium text-emerald-700 hover:underline">승인</button>
+                            </form>
+                          )}
+                          {a.status !== "REJECTED" && (
+                            <form action={rejectAssignment.bind(null, id, a.userId)}>
+                              <button className="text-xs font-medium text-rose-600 hover:underline">비승인</button>
+                            </form>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </td>
                   <td className="px-5 py-3 text-slate-600">{a.user.username}</td>
                   <td className="px-5 py-3 text-slate-600">{a.user.phone ?? <span className="text-slate-300">—</span>}</td>
