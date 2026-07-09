@@ -27,6 +27,12 @@ enum SubmissionStatus {
   REJECTED
 }
 
+enum AssignmentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
   id           String       @id @default(cuid())
   username     String       @unique
@@ -168,13 +174,18 @@ model Document {
 }
 
 model Assignment {
-  id        String            @id @default(cuid())
-  sessionId String
-  session   EvaluationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id          String            @id @default(cuid())
+  sessionId   String
+  session     EvaluationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status      AssignmentStatus  @default(PENDING)
+  createdById String?
+  createdAt   DateTime          @default(now())
+  decidedAt   DateTime?
 
   @@unique([sessionId, userId])
+  @@index([sessionId])
 }
 
 // 위원이 대상별로 남기는 종합의견
