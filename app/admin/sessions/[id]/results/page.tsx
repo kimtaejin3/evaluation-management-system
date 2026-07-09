@@ -4,6 +4,8 @@ import { computeFinalScores, rankSubjects } from "@/lib/scoring";
 import { getSessionInsights } from "@/lib/progress";
 import { TOTAL_SCORE } from "@/lib/criteria";
 import ResultsView from "./ResultsView";
+import CompleteReviewButton from "./CompleteReviewButton";
+import { requireAdminUser } from "@/lib/authz";
 import { SkeletonCard, SkeletonTable } from "@/components/Skeletons";
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
@@ -33,6 +35,7 @@ export default async function ResultsPage({
 }
 
 async function ResultsContent({ id }: { id: string }) {
+  const me = await requireAdminUser();
   const [session, subjects, criteria, scores, assignments, insights, approvedSubs] = await Promise.all([
     prisma.evaluationSession.findUnique({ where: { id } }),
     prisma.subject.findMany({ where: { sessionId: id } }),
@@ -107,7 +110,10 @@ async function ResultsContent({ id }: { id: string }) {
   return (
     <div className="space-y-5">
       {/* 화면 전용 컨트롤 */}
-      <p className="text-sm text-slate-500 print:hidden">위원 평균 점수 기준 선정 결과입니다.</p>
+      <div className="flex items-center justify-between gap-3 print:hidden">
+        <p className="text-sm text-slate-500">위원 평균 점수 기준 선정 결과입니다.</p>
+        {me.role === "MASTER" && <CompleteReviewButton sessionId={id} closed={session?.status === "CLOSED"} />}
+      </div>
 
       {/* 인쇄 문서 머리글 */}
       <div className="hidden print:block">
