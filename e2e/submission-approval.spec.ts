@@ -25,7 +25,7 @@ test.beforeAll(async () => {
   subjectId = subject.id
   const evaluator = await createEvaluator(prisma, 'sub1', 'E2E 제출위원')
   evaluatorId = evaluator.id
-  await prisma.assignment.create({ data: { sessionId, userId: evaluator.id } })
+  await prisma.assignment.create({ data: { sessionId, userId: evaluator.id, status: 'APPROVED' } })
 })
 
 test.afterAll(async () => {
