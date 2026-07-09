@@ -7,15 +7,15 @@ import { canCloseSession } from '@/lib/session-rules'
 type Status = 'DRAFT' | 'IN_PROGRESS' | 'CLOSED'
 
 const MAP: Record<Status, { label: string; cls: string }> = {
-  DRAFT: { label: '초안', cls: 'bg-slate-100 text-slate-600 ring-slate-200 hover:bg-slate-200' },
+  DRAFT: { label: '준비', cls: 'bg-slate-100 text-slate-600 ring-slate-200 hover:bg-slate-200' },
   IN_PROGRESS: { label: '진행중', cls: 'bg-indigo-50 text-indigo-700 ring-indigo-200 hover:bg-indigo-100' },
-  CLOSED: { label: '마감', cls: 'bg-slate-200 text-slate-600 ring-slate-300 hover:bg-slate-300' },
+  CLOSED: { label: '완료', cls: 'bg-slate-200 text-slate-600 ring-slate-300 hover:bg-slate-300' },
 }
 
 const FLOW: { key: Status; label: string; desc: string }[] = [
-  { key: 'DRAFT', label: '초안', desc: '항목·대상·위원을 설정합니다.' },
+  { key: 'DRAFT', label: '준비', desc: '항목·대상·위원을 설정합니다.' },
   { key: 'IN_PROGRESS', label: '진행중', desc: '평가위원이 점수를 입력합니다.' },
-  { key: 'CLOSED', label: '마감', desc: '점수가 잠기고 결과가 확정됩니다.' },
+  { key: 'CLOSED', label: '완료', desc: '점수가 잠기고 결과가 확정됩니다.' },
 ]
 
 export default function SessionStatusControl({
@@ -101,7 +101,7 @@ export default function SessionStatusControl({
                 disabled={status !== 'IN_PROGRESS' || !closable || pending}
                 className="w-full rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-40"
               >
-                마감·잠금
+                완료·잠금
               </button>
               {status === 'CLOSED' && (
                 <button
@@ -110,11 +110,11 @@ export default function SessionStatusControl({
                   disabled={pending}
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 transition hover:bg-slate-50 disabled:opacity-40"
                 >
-                  마감 해제(진행중으로)
+                  완료 해제(진행중으로)
                 </button>
               )}
               {status === 'IN_PROGRESS' && !closable && ev && (
-                <p className="text-xs text-amber-600">평가 일시({ev.toLocaleDateString('ko-KR')}) 이후에 마감할 수 있습니다.</p>
+                <p className="text-xs text-amber-600">평가 일시({ev.toLocaleDateString('ko-KR')}) 이후에 완료할 수 있습니다.</p>
               )}
             </div>
           </div>
