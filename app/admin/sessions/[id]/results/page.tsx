@@ -110,10 +110,7 @@ async function ResultsContent({ id }: { id: string }) {
   return (
     <div className="space-y-5">
       {/* 화면 전용 컨트롤 */}
-      <div className="flex items-center justify-between gap-3 print:hidden">
-        <p className="text-sm text-slate-500">위원 평균 점수 기준 선정 결과입니다.</p>
-        {me.role === "MASTER" && <CompleteReviewButton sessionId={id} closed={session?.status === "CLOSED"} />}
-      </div>
+      <p className="text-sm text-slate-500 print:hidden">위원 평균 점수 기준 선정 결과입니다.</p>
 
       {/* 인쇄 문서 머리글 */}
       <div className="hidden print:block">
@@ -199,6 +196,17 @@ async function ResultsContent({ id }: { id: string }) {
           <p className="mt-2 text-slate-400">완료 위원 2명 이상인 대상 기준 · 최고-최저 차이</p>
         </div>
       </div>
+
+      {/* 관리자 검토 완료 (화면 전용, 최하단) */}
+      {me.role === "MASTER" && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-5 print:hidden">
+          <div>
+            <div className="text-sm font-semibold text-slate-700">분과 검토 완료</div>
+            <p className="mt-0.5 text-xs text-slate-400">검토를 마치면 분과가 ‘완료’ 상태가 되고 점수가 잠깁니다.</p>
+          </div>
+          <CompleteReviewButton sessionId={id} closed={session?.status === "CLOSED"} />
+        </div>
+      )}
 
       {/* 인쇄 전용 확인란 */}
       <div className="mt-16 hidden grid-cols-2 gap-10 print:grid">
