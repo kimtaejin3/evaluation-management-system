@@ -12,8 +12,9 @@ import {
   addCriterion,
   updateCriterion,
   deleteCriterion,
+  updateSessionMaxScore,
 } from "@/app/admin/sessions/actions";
-import { groupTotal, isGroupBalanced, criteriaGrandTotal, isTotalValid, TOTAL_SCORE } from "@/lib/criteria";
+import { groupTotal, isGroupBalanced, criteriaGrandTotal } from "@/lib/criteria";
 import { TrashIcon, PencilIcon } from "@/components/icons";
 import CriteriaPreviewTable from "@/components/CriteriaPreviewTable";
 
@@ -106,17 +107,31 @@ function AddModal({
 export default function CriteriaEditor({
   sessionId,
   groups,
+  maxScore,
 }: {
   sessionId: string;
   groups: GroupDTO[];
+  maxScore: number;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [preview, setPreview] = useState(false);
   const [addingGroup, setAddingGroup] = useState(false);
+  const [maxInput, setMaxInput] = useState(String(maxScore));
   const [optimisticGroups, applyOptimistic] = useOptimistic<GroupDTO[], OptAction>(groups, optReducer);
   const tmpRef = useRef(0);
   const nextTmp = () => `tmp-${tmpRef.current++}`;
+
+  const parsedMax = Math.round(Number(maxInput));
+  const maxValid = Number.isFinite(parsedMax) && parsedMax > 0;
+  const maxDirty = maxValid && parsedMax !== maxScore;
+  const saveMax = () => {
+    if (!maxDirty) return;
+    start(async () => {
+      await updateSessionMaxScore(sessionId, parsedMax);
+      router.refresh();
+    });
+  };
 
   const run: RunFn = (fn) => {
     start(async () => {
@@ -158,31 +173,43 @@ export default function CriteriaEditor({
   };
 
   const grandTotal = criteriaGrandTotal(optimisticGroups);
-  const totalValid = isTotalValid(grandTotal);
+  const diff = grandTotal - maxScore; // >0: 가점(만점 초과), <0: 부족, 0: 일치
+  const shortfall = diff < 0; // 만점보다 배점 합계가 적음 → 대개 실수
+  const tone = shortfall
+    ? "border-amber-300 bg-amber-50 text-amber-700"
+    : "border-emerald-200 bg-emerald-50 text-emerald-700";
 
   return (
     <div className="space-y-4">
-      {/* 전체 배점 합계 검증 — 반드시 100이어야 함 */}
-      <div
-        className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border px-4 py-2.5 text-sm ${
-          totalValid
-            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-            : "border-amber-300 bg-amber-50 text-amber-700"
-        }`}
-      >
+      {/* 기준 만점(집계 환산 분모) — 배점 합계와 별개로 관리(가점 대응) */}
+      <div className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg border px-4 py-2.5 text-sm ${tone}`}>
         <span className="font-semibold">
-          총 배점 합계 {fmt(grandTotal)} / {TOTAL_SCORE}
+          총 배점 합계 {fmt(grandTotal)}
+          {diff !== 0 && (
+            <span className="ml-1 text-xs font-medium">
+              {diff > 0 ? `· 가점 +${fmt(diff)}점 (만점 초과 허용)` : `· 기준 만점보다 ${fmt(-diff)}점 부족`}
+            </span>
+          )}
+          {diff === 0 && <span className="ml-1 text-xs font-medium">✓ 기준 만점과 일치</span>}
         </span>
-        <span className="text-xs font-medium">
-          {totalValid
-            ? "✓ 배점 합계가 100입니다"
-            : `⚠ 배점 합계는 100이어야 합니다 — 현재 ${
-                grandTotal > TOTAL_SCORE
-                  ? `${fmt(grandTotal - TOTAL_SCORE)} 초과`
-                  : `${fmt(TOTAL_SCORE - grandTotal)} 부족`
-              }`}
+        <span className="flex items-center gap-2">
+          <label className="text-xs font-medium text-slate-500">기준 만점</label>
+          <input
+            type="number"
+            min={1}
+            step={1}
+            value={maxInput}
+            onChange={(e) => setMaxInput(e.target.value)}
+            className="w-20 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          />
+          <button type="button" onClick={saveMax} disabled={pending || !maxDirty} className={okBtn}>
+            적용
+          </button>
         </span>
       </div>
+      <p className="-mt-2 px-1 text-xs text-slate-400">
+        집계 결과의 환산·등급은 <span className="font-medium text-slate-500">기준 만점 {fmt(maxScore)}점</span>을 기준으로 계산됩니다. 가점이 있으면 배점 합계가 만점을 넘어 100% 초과 점수가 나올 수 있습니다.
+      </p>
 
       <div className="flex items-center justify-end gap-2">
         <button

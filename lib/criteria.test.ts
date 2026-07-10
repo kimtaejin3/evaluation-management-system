@@ -44,4 +44,9 @@ describe('isTotalValid', () => {
     expect(isTotalValid(90)).toBe(false)
     expect(isTotalValid(110)).toBe(false)
   })
+  it('기준 만점을 지정하면 그 값과 비교한다(가점 대응)', () => {
+    expect(isTotalValid(110, 110)).toBe(true)
+    expect(isTotalValid(100, 110)).toBe(false)
+    expect(isTotalValid(120, 120)).toBe(true)
+  })
 })

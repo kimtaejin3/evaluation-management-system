@@ -73,8 +73,8 @@ async function ResultsContent({ id }: { id: string }) {
     if (sa !== sb) return sa - sb;
     return a.order - b.order;
   });
-  // 환산·등급 기준 총배점은 항상 100 (평가항목 배점 합계 = 100 규칙)
-  const maxTotal = TOTAL_SCORE;
+  // 환산·등급 기준 만점 = 분과 설정값(기본 100). 가점이 있으면 100 초과 점수 가능.
+  const maxTotal = session?.maxScore ?? TOTAL_SCORE;
   const divergent = insights.rows.filter((r) => r.spread !== null && r.spread >= 10);
   // (위원:대상:항목) → 점수 (RankingTable에 전달, 클라이언트에서 평균·위원별 계산)
   const scoreVal = new Map<string, number>();

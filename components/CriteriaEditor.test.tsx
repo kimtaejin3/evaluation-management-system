@@ -16,6 +16,7 @@ vi.mock('@/app/admin/sessions/actions', () => ({
   addCriterion: vi.fn(),
   updateCriterion: vi.fn(),
   deleteCriterion: vi.fn(),
+  updateSessionMaxScore: vi.fn(),
 }))
 
 const groups = [
@@ -33,14 +34,14 @@ describe('CriteriaEditor', () => {
   afterEach(() => cleanup())
 
   it('편집 모드에서 평가항목 추가 버튼과 항목명을 보여준다', () => {
-    render(<CriteriaEditor sessionId="s1" groups={groups} />)
+    render(<CriteriaEditor sessionId="s1" groups={groups} maxScore={100} />)
     expect(screen.getByRole('button', { name: '+ 평가항목 추가' })).toBeInTheDocument()
     expect(screen.getByText('사업계획')).toBeInTheDocument()
   })
 
   it('미리보기로 토글하면 추가 버튼이 사라지고 버튼 라벨이 편집으로 바뀐다', async () => {
     const user = userEvent.setup()
-    render(<CriteriaEditor sessionId="s1" groups={groups} />)
+    render(<CriteriaEditor sessionId="s1" groups={groups} maxScore={100} />)
     await user.click(screen.getByRole('button', { name: '미리보기' }))
     expect(screen.getByRole('button', { name: '편집' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '+ 평가항목 추가' })).not.toBeInTheDocument()
@@ -48,7 +49,7 @@ describe('CriteriaEditor', () => {
 
   it('편집으로 되돌리면 다시 평가항목 추가 버튼이 나타난다', async () => {
     const user = userEvent.setup()
-    render(<CriteriaEditor sessionId="s1" groups={groups} />)
+    render(<CriteriaEditor sessionId="s1" groups={groups} maxScore={100} />)
     await user.click(screen.getByRole('button', { name: '미리보기' }))
     await user.click(screen.getByRole('button', { name: '편집' }))
     expect(screen.getByRole('button', { name: '+ 평가항목 추가' })).toBeInTheDocument()
@@ -56,13 +57,13 @@ describe('CriteriaEditor', () => {
 
   it('평가항목 추가 클릭 시 항목명·목표배점 입력 폼이 열린다', async () => {
     const user = userEvent.setup()
-    render(<CriteriaEditor sessionId="s1" groups={groups} />)
+    render(<CriteriaEditor sessionId="s1" groups={groups} maxScore={100} />)
     await user.click(screen.getByRole('button', { name: '+ 평가항목 추가' }))
     expect(screen.getByPlaceholderText('예: 사업계획')).toBeInTheDocument()
   })
 
   it('평가항목이 없으면 안내 문구를 보여준다', () => {
-    render(<CriteriaEditor sessionId="s1" groups={[]} />)
+    render(<CriteriaEditor sessionId="s1" groups={[]} maxScore={100} />)
     expect(screen.getByText(/등록된 평가항목이 없습니다/)).toBeInTheDocument()
   })
 })

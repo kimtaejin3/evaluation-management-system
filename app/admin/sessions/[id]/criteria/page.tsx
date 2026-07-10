@@ -55,7 +55,7 @@ async function CriteriaContent({ id }: { id: string }) {
         </h2>
         <div className="flex items-center gap-3">
           <span className="text-xs text-slate-400">
-            전체 배점 합계 {totalAll}점
+            배점 합계 {totalAll}점 · 기준 만점 {session?.maxScore ?? 100}점
           </span>
           {locked ? (
             <span className="text-xs text-slate-400">마감되어 수정할 수 없습니다</span>
@@ -68,7 +68,7 @@ async function CriteriaContent({ id }: { id: string }) {
       {locked ? (
         <CriteriaPreviewTable groups={groups} />
       ) : (
-        <CriteriaEditor sessionId={id} groups={groups} />
+        <CriteriaEditor sessionId={id} groups={groups} maxScore={session?.maxScore ?? 100} />
       )}
     </div>
   );

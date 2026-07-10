@@ -81,6 +81,16 @@ export async function addGroup(sessionId: string, formData: FormData) {
   await prisma.criterionGroup.create({ data: { sessionId, name, maxScore, order: count } })
   revalidatePath(`/admin/sessions/${sessionId}/criteria`)
 }
+
+// 분과 기준 만점 수정(집계 환산 분모). 배점 합계와 별개 — 가점 대응.
+export async function updateSessionMaxScore(sessionId: string, maxScore: number) {
+  await assertSessionAccess(sessionId)
+  const v = Math.round(Number(maxScore))
+  if (!Number.isFinite(v) || v <= 0) return
+  await prisma.evaluationSession.update({ where: { id: sessionId }, data: { maxScore: v } })
+  revalidatePath(`/admin/sessions/${sessionId}/criteria`)
+  revalidatePath(`/admin/sessions/${sessionId}/results`)
+}
 export async function updateGroup(groupId: string, formData: FormData) {
   const g = await prisma.criterionGroup.findUnique({ where: { id: groupId }, select: { sessionId: true } })
   if (!g) return
