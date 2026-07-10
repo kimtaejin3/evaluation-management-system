@@ -8,7 +8,7 @@ export function isGroupBalanced(target: number, leafSum: number): boolean {
   return Math.abs(target - leafSum) < 1e-9
 }
 
-// 평가표 기준 만점 기본값(집계 환산 분모). 분과별로 수정 가능(가점 대응).
+// 평가표 기준 만점 기본값(집계 환산 분모). 분과별로 수정 가능.
 export const TOTAL_SCORE = 100
 
 // 세션 전체 평가지표 배점 합계(모든 평가항목·세부항목의 배점 합)

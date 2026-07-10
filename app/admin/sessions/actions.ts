@@ -82,7 +82,7 @@ export async function addGroup(sessionId: string, formData: FormData) {
   revalidatePath(`/admin/sessions/${sessionId}/criteria`)
 }
 
-// 분과 기준 만점 수정(집계 환산 분모). 배점 합계와 별개 — 가점 대응.
+// 분과 기준 만점 수정(집계 환산 분모). 평가항목 배점 합계가 이 값과 일치해야 함.
 export async function updateSessionMaxScore(sessionId: string, maxScore: number) {
   await assertSessionAccess(sessionId)
   const v = Math.round(Number(maxScore))

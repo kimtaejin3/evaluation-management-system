@@ -14,7 +14,7 @@ import {
   deleteCriterion,
   updateSessionMaxScore,
 } from "@/app/admin/sessions/actions";
-import { groupTotal, isGroupBalanced, criteriaGrandTotal } from "@/lib/criteria";
+import { groupTotal, isGroupBalanced, criteriaGrandTotal, isTotalValid } from "@/lib/criteria";
 import { TrashIcon, PencilIcon } from "@/components/icons";
 import CriteriaPreviewTable from "@/components/CriteriaPreviewTable";
 
@@ -173,24 +173,23 @@ export default function CriteriaEditor({
   };
 
   const grandTotal = criteriaGrandTotal(optimisticGroups);
-  const diff = grandTotal - maxScore; // >0: 가점(만점 초과), <0: 부족, 0: 일치
-  const shortfall = diff < 0; // 만점보다 배점 합계가 적음 → 대개 실수
-  const tone = shortfall
-    ? "border-amber-300 bg-amber-50 text-amber-700"
-    : "border-emerald-200 bg-emerald-50 text-emerald-700";
+  const totalValid = isTotalValid(grandTotal, maxScore); // 배점 합계 == 기준 만점(strict)
+  const diff = grandTotal - maxScore; // >0: 초과, <0: 부족 (둘 다 오류)
+  const tone = totalValid
+    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+    : "border-amber-300 bg-amber-50 text-amber-700";
 
   return (
     <div className="space-y-4">
-      {/* 기준 만점(집계 환산 분모) — 배점 합계와 별개로 관리(가점 대응) */}
+      {/* 배점 합계는 기준 만점과 정확히 일치해야 함(초과 불가) */}
       <div className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg border px-4 py-2.5 text-sm ${tone}`}>
         <span className="font-semibold">
-          총 배점 합계 {fmt(grandTotal)}
-          {diff !== 0 && (
-            <span className="ml-1 text-xs font-medium">
-              {diff > 0 ? `· 가점 +${fmt(diff)}점 (만점 초과 허용)` : `· 기준 만점보다 ${fmt(-diff)}점 부족`}
-            </span>
-          )}
-          {diff === 0 && <span className="ml-1 text-xs font-medium">✓ 기준 만점과 일치</span>}
+          총 배점 합계 {fmt(grandTotal)} / {fmt(maxScore)}
+          <span className="ml-1 text-xs font-medium">
+            {totalValid
+              ? "✓ 기준 만점과 일치"
+              : `⚠ 기준 만점과 같아야 합니다 — ${diff > 0 ? `${fmt(diff)}점 초과` : `${fmt(-diff)}점 부족`}`}
+          </span>
         </span>
         <span className="flex items-center gap-2">
           <label className="text-xs font-medium text-slate-500">기준 만점</label>
@@ -208,7 +207,7 @@ export default function CriteriaEditor({
         </span>
       </div>
       <p className="-mt-2 px-1 text-xs text-slate-400">
-        집계 결과의 환산·등급은 <span className="font-medium text-slate-500">기준 만점 {fmt(maxScore)}점</span>을 기준으로 계산됩니다. 가점이 있으면 배점 합계가 만점을 넘어 100% 초과 점수가 나올 수 있습니다.
+        배점 합계는 <span className="font-medium text-slate-500">기준 만점 {fmt(maxScore)}점</span>과 정확히 일치해야 합니다. 집계 결과의 환산·등급이 이 만점을 기준으로 계산됩니다.
       </p>
 
       <div className="flex items-center justify-end gap-2">
