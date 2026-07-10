@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { SessionsIcon, UsersIcon, CompanyIcon } from "./icons";
-import { PROJECT_STATUS_LABEL } from "@/lib/project-status";
 import { SESSION_TABS as SUB_ITEMS } from "@/lib/session-nav";
 
 const APP_VERSION = "0.1.0";
@@ -178,10 +177,6 @@ function ProjectNode({
   const [open, setOpen] = useState(
     pathname.startsWith(`/admin/projects/${project.id}`),
   );
-  const statusLabel =
-    PROJECT_STATUS_LABEL[
-      project.status as "DRAFT" | "IN_PROGRESS" | "CLOSED"
-    ] ?? project.status;
   return (
     <div>
       <div className="flex items-center">
@@ -208,16 +203,9 @@ function ProjectNode({
         <Link
           href={`/admin/projects/${project.id}`}
           className={`${sessionCls(projActive)} flex-1`}
-          title={`${project.name} · ${statusLabel}`}
+          title={project.name}
         >
-          <span className="flex items-center gap-1.5">
-            <span
-              className={`shrink-0 text-[10px] font-medium ${STATUS_TEXT[project.status] ?? "text-slate-400"}`}
-            >
-              {statusLabel}
-            </span>
-            <span className="truncate">{project.name}</span>
-          </span>
+          <span className="truncate">{project.name}</span>
         </Link>
       </div>
       {open && (
@@ -401,7 +389,7 @@ export default function AdminSidebar({
               className={topCls(pathname.startsWith("/admin/evaluators"))}
             >
               <UsersIcon />
-              평가위원·간사 관리
+              평가위원 · 간사 관리
             </Link>
           )}
           <Link
@@ -409,7 +397,7 @@ export default function AdminSidebar({
             className={topCls(pathname.startsWith("/admin/companies"))}
           >
             <CompanyIcon />
-            기업 관리
+            평가 대상 관리
           </Link>
         </nav>
       )}

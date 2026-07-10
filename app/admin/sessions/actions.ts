@@ -466,27 +466,6 @@ export async function deleteSubject(sessionId: string, subjectId: string) {
   revalidatePath(`/admin/sessions/${sessionId}/subjects`)
 }
 
-// 인쇄 평가표 헤더용 대상 정보(과제명·지역·과제유형·연구책임자) 수정.
-// 과제명(taskName)은 대상 식별용 name(기업명)과 별개 필드.
-export async function updateSubjectMeta(sessionId: string, subjectId: string, formData: FormData) {
-  await assertSessionAccess(sessionId)
-  const str = (k: string) => {
-    const v = String(formData.get(k) ?? '').trim()
-    return v === '' ? null : v
-  }
-  await prisma.subject.update({
-    where: { id: subjectId },
-    data: {
-      taskName: str('taskName'),
-      region: str('region'),
-      taskType: str('taskType'),
-      leadResearcher: str('leadResearcher'),
-    },
-  })
-  revalidatePath(`/admin/sessions/${sessionId}/subjects`)
-  revalidatePath(`/admin/sessions/${sessionId}/results`)
-}
-
 // 평가 대상(기업) 자료 업로드 — 이 심사 전용(sessionId)으로 저장. 사업계획/현장실태조사서/사전검토표 등
 export async function uploadSubjectDocument(sessionId: string, companyId: string, formData: FormData) {
   await assertSessionAccess(sessionId)

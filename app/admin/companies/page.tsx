@@ -17,7 +17,7 @@ export default function CompaniesPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold">기업 관리</h1>
+        <h1 className="text-2xl font-bold">평가 대상 관리</h1>
         <p className="mt-1 text-sm text-slate-500">
           평가 대상 기업을 등록·관리합니다. 분과 자료 업로드는 <span className="font-medium text-slate-600">분과 관리 &gt; 평가 대상</span>에서 합니다.
         </p>
@@ -31,11 +31,13 @@ export default function CompaniesPage() {
         <div className="col-span-2 text-sm font-semibold text-slate-700">기업 등록</div>
         <input name="name" placeholder="기업명" required className={inputCls} />
         <input name="businessNo" placeholder="사업자등록번호 (예: 123-45-67890)" className={inputCls} />
+        <input name="region" placeholder="지역" className={inputCls} />
+        <input name="leadResearcher" placeholder="연구책임자" className={inputCls} />
         <input name="description" placeholder="설명(선택)" className={`col-span-2 ${inputCls}`} />
         <button className="col-span-2 rounded-md bg-indigo-600 py-2 text-sm font-medium text-white transition hover:bg-indigo-700">
           + 기업 등록
         </button>
-        <p className="col-span-2 text-xs text-slate-400">같은 기업명이면 기존 기업을 갱신합니다.</p>
+        <p className="col-span-2 text-xs text-slate-400">같은 기업명이면 기존 기업을 갱신합니다. 지역·연구책임자는 인쇄 평가표 헤더에 사용됩니다.</p>
       </form>
 
       <Suspense fallback={<SkeletonCardGrid count={3} lines={2} cols="" />}>
@@ -69,6 +71,10 @@ async function CompanyList() {
                     <span className="font-semibold text-slate-800">{c.name}</span>
                     <div className="mt-0.5 text-xs text-slate-500">
                       사업자등록번호 <span className="font-medium text-slate-700">{c.businessNo || "—"}</span>
+                      <span className="mx-1.5 text-slate-300">·</span>
+                      지역 <span className="font-medium text-slate-700">{c.region || "—"}</span>
+                      <span className="mx-1.5 text-slate-300">·</span>
+                      연구책임자 <span className="font-medium text-slate-700">{c.leadResearcher || "—"}</span>
                     </div>
                     {c.description && <p className="mt-1 text-sm text-slate-500">{c.description}</p>}
                   </div>

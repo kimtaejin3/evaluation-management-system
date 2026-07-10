@@ -33,7 +33,7 @@ export default async function SheetPrintPage({
   const all = subjectId === "all";
 
   const [session, evaluator, criteria] = await Promise.all([
-    prisma.evaluationSession.findUnique({ where: { id: sessionId } }),
+    prisma.evaluationSession.findUnique({ where: { id: sessionId }, include: { project: { select: { name: true, taskType: true } } } }),
     prisma.user.findUnique({ where: { id: evaluatorId }, select: { name: true } }),
     prisma.criterion.findMany({ where: { sessionId }, include: { subitem: { include: { group: true } } } }),
   ]);
@@ -60,11 +60,11 @@ export default async function SheetPrintPage({
     for (const s of scores) if (s.subjectId === subject.id) valueOf.set(s.criterionId, s.value);
     return {
       sessionName: session.name,
-      region: subject.region,
-      taskType: subject.taskType,
-      taskName: subject.taskName,
+      region: subject.company.region,
+      taskType: session.project?.taskType ?? null,
+      taskName: session.project?.name ?? null,
       companyName: subject.company.name,
-      leadResearcher: subject.leadResearcher,
+      leadResearcher: subject.company.leadResearcher,
       evaluatorName: evaluator.name,
       criteria,
       valueOf,

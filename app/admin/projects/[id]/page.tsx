@@ -5,7 +5,7 @@ import { deriveProjectStatus } from "@/lib/project-status";
 import StatusBadge from "@/components/StatusBadge";
 import DeleteProjectButton from "@/components/DeleteProjectButton";
 import AssignSecretaryModal from "@/components/AssignSecretaryModal";
-import { unassignSessionSecretary } from "../actions";
+import { unassignSessionSecretary, updateProjectTaskType } from "../actions";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   DRAFT: { label: "준비중", cls: "bg-slate-100 text-slate-600 ring-slate-200" },
@@ -74,6 +74,24 @@ export default async function ProjectDetailPage({
         </div>
         {project.description && <p className="mt-1 text-sm text-slate-600">{project.description}</p>}
       </div>
+
+      {/* 인쇄 평가표 헤더 — 과제유형(과제 단위). 과제명은 위 과제명, 지역·연구책임자는 평가 대상(기업)에서 */}
+      {isMaster && (
+        <form action={updateProjectTaskType.bind(null, id)} className="flex flex-wrap items-end gap-2 rounded-xl border border-slate-200 bg-white p-4">
+          <label className="flex flex-1 flex-col gap-1 text-xs text-slate-500">
+            과제유형 <span className="text-slate-400">(인쇄 평가표 헤더용)</span>
+            <input
+              name="taskType"
+              defaultValue={project.taskType ?? ""}
+              placeholder="예) 지역특화 R&D"
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            />
+          </label>
+          <button className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50">
+            저장
+          </button>
+        </form>
+      )}
 
       {/* 소속 분과 — 버튼은 카드 밖(배경), 표만 카드 안 */}
       <div className="space-y-3">

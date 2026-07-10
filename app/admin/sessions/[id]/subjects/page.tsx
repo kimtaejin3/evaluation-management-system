@@ -5,7 +5,6 @@ import CompanyLogo from "@/components/CompanyLogo";
 import {
   addSubject,
   deleteSubject,
-  updateSubjectMeta,
   uploadSubjectDocument,
   deleteSubjectDocument,
 } from "../../actions";
@@ -113,9 +112,9 @@ async function SubjectsContent({ id }: { id: string }) {
               href="/admin/companies"
               className="text-indigo-600 hover:underline"
             >
-              기업 관리
+              평가 대상 관리
             </Link>
-            에서 전역으로 관리되며 분과 간 공유됩니다. 신규 기업은 기업 관리에서 먼저 등록하세요.
+            에서 전역으로 관리되며 분과 간 공유됩니다. 신규 기업은 평가 대상 관리에서 먼저 등록하세요.
           </p>
         </div>
       )}
@@ -188,47 +187,6 @@ async function SubjectsContent({ id }: { id: string }) {
               )}
             </div>
 
-            {!locked && (
-              <div className="mt-4 border-t border-slate-100 pt-4">
-                <div className="mb-2 text-xs font-medium text-slate-500">
-                  평가표 헤더 정보 (인쇄용)
-                </div>
-                <form
-                  action={updateSubjectMeta.bind(null, id, s.id)}
-                  className="grid grid-cols-2 gap-2 sm:grid-cols-4"
-                >
-                  <label className="col-span-2 flex flex-col gap-1 text-xs text-slate-500 sm:col-span-4">
-                    과제명 <span className="text-slate-400">(기업명과 별개, 실제 과제명)</span>
-                    <input
-                      name="taskName"
-                      defaultValue={s.taskName ?? ""}
-                      placeholder="예: AI 기반 전주기 재난 예방 기술 개발"
-                      className={inputCls}
-                    />
-                  </label>
-                  <label className="flex flex-col gap-1 text-xs text-slate-500">
-                    지역
-                    <input name="region" defaultValue={s.region ?? ""} className={inputCls} />
-                  </label>
-                  <label className="flex flex-col gap-1 text-xs text-slate-500">
-                    과제유형
-                    <input name="taskType" defaultValue={s.taskType ?? ""} className={inputCls} />
-                  </label>
-                  <label className="flex flex-col gap-1 text-xs text-slate-500">
-                    연구책임자
-                    <input name="leadResearcher" defaultValue={s.leadResearcher ?? ""} className={inputCls} />
-                  </label>
-                  <div className="col-span-2 flex items-end sm:col-span-1">
-                    <button className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50">
-                      저장
-                    </button>
-                  </div>
-                </form>
-                <p className="mt-1.5 text-xs text-slate-400">
-                  주관연구개발기관은 기업명({s.company.name})으로 자동 표시됩니다.
-                </p>
-              </div>
-            )}
 
             <div className="mt-4 border-t border-slate-100 pt-4">
               <div className="mb-2 flex items-center justify-between">
@@ -239,7 +197,7 @@ async function SubjectsContent({ id }: { id: string }) {
                   href="/admin/companies"
                   className="text-xs text-indigo-600 hover:underline"
                 >
-                  기업 관리에서 자료 추가/수정 →
+                  평가 대상 관리에서 자료 추가/수정 →
                 </Link>
               </div>
               <ul className="space-y-1">

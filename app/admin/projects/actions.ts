@@ -17,10 +17,22 @@ export async function createProject(formData: FormData) {
     data: {
       name,
       description,
+      // 인쇄 평가표 헤더용 과제유형(선택)
+      taskType: String(formData.get('taskType') ?? '').trim() || null,
       dueDate: new Date(dueRaw),
     },
   })
   redirect(`/admin/projects/${p.id}`)
+}
+
+// 과제 과제유형 수정(마스터) — 인쇄 헤더용
+export async function updateProjectTaskType(projectId: string, formData: FormData) {
+  await assertMaster()
+  await prisma.project.update({
+    where: { id: projectId },
+    data: { taskType: String(formData.get('taskType') ?? '').trim() || null },
+  })
+  revalidatePath(`/admin/projects/${projectId}`)
 }
 
 // "배정" = 간사(기존 선택)를 분과에 배정. 과제 접근 권한도 함께 부여(project.secretaries).

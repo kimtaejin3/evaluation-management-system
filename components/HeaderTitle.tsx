@@ -8,8 +8,8 @@ type Sess = { id: string; name: string; status?: string };
 const EXACT: Record<string, string> = {
   "/admin/sessions": "분과 관리",
   "/admin/sessions/new": "새 분과 등록",
-  "/admin/evaluators": "평가위원 관리",
-  "/admin/companies": "기업 관리",
+  "/admin/evaluators": "평가위원 · 간사 관리",
+  "/admin/companies": "평가 대상 관리",
   "/evaluate": "평가 대상",
 };
 

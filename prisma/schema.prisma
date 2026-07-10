@@ -55,6 +55,8 @@ model Project {
   id          String              @id @default(cuid())
   name        String
   description String?
+  // 인쇄 평가표 헤더용 — 과제유형(예: 지역특화 R&D). 과제명은 name을 사용.
+  taskType    String?
   dueDate     DateTime?
   secretaries User[]              @relation("ProjectSecretaries")
   sessions    EvaluationSession[]
@@ -132,6 +134,9 @@ model Company {
   name        String     @unique
   // 사업자등록번호 (예: 123-45-67890)
   businessNo  String?
+  // 인쇄 평가표 헤더용(기업 단위) — 지역·연구책임자
+  region         String?
+  leadResearcher String?
   description String?
   documents   Document[]
   subjects    Subject[]
@@ -147,11 +152,6 @@ model Subject {
   company     Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name        String
   description String?
-  // 인쇄 평가표 상단 헤더용(관리자 입력) — 과제명(기업명과 별개)/지역/과제유형/연구책임자
-  taskName       String?
-  region         String?
-  taskType       String?
-  leadResearcher String?
   order       Int               @default(0)
   scores      Score[]
 

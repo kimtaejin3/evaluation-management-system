@@ -54,13 +54,17 @@ export async function createCompany(formData: FormData) {
   const name = String(formData.get('name') ?? '').trim()
   if (!name) return
   const businessNo = String(formData.get('businessNo') ?? '').trim() || null
+  const region = String(formData.get('region') ?? '').trim() || null
+  const leadResearcher = String(formData.get('leadResearcher') ?? '').trim() || null
   await prisma.company.upsert({
     where: { name },
     update: {
       description: String(formData.get('description') ?? '') || undefined,
       businessNo: businessNo ?? undefined,
+      region: region ?? undefined,
+      leadResearcher: leadResearcher ?? undefined,
     },
-    create: { name, businessNo, description: String(formData.get('description') ?? '') || null },
+    create: { name, businessNo, region, leadResearcher, description: String(formData.get('description') ?? '') || null },
   })
   revalidatePath('/admin/companies')
 }

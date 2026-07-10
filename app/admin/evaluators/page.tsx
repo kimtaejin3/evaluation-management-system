@@ -13,7 +13,7 @@ export default async function EvaluatorsAdminPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold">평가위원·간사 관리</h1>
+        <h1 className="text-2xl font-bold">평가위원 · 간사 관리</h1>
         <p className="mt-1 text-sm text-slate-500">
           계정을 등록·관리합니다. 분과 배정은 분과별 화면에서 진행하세요.
         </p>
