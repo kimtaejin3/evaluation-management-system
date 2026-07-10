@@ -11,14 +11,15 @@ export async function createProject(formData: FormData) {
   const name = String(formData.get('name') ?? '').trim()
   const description = String(formData.get('description') ?? '').trim()
   const dueRaw = String(formData.get('dueDate') ?? '').trim()
-  // 과제명·과제 개요·평가일 모두 필수
-  if (!name || !description || !dueRaw) return
+  const taskType = String(formData.get('taskType') ?? '').trim()
+  // 과제명·과제 개요·과제유형·평가일 모두 필수
+  if (!name || !description || !taskType || !dueRaw) return
   const p = await prisma.project.create({
     data: {
       name,
       description,
-      // 인쇄 평가표 헤더용 과제유형(선택)
-      taskType: String(formData.get('taskType') ?? '').trim() || null,
+      // 인쇄 평가표 헤더용 과제유형
+      taskType,
       dueDate: new Date(dueRaw),
     },
   })

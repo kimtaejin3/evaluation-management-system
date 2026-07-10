@@ -9,7 +9,7 @@ export function isAssignmentActive(status: AssignmentStatus): boolean {
 const LABELS: Record<AssignmentStatus, string> = {
   PENDING: '대기',
   APPROVED: '승인',
-  REJECTED: '반려',
+  REJECTED: '비승인',
 }
 export function assignmentStatusLabel(status: AssignmentStatus): string {
   return LABELS[status]

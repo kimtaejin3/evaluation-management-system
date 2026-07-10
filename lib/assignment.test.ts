@@ -13,7 +13,7 @@ describe('assignmentStatusLabel', () => {
   it('상태 라벨', () => {
     expect(assignmentStatusLabel('PENDING')).toBe('대기')
     expect(assignmentStatusLabel('APPROVED')).toBe('승인')
-    expect(assignmentStatusLabel('REJECTED')).toBe('반려')
+    expect(assignmentStatusLabel('REJECTED')).toBe('비승인')
   })
 })
 

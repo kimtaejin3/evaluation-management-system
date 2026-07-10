@@ -52,10 +52,11 @@ export async function resetEvaluatorPassword(userId: string) {
 
 export async function createCompany(formData: FormData) {
   const name = String(formData.get('name') ?? '').trim()
-  if (!name) return
   const businessNo = String(formData.get('businessNo') ?? '').trim() || null
   const region = String(formData.get('region') ?? '').trim() || null
   const leadResearcher = String(formData.get('leadResearcher') ?? '').trim() || null
+  // 기업명·지역·연구책임자 필수(인쇄 헤더용)
+  if (!name || !region || !leadResearcher) return
   await prisma.company.upsert({
     where: { name },
     update: {

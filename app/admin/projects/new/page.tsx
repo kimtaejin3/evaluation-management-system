@@ -23,8 +23,8 @@ export default async function NewProjectPage() {
           <textarea name="description" rows={2} required className={`${inputCls} resize-none`} placeholder="예) 사업 목적·범위, 주요 평가 관점 등 과제 개요를 입력하세요" />
         </div>
         <div>
-          <label className="text-sm font-medium text-slate-700">과제유형(선택)</label>
-          <input name="taskType" className={inputCls} placeholder="예) 지역특화 R&D — 인쇄 평가표 헤더에 표시" />
+          <label className="text-sm font-medium text-slate-700">과제유형</label>
+          <input name="taskType" required className={inputCls} placeholder="예) 지역특화 R&D — 인쇄 평가표 헤더에 표시" />
         </div>
         <div>
           <label className="text-sm font-medium text-slate-700">평가일</label>

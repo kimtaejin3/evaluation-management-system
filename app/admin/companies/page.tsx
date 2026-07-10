@@ -31,8 +31,8 @@ export default function CompaniesPage() {
         <div className="col-span-2 text-sm font-semibold text-slate-700">기업 등록</div>
         <input name="name" placeholder="기업명" required className={inputCls} />
         <input name="businessNo" placeholder="사업자등록번호 (예: 123-45-67890)" className={inputCls} />
-        <input name="region" placeholder="지역" className={inputCls} />
-        <input name="leadResearcher" placeholder="연구책임자" className={inputCls} />
+        <input name="region" placeholder="지역" required className={inputCls} />
+        <input name="leadResearcher" placeholder="연구책임자" required className={inputCls} />
         <input name="description" placeholder="설명(선택)" className={`col-span-2 ${inputCls}`} />
         <button className="col-span-2 rounded-md bg-indigo-600 py-2 text-sm font-medium text-white transition hover:bg-indigo-700">
           + 기업 등록

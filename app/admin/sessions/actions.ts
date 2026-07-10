@@ -430,10 +430,14 @@ export async function addSubject(sessionId: string, formData: FormData) {
   if (companyId) {
     company = await prisma.company.findUnique({ where: { id: companyId } })
   } else if (newName) {
+    // 신규 기업 등록 시 인쇄 헤더용 지역·연구책임자 필수
+    const region = String(formData.get('region') ?? '').trim()
+    const leadResearcher = String(formData.get('leadResearcher') ?? '').trim()
+    if (!region || !leadResearcher) return
     company = await prisma.company.upsert({
       where: { name: newName },
-      update: {},
-      create: { name: newName },
+      update: { region, leadResearcher },
+      create: { name: newName, region, leadResearcher },
     })
   }
   if (!company) return

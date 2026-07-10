@@ -143,23 +143,23 @@ async function EvaluatorsContent({ id }: { id: string }) {
                     {isChair && <span className="ml-2 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">위원장</span>}
                   </td>
                   <td className="px-5 py-3">
-                    <div className="flex flex-col items-start gap-1.5">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badgeCls[a.status as AssignmentStatus]}`}>
                         {assignmentStatusLabel(a.status as AssignmentStatus)}
                       </span>
-                      {isMaster && (
-                        <div className="flex items-center gap-3">
-                          {a.status !== "APPROVED" && (
-                            <form action={approveAssignment.bind(null, id, a.userId)}>
-                              <button className="text-xs font-medium text-emerald-700 hover:underline">승인</button>
-                            </form>
-                          )}
-                          {a.status !== "REJECTED" && (
-                            <form action={rejectAssignment.bind(null, id, a.userId)}>
-                              <button className="text-xs font-medium text-rose-600 hover:underline">비승인</button>
-                            </form>
-                          )}
-                        </div>
+                      {isMaster && a.status !== "APPROVED" && (
+                        <form action={approveAssignment.bind(null, id, a.userId)}>
+                          <button className="rounded-md bg-[var(--gov-navy)] px-2.5 py-1 text-xs font-medium text-white transition hover:opacity-90">
+                            승인
+                          </button>
+                        </form>
+                      )}
+                      {isMaster && a.status !== "REJECTED" && (
+                        <form action={rejectAssignment.bind(null, id, a.userId)}>
+                          <button className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50">
+                            비승인
+                          </button>
+                        </form>
                       )}
                     </div>
                   </td>

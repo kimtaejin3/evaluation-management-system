@@ -106,15 +106,26 @@ async function SubjectsContent({ id }: { id: string }) {
               추가
             </button>
           </form>
+
+          {/* 신규 평가 대상(기업) 등록 → 이 분과에 바로 편입 */}
+          <form
+            action={addSubject.bind(null, id)}
+            className="flex flex-wrap gap-2 border-t border-slate-100 pt-3"
+          >
+            <input name="newName" required placeholder="새 기업명" className={`min-w-40 flex-1 ${inputCls}`} />
+            <input name="region" required placeholder="지역" className={`w-28 ${inputCls}`} />
+            <input name="leadResearcher" required placeholder="연구책임자" className={`w-32 ${inputCls}`} />
+            <button className="shrink-0 rounded-lg border border-indigo-300 px-4 py-2 text-sm font-medium text-indigo-700 transition hover:bg-indigo-50">
+              신규 등록
+            </button>
+          </form>
+
           <p className="text-xs text-slate-400">
-            기업·자료는{" "}
-            <Link
-              href="/admin/companies"
-              className="text-indigo-600 hover:underline"
-            >
+            신규 등록한 기업은{" "}
+            <Link href="/admin/companies" className="text-indigo-600 hover:underline">
               평가 대상 관리
             </Link>
-            에서 전역으로 관리되며 분과 간 공유됩니다. 신규 기업은 평가 대상 관리에서 먼저 등록하세요.
+            에 전역으로 저장돼 분과 간 공유됩니다. 지역·연구책임자는 인쇄 평가표 헤더에 사용됩니다.
           </p>
         </div>
       )}

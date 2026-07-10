@@ -93,7 +93,7 @@ test('반려 경로: 별도 위원 등록 후 관리자가 비승인하면 로�
   await page.goto(`/admin/sessions/${sessionId}/evaluators`)
   const row2Admin = page.locator('tr').filter({ has: page.getByText(EVALUATOR_NAME_2, { exact: true }) })
   await row2Admin.getByRole('button', { name: '비승인', exact: true }).click()
-  await expect(row2Admin.getByText('반려', { exact: true })).toBeVisible()
+  await expect(row2Admin.getByText('비승인', { exact: true })).toBeVisible()
 
   const ev2 = await prisma.user.findFirstOrThrow({ where: { name: EVALUATOR_NAME_2 } })
   await expect
