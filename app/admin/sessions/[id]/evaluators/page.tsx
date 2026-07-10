@@ -2,8 +2,18 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
-import { removeEvaluator, assignEvaluator, setChair } from "../../actions";
+import {
+  removeEvaluator,
+  assignEvaluator,
+  setChair,
+  createEvaluatorForSession,
+  approveAssignment,
+  rejectAssignment,
+  approveAllAssignments,
+} from "../../actions";
 import { resetEvaluatorPassword, deleteEvaluator } from "@/app/admin/actions";
+import { assignmentStatusLabel, type AssignmentStatus } from "@/lib/assignment";
+import { requireAdminUser } from "@/lib/authz";
 import { SkeletonCard, SkeletonTable } from "@/components/Skeletons";
 import EvaluatorImportButton from "@/components/EvaluatorImportButton";
 import PasswordCell from "@/components/PasswordCell";
@@ -32,6 +42,8 @@ export default async function EvaluatorsPage({
 }
 
 async function EvaluatorsContent({ id }: { id: string }) {
+  const me = await requireAdminUser();
+  const isMaster = me.role === "MASTER";
   const [session, assignments] = await Promise.all([
     prisma.evaluationSession.findUnique({ where: { id } }),
     prisma.assignment.findMany({ where: { sessionId: id }, include: { user: true } }),
@@ -48,6 +60,12 @@ async function EvaluatorsContent({ id }: { id: string }) {
   const orderedAssignments = [...assignments].sort(
     (a, b) => (b.userId === chairId ? 1 : 0) - (a.userId === chairId ? 1 : 0),
   );
+  const pendingCount = assignments.filter((a) => a.status === "PENDING").length;
+  const badgeCls: Record<AssignmentStatus, string> = {
+    PENDING: "bg-amber-50 text-amber-700",
+    APPROVED: "bg-emerald-50 text-emerald-700",
+    REJECTED: "bg-rose-50 text-rose-600",
+  };
 
   return (
     <div className="space-y-6">
@@ -75,19 +93,39 @@ async function EvaluatorsContent({ id }: { id: string }) {
           <p className="mt-3 text-xs text-slate-400">
             위원 계정은 <Link href="/admin/evaluators" className="text-indigo-600 hover:underline">평가위원 관리</Link>에서 전역으로 등록·관리됩니다. 여기서는 이 분과에 배정만 합니다.
           </p>
+          {/* 신규 위원 생성(이 분과 전용) */}
+          <form action={createEvaluatorForSession.bind(null, id)} className="mt-3 flex gap-2 border-t border-slate-100 pt-3">
+            <input name="name" required placeholder="새 위원 이름" className={`flex-1 ${inputCls}`} />
+            <input name="phone" required placeholder="연락처(임시비번=끝 4자리)" className={`flex-1 ${inputCls}`} />
+            <button className="shrink-0 rounded-lg border border-indigo-300 px-4 py-2 text-sm font-medium text-indigo-700 transition hover:bg-indigo-50">
+              신규 등록
+            </button>
+          </form>
+          <p className="mt-2 text-xs text-slate-400">
+            {isMaster ? "관리자가 등록하면 즉시 승인됩니다." : "간사가 등록한 위원은 관리자 승인 후 평가에 참여할 수 있습니다."}
+          </p>
         </div>
       )}
 
       {/* 배정된 평가위원 */}
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <div className="border-b border-slate-100 px-5 py-4 font-semibold">
-          배정된 평가위원 ({assignments.length})
-          <span className="ml-2 text-xs font-normal text-slate-400">· 위원장 1인 지정 시 총괄평가/타 위원 점수 열람 권한 부여</span>
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 font-semibold">
+          <span>
+            배정된 평가위원 ({assignments.length})
+            <span className="ml-2 text-xs font-normal text-slate-400">· 위원장 1인 지정 시 총괄평가/타 위원 점수 열람 권한 부여</span>
+            {pendingCount > 0 && <span className="ml-2 text-xs font-normal text-amber-600">· 승인 대기 {pendingCount}</span>}
+          </span>
+          {isMaster && pendingCount > 0 && (
+            <form action={approveAllAssignments.bind(null, id)}>
+              <button className="rounded-md bg-[var(--gov-navy)] px-3 py-1.5 text-xs font-medium text-white transition hover:opacity-90">전체 승인</button>
+            </form>
+          )}
         </div>
         <table className="w-full text-sm">
           <thead className="text-left text-slate-500">
             <tr className="border-b border-slate-100">
               <th className="px-5 py-3 font-medium">이름</th>
+              <th className="px-5 py-3 font-medium">상태</th>
               <th className="px-5 py-3 font-medium">아이디</th>
               <th className="px-5 py-3 font-medium">연락처</th>
               <th className="px-5 py-3 font-medium">비밀번호</th>
@@ -103,6 +141,27 @@ async function EvaluatorsContent({ id }: { id: string }) {
                   <td className="px-5 py-3 font-medium text-slate-800">
                     {a.user.name}
                     {isChair && <span className="ml-2 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">위원장</span>}
+                  </td>
+                  <td className="px-5 py-3">
+                    <div className="flex flex-col items-start gap-1.5">
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badgeCls[a.status as AssignmentStatus]}`}>
+                        {assignmentStatusLabel(a.status as AssignmentStatus)}
+                      </span>
+                      {isMaster && (
+                        <div className="flex items-center gap-3">
+                          {a.status !== "APPROVED" && (
+                            <form action={approveAssignment.bind(null, id, a.userId)}>
+                              <button className="text-xs font-medium text-emerald-700 hover:underline">승인</button>
+                            </form>
+                          )}
+                          {a.status !== "REJECTED" && (
+                            <form action={rejectAssignment.bind(null, id, a.userId)}>
+                              <button className="text-xs font-medium text-rose-600 hover:underline">비승인</button>
+                            </form>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </td>
                   <td className="px-5 py-3 text-slate-600">{a.user.username}</td>
                   <td className="px-5 py-3 text-slate-600">{a.user.phone ?? <span className="text-slate-300">—</span>}</td>
@@ -142,7 +201,7 @@ async function EvaluatorsContent({ id }: { id: string }) {
             })}
             {assignments.length === 0 && (
               <tr>
-                <td colSpan={locked ? 5 : 6} className="px-5 py-10 text-center text-slate-400">
+                <td colSpan={locked ? 6 : 7} className="px-5 py-10 text-center text-slate-400">
                   배정된 위원이 없습니다. 위에서 평가위원을 선택해 배정하세요.
                 </td>
               </tr>

@@ -395,13 +395,15 @@ export default function AdminSidebar({
             </div>
           )}
 
-          <Link
-            href="/admin/evaluators"
-            className={topCls(pathname.startsWith("/admin/evaluators"))}
-          >
-            <UsersIcon />
-            {isMaster ? "평가위원·간사 관리" : "평가위원 관리"}
-          </Link>
+          {isMaster && (
+            <Link
+              href="/admin/evaluators"
+              className={topCls(pathname.startsWith("/admin/evaluators"))}
+            >
+              <UsersIcon />
+              평가위원·간사 관리
+            </Link>
+          )}
           <Link
             href="/admin/companies"
             className={topCls(pathname.startsWith("/admin/companies"))}

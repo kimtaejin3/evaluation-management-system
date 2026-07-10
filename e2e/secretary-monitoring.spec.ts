@@ -38,7 +38,7 @@ test.beforeAll(async () => {
   subjectId = subject.id
   const evaluator = await createEvaluator(prisma, 'mon1', 'E2E 모니터링 위원')
   evaluatorId = evaluator.id
-  await prisma.assignment.create({ data: { sessionId: owned.id, userId: evaluator.id } })
+  await prisma.assignment.create({ data: { sessionId: owned.id, userId: evaluator.id, status: 'APPROVED' } })
   await prisma.score.create({
     data: { sessionId: owned.id, evaluatorId: evaluator.id, subjectId: subject.id, criterionId: criterion.id, value: 8 },
   })

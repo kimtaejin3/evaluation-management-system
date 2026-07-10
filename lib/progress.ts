@@ -56,7 +56,7 @@ export async function getSessionProgress(sessionId: string): Promise<ProgressDat
     prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { chairId: true } }),
     prisma.subject.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } }),
     prisma.criterion.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true, weight: true } }),
-    prisma.assignment.findMany({ where: { sessionId }, include: { user: true } }),
+    prisma.assignment.findMany({ where: { sessionId, status: 'APPROVED' }, include: { user: true } }),
     prisma.score.findMany({ where: { sessionId }, select: { evaluatorId: true, subjectId: true, criterionId: true, value: true } }),
     prisma.editingPresence.findMany({ where: { sessionId }, select: { evaluatorId: true, subjectId: true, criterionId: true, updatedAt: true } }),
     prisma.submission.findMany({ where: { sessionId }, select: { evaluatorId: true, subjectId: true, status: true } }),
@@ -157,7 +157,7 @@ export async function getSessionProgress(sessionId: string): Promise<ProgressDat
 export async function getProgressVersion(sessionId: string): Promise<string> {
   const [scoreAgg, assignCount, subjCount, critCount, editAgg] = await Promise.all([
     prisma.score.aggregate({ where: { sessionId }, _count: { _all: true }, _max: { updatedAt: true } }),
-    prisma.assignment.count({ where: { sessionId } }),
+    prisma.assignment.count({ where: { sessionId, status: 'APPROVED' } }),
     prisma.subject.count({ where: { sessionId } }),
     prisma.criterion.count({ where: { sessionId } }),
     // 입력 중(포커스) 변화도 감지해 대시보드 애니메이션이 실시간 반영되게 함
@@ -188,7 +188,7 @@ export async function getSessionInsights(sessionId: string): Promise<SessionInsi
   const [subjects, criteria, assignments, allScores, approvedSubs] = await Promise.all([
     prisma.subject.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } }),
     prisma.criterion.findMany({ where: { sessionId }, select: { id: true, weight: true } }),
-    prisma.assignment.findMany({ where: { sessionId }, select: { userId: true } }),
+    prisma.assignment.findMany({ where: { sessionId, status: 'APPROVED' }, select: { userId: true } }),
     prisma.score.findMany({ where: { sessionId }, select: { evaluatorId: true, subjectId: true, criterionId: true, value: true } }),
     prisma.submission.findMany({ where: { sessionId, status: 'APPROVED' }, select: { evaluatorId: true, subjectId: true } }),
   ])

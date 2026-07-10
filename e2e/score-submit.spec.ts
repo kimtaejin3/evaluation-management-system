@@ -32,7 +32,7 @@ test.beforeAll(async () => {
     data: {
       name: `${SESSION_PREFIX}채점·제출 분과`,
       status: 'IN_PROGRESS',
-      assignments: { create: { userId: evaluator.id } },
+      assignments: { create: { userId: evaluator.id, status: 'APPROVED' } },
     },
   })
   sessionId = session.id

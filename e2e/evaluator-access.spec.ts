@@ -28,7 +28,7 @@ test.beforeAll(async () => {
     data: {
       name: sessionName,
       status: 'IN_PROGRESS',
-      assignments: { create: { userId: evaluator.id } },
+      assignments: { create: { userId: evaluator.id, status: 'APPROVED' } },
       subjects: { create: { companyId: company.id, name: company.name } },
     },
   })

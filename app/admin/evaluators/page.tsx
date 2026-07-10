@@ -2,19 +2,18 @@ import { Suspense } from "react";
 import { prisma } from "@/lib/db";
 import PasswordCell from "@/components/PasswordCell";
 import { createEvaluator, deleteEvaluator, resetEvaluatorPassword } from "../actions";
-import { requireAdminUser } from "@/lib/authz";
+import { assertMaster } from "@/lib/authz";
 import { SkeletonTable } from "@/components/Skeletons";
 
 const inputCls =
   "rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500";
 
 export default async function EvaluatorsAdminPage() {
-  const user = await requireAdminUser();
-  const isMaster = user.role === "MASTER";
+  await assertMaster();
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold">{isMaster ? "평가위원·간사 관리" : "평가위원 관리"}</h1>
+        <h1 className="text-2xl font-bold">평가위원·간사 관리</h1>
         <p className="mt-1 text-sm text-slate-500">
           계정을 등록·관리합니다. 분과 배정은 분과별 화면에서 진행하세요.
         </p>
@@ -29,7 +28,7 @@ export default async function EvaluatorsAdminPage() {
         className="grid grid-cols-2 gap-3 rounded-lg border border-slate-200 bg-white p-4"
       >
         <div className="col-span-2 text-sm font-semibold text-slate-700">
-          {isMaster ? "계정 추가 (평가위원 / 간사)" : "위원 계정 추가"}
+          계정 추가 (평가위원 / 간사)
         </div>
         <input name="name" placeholder="이름" required className={inputCls} />
         <input
@@ -44,17 +43,15 @@ export default async function EvaluatorsAdminPage() {
           required
           className={`col-span-2 ${inputCls}`}
         />
-        {isMaster && (
-          <select name="role" defaultValue="EVALUATOR" className={`col-span-2 ${inputCls}`}>
-            <option value="EVALUATOR">평가위원</option>
-            <option value="SECRETARY">간사</option>
-          </select>
-        )}
+        <select name="role" defaultValue="EVALUATOR" className={`col-span-2 ${inputCls}`}>
+          <option value="EVALUATOR">평가위원</option>
+          <option value="SECRETARY">간사</option>
+        </select>
         <button className="col-span-2 rounded-md bg-indigo-600 py-2 text-sm font-medium text-white transition hover:bg-indigo-700">
           + 계정 추가
         </button>
         <p className="col-span-2 text-xs text-slate-400">
-          비밀번호는 연락처 끝 4자리로 발급됩니다. 기존 아이디면 이름·연락처{isMaster ? "·역할" : ""}을 갱신합니다.
+          비밀번호는 연락처 끝 4자리로 발급됩니다. 기존 아이디면 이름·연락처·역할을 갱신합니다.
         </p>
       </form>
     </div>

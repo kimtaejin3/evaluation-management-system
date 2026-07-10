@@ -19,7 +19,7 @@ export async function login(_prev: unknown, formData: FormData) {
   // 평가위원은 진행중인 배정 심사가 있어야 로그인 가능
   if (user.role === 'EVALUATOR') {
     const activeCount = await prisma.assignment.count({
-      where: { userId: user.id, session: { status: 'IN_PROGRESS' } },
+      where: { userId: user.id, status: 'APPROVED', session: { status: 'IN_PROGRESS' } },
     })
     const gateError = evaluatorLoginError(user.role, activeCount)
     if (gateError) return { error: gateError }

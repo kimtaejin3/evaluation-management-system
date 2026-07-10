@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/db'
+import { initialAssignmentStatus } from '@/lib/assignment'
 import { saveUpload, deleteUpload, isPdf } from '@/lib/storage'
 import { canCloseSession, CLOSE_BLOCKED_MESSAGE } from '@/lib/session-rules'
 import { randomUUID } from 'crypto'
@@ -12,7 +13,7 @@ import { buildEvaluators, type EvalColumnMapping } from '@/lib/evaluator-import'
 import { passwordFromPhone } from '@/lib/phone'
 import { buildSubjects, type SubjectColumnMapping } from '@/lib/subject-import'
 import { parseSheet } from '@/lib/kpass-sheet'
-import { assertSessionAccess, assertProjectAccess, requireAdminUser } from '@/lib/authz'
+import { assertSessionAccess, assertProjectAccess, requireAdminUser, assertMaster } from '@/lib/authz'
 
 export async function createSession(formData: FormData) {
   const user = await requireAdminUser()
@@ -542,15 +543,34 @@ export async function setChair(sessionId: string, formData: FormData) {
   revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
 }
 
-// 평가위원 관리에서 등록한 기존 위원을 이 심사에 배정(폼: userId)
+// 전역 풀의 기존 위원을 이 분과에 배정(폼: userId). 간사 배정은 PENDING, 관리자 배정은 즉시 APPROVED.
 export async function assignEvaluator(sessionId: string, formData: FormData) {
-  await assertSessionAccess(sessionId)
+  const { user } = await assertSessionAccess(sessionId)
   const userId = String(formData.get('userId') ?? '').trim()
   if (!userId) return
+  const status = initialAssignmentStatus(user.role as 'MASTER' | 'SECRETARY')
   await prisma.assignment.upsert({
     where: { sessionId_userId: { sessionId, userId } },
-    update: {},
-    create: { sessionId, userId },
+    update: { status, createdById: user.id, decidedAt: status === 'APPROVED' ? new Date() : null },
+    create: { sessionId, userId, status, createdById: user.id, decidedAt: status === 'APPROVED' ? new Date() : null },
+  })
+  revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
+}
+
+// 담당 간사(+관리자)가 이 분과에 새 위원 계정을 만들어 즉시 배정. 아이디/임시비번 자동.
+export async function createEvaluatorForSession(sessionId: string, formData: FormData) {
+  const { user } = await assertSessionAccess(sessionId)
+  const name = String(formData.get('name') ?? '').trim()
+  const phone = String(formData.get('phone') ?? '').trim()
+  const password = passwordFromPhone(phone)
+  if (!name || !phone || !password) return
+  const username = 'ev' + randomUUID().replace(/-/g, '').slice(0, 8)
+  const created = await prisma.user.create({
+    data: { username, name, phone, role: 'EVALUATOR', passwordHash: await hashPassword(password), tempPassword: password },
+  })
+  const status = initialAssignmentStatus(user.role as 'MASTER' | 'SECRETARY')
+  await prisma.assignment.create({
+    data: { sessionId, userId: created.id, status, createdById: user.id, decidedAt: status === 'APPROVED' ? new Date() : null },
   })
   revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
 }
@@ -584,5 +604,50 @@ export async function rejectEvaluation(sessionId: string, subjectId: string, eva
     data: { status: 'REJECTED', decidedAt: new Date(), decidedById: user.id },
   })
   revalidatePath(`/admin/sessions/${sessionId}/progress`)
+  revalidatePath(`/admin/sessions/${sessionId}/results`)
+}
+
+// ── 관리자: 배정 위원 승인/반려/검토완료 (MASTER 전용) ──
+
+export async function approveAssignment(sessionId: string, userId: string) {
+  await assertMaster()
+  // updateMany: 대상 배정이 이미 삭제됐거나(레이스) 없으면 조용히 무시(P2025 방지)
+  await prisma.assignment.updateMany({
+    where: { sessionId, userId },
+    data: { status: 'APPROVED', decidedAt: new Date() },
+  })
+  revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
+}
+
+export async function rejectAssignment(sessionId: string, userId: string) {
+  await assertMaster()
+  // updateMany: 대상 배정이 이미 삭제됐거나(레이스) 없으면 조용히 무시(P2025 방지)
+  await prisma.assignment.updateMany({
+    where: { sessionId, userId },
+    data: { status: 'REJECTED', decidedAt: new Date() },
+  })
+  // 반려된 위원이 위원장이면 해제
+  const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { chairId: true } })
+  if (s?.chairId === userId) {
+    await prisma.evaluationSession.update({ where: { id: sessionId }, data: { chairId: null } })
+  }
+  revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
+}
+
+export async function approveAllAssignments(sessionId: string) {
+  await assertMaster()
+  await prisma.assignment.updateMany({
+    where: { sessionId, status: 'PENDING' },
+    data: { status: 'APPROVED', decidedAt: new Date() },
+  })
+  revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
+}
+
+// 관리자 검토 완료 → 분과 완료(CLOSED). 사전 조건 없음: setSessionStatus와 달리
+// canCloseSession/CLOSE_BLOCKED_MESSAGE의 eventDate 마감 가드를 의도적으로 건너뛴다(스펙상 "사전 조건 없음").
+export async function completeReview(sessionId: string) {
+  await assertMaster()
+  await prisma.evaluationSession.update({ where: { id: sessionId }, data: { status: 'CLOSED' } })
+  revalidatePath(`/admin/sessions/${sessionId}`)
   revalidatePath(`/admin/sessions/${sessionId}/results`)
 }
