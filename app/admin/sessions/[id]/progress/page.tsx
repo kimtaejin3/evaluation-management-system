@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 import { getSessionProgress } from '@/lib/progress'
 import StatCard from '@/components/StatCard'
-import MonitoringGrid from '@/components/MonitoringGrid'
+import MonitoringList from '@/components/MonitoringList'
 import ReviewTable from '@/components/ReviewTable'
 import { SkeletonStats, SkeletonTable } from '@/components/Skeletons'
 
@@ -31,7 +31,7 @@ async function ProgressContent({ id }: { id: string }) {
         <StatCard label="입력 완료 위원" value={`${p.completedEvaluators}/${p.assignedCount}`} />
         <StatCard label="평가 항목" value={`${p.totalCriteria}개`} />
       </div>
-      <MonitoringGrid data={p} sessionId={id} />
+      <MonitoringList data={p} sessionId={id} />
       <ReviewTable sessionId={id} rows={p.review} />
     </div>
   )

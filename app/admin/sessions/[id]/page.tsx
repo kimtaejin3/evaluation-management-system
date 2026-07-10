@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getSessionProgress } from "@/lib/progress";
-import MonitoringGrid from "@/components/MonitoringGrid";
+import MonitoringList from "@/components/MonitoringList";
 import LiveRefresher from "@/components/LiveRefresher";
 import SessionStatusControl from "@/components/SessionStatusControl";
 import {
@@ -119,7 +119,6 @@ async function MonitoringSection({ id }: { id: string }) {
             label: "진행률",
             value: `${p.pct}%`,
             accent: true,
-            hint: `${p.doneCells}/${p.totalCells} 칸`,
           },
           { label: "평가 대상", value: `${p.subjects.length}개` },
         ].map((k, i) => (
@@ -130,12 +129,11 @@ async function MonitoringSection({ id }: { id: string }) {
             >
               {k.value}
             </div>
-            <div className="mt-0.5 text-xs text-slate-400">{k.hint ?? " "}</div>
           </div>
         ))}
       </div>
 
-      <MonitoringGrid data={p} sessionId={id} />
+      <MonitoringList data={p} sessionId={id} />
     </section>
   );
 }

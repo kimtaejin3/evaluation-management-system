@@ -69,6 +69,11 @@ body {
 }
 
 @media print {
+  /* 배경색(회색 헤더 등)을 '배경 그래픽' 옵션 없이도 그대로 인쇄 */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
   aside,
   header,
   .print\:hidden {

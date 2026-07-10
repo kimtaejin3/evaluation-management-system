@@ -22,10 +22,11 @@ const sortCriteria = <T extends SheetCriterion & { subitem: { order: number; gro
 export default async function SheetPrintPage({
   searchParams,
 }: {
-  searchParams: Promise<{ sessionId?: string; subjectId?: string; evaluatorId?: string }>;
+  searchParams: Promise<{ sessionId?: string; subjectId?: string; evaluatorId?: string; embed?: string }>;
 }) {
-  const { sessionId, subjectId, evaluatorId } = await searchParams;
+  const { sessionId, subjectId, evaluatorId, embed } = await searchParams;
   if (!sessionId || !subjectId || !evaluatorId) notFound();
+  const embedded = embed === "1"; // 미리보기 iframe 임베드 — 화면 툴바 숨김
   await assertSessionAccess(sessionId);
 
   const printedDate = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
@@ -77,28 +78,30 @@ export default async function SheetPrintPage({
       <style>{`@page { size: A4; margin: 14mm; }`}</style>
       <AutoPrint />
 
-      {/* 화면 전용 툴바 */}
-      <div className="mx-auto mb-4 flex max-w-[210mm] items-center justify-between px-4 print:hidden">
-        <Link
-          href={`/admin/sessions/${sessionId}/results`}
-          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-600 transition hover:bg-slate-50"
-        >
-          ← 집계결과로
-        </Link>
-        <div className="flex items-center gap-3 text-sm text-slate-500">
-          {all ? (
-            <span>전체 {subjects.length}건</span>
-          ) : (
-            <span>
-              평가지표 {singleFilled}/{criteria.length} 입력
-              {criteria.length > 0 && singleFilled < criteria.length && (
-                <span className="ml-1 text-amber-600">· 미입력 {criteria.length - singleFilled}</span>
-              )}
-            </span>
-          )}
-          <PrintButton />
+      {/* 화면 전용 툴바 — 미리보기 임베드(embed=1)에선 숨김(중복 인쇄 버튼·오작동 방지) */}
+      {!embedded && (
+        <div className="mx-auto mb-4 flex max-w-[210mm] items-center justify-between px-4 print:hidden">
+          <Link
+            href={`/admin/sessions/${sessionId}/results`}
+            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-600 transition hover:bg-slate-50"
+          >
+            ← 집계결과로
+          </Link>
+          <div className="flex items-center gap-3 text-sm text-slate-500">
+            {all ? (
+              <span>전체 {subjects.length}건</span>
+            ) : (
+              <span>
+                평가지표 {singleFilled}/{criteria.length} 입력
+                {criteria.length > 0 && singleFilled < criteria.length && (
+                  <span className="ml-1 text-amber-600">· 미입력 {criteria.length - singleFilled}</span>
+                )}
+              </span>
+            )}
+            <PrintButton />
+          </div>
         </div>
-      </div>
+      )}
 
       {docs.map((data, i) => (
         <SheetDoc key={subjects[i].id} data={data} pageBreak={i > 0} />

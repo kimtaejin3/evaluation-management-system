@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { usePrintIframe } from './usePrintIframe'
+import { usePrintPreview } from './usePrintPreview'
 
 // 위원별 평가표 인쇄 — 위원을 드롭다운으로 고른 뒤, 각 기업(과제)별 버튼으로 해당 위원의 평가표를 인쇄.
 export default function SheetPrintPicker({
@@ -14,7 +14,7 @@ export default function SheetPrintPicker({
   subjects: { id: string; name: string }[]
 }) {
   const [evaluatorId, setEvaluatorId] = useState(evaluators[0]?.id ?? '')
-  const { preparing, print: printUrl } = usePrintIframe()
+  const { print: printUrl, element } = usePrintPreview()
 
   if (evaluators.length === 0) {
     return <p className="text-sm text-slate-400">배정된 위원이 없습니다.</p>
@@ -28,14 +28,6 @@ export default function SheetPrintPicker({
 
   return (
     <div className="space-y-3">
-      {preparing && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center bg-slate-900/30">
-          <div className="flex items-center gap-3 rounded-xl bg-white px-5 py-4 shadow-lg">
-            <span className="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-indigo-600" aria-hidden />
-            <span className="text-sm text-slate-600">인쇄 준비 중…</span>
-          </div>
-        </div>
-      )}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <label className="flex items-center gap-2 text-sm">
           <span className="text-slate-500">평가위원</span>
@@ -54,8 +46,7 @@ export default function SheetPrintPicker({
         <button
           type="button"
           onClick={() => print('all')}
-          disabled={preparing}
-          className="rounded-md bg-[var(--gov-navy)] px-3 py-1.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+          className="rounded-md bg-[var(--gov-navy)] px-3 py-1.5 text-sm font-medium text-white transition hover:opacity-90"
         >
           전체 인쇄
         </button>
@@ -68,14 +59,15 @@ export default function SheetPrintPicker({
             <button
               type="button"
               onClick={() => print(s.id)}
-              disabled={preparing}
-              className="rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-indigo-300 hover:text-indigo-700 disabled:opacity-50"
+              className="rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-indigo-300 hover:text-indigo-700"
             >
               인쇄
             </button>
           </div>
         ))}
       </div>
+
+      {element}
     </div>
   )
 }
