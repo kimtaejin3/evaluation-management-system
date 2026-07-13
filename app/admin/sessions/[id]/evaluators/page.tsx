@@ -96,7 +96,7 @@ async function EvaluatorsContent({ id }: { id: string }) {
       {/* 위원 추가 (상단) */}
       {locked ? (
         <p className="text-sm text-slate-400">마감된 분과는 평가위원을 수정할 수 없습니다.</p>
-      ) : (
+      ) : isMaster ? null : (
         <div className="rounded-xl border border-slate-200 bg-white p-5">
           <div className="mb-3 flex items-center justify-between">
             <div className="text-sm font-semibold text-slate-700">평가위원 배정</div>
@@ -131,8 +131,8 @@ async function EvaluatorsContent({ id }: { id: string }) {
         </div>
       )}
 
-      {/* 위원장 지정 (배정된 평가위원 표 위, 별도 섹션) */}
-      {assignments.length > 0 && (
+      {/* 위원장 지정 (배정된 평가위원 표 위, 별도 섹션) — 세팅은 간사 전용 */}
+      {!isMaster && assignments.length > 0 && (
         <div className="rounded-xl border border-slate-200 bg-white p-5">
           <div className="text-sm font-semibold text-slate-700">위원장 지정</div>
           <p className="mt-0.5 text-xs text-slate-400">
@@ -185,7 +185,7 @@ async function EvaluatorsContent({ id }: { id: string }) {
               <th className="px-5 py-3 font-medium">아이디</th>
               <th className="px-5 py-3 font-medium">연락처</th>
               <th className="px-5 py-3 font-medium">비밀번호</th>
-              {!locked && <th className="px-5 py-3"></th>}
+              {!locked && !isMaster && <th className="px-5 py-3"></th>}
             </tr>
           </thead>
           <tbody>
@@ -212,7 +212,7 @@ async function EvaluatorsContent({ id }: { id: string }) {
                   <td className="px-5 py-3">
                     <PasswordCell value={a.user.tempPassword} />
                   </td>
-                  {!locked && (
+                  {!locked && !isMaster && (
                     <td className="px-5 py-3 text-right">
                       <div className="flex items-center justify-end gap-3">
                         <form action={async () => { "use server"; await resetEvaluatorPassword(a.userId); revalidatePath(`/admin/sessions/${id}/evaluators`); }}>
@@ -232,7 +232,7 @@ async function EvaluatorsContent({ id }: { id: string }) {
             })}
             {assignments.length === 0 && (
               <tr>
-                <td colSpan={locked ? 5 : 6} className="px-5 py-10 text-center text-slate-400">
+                <td colSpan={!locked && !isMaster ? 6 : 5} className="px-5 py-10 text-center text-slate-400">
                   배정된 위원이 없습니다. 위에서 평가위원을 선택해 배정하세요.
                 </td>
               </tr>
