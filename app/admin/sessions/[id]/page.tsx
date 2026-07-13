@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getSessionProgress } from "@/lib/progress";
 import MonitoringList from "@/components/MonitoringList";
+import EvaluatorRoster from "@/components/EvaluatorRoster";
 import LiveRefresher from "@/components/LiveRefresher";
 import SessionStatusControl from "@/components/SessionStatusControl";
 import {
@@ -122,6 +123,7 @@ async function MonitoringSection({ id }: { id: string }) {
             >
               {k.value}
             </div>
+            {k.label === "평가 위원" && <EvaluatorRoster evaluators={p.rows} subjects={p.subjects} />}
           </div>
         ))}
       </div>
