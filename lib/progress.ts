@@ -38,6 +38,8 @@ export interface ProgressData {
     userId: string
     name: string
     isChair: boolean
+    username: string
+    phone: string | null
     cells: Cell[]
     doneItems: number
     totalItems: number
@@ -107,6 +109,8 @@ export async function getSessionProgress(sessionId: string): Promise<ProgressDat
       userId: a.userId,
       name: a.user.name,
       isChair: a.userId === chairId,
+      username: a.user.username,
+      phone: a.user.phone,
       cells,
       doneItems,
       totalItems: subjects.length * totalCriteria,

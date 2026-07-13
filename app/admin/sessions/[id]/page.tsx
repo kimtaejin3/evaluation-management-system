@@ -103,7 +103,7 @@ async function MonitoringSection({ id }: { id: string }) {
       {/* KPI 스탯 스트립 */}
       <div className="grid grid-cols-2 gap-y-5 sm:grid-cols-4 sm:gap-y-0 sm:divide-x sm:divide-slate-200">
         {[
-          { label: "배정 위원", value: `${p.assignedCount}명` },
+          { label: "평가 위원", value: `${p.assignedCount}명` },
           {
             label: "입력 완료 위원",
             value: `${p.completedEvaluators}/${p.assignedCount}`,
