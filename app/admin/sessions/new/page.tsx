@@ -13,12 +13,19 @@ export default async function NewSessionPage({
 }) {
   const user = await requireAdminUser()
   const { projectId } = await searchParams
+  const isMaster = user.role === 'MASTER'
   // 접근 가능한 과제: 마스터=전체, 간사=배정된 과제
-  const projects = await prisma.project.findMany({
-    where: user.role === 'MASTER' ? {} : { secretaries: { some: { id: user.id } } },
-    orderBy: { createdAt: 'desc' },
-    select: { id: true, name: true },
-  })
+  const [projects, secretaries] = await Promise.all([
+    prisma.project.findMany({
+      where: isMaster ? {} : { secretaries: { some: { id: user.id } } },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, name: true },
+    }),
+    // 담당 간사 선택은 마스터만 가능(간사가 만들면 본인이 자동 담당)
+    isMaster
+      ? prisma.user.findMany({ where: { role: 'SECRETARY' }, orderBy: { name: 'asc' }, select: { id: true, name: true, username: true } })
+      : Promise.resolve([]),
+  ])
 
   if (projects.length === 0) {
     return (
@@ -71,6 +78,20 @@ export default async function NewSessionPage({
             <label className={labelCls}>평가일</label>
             <input name="eventDate" type="date" className={inputCls} />
           </div>
+          {isMaster && (
+            <div>
+              <label className={labelCls}>담당 간사</label>
+              <select name="secretaryId" defaultValue="" className={inputCls}>
+                <option value="">미배정(선택)</option>
+                {secretaries.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name} · {s.username}</option>
+                ))}
+              </select>
+              {secretaries.length === 0 && (
+                <p className="mt-1 text-xs text-slate-400">등록된 간사가 없습니다. 나중에 배정할 수 있습니다.</p>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-5 py-3">
           <Link href="/admin/sessions" className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50">취소</Link>

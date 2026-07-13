@@ -7,8 +7,6 @@ import {
   assignEvaluator,
   setChair,
   createEvaluatorForSession,
-  approveAssignment,
-  rejectAssignment,
   approveAllAssignments,
 } from "../../actions";
 import { resetEvaluatorPassword, deleteEvaluator } from "@/app/admin/actions";
@@ -17,6 +15,7 @@ import { requireAdminUser } from "@/lib/authz";
 import { SkeletonCard, SkeletonTable } from "@/components/Skeletons";
 import EvaluatorImportButton from "@/components/EvaluatorImportButton";
 import PasswordCell from "@/components/PasswordCell";
+import RejectAssignmentsModal from "@/components/RejectAssignmentsModal";
 
 const inputCls =
   "rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500";
@@ -66,9 +65,34 @@ async function EvaluatorsContent({ id }: { id: string }) {
     APPROVED: "bg-emerald-50 text-emerald-700",
     REJECTED: "bg-rose-50 text-rose-600",
   };
+  const chairUser = assignments.find((a) => a.userId === chairId)?.user ?? null;
+  const chairCandidates = assignments.filter((a) => a.status === "APPROVED" && a.userId !== chairId);
 
   return (
     <div className="space-y-6">
+      {/* 관리자 승인/반려 (상단, 마스터 전용) */}
+      {isMaster && assignments.length > 0 && (
+        <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-5">
+          <div>
+            <div className="text-sm font-semibold text-slate-700">관리자 검토</div>
+            <p className="mt-0.5 text-xs text-slate-400">
+              이 분과에 배정된 평가위원 전체를 일괄 승인하거나, 사유를 남기고 반려할 수 있습니다.
+              {pendingCount > 0 && (
+                <span className="ml-1 font-medium text-amber-600">· 승인 대기 {pendingCount}</span>
+              )}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <form action={approveAllAssignments.bind(null, id)}>
+              <button className="rounded-md bg-[var(--gov-navy)] px-3 py-1.5 text-xs font-medium text-white transition hover:opacity-90">
+                승인
+              </button>
+            </form>
+            <RejectAssignmentsModal sessionId={id} />
+          </div>
+        </div>
+      )}
+
       {/* 위원 추가 (상단) */}
       {locked ? (
         <p className="text-sm text-slate-400">마감된 분과는 평가위원을 수정할 수 없습니다.</p>
@@ -107,19 +131,51 @@ async function EvaluatorsContent({ id }: { id: string }) {
         </div>
       )}
 
+      {/* 위원장 지정 (배정된 평가위원 표 위, 별도 섹션) */}
+      {assignments.length > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
+          <div className="text-sm font-semibold text-slate-700">위원장 지정</div>
+          <p className="mt-0.5 text-xs text-slate-400">
+            위원장 1인 지정 시 총괄평가 작성 및 다른 위원의 점수 열람 권한이 부여됩니다. 승인된 위원만 지정할 수 있습니다.
+          </p>
+          <div className="mt-3 text-sm text-slate-600">
+            현재 위원장:{" "}
+            {chairUser ? (
+              <span className="inline-flex items-center gap-2">
+                <span className="font-medium text-slate-800">{chairUser.name}</span>
+                {!locked && (
+                  <form action={async () => { "use server"; const fd = new FormData(); fd.set("userId", ""); await setChair(id, fd); }}>
+                    <button className="text-xs text-slate-500 hover:underline">해제</button>
+                  </form>
+                )}
+              </span>
+            ) : (
+              <span className="text-slate-400">미지정</span>
+            )}
+          </div>
+          {!locked && (
+            <form action={setChair.bind(null, id)} className="mt-3 flex gap-2">
+              <select name="userId" defaultValue="" required className={`flex-1 ${inputCls}`}>
+                <option value="" disabled>위원장으로 지정할 위원 선택(승인된 위원만)</option>
+                {chairCandidates.map((a) => (
+                  <option key={a.userId} value={a.userId}>{a.user.name} · {a.user.username}</option>
+                ))}
+              </select>
+              <button disabled={chairCandidates.length === 0} className="shrink-0 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-40">
+                지정
+              </button>
+            </form>
+          )}
+        </div>
+      )}
+
       {/* 배정된 평가위원 */}
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 font-semibold">
           <span>
             배정된 평가위원 ({assignments.length})
-            <span className="ml-2 text-xs font-normal text-slate-400">· 위원장 1인 지정 시 총괄평가/타 위원 점수 열람 권한 부여</span>
             {pendingCount > 0 && <span className="ml-2 text-xs font-normal text-amber-600">· 승인 대기 {pendingCount}</span>}
           </span>
-          {isMaster && pendingCount > 0 && (
-            <form action={approveAllAssignments.bind(null, id)}>
-              <button className="rounded-md bg-[var(--gov-navy)] px-3 py-1.5 text-xs font-medium text-white transition hover:opacity-90">전체 승인</button>
-            </form>
-          )}
         </div>
         <table className="w-full text-sm">
           <thead className="text-left text-slate-500">
@@ -129,7 +185,6 @@ async function EvaluatorsContent({ id }: { id: string }) {
               <th className="px-5 py-3 font-medium">아이디</th>
               <th className="px-5 py-3 font-medium">연락처</th>
               <th className="px-5 py-3 font-medium">비밀번호</th>
-              <th className="px-5 py-3 font-medium">위원장</th>
               {!locked && <th className="px-5 py-3"></th>}
             </tr>
           </thead>
@@ -143,43 +198,19 @@ async function EvaluatorsContent({ id }: { id: string }) {
                     {isChair && <span className="ml-2 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">위원장</span>}
                   </td>
                   <td className="px-5 py-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badgeCls[a.status as AssignmentStatus]}`}>
-                        {assignmentStatusLabel(a.status as AssignmentStatus)}
-                      </span>
-                      {isMaster && a.status !== "APPROVED" && (
-                        <form action={approveAssignment.bind(null, id, a.userId)}>
-                          <button className="rounded-md bg-[var(--gov-navy)] px-2.5 py-1 text-xs font-medium text-white transition hover:opacity-90">
-                            승인
-                          </button>
-                        </form>
-                      )}
-                      {isMaster && a.status !== "REJECTED" && (
-                        <form action={rejectAssignment.bind(null, id, a.userId)}>
-                          <button className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50">
-                            비승인
-                          </button>
-                        </form>
-                      )}
-                    </div>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badgeCls[a.status as AssignmentStatus]}`}>
+                      {assignmentStatusLabel(a.status as AssignmentStatus)}
+                    </span>
+                    {a.status === "REJECTED" && (
+                      <p className="mt-1 text-xs text-rose-500">
+                        반려 사유: {a.rejectionReason || "사유가 입력되지 않았습니다."}
+                      </p>
+                    )}
                   </td>
                   <td className="px-5 py-3 text-slate-600">{a.user.username}</td>
                   <td className="px-5 py-3 text-slate-600">{a.user.phone ?? <span className="text-slate-300">—</span>}</td>
                   <td className="px-5 py-3">
                     <PasswordCell value={a.user.tempPassword} />
-                  </td>
-                  <td className="px-5 py-3">
-                    {locked ? (
-                      isChair ? "위원장" : "—"
-                    ) : isChair ? (
-                      <form action={async () => { "use server"; const fd = new FormData(); fd.set("userId", ""); await setChair(id, fd); }}>
-                        <button className="text-xs text-slate-500 hover:underline">위원장 해제</button>
-                      </form>
-                    ) : (
-                      <form action={async () => { "use server"; const fd = new FormData(); fd.set("userId", a.userId); await setChair(id, fd); }}>
-                        <button className="rounded-md border border-slate-300 px-2.5 py-1 text-xs text-slate-700 transition hover:bg-slate-50">위원장 지정</button>
-                      </form>
-                    )}
                   </td>
                   {!locked && (
                     <td className="px-5 py-3 text-right">
@@ -201,7 +232,7 @@ async function EvaluatorsContent({ id }: { id: string }) {
             })}
             {assignments.length === 0 && (
               <tr>
-                <td colSpan={locked ? 6 : 7} className="px-5 py-10 text-center text-slate-400">
+                <td colSpan={locked ? 5 : 6} className="px-5 py-10 text-center text-slate-400">
                   배정된 위원이 없습니다. 위에서 평가위원을 선택해 배정하세요.
                 </td>
               </tr>

@@ -662,6 +662,23 @@ export async function approveAllAssignments(sessionId: string) {
   revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
 }
 
+// 이 분과의 배정 위원 전체 반려(사유 필수) — 상단 관리자 검토 패널(마스터 전용)
+export async function rejectAllAssignments(sessionId: string, reason: string) {
+  await assertMaster()
+  const trimmed = reason.trim()
+  if (!trimmed) return
+  await prisma.assignment.updateMany({
+    where: { sessionId },
+    data: { status: 'REJECTED', rejectionReason: trimmed, decidedAt: new Date() },
+  })
+  // 위원장의 배정도 함께 반려됐다면 위원장 해제
+  const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { chairId: true } })
+  if (s?.chairId) {
+    await prisma.evaluationSession.update({ where: { id: sessionId }, data: { chairId: null } })
+  }
+  revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
+}
+
 // 관리자 검토 완료 → 분과 완료(CLOSED). 사전 조건 없음: setSessionStatus와 달리
 // canCloseSession/CLOSE_BLOCKED_MESSAGE의 eventDate 마감 가드를 의도적으로 건너뛴다(스펙상 "사전 조건 없음").
 export async function completeReview(sessionId: string) {
