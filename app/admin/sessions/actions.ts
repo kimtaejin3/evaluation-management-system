@@ -500,7 +500,8 @@ export async function editSubject(sessionId: string, subjectId: string, formData
 }
 
 export async function deleteSubject(sessionId: string, subjectId: string) {
-  await assertSessionAccess(sessionId)
+  const { user } = await assertSessionAccess(sessionId)
+  if (user.role === 'MASTER') return // 관리자는 조회만
   await prisma.subject.delete({ where: { id: subjectId } })
   revalidatePath(`/admin/sessions/${sessionId}/subjects`)
 }
@@ -530,7 +531,8 @@ export async function uploadSubjectDocument(sessionId: string, companyId: string
 }
 
 export async function deleteSubjectDocument(sessionId: string, documentId: string) {
-  await assertSessionAccess(sessionId)
+  const { user } = await assertSessionAccess(sessionId)
+  if (user.role === 'MASTER') return // 관리자는 조회만
   const doc = await prisma.document.findUnique({ where: { id: documentId } })
   if (!doc) return
   await prisma.document.delete({ where: { id: documentId } })
