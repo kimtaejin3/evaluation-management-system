@@ -4,10 +4,10 @@ import { Fragment, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { ProgressData, Cell } from '@/lib/progress'
 import { cellStatusLabel, type CellStatus } from '@/lib/submission'
-import { approveEvaluation, rejectEvaluation } from '@/app/admin/sessions/actions'
+import { decideSubjectSubmissions } from '@/app/admin/sessions/actions'
 
-// 기업(대상) 중심 리스트 — 각 기업의 위원 제출(N/M) 요약. '자세히 보기'로 위원별 상세(모달):
-// 위원 · 상태 · 진행 · 승인/반려. 위원 정보 조회는 상단 '평가 위원' KPI의 조회 버튼(EvaluatorRoster)에서.
+// 기업(대상) 중심 리스트 — 각 대상 행에서 바로 승인/반려(그 대상의 제출완료 평가 일괄).
+// '자세히 보기'는 위원별 상태·진행 조회(모달). 위원 정보는 상단 '평가 위원' KPI의 조회 버튼에서.
 
 export const PILL: Record<CellStatus, string> = {
   none: 'bg-slate-100 text-slate-500',
@@ -25,18 +25,32 @@ type EvRow = { userId: string; name: string; isChair: boolean; cell: Cell }
 
 export default function MonitoringList({ data, sessionId }: { data: ProgressData; sessionId: string }) {
   const { subjects, rows: evaluators } = data
+  const router = useRouter()
   const [openId, setOpenId] = useState<string | null>(null)
+  const [busy, setBusy] = useState<string | null>(null) // subjectId
+  const [confirm, setConfirm] = useState<{ subjectId: string; subjectName: string; approve: boolean; count: number } | null>(null)
 
   const evRowsAt = (si: number): EvRow[] =>
     evaluators.map((e) => ({ userId: e.userId, name: e.name, isChair: e.isChair, cell: e.cells[si] }))
 
   const openIdx = openId ? subjects.findIndex((s) => s.id === openId) : -1
 
+  const decide = async (subjectId: string, approve: boolean) => {
+    setBusy(subjectId)
+    try {
+      await decideSubjectSubmissions(sessionId, subjectId, approve)
+      router.refresh()
+    } finally {
+      setBusy(null)
+      setConfirm(null)
+    }
+  }
+
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <h2 className="text-sm font-semibold text-slate-700">기업별 평가 진행 현황</h2>
-        <span className="text-xs text-slate-400">‘자세히 보기’에서 위원별 상태·승인/반려를 확인하세요.</span>
+        <span className="text-xs text-slate-400">각 대상의 제출완료(미승인) 평가를 행에서 바로 승인/반려할 수 있습니다.</span>
       </div>
 
       {subjects.length === 0 ? (
@@ -50,8 +64,10 @@ export default function MonitoringList({ data, sessionId }: { data: ProgressData
             const total = rows.length
             const inputCount = rows.filter((r) => isSubmitted(r.cell.status)).length
             const notInput = total - inputCount
+            const submittedCount = rows.filter((r) => r.cell.status === 'submitted').length // 미승인(결정 대상)
             const pct = total > 0 ? Math.round((inputCount / total) * 100) : 0
             const allDone = total > 0 && inputCount === total
+            const decidable = submittedCount > 0 && busy !== s.id
             return (
               <div key={s.id} className="flex items-center gap-4 px-4 py-3">
                 <div className="w-48 shrink-0">
@@ -70,7 +86,27 @@ export default function MonitoringList({ data, sessionId }: { data: ProgressData
                   {notInput > 0 && (
                     <span className="whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">미입력 {notInput}</span>
                   )}
+                  {submittedCount > 0 && (
+                    <span className="whitespace-nowrap rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700">미승인 {submittedCount}</span>
+                  )}
                 </div>
+                {/* 승인/반려 (자세히 보기 왼쪽) — 그 대상의 제출완료 평가 일괄 */}
+                <button
+                  type="button"
+                  disabled={!decidable}
+                  onClick={() => setConfirm({ subjectId: s.id, subjectName: s.name, approve: false, count: submittedCount })}
+                  className="shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  반려
+                </button>
+                <button
+                  type="button"
+                  disabled={!decidable}
+                  onClick={() => setConfirm({ subjectId: s.id, subjectName: s.name, approve: true, count: submittedCount })}
+                  className="shrink-0 rounded-lg bg-[var(--gov-navy)] px-3 py-1.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  승인
+                </button>
                 <button
                   type="button"
                   onClick={() => setOpenId(s.id)}
@@ -89,32 +125,37 @@ export default function MonitoringList({ data, sessionId }: { data: ProgressData
           subjectName={subjects[openIdx].name}
           rows={evRowsAt(openIdx)}
           summary={{ done: evRowsAt(openIdx).filter((r) => isSubmitted(r.cell.status)).length, total: evaluators.length }}
-          sessionId={sessionId}
           onClose={() => setOpenId(null)}
+        />
+      )}
+
+      {confirm && (
+        <ConfirmDecideModal
+          subjectName={confirm.subjectName}
+          count={confirm.count}
+          approve={confirm.approve}
+          busy={busy === confirm.subjectId}
+          onCancel={() => setConfirm(null)}
+          onConfirm={() => decide(confirm.subjectId, confirm.approve)}
         />
       )}
     </section>
   )
 }
 
-// ── 기업 상세(모달): 위원 · 상태 · 진행 · 승인/반려 ──
+// ── 기업 상세(모달, 조회 전용): 위원 · 상태 · 진행 + 항목 펼침 ──
 function SubjectDetailModal({
   subjectName,
   rows,
   summary,
-  sessionId,
   onClose,
 }: {
   subjectName: string
   rows: EvRow[]
   summary: { done: number; total: number }
-  sessionId: string
   onClose: () => void
 }) {
-  const router = useRouter()
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
-  const [busy, setBusy] = useState<string | null>(null)
-  const [confirm, setConfirm] = useState<{ subjectId: string; evaluatorId: string; evaluatorName: string; approve: boolean } | null>(null)
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -123,18 +164,6 @@ function SubjectDetailModal({
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
-
-  const decide = async (subjectId: string, evaluatorId: string, approve: boolean) => {
-    setBusy(evaluatorId)
-    try {
-      if (approve) await approveEvaluation(sessionId, subjectId, evaluatorId)
-      else await rejectEvaluation(sessionId, subjectId, evaluatorId)
-      router.refresh()
-    } finally {
-      setBusy(null)
-      setConfirm(null)
-    }
-  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={onClose}>
@@ -150,20 +179,18 @@ function SubjectDetailModal({
         </div>
 
         <div className="overflow-auto px-2 py-1">
-          <table className="w-full min-w-[560px] text-sm">
+          <table className="w-full min-w-[480px] text-sm">
             <thead>
               <tr className="text-left text-xs text-slate-400">
                 <th className="px-3 py-2 font-medium">위원</th>
                 <th className="px-3 py-2 font-medium">상태</th>
                 <th className="px-3 py-2 font-medium">진행</th>
-                <th className="px-3 py-2 font-medium">승인/반려</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((r) => {
                 const c = r.cell
                 const isOpen = !!expanded[r.userId]
-                const decidable = c.status === 'submitted'
                 return (
                   <Fragment key={r.userId}>
                     <tr className="border-t border-slate-50">
@@ -186,31 +213,11 @@ function SubjectDetailModal({
                         <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${PILL[c.status]}`}>{statusLabel(c.status)}</span>
                       </td>
                       <td className="px-3 py-2.5 align-middle text-xs tabular-nums text-slate-400">{c.done}/{c.total}</td>
-                      <td className="px-3 py-2.5 align-middle">
-                        <div className="flex gap-1.5">
-                          <button
-                            type="button"
-                            disabled={!decidable || busy === r.userId}
-                            onClick={() => setConfirm({ subjectId: c.subjectId, evaluatorId: r.userId, evaluatorName: r.name, approve: false })}
-                            className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                          >
-                            반려
-                          </button>
-                          <button
-                            type="button"
-                            disabled={!decidable || busy === r.userId}
-                            onClick={() => setConfirm({ subjectId: c.subjectId, evaluatorId: r.userId, evaluatorName: r.name, approve: true })}
-                            className="rounded-lg bg-[var(--gov-navy)] px-2.5 py-1 text-xs font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-                          >
-                            승인
-                          </button>
-                        </div>
-                      </td>
                     </tr>
 
                     {isOpen && (
                       <tr>
-                        <td colSpan={4} className="px-3 pb-2.5">
+                        <td colSpan={3} className="px-3 pb-2.5">
                           <ul className="space-y-0.5 rounded-lg bg-slate-50 p-2">
                             {c.items.length === 0 && <li className="px-1 text-xs text-slate-400">평가 항목이 없습니다.</li>}
                             {c.items.map((it) => (
@@ -231,29 +238,21 @@ function SubjectDetailModal({
           </table>
         </div>
       </div>
-
-      {confirm && (
-        <ConfirmDecideModal
-          evaluatorName={confirm.evaluatorName}
-          approve={confirm.approve}
-          busy={busy === confirm.evaluatorId}
-          onCancel={() => setConfirm(null)}
-          onConfirm={() => decide(confirm.subjectId, confirm.evaluatorId, confirm.approve)}
-        />
-      )}
     </div>
   )
 }
 
-// ── 승인/반려 확인 모달 ──
+// ── 승인/반려 확인 모달 (대상 단위) ──
 function ConfirmDecideModal({
-  evaluatorName,
+  subjectName,
+  count,
   approve,
   busy,
   onConfirm,
   onCancel,
 }: {
-  evaluatorName: string
+  subjectName: string
+  count: number
   approve: boolean
   busy: boolean
   onConfirm: () => void
@@ -264,7 +263,7 @@ function ConfirmDecideModal({
       <div className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="text-sm font-semibold text-slate-800">{approve ? '승인' : '반려'} 확인</div>
         <p className="mt-2 text-sm text-slate-600">
-          <span className="font-medium text-slate-800">{evaluatorName}</span> 위원의 이 평가를 {approve ? '승인' : '반려'}하시겠습니까?
+          <span className="font-medium text-slate-800">{subjectName}</span>의 제출완료 평가 <span className="font-semibold">{count}건</span>을 {approve ? '승인' : '반려'}하시겠습니까?
         </p>
         <div className="mt-4 flex justify-end gap-2">
           <button type="button" onClick={onCancel} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50">

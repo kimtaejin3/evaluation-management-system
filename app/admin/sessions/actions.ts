@@ -628,6 +628,18 @@ export async function rejectEvaluation(sessionId: string, subjectId: string, eva
   revalidatePath(`/admin/sessions/${sessionId}/results`)
 }
 
+// 대상(기업) 단위 일괄 — 그 대상의 '제출완료(SUBMITTED)' 평가를 한 번에 승인/반려. 담당 간사(+마스터).
+export async function decideSubjectSubmissions(sessionId: string, subjectId: string, approve: boolean) {
+  const { user } = await assertSessionAccess(sessionId)
+  await prisma.submission.updateMany({
+    where: { sessionId, subjectId, status: 'SUBMITTED' },
+    data: { status: approve ? 'APPROVED' : 'REJECTED', decidedAt: new Date(), decidedById: user.id },
+  })
+  revalidatePath(`/admin/sessions/${sessionId}`)
+  revalidatePath(`/admin/sessions/${sessionId}/progress`)
+  revalidatePath(`/admin/sessions/${sessionId}/results`)
+}
+
 // ── 관리자: 배정 위원 승인/반려/검토완료 (MASTER 전용) ──
 
 export async function approveAssignment(sessionId: string, userId: string) {
