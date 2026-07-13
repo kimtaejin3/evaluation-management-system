@@ -41,10 +41,28 @@ async function OpinionsContent({ id }: { id: string }) {
     .sort((a, b) => (b.userId === chairId ? 1 : 0) - (a.userId === chairId ? 1 : 0))
     .map((a) => ({ id: a.userId, name: a.user.name, isChair: a.userId === chairId }));
 
+  const subjectNameOf = new Map(subjects.map((s) => [s.id, s.name]));
+
+  // 텍스트가 있는 (위원 × 지원기업) 조합만 flat 리스트로 구성
+  const items = evaluators
+    .flatMap((ev) =>
+      subjects
+        .filter((s) => opinionOf.has(`${ev.id}:${s.id}`))
+        .map((s) => ({
+          evaluatorId: ev.id,
+          evaluatorName: ev.name,
+          isChair: ev.isChair,
+          subjectId: s.id,
+          subjectName: subjectNameOf.get(s.id) ?? "",
+          text: opinionOf.get(`${ev.id}:${s.id}`) ?? "",
+        })),
+    )
+    .filter((item) => item.subjectName);
+
   return (
     <div className="space-y-4">
       <p className="text-sm text-slate-500">
-        평가위원이 각 지원기업에 대해 평가 화면에서 작성한 종합의견입니다. 위원을 선택해 확인하세요.
+        평가위원이 각 지원기업에 대해 평가 화면에서 작성한 종합의견입니다.
       </p>
 
       {evaluators.length === 0 ? (
@@ -52,7 +70,7 @@ async function OpinionsContent({ id }: { id: string }) {
           배정된 평가위원이 없습니다.
         </div>
       ) : (
-        <OpinionViewer evaluators={evaluators} subjects={subjects.map((s) => ({ id: s.id, name: s.name }))} opinions={Object.fromEntries(opinionOf)} />
+        <OpinionViewer items={items} />
       )}
     </div>
   );

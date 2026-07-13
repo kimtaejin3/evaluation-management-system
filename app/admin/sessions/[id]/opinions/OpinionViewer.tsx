@@ -1,66 +1,71 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-type Evaluator = { id: string; name: string; isChair: boolean };
-type Subject = { id: string; name: string };
+type OpinionItem = {
+  evaluatorId: string;
+  evaluatorName: string;
+  isChair: boolean;
+  subjectId: string;
+  subjectName: string;
+  text: string;
+};
 
-// 위원을 드롭다운으로 선택 → 해당 위원의 지원기업별 종합의견 표시.
-export default function OpinionViewer({
-  evaluators,
-  subjects,
-  opinions,
-}: {
-  evaluators: Evaluator[];
-  subjects: Subject[];
-  opinions: Record<string, string>;
-}) {
-  const [evaluatorId, setEvaluatorId] = useState(evaluators[0]?.id ?? "");
-  const written = subjects.filter((s) => opinions[`${evaluatorId}:${s.id}`]).length;
+const TRUNCATE_LENGTH = 200;
+
+// 모든 (평가위원 × 지원기업) 종합의견을 flat 리스트로 표시.
+// 긴 텍스트는 잘라서 보여주고 "더보기" 클릭 시 모달로 전체 텍스트를 표시.
+export default function OpinionViewer({ items }: { items: OpinionItem[] }) {
+  const [modalItem, setModalItem] = useState<OpinionItem | null>(null);
+
+  useEffect(() => {
+    if (!modalItem) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setModalItem(null);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [modalItem]);
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <label className="flex items-center gap-2 text-sm">
-          <span className="text-slate-500">평가위원</span>
-          <select
-            value={evaluatorId}
-            onChange={(e) => setEvaluatorId(e.target.value)}
-            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-700 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          >
-            {evaluators.map((ev) => (
-              <option key={ev.id} value={ev.id}>
-                {ev.name}
-                {ev.isChair ? " (위원장)" : ""}
-              </option>
-            ))}
-          </select>
-        </label>
-        <span className="text-xs text-slate-400">종합의견 {written}/{subjects.length} 작성</span>
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-slate-400">총 {items.length}건</span>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        {subjects.length === 0 ? (
-          <div className="px-5 py-8 text-center text-slate-400">평가 대상(지원기업)이 없습니다.</div>
+        {items.length === 0 ? (
+          <div className="px-5 py-8 text-center text-slate-400">작성된 종합의견이 없습니다.</div>
         ) : (
           <table className="w-full text-sm">
             <thead className="text-left text-slate-500">
               <tr className="border-b border-slate-100">
-                <th className="w-56 px-5 py-3 font-medium">지원기업</th>
+                <th className="w-40 px-5 py-3 font-medium">평가위원</th>
+                <th className="w-40 px-5 py-3 font-medium">지원기업</th>
                 <th className="px-5 py-3 font-medium">종합의견</th>
               </tr>
             </thead>
             <tbody>
-              {subjects.map((s) => {
-                const text = opinions[`${evaluatorId}:${s.id}`];
+              {items.map((item) => {
+                const isLong = item.text.length > TRUNCATE_LENGTH;
+                const preview = isLong ? `${item.text.slice(0, TRUNCATE_LENGTH)}…` : item.text;
                 return (
-                  <tr key={s.id} className="border-b border-slate-50 align-top last:border-0">
-                    <td className="px-5 py-3 font-medium text-slate-700">{s.name}</td>
+                  <tr key={`${item.evaluatorId}:${item.subjectId}`} className="border-b border-slate-50 align-top last:border-0">
+                    <td className="px-5 py-3 font-medium text-slate-700">
+                      {item.evaluatorName}
+                      {item.isChair ? <span className="ml-1 text-xs text-indigo-500">(위원장)</span> : null}
+                    </td>
+                    <td className="px-5 py-3 text-slate-700">{item.subjectName}</td>
                     <td className="px-5 py-3 text-slate-600">
-                      {text ? (
-                        <p className="whitespace-pre-wrap leading-relaxed">{text}</p>
-                      ) : (
-                        <span className="text-slate-300">미작성</span>
+                      <p className="line-clamp-3 whitespace-pre-wrap leading-relaxed">{preview}</p>
+                      {isLong && (
+                        <button
+                          type="button"
+                          onClick={() => setModalItem(item)}
+                          className="mt-1 text-xs font-medium text-indigo-600 hover:text-indigo-700 hover:underline"
+                        >
+                          …더보기
+                        </button>
                       )}
                     </td>
                   </tr>
@@ -70,6 +75,35 @@ export default function OpinionViewer({
           </table>
         )}
       </div>
+
+      {modalItem && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4"
+          onClick={() => setModalItem(null)}
+        >
+          <div
+            className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-xl border border-slate-200 bg-white p-5 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-start justify-between gap-4">
+              <h3 className="text-sm font-semibold text-slate-800">
+                {modalItem.evaluatorName}
+                {modalItem.isChair ? <span className="ml-1 text-xs font-normal text-indigo-500">(위원장)</span> : null}
+                <span className="mx-1.5 text-slate-300">·</span>
+                {modalItem.subjectName}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setModalItem(null)}
+                className="shrink-0 rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-500 hover:bg-slate-50"
+              >
+                닫기
+              </button>
+            </div>
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-600">{modalItem.text}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
