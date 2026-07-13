@@ -155,9 +155,19 @@ model Subject {
   name        String
   description String?
   order       Int               @default(0)
+  // 관리자 검토 상태 — 간사 등록분은 PENDING, 관리자 승인/반려
+  status         SubjectStatus  @default(PENDING)
+  rejectionReason String?
+  decidedAt      DateTime?
   scores      Score[]
 
   @@unique([sessionId, companyId])
+}
+
+enum SubjectStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 model Document {
@@ -185,6 +195,7 @@ model Assignment {
   createdById String?
   createdAt   DateTime          @default(now())
   decidedAt   DateTime?
+  rejectionReason String?
 
   @@unique([sessionId, userId])
 }
