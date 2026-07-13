@@ -15,7 +15,7 @@ import {
   updateSessionMaxScore,
 } from "@/app/admin/sessions/actions";
 import { groupTotal, isGroupBalanced, criteriaGrandTotal, isTotalValid } from "@/lib/criteria";
-import { TrashIcon, PencilIcon } from "@/components/icons";
+import { TrashIcon, PencilIcon, PlusIcon } from "@/components/icons";
 import CriteriaPreviewTable from "@/components/CriteriaPreviewTable";
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
@@ -28,6 +28,9 @@ const okBtn =
   "rounded-md bg-indigo-600 px-3 py-1 text-xs font-medium text-white transition hover:bg-indigo-700 disabled:opacity-40";
 const addBtn =
   "inline-flex items-center gap-1 rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700 transition hover:bg-indigo-100";
+// 리스트 마지막 아이템의 아이콘 줄에 붙는 작은 추가(+) 버튼 — 편집/삭제 아이콘과 동일한 크기·톤
+const plusBtn =
+  "rounded p-1 text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600";
 
 type LeafDTO = { id: string; name: string; maxScore: number };
 type SubitemDTO = { id: string; name: string; criteria: LeafDTO[] };
@@ -59,7 +62,9 @@ export function optReducer(state: GroupDTO[], a: OptAction): GroupDTO[] {
   }));
 }
 
-const COL_COUNT = 5;
+// 열 구조: 평가항목 · 세부항목 · 평가지표 · 배점 (4칸).
+// 삭제는 각 항목의 편집(연필) 아이콘 옆에 인라인으로 배치되어 전용 "삭제" 열이 불필요.
+const COL_COUNT = 4;
 
 // 추가 입력 모달 — 제출 시 즉시 닫히고(urgent), onSubmit(낙관적+서버)만 transition으로.
 function AddModal({
@@ -231,16 +236,17 @@ export default function CriteriaEditor({
                 <th className="px-4 py-2.5 font-medium">세부항목</th>
                 <th className="px-4 py-2.5 font-medium">평가지표</th>
                 <th className="w-px whitespace-nowrap px-4 py-2.5 text-right font-medium">배점</th>
-                <th className="w-px whitespace-nowrap px-4 py-2.5 text-right font-medium">삭제</th>
               </tr>
             </thead>
             <tbody>
-              {optimisticGroups.map((g) => (
+              {optimisticGroups.map((g, idx) => (
                 <GroupBlock
                   key={g.id}
                   group={g}
+                  isLastGroup={idx === optimisticGroups.length - 1}
                   run={run}
                   pending={pending}
+                  onAddGroup={() => setAddingGroup(true)}
                   onAddSubitem={addSubitemOpt}
                   onAddCriterion={addCriterionOpt}
                 />
@@ -248,17 +254,13 @@ export default function CriteriaEditor({
               {optimisticGroups.length === 0 && (
                 <tr>
                   <td colSpan={COL_COUNT} className="px-4 py-8 text-center text-slate-400">
-                    등록된 평가항목이 없습니다. 아래 버튼으로 시작하세요.
+                    <p className="mb-3">등록된 평가항목이 없습니다.</p>
+                    <button type="button" onClick={() => setAddingGroup(true)} className={addBtn}>
+                      + 평가항목 추가
+                    </button>
                   </td>
                 </tr>
               )}
-              <tr className="border-t border-slate-100 bg-slate-50/40">
-                <td colSpan={COL_COUNT} className="px-4 py-2.5">
-                  <button type="button" onClick={() => setAddingGroup(true)} className={addBtn}>
-                    + 평가항목 추가
-                  </button>
-                </td>
-              </tr>
             </tbody>
           </table>
         </div>
@@ -280,106 +282,122 @@ export default function CriteriaEditor({
   );
 }
 
-// 한 평가항목(그룹)의 모든 행. 열 구조는 항상 5칸(평가항목·세부항목·평가지표·배점·삭제)으로 고정.
-// 세부항목 열 하단에 '+ 세부항목' 추가 행, 각 세부항목의 평가지표 열 하단에 '+ 평가지표' 추가 행.
+// 한 평가항목(그룹)의 모든 행. 열 구조는 항상 4칸(평가항목·세부항목·평가지표·배점)으로 고정.
+// 추가 트리거는 각 리스트 마지막 아이템의 아이콘 줄에 있는 +버튼(그룹/세부항목/평가지표 각각) — 전용 추가 행은 없음.
 function GroupBlock({
   group,
+  isLastGroup,
   run,
   pending,
+  onAddGroup,
   onAddSubitem,
   onAddCriterion,
 }: {
   group: GroupDTO;
+  isLastGroup: boolean;
   run: RunFn;
   pending: boolean;
+  onAddGroup: () => void;
   onAddSubitem: AddFn;
   onAddCriterion: AddFn;
 }) {
-  // 세부항목 블록 = 평가지표 행 수 + '+ 평가지표' 추가 행 1개. 그룹 = 세부항목 블록 합 + '+ 세부항목' 추가 행 1개.
-  const subBlock = (s: SubitemDTO) => s.criteria.length + 1;
-  const groupRowSpan = group.subitems.reduce((n, s) => n + subBlock(s), 0) + 1;
+  // 세부항목 1개가 차지하는 행 수 = 평가지표 개수(0이면 1행으로 자기 자신만 표시)
+  const subBlock = (s: SubitemDTO) => Math.max(s.criteria.length, 1);
+  const groupRowSpan = group.subitems.length === 0 ? 1 : group.subitems.reduce((n, s) => n + subBlock(s), 0);
 
   const rows: React.ReactNode[] = [];
   let groupPlaced = false;
   const placeGroup = (cells: React.ReactNode[]) => {
     if (!groupPlaced) {
-      cells.push(<GroupNameCell key="g" group={group} rowSpan={groupRowSpan} run={run} pending={pending} />);
+      cells.push(
+        <GroupNameCell
+          key="g"
+          group={group}
+          rowSpan={groupRowSpan}
+          run={run}
+          pending={pending}
+          isLastGroup={isLastGroup}
+          onAddGroup={onAddGroup}
+          onAddSubitem={onAddSubitem}
+        />,
+      );
       groupPlaced = true;
     }
   };
 
-  group.subitems.forEach((s) => {
+  if (group.subitems.length === 0) {
+    // 세부항목이 하나도 없는 그룹 — 그룹 셀만 있는 빈 행 1개("+ 세부항목"은 GroupNameCell 안에 표시)
+    const cells: React.ReactNode[] = [];
+    placeGroup(cells);
+    cells.push(<td key="s" className="border-r border-slate-100 px-4 py-2" />);
+    cells.push(<td key="c" className="px-4 py-2" />);
+    cells.push(<td key="m" className="px-4 py-2" />);
+    rows.push(<tr key={`${group.id}-empty`} className="border-b border-slate-100 last:border-0">{cells}</tr>);
+    return <>{rows}</>;
+  }
+
+  group.subitems.forEach((s, sIdx) => {
+    const isLastSubitem = sIdx === group.subitems.length - 1;
     const subRowSpan = subBlock(s);
-    // 평가지표 행들
-    s.criteria.forEach((c, cIdx) => {
+
+    if (s.criteria.length === 0) {
+      // 평가지표가 하나도 없는 세부항목 — 세부항목 셀만 있는 빈 행 1개("+ 평가지표"는 SubitemNameCell 안에 표시)
       const cells: React.ReactNode[] = [];
       placeGroup(cells);
-      if (cIdx === 0) cells.push(<SubitemNameCell key="s" subitem={s} rowSpan={subRowSpan} run={run} pending={pending} />);
-      cells.push(<CriterionRowCells key="cr" criterion={c} run={run} pending={pending} />);
-      rows.push(<tr key={c.id} className="border-b border-slate-100">{cells}</tr>);
+      cells.push(
+        <SubitemNameCell
+          key="s"
+          subitem={s}
+          rowSpan={subRowSpan}
+          run={run}
+          pending={pending}
+          groupId={group.id}
+          isLastSubitem={isLastSubitem}
+          onAddSubitem={onAddSubitem}
+          onAddCriterion={onAddCriterion}
+        />,
+      );
+      cells.push(<td key="c" className="px-4 py-2" />);
+      cells.push(<td key="m" className="px-4 py-2" />);
+      rows.push(<tr key={`${s.id}-empty`} className="border-b border-slate-100">{cells}</tr>);
+      return;
+    }
+
+    s.criteria.forEach((c, cIdx) => {
+      const isLastCriterion = cIdx === s.criteria.length - 1;
+      const cells: React.ReactNode[] = [];
+      placeGroup(cells);
+      if (cIdx === 0) {
+        cells.push(
+          <SubitemNameCell
+            key="s"
+            subitem={s}
+            rowSpan={subRowSpan}
+            run={run}
+            pending={pending}
+            groupId={group.id}
+            isLastSubitem={isLastSubitem}
+            onAddSubitem={onAddSubitem}
+            onAddCriterion={onAddCriterion}
+          />,
+        );
+      }
+      cells.push(
+        <CriterionRowCells
+          key="cr"
+          criterion={c}
+          run={run}
+          pending={pending}
+          subitemId={s.id}
+          isLastCriterion={isLastCriterion}
+          onAddCriterion={onAddCriterion}
+        />,
+      );
+      rows.push(<tr key={c.id} className="border-b border-slate-100 last:border-0">{cells}</tr>);
     });
-    // '+ 평가지표' 추가 행 (평가지표 열)
-    const addCells: React.ReactNode[] = [];
-    placeGroup(addCells);
-    if (s.criteria.length === 0) addCells.push(<SubitemNameCell key="s" subitem={s} rowSpan={subRowSpan} run={run} pending={pending} />);
-    addCells.push(
-      <AddCriterionCell key="ac" subitemId={s.id} pending={pending} onAdd={onAddCriterion} />,
-      <td key="m" className="px-4 py-2" />,
-      <td key="del" className="px-4 py-2" />,
-    );
-    rows.push(<tr key={`${s.id}-add`} className="border-b border-slate-100 bg-slate-50/30">{addCells}</tr>);
   });
 
-  // '+ 세부항목' 추가 행 (세부항목 열)
-  const subAddCells: React.ReactNode[] = [];
-  placeGroup(subAddCells);
-  subAddCells.push(
-    <AddSubitemCell key="asu" groupId={group.id} pending={pending} onAdd={onAddSubitem} />,
-    <td key="ci" className="px-4 py-2" />,
-    <td key="m" className="px-4 py-2" />,
-    <td key="del" className="px-4 py-2" />,
-  );
-  rows.push(<tr key={`${group.id}-addsub`} className="border-b border-slate-100 bg-slate-50/30 last:border-0">{subAddCells}</tr>);
-
   return <>{rows}</>;
-}
-
-function AddSubitemCell({ groupId, pending, onAdd }: { groupId: string; pending: boolean; onAdd: AddFn }) {
-  const [adding, setAdding] = useState(false);
-  return (
-    <td className="border-r border-slate-100 px-4 py-2 align-top">
-      <button type="button" onClick={() => setAdding(true)} className={addBtn}>+ 세부항목</button>
-      {adding && (
-        <AddModal title="세부항목 추가" pending={pending} onClose={() => setAdding(false)} onSubmit={(fd) => onAdd(groupId, fd)}>
-          <label className="block text-xs text-slate-500">
-            세부항목명
-            <input name="name" required placeholder="예: 목표 및 내용" className={`mt-1 w-full ${inputCls}`} autoFocus />
-          </label>
-        </AddModal>
-      )}
-    </td>
-  );
-}
-
-function AddCriterionCell({ subitemId, pending, onAdd }: { subitemId: string; pending: boolean; onAdd: AddFn }) {
-  const [adding, setAdding] = useState(false);
-  return (
-    <td className="px-4 py-2 align-top">
-      <button type="button" onClick={() => setAdding(true)} className={addBtn}>+ 평가지표</button>
-      {adding && (
-        <AddModal title="평가지표 추가" pending={pending} onClose={() => setAdding(false)} onSubmit={(fd) => onAdd(subitemId, fd)}>
-          <label className="block text-xs text-slate-500">
-            평가지표명
-            <input name="name" required placeholder="예: 사업 타당성" className={`mt-1 w-full ${inputCls}`} autoFocus />
-          </label>
-          <label className="block text-xs text-slate-500">
-            배점
-            <input name="maxScore" type="number" step="any" defaultValue={0} className={`mt-1 w-full ${inputCls}`} />
-          </label>
-        </AddModal>
-      )}
-    </td>
-  );
 }
 
 function GroupNameCell({
@@ -387,15 +405,23 @@ function GroupNameCell({
   rowSpan,
   run,
   pending,
+  isLastGroup,
+  onAddGroup,
+  onAddSubitem,
 }: {
   group: GroupDTO;
   rowSpan: number;
   run: RunFn;
   pending: boolean;
+  isLastGroup: boolean;
+  onAddGroup: () => void;
+  onAddSubitem: AddFn;
 }) {
   const [editing, setEditing] = useState(false);
+  const [addingSubitem, setAddingSubitem] = useState(false);
   const total = groupTotal(group.subitems.flatMap((s) => s.criteria));
   const balanced = isGroupBalanced(group.maxScore, total);
+  const showAddSubitem = group.subitems.length === 0;
 
   const submit = (fd: FormData) =>
     run(async () => {
@@ -431,12 +457,30 @@ function GroupNameCell({
             <button type="button" onClick={onDelete} className="rounded p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600" title="평가항목 삭제" aria-label="평가항목 삭제">
               <TrashIcon className="h-3.5 w-3.5" />
             </button>
+            {showAddSubitem && (
+              <button type="button" onClick={() => setAddingSubitem(true)} className={plusBtn} title="세부항목 추가" aria-label="세부항목 추가">
+                <PlusIcon className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {isLastGroup && (
+              <button type="button" onClick={onAddGroup} className={plusBtn} title="평가항목 추가" aria-label="평가항목 추가">
+                <PlusIcon className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
           <div className="text-xs text-slate-400">
             합계 {total} / 목표 {group.maxScore}
             {!balanced && <span className="ml-1 rounded bg-amber-50 px-1.5 py-0.5 font-medium text-amber-600">⚠ 불일치</span>}
           </div>
         </div>
+      )}
+      {addingSubitem && (
+        <AddModal title="세부항목 추가" pending={pending} onClose={() => setAddingSubitem(false)} onSubmit={(fd) => onAddSubitem(group.id, fd)}>
+          <label className="block text-xs text-slate-500">
+            세부항목명
+            <input name="name" required placeholder="예: 목표 및 내용" className={`mt-1 w-full ${inputCls}`} autoFocus />
+          </label>
+        </AddModal>
       )}
     </td>
   );
@@ -447,13 +491,25 @@ function SubitemNameCell({
   rowSpan,
   run,
   pending,
+  groupId,
+  isLastSubitem,
+  onAddSubitem,
+  onAddCriterion,
 }: {
   subitem: SubitemDTO;
   rowSpan: number;
   run: RunFn;
   pending: boolean;
+  groupId: string;
+  isLastSubitem: boolean;
+  onAddSubitem: AddFn;
+  onAddCriterion: AddFn;
 }) {
   const [editing, setEditing] = useState(false);
+  const [addingSubitem, setAddingSubitem] = useState(false);
+  const [addingCriterion, setAddingCriterion] = useState(false);
+  const showAddCriterion = subitem.criteria.length === 0;
+
   const submit = (fd: FormData) =>
     run(async () => {
       await updateSubitem(subitem.id, fd);
@@ -482,24 +538,61 @@ function SubitemNameCell({
           <button type="button" onClick={onDelete} className="rounded p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600" title="세부항목 삭제" aria-label="세부항목 삭제">
             <TrashIcon className="h-3.5 w-3.5" />
           </button>
+          {showAddCriterion && (
+            <button type="button" onClick={() => setAddingCriterion(true)} className={plusBtn} title="평가지표 추가" aria-label="평가지표 추가">
+              <PlusIcon className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {isLastSubitem && (
+            <button type="button" onClick={() => setAddingSubitem(true)} className={plusBtn} title="세부항목 추가" aria-label="세부항목 추가">
+              <PlusIcon className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
+      )}
+      {addingCriterion && (
+        <AddModal title="평가지표 추가" pending={pending} onClose={() => setAddingCriterion(false)} onSubmit={(fd) => onAddCriterion(subitem.id, fd)}>
+          <label className="block text-xs text-slate-500">
+            평가지표명
+            <input name="name" required placeholder="예: 사업 타당성" className={`mt-1 w-full ${inputCls}`} autoFocus />
+          </label>
+          <label className="block text-xs text-slate-500">
+            배점
+            <input name="maxScore" type="number" step="any" defaultValue={0} className={`mt-1 w-full ${inputCls}`} />
+          </label>
+        </AddModal>
+      )}
+      {addingSubitem && (
+        <AddModal title="세부항목 추가" pending={pending} onClose={() => setAddingSubitem(false)} onSubmit={(fd) => onAddSubitem(groupId, fd)}>
+          <label className="block text-xs text-slate-500">
+            세부항목명
+            <input name="name" required placeholder="예: 목표 및 내용" className={`mt-1 w-full ${inputCls}`} autoFocus />
+          </label>
+        </AddModal>
       )}
     </td>
   );
 }
 
 // 평가지표 편집은 이름·배점이 서로 다른 열(td)에 있어 <form>으로 감쌀 수 없으므로,
-// 제어 입력 + 버튼 클릭 시 FormData를 구성해 액션을 호출한다(항상 3칸 고정).
+// 제어 입력 + 버튼 클릭 시 FormData를 구성해 액션을 호출한다(항상 2칸 고정: 이름/배점).
 function CriterionRowCells({
   criterion,
   run,
   pending,
+  subitemId,
+  isLastCriterion,
+  onAddCriterion,
 }: {
   criterion: LeafDTO;
   run: RunFn;
   pending: boolean;
+  subitemId: string;
+  isLastCriterion: boolean;
+  onAddCriterion: AddFn;
 }) {
   const [editing, setEditing] = useState(false);
+  const [adding, setAdding] = useState(false);
   const [name, setName] = useState(criterion.name);
   const [score, setScore] = useState(String(criterion.maxScore));
 
@@ -535,7 +628,6 @@ function CriterionRowCells({
         <td className="px-4 py-3 text-right">
           <input type="number" step="any" value={score} onChange={(e) => setScore(e.target.value)} className={`w-20 text-right ${inputCls}`} />
         </td>
-        <td className="px-4 py-3" />
       </>
     );
   }
@@ -548,14 +640,29 @@ function CriterionRowCells({
           <button type="button" onClick={() => setEditing(true)} className="rounded p-1 text-slate-400 transition hover:bg-slate-100 hover:text-indigo-600" title="수정" aria-label="평가지표 수정">
             <PencilIcon className="h-3.5 w-3.5" />
           </button>
+          <button type="button" onClick={onDelete} className="rounded p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600" title="평가지표 삭제" aria-label="평가지표 삭제">
+            <TrashIcon className="h-3.5 w-3.5" />
+          </button>
+          {isLastCriterion && (
+            <button type="button" onClick={() => setAdding(true)} className={plusBtn} title="평가지표 추가" aria-label="평가지표 추가">
+              <PlusIcon className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
+        {adding && (
+          <AddModal title="평가지표 추가" pending={pending} onClose={() => setAdding(false)} onSubmit={(fd) => onAddCriterion(subitemId, fd)}>
+            <label className="block text-xs text-slate-500">
+              평가지표명
+              <input name="name" required placeholder="예: 사업 타당성" className={`mt-1 w-full ${inputCls}`} autoFocus />
+            </label>
+            <label className="block text-xs text-slate-500">
+              배점
+              <input name="maxScore" type="number" step="any" defaultValue={0} className={`mt-1 w-full ${inputCls}`} />
+            </label>
+          </AddModal>
+        )}
       </td>
       <td className="px-4 py-3 text-right font-semibold tabular-nums text-slate-800">{criterion.maxScore}</td>
-      <td className="px-4 py-3 text-right">
-        <button type="button" onClick={onDelete} className="rounded-md p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600" title="평가지표 삭제" aria-label="평가지표 삭제">
-          <TrashIcon className="h-3.5 w-3.5" />
-        </button>
-      </td>
     </>
   );
 }

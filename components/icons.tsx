@@ -76,6 +76,16 @@ export function PencilIcon(p: IconProps) {
   )
 }
 
+// 추가 — 플러스
+export function PlusIcon(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M12 5v14" />
+      <path d="M5 12h14" />
+    </Svg>
+  )
+}
+
 // 삭제 — 휴지통
 export function TrashIcon(p: IconProps) {
   return (

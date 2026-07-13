@@ -33,9 +33,9 @@ const groups = [
 describe('CriteriaEditor', () => {
   afterEach(() => cleanup())
 
-  it('편집 모드에서 평가항목 추가 버튼과 항목명을 보여준다', () => {
+  it('편집 모드에서 마지막 평가항목 옆 추가 버튼과 항목명을 보여준다', () => {
     render(<CriteriaEditor sessionId="s1" groups={groups} maxScore={100} />)
-    expect(screen.getByRole('button', { name: '+ 평가항목 추가' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '평가항목 추가' })).toBeInTheDocument()
     expect(screen.getByText('사업계획')).toBeInTheDocument()
   })
 
@@ -44,7 +44,7 @@ describe('CriteriaEditor', () => {
     render(<CriteriaEditor sessionId="s1" groups={groups} maxScore={100} />)
     await user.click(screen.getByRole('button', { name: '미리보기' }))
     expect(screen.getByRole('button', { name: '편집' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: '+ 평가항목 추가' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '평가항목 추가' })).not.toBeInTheDocument()
   })
 
   it('편집으로 되돌리면 다시 평가항목 추가 버튼이 나타난다', async () => {
@@ -52,13 +52,13 @@ describe('CriteriaEditor', () => {
     render(<CriteriaEditor sessionId="s1" groups={groups} maxScore={100} />)
     await user.click(screen.getByRole('button', { name: '미리보기' }))
     await user.click(screen.getByRole('button', { name: '편집' }))
-    expect(screen.getByRole('button', { name: '+ 평가항목 추가' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '평가항목 추가' })).toBeInTheDocument()
   })
 
   it('평가항목 추가 클릭 시 항목명·목표배점 입력 폼이 열린다', async () => {
     const user = userEvent.setup()
     render(<CriteriaEditor sessionId="s1" groups={groups} maxScore={100} />)
-    await user.click(screen.getByRole('button', { name: '+ 평가항목 추가' }))
+    await user.click(screen.getByRole('button', { name: '평가항목 추가' }))
     expect(screen.getByPlaceholderText('예: 사업계획')).toBeInTheDocument()
   })
 
