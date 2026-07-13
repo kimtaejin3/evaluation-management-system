@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { SessionsIcon, UsersIcon, CompanyIcon } from "./icons";
+import { SessionsIcon, UsersIcon } from "./icons";
 import { SESSION_TABS as SUB_ITEMS } from "@/lib/session-nav";
 
 const APP_VERSION = "0.1.0";
@@ -392,13 +392,6 @@ export default function AdminSidebar({
               평가위원 · 간사 관리
             </Link>
           )}
-          <Link
-            href="/admin/companies"
-            className={topCls(pathname.startsWith("/admin/companies"))}
-          >
-            <CompanyIcon />
-            평가 대상 관리
-          </Link>
         </nav>
       )}
 

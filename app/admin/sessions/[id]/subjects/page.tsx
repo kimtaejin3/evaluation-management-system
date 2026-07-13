@@ -1,19 +1,36 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { prisma } from "@/lib/db";
 import CompanyLogo from "@/components/CompanyLogo";
 import {
   addSubject,
+  editSubject,
   deleteSubject,
   uploadSubjectDocument,
   deleteSubjectDocument,
+  approveSubjects,
 } from "../../actions";
+import RejectSubjectsModal from "@/components/RejectSubjectsModal";
 import SubjectUploadForm from "@/components/SubjectUploadForm";
 import SubjectImportButton from "@/components/SubjectImportButton";
 import { SkeletonCard, SkeletonCardGrid } from "@/components/Skeletons";
+import { requireAdminUser } from "@/lib/authz";
 
 const inputCls =
   "rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500";
+
+type SubjectStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+const STATUS_LABEL: Record<SubjectStatus, string> = {
+  PENDING: "대기",
+  APPROVED: "승인",
+  REJECTED: "반려",
+};
+
+const STATUS_BADGE_CLS: Record<SubjectStatus, string> = {
+  PENDING: "bg-amber-50 text-amber-700",
+  APPROVED: "bg-emerald-50 text-emerald-700",
+  REJECTED: "bg-rose-50 text-rose-600",
+};
 
 function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -42,6 +59,8 @@ export default async function SubjectsPage({
 }
 
 async function SubjectsContent({ id }: { id: string }) {
+  const me = await requireAdminUser();
+  const isMaster = me.role === "MASTER";
   const [session, subjects] = await Promise.all([
     prisma.evaluationSession.findUnique({ where: { id } }),
     prisma.subject.findMany({
@@ -60,19 +79,42 @@ async function SubjectsContent({ id }: { id: string }) {
       },
     }),
   ]);
-  const usedCompanyIds = subjects.map((s) => s.companyId);
-  const available = await prisma.company.findMany({
-    where: { id: { notIn: usedCompanyIds.length ? usedCompanyIds : [""] } },
-    orderBy: { name: "asc" },
-  });
   const locked = session?.status === "CLOSED";
+  const pendingCount = subjects.filter((s) => s.status === "PENDING").length;
 
   return (
     <div className="space-y-6">
-      {/* 대상 추가 (상단) */}
+      {/* 관리자 승인/반려 (상단, 마스터 전용) */}
+      {isMaster && subjects.length > 0 && (
+        <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-5">
+          <div>
+            <div className="text-sm font-semibold text-slate-700">관리자 검토</div>
+            <p className="mt-0.5 text-xs text-slate-400">
+              이 분과에 등록된 평가 대상 전체를 일괄 승인하거나, 사유를 남기고 반려할 수 있습니다.
+              {pendingCount > 0 && (
+                <span className="ml-1 font-medium text-amber-600">· 승인 대기 {pendingCount}</span>
+              )}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <form action={approveSubjects.bind(null, id)}>
+              <button className="rounded-md bg-[var(--gov-navy)] px-3 py-1.5 text-xs font-medium text-white transition hover:opacity-90">
+                승인
+              </button>
+            </form>
+            <RejectSubjectsModal sessionId={id} />
+          </div>
+        </div>
+      )}
+
+      {/* 대상 추가 (상단, 간사 전용) */}
       {locked ? (
         <p className="text-sm text-slate-400">
           마감된 분과는 평가 대상을 수정할 수 없습니다.
+        </p>
+      ) : isMaster ? (
+        <p className="text-sm text-slate-400">
+          평가 대상 등록·자료 업로드는 담당 간사만 할 수 있습니다. 관리자는 조회 및 승인/반려만 가능합니다.
         </p>
       ) : (
         <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-5">
@@ -82,50 +124,23 @@ async function SubjectsContent({ id }: { id: string }) {
             </div>
             <SubjectImportButton sessionId={id} />
           </div>
-          {/* 기존 기업에서 선택 */}
-          <form action={addSubject.bind(null, id)} className="flex gap-2">
-            <select
-              name="companyId"
-              defaultValue=""
-              required
-              className={`flex-1 ${inputCls}`}
-            >
-              <option value="" disabled>
-                기존 기업 선택
-              </option>
-              {available.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-            <button
-              disabled={available.length === 0}
-              className="shrink-0 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-40"
-            >
-              추가
-            </button>
-          </form>
 
           {/* 신규 평가 대상(기업) 등록 → 이 분과에 바로 편입 */}
           <form
             action={addSubject.bind(null, id)}
-            className="flex flex-wrap gap-2 border-t border-slate-100 pt-3"
+            className="flex flex-wrap gap-2"
           >
             <input name="newName" required placeholder="새 기업명" className={`min-w-40 flex-1 ${inputCls}`} />
             <input name="region" required placeholder="지역" className={`w-28 ${inputCls}`} />
             <input name="leadResearcher" required placeholder="연구책임자" className={`w-32 ${inputCls}`} />
+            <input name="businessNo" placeholder="사업자등록번호" className={`w-40 ${inputCls}`} />
             <button className="shrink-0 rounded-lg border border-indigo-300 px-4 py-2 text-sm font-medium text-indigo-700 transition hover:bg-indigo-50">
               신규 등록
             </button>
           </form>
 
           <p className="text-xs text-slate-400">
-            신규 등록한 기업은{" "}
-            <Link href="/admin/companies" className="text-indigo-600 hover:underline">
-              평가 대상 관리
-            </Link>
-            에 전역으로 저장돼 분과 간 공유됩니다. 지역·연구책임자는 인쇄 평가표 헤더에 사용됩니다.
+            지역·연구책임자는 인쇄 평가표 헤더에 사용됩니다. 등록된 평가 대상은 관리자 승인 후 확정됩니다.
           </p>
         </div>
       )}
@@ -148,114 +163,163 @@ async function SubjectsContent({ id }: { id: string }) {
 
       {subjects.length === 0 && (
         <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-400">
-          편입된 평가 대상이 없습니다. 위에서 기업을 추가하세요.
+          편입된 평가 대상이 없습니다.{" "}
+          {!isMaster && !locked && "위에서 기업을 추가하세요."}
         </div>
       )}
 
       <div className="space-y-4">
-        {subjects.map((s, i) => (
-          <div
-            key={s.id}
-            id={`subject-${s.id}`}
-            className="scroll-mt-20 rounded-xl border border-slate-200 bg-white p-5"
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex items-start gap-3">
-                <CompanyLogo name={s.name} className="h-9 w-9 text-sm" />
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-slate-400">
-                      {i + 1}
-                    </span>
-                    <span className="font-semibold text-slate-800">
-                      {s.name}
-                    </span>
-                  </div>
-                  <p className="mt-0.5 text-xs text-slate-400">
-                    사업자번호{" "}
-                    {s.company.businessNo ?? (
-                      <span className="text-slate-300">미등록</span>
-                    )}
-                  </p>
-                  {s.company.description && (
-                    <p className="mt-1 text-sm text-slate-500">
-                      {s.company.description}
+        {subjects.map((s, i) => {
+          const status = s.status as SubjectStatus;
+          return (
+            <div
+              key={s.id}
+              id={`subject-${s.id}`}
+              className="scroll-mt-20 rounded-xl border border-slate-200 bg-white p-5"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex items-start gap-3">
+                  <CompanyLogo name={s.name} className="h-9 w-9 text-sm" />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-slate-400">
+                        {i + 1}
+                      </span>
+                      <span className="font-semibold text-slate-800">
+                        {s.name}
+                      </span>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE_CLS[status]}`}
+                      >
+                        {STATUS_LABEL[status]}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-xs text-slate-400">
+                      사업자번호{" "}
+                      {s.company.businessNo ?? (
+                        <span className="text-slate-300">미등록</span>
+                      )}
+                      {" · 지역 "}
+                      {s.company.region ?? <span className="text-slate-300">미등록</span>}
+                      {" · 연구책임자 "}
+                      {s.company.leadResearcher ?? <span className="text-slate-300">미등록</span>}
                     </p>
+                    {s.company.description && (
+                      <p className="mt-1 text-sm text-slate-500">
+                        {s.company.description}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                {!locked && !isMaster && (
+                  <form
+                    action={async () => {
+                      "use server";
+                      await deleteSubject(id, s.id);
+                    }}
+                  >
+                    <button className="text-sm text-rose-600 hover:underline">
+                      분과에서 제외
+                    </button>
+                  </form>
+                )}
+              </div>
+
+              {/* 반려 사유 배너 + 간사 수정 폼 */}
+              {status === "REJECTED" && (
+                <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 p-4">
+                  <p className="text-sm font-medium text-rose-700">
+                    관리자 반려 사유
+                  </p>
+                  <p className="mt-1 text-sm text-rose-600">
+                    {s.rejectionReason || "사유가 입력되지 않았습니다."}
+                  </p>
+                  {!locked && !isMaster && (
+                    <form
+                      action={editSubject.bind(null, id, s.id)}
+                      className="mt-3 flex flex-wrap gap-2 border-t border-rose-100 pt-3"
+                    >
+                      <input
+                        name="region"
+                        required
+                        defaultValue={s.company.region ?? ""}
+                        placeholder="지역"
+                        className={`w-28 ${inputCls}`}
+                      />
+                      <input
+                        name="leadResearcher"
+                        required
+                        defaultValue={s.company.leadResearcher ?? ""}
+                        placeholder="연구책임자"
+                        className={`w-32 ${inputCls}`}
+                      />
+                      <input
+                        name="businessNo"
+                        defaultValue={s.company.businessNo ?? ""}
+                        placeholder="사업자등록번호"
+                        className={`w-40 ${inputCls}`}
+                      />
+                      <button className="shrink-0 rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-rose-700">
+                        수정 후 재검토 요청
+                      </button>
+                    </form>
                   )}
                 </div>
-              </div>
-              {!locked && (
-                <form
-                  action={async () => {
-                    "use server";
-                    await deleteSubject(id, s.id);
-                  }}
-                >
-                  <button className="text-sm text-rose-600 hover:underline">
-                    분과에서 제외
-                  </button>
-                </form>
               )}
-            </div>
 
-
-            <div className="mt-4 border-t border-slate-100 pt-4">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-xs font-medium text-slate-500">
-                  분과 서류 ({s.company.documents.length})
-                </span>
-                <Link
-                  href="/admin/companies"
-                  className="text-xs text-indigo-600 hover:underline"
-                >
-                  평가 대상 관리에서 자료 추가/수정 →
-                </Link>
-              </div>
-              <ul className="space-y-1">
-                {s.company.documents.map((d) => (
-                  <li
-                    key={d.id}
-                    className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm"
-                  >
-                    <a
-                      href={`/viewer/${d.id}`}
-                      className="flex items-center gap-2 text-indigo-600 hover:underline"
+              <div className="mt-4 border-t border-slate-100 pt-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-xs font-medium text-slate-500">
+                    분과 서류 ({s.company.documents.length})
+                  </span>
+                </div>
+                <ul className="space-y-1">
+                  {s.company.documents.map((d) => (
+                    <li
+                      key={d.id}
+                      className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm"
                     >
-                      <span>📄</span>
-                      <span>{d.originalName}</span>
-                      <span className="text-xs text-slate-400">
-                        {formatSize(d.size)}
-                      </span>
-                    </a>
-                    {!locked && (
-                      <form
-                        action={async () => {
-                          "use server";
-                          await deleteSubjectDocument(id, d.id);
-                        }}
+                      <a
+                        href={`/viewer/${d.id}`}
+                        className="flex items-center gap-2 text-indigo-600 hover:underline"
                       >
-                        <button className="ml-2 shrink-0 text-xs text-rose-600 hover:underline">
-                          삭제
-                        </button>
-                      </form>
-                    )}
-                  </li>
-                ))}
-                {s.company.documents.length === 0 && (
-                  <li className="text-sm text-slate-400">
-                    등록된 자료가 없습니다. 아래에서 업로드하세요.
-                  </li>
-                )}
-              </ul>
+                        <span>📄</span>
+                        <span>{d.originalName}</span>
+                        <span className="text-xs text-slate-400">
+                          {formatSize(d.size)}
+                        </span>
+                      </a>
+                      {!locked && !isMaster && (
+                        <form
+                          action={async () => {
+                            "use server";
+                            await deleteSubjectDocument(id, d.id);
+                          }}
+                        >
+                          <button className="ml-2 shrink-0 text-xs text-rose-600 hover:underline">
+                            삭제
+                          </button>
+                        </form>
+                      )}
+                    </li>
+                  ))}
+                  {s.company.documents.length === 0 && (
+                    <li className="text-sm text-slate-400">
+                      등록된 자료가 없습니다.
+                      {!isMaster && !locked && " 아래에서 업로드하세요."}
+                    </li>
+                  )}
+                </ul>
 
-              {!locked && (
-                <SubjectUploadForm
-                  action={uploadSubjectDocument.bind(null, id, s.companyId)}
-                />
-              )}
+                {!locked && !isMaster && (
+                  <SubjectUploadForm
+                    action={uploadSubjectDocument.bind(null, id, s.companyId)}
+                  />
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

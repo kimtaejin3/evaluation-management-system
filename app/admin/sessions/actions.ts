@@ -431,33 +431,33 @@ export async function commitSubjectImport(
   return { ok: true, created, skipped, warnings }
 }
 
-// 심사에 평가 대상(기업) 편입 — 기존 기업 선택(companyId) 또는 신규 기업명(newName)
+// 심사에 평가 대상(기업) 편입 — 신규 기업 정보(newName)를 직접 입력해 등록. 간사 전용(관리자는 조회만).
 export async function addSubject(sessionId: string, formData: FormData) {
-  await assertSessionAccess(sessionId)
-  const companyId = String(formData.get('companyId') ?? '').trim()
+  const { user } = await assertSessionAccess(sessionId)
+  if (user.role === 'MASTER') return
   const newName = String(formData.get('newName') ?? '').trim()
+  if (!newName) return
 
-  let company: { id: string; name: string; description: string | null } | null = null
-  if (companyId) {
-    company = await prisma.company.findUnique({ where: { id: companyId } })
-  } else if (newName) {
-    // 신규 기업 등록 시 인쇄 헤더용 지역·연구책임자 필수
-    const region = String(formData.get('region') ?? '').trim()
-    const leadResearcher = String(formData.get('leadResearcher') ?? '').trim()
-    if (!region || !leadResearcher) return
-    company = await prisma.company.upsert({
-      where: { name: newName },
-      update: { region, leadResearcher },
-      create: { name: newName, region, leadResearcher },
-    })
-  }
-  if (!company) return
+  // 신규 기업 등록 시 인쇄 헤더용 지역·연구책임자 필수, 사업자등록번호는 선택
+  const region = String(formData.get('region') ?? '').trim()
+  const leadResearcher = String(formData.get('leadResearcher') ?? '').trim()
+  const businessNo = String(formData.get('businessNo') ?? '').trim()
+  if (!region || !leadResearcher) return
+  const company = await prisma.company.upsert({
+    where: { name: newName },
+    update: { region, leadResearcher, businessNo: businessNo || undefined },
+    create: { name: newName, region, leadResearcher, businessNo: businessNo || null },
+  })
 
-  // 같은 심사에 이미 편입된 기업이면 무시(유니크 제약)
+  // 같은 심사에 이미 편입된 기업이면 정보 수정으로 간주 — 재검토를 위해 PENDING으로 되돌림
   const exists = await prisma.subject.findUnique({
     where: { sessionId_companyId: { sessionId, companyId: company.id } },
   })
   if (exists) {
+    await prisma.subject.update({
+      where: { id: exists.id },
+      data: { status: 'PENDING', rejectionReason: null, decidedAt: null },
+    })
     revalidatePath(`/admin/sessions/${sessionId}/subjects`)
     return
   }
@@ -470,7 +470,31 @@ export async function addSubject(sessionId: string, formData: FormData) {
       name: company.name,
       description: company.description,
       order: count,
+      status: 'PENDING',
     },
+  })
+  revalidatePath(`/admin/sessions/${sessionId}/subjects`)
+}
+
+// 반려된(또는 기존) 평가 대상의 기업 정보 수정 — 간사 전용. 수정 시 재검토를 위해 PENDING으로 되돌림.
+export async function editSubject(sessionId: string, subjectId: string, formData: FormData) {
+  const { user } = await assertSessionAccess(sessionId)
+  if (user.role === 'MASTER') return
+  const subject = await prisma.subject.findUnique({ where: { id: subjectId } })
+  if (!subject || subject.sessionId !== sessionId) return
+
+  const region = String(formData.get('region') ?? '').trim()
+  const leadResearcher = String(formData.get('leadResearcher') ?? '').trim()
+  const businessNo = String(formData.get('businessNo') ?? '').trim()
+  if (!region || !leadResearcher) return
+
+  await prisma.company.update({
+    where: { id: subject.companyId },
+    data: { region, leadResearcher, businessNo: businessNo || null },
+  })
+  await prisma.subject.update({
+    where: { id: subjectId },
+    data: { status: 'PENDING', rejectionReason: null, decidedAt: null },
   })
   revalidatePath(`/admin/sessions/${sessionId}/subjects`)
 }
@@ -481,9 +505,10 @@ export async function deleteSubject(sessionId: string, subjectId: string) {
   revalidatePath(`/admin/sessions/${sessionId}/subjects`)
 }
 
-// 평가 대상(기업) 자료 업로드 — 이 심사 전용(sessionId)으로 저장. 사업계획/현장실태조사서/사전검토표 등
+// 평가 대상(기업) 자료 업로드 — 이 심사 전용(sessionId)으로 저장. 사업계획/현장실태조사서/사전검토표 등. 간사 전용.
 export async function uploadSubjectDocument(sessionId: string, companyId: string, formData: FormData) {
-  await assertSessionAccess(sessionId)
+  const { user } = await assertSessionAccess(sessionId)
+  if (user.role === 'MASTER') return
   // PDF만 허용
   const files = formData.getAll('file').filter((f): f is File => f instanceof File && f.size > 0 && isPdf(f))
   if (files.length === 0) return
@@ -644,4 +669,26 @@ export async function completeReview(sessionId: string) {
   await prisma.evaluationSession.update({ where: { id: sessionId }, data: { status: 'CLOSED' } })
   revalidatePath(`/admin/sessions/${sessionId}`)
   revalidatePath(`/admin/sessions/${sessionId}/results`)
+}
+
+// ── 관리자: 평가 대상(기업) 일괄 승인/반려 (MASTER 전용) ──
+
+export async function approveSubjects(sessionId: string) {
+  await assertMaster()
+  await prisma.subject.updateMany({
+    where: { sessionId },
+    data: { status: 'APPROVED', decidedAt: new Date(), rejectionReason: null },
+  })
+  revalidatePath(`/admin/sessions/${sessionId}/subjects`)
+}
+
+export async function rejectSubjects(sessionId: string, reason: string) {
+  await assertMaster()
+  const trimmed = reason.trim()
+  if (!trimmed) return
+  await prisma.subject.updateMany({
+    where: { sessionId },
+    data: { status: 'REJECTED', rejectionReason: trimmed, decidedAt: new Date() },
+  })
+  revalidatePath(`/admin/sessions/${sessionId}/subjects`)
 }
