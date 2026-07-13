@@ -8,7 +8,7 @@ import { overallGrade } from "@/lib/scoring";
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
-// 선정 결과(1위) 요약 → '자세히 보기'로 순위·인쇄 모달을 연다.
+// 선정 결과(1위) 요약 + 순위표를 페이지에 상시 노출, 인쇄 도구는 모달로 연다.
 export default function ResultsView({
   sessionId,
   winners,
@@ -66,11 +66,17 @@ export default function ResultsView({
           onClick={() => setOpen(true)}
           className="mt-4 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 print:hidden"
         >
-          자세히 보기 (순위 · 인쇄)
+          인쇄
         </button>
       </div>
 
-      {/* 순위 · 인쇄 모달 */}
+      {/* 순위표 */}
+      <section className="mt-6 space-y-2">
+        <h3 className="text-sm font-semibold text-slate-700">순위</h3>
+        <RankingTable subjects={subjects} criteria={criteria} evaluators={evaluators} scores={scores} maxTotal={maxTotal} />
+      </section>
+
+      {/* 인쇄 모달 */}
       {open && (
         <div
           className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-slate-900/40 p-4 sm:p-8 print:hidden"
@@ -81,7 +87,7 @@ export default function ResultsView({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-slate-900">순위 · 인쇄</h2>
+              <h2 className="text-lg font-bold text-slate-900">인쇄</h2>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
@@ -90,12 +96,6 @@ export default function ResultsView({
                 닫기
               </button>
             </div>
-
-            {/* 순위표 */}
-            <section className="space-y-2">
-              <h3 className="text-sm font-semibold text-slate-700">순위</h3>
-              <RankingTable subjects={subjects} criteria={criteria} evaluators={evaluators} scores={scores} maxTotal={maxTotal} />
-            </section>
 
             <div className="grid gap-5 lg:grid-cols-2">
               {/* 위원별 평가표 인쇄 */}
