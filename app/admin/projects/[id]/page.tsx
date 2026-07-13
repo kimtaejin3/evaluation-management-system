@@ -119,6 +119,7 @@ export default async function ProjectDetailPage({
               <tr className="border-b border-slate-100 bg-slate-50/60">
                 <th className="px-5 py-3 font-medium">분과명</th>
                 <th className="px-5 py-3 font-medium">평가 상태</th>
+                <th className="px-5 py-3 font-medium">평가일자</th>
                 <th className="px-5 py-3 font-medium">대상</th>
                 <th className="px-5 py-3 font-medium">위원</th>
                 <th className="px-5 py-3 font-medium">담당 간사</th>
@@ -134,6 +135,11 @@ export default async function ProjectDetailPage({
                   </td>
                   <td className="px-5 py-3">
                     <StatusBadge status={s.status} />
+                  </td>
+                  <td className="px-5 py-3 text-slate-600">
+                    {s.eventDate
+                      ? new Date(s.eventDate).toLocaleDateString("ko-KR")
+                      : "미정"}
                   </td>
                   <td className="px-5 py-3 text-slate-600">{s._count.subjects}</td>
                   <td className="px-5 py-3 text-slate-600">{s._count.assignments}</td>

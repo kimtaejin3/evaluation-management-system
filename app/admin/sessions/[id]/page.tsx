@@ -44,7 +44,6 @@ async function SessionInfo({ id }: { id: string }) {
     include: {
       _count: { select: { criteria: true, subjects: true, assignments: true } },
       secretary: { select: { name: true } },
-      project: { select: { name: true } },
     },
   });
   if (!session) notFound();
@@ -57,15 +56,9 @@ async function SessionInfo({ id }: { id: string }) {
           day: "numeric",
         })
       : "—";
-  const period =
-    session.startDate || session.endDate
-      ? `${fmtDate(session.startDate)} ~ ${fmtDate(session.endDate)}`
-      : "—";
-
   const meta: { label: string; value: string }[] = [
-    { label: "과제명", value: session.project?.name ?? "미분류" },
     { label: "담당 간사", value: session.secretary?.name ?? "미배정" },
-    { label: "평가 기간", value: period },
+    { label: "평가일자", value: fmtDate(session.eventDate) },
     { label: "평가 항목 수", value: `${session._count.criteria}개` },
     { label: "평가 대상 수", value: `${session._count.subjects}개` },
     { label: "평가위원 수", value: `${session._count.assignments}명` },

@@ -67,6 +67,10 @@ export default async function NewSessionPage({
               <input name="endDate" type="date" className={inputCls} />
             </div>
           </div>
+          <div>
+            <label className={labelCls}>평가일</label>
+            <input name="eventDate" type="date" className={inputCls} />
+          </div>
         </div>
         <div className="flex justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-5 py-3">
           <Link href="/admin/sessions" className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50">취소</Link>
