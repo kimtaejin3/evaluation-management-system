@@ -84,5 +84,7 @@ export async function unassignSessionSecretary(projectId: string, sessionId: str
 export async function deleteProject(projectId: string) {
   await assertMaster()
   await prisma.project.delete({ where: { id: projectId } })
+  // 사이드바(admin 레이아웃)의 과제 목록 갱신 후 이동
+  revalidatePath('/admin', 'layout')
   redirect('/admin/projects')
 }

@@ -54,9 +54,10 @@ export async function deleteSession(sessionId: string) {
   await prisma.opinion.deleteMany({ where: { sessionId } })
   await prisma.editingPresence.deleteMany({ where: { sessionId } })
   await prisma.evaluationSession.delete({ where: { id: sessionId } })
-  revalidatePath('/admin/sessions')
-  revalidatePath('/admin/projects')
-  if (session?.projectId) revalidatePath(`/admin/projects/${session.projectId}`)
+  // 사이드바(admin 레이아웃)의 분과·과제 목록까지 갱신
+  revalidatePath('/admin', 'layout')
+  // 삭제된 분과 페이지에 머물면 404가 되므로 소속 과제(또는 분과 목록)로 이동
+  redirect(session?.projectId ? `/admin/projects/${session.projectId}` : '/admin/sessions')
 }
 
 export async function setSessionStatus(sessionId: string, status: 'DRAFT' | 'IN_PROGRESS' | 'CLOSED') {
