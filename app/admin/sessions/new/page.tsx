@@ -14,6 +14,9 @@ export default async function NewSessionPage({
   const user = await requireAdminUser()
   const { projectId } = await searchParams
   const isMaster = user.role === 'MASTER'
+  // 취소/뒤로가기는 소속 과제로(없으면 분과 목록)
+  const backHref = projectId ? `/admin/projects/${projectId}` : '/admin/sessions'
+  const backLabel = projectId ? '← 과제로' : '← 분과 목록'
   // 접근 가능한 과제: 마스터=전체, 간사=배정된 과제
   const [projects, secretaries] = await Promise.all([
     prisma.project.findMany({
@@ -30,7 +33,7 @@ export default async function NewSessionPage({
   if (projects.length === 0) {
     return (
       <div className="max-w-2xl">
-        <Link href="/admin/sessions" className="text-sm text-slate-400 hover:text-slate-600">← 분과 목록</Link>
+        <Link href={backHref} className="text-sm text-slate-400 hover:text-slate-600">{backLabel}</Link>
         <h1 className="mt-1 text-2xl font-bold">새 분과 등록</h1>
         <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
           배정된 과제가 없어 분과를 만들 수 없습니다. {user.role === 'MASTER' ? '먼저 과제를 만들고 담당 간사를 배정하세요.' : '마스터에게 과제 배정을 요청하세요.'}
@@ -94,7 +97,7 @@ export default async function NewSessionPage({
           )}
         </div>
         <div className="flex justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-5 py-3">
-          <Link href="/admin/sessions" className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50">취소</Link>
+          <Link href={backHref} className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50">취소</Link>
           <button className="rounded-md bg-indigo-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-indigo-700">분과 생성</button>
         </div>
       </form>

@@ -4,7 +4,6 @@ import { assertProjectAccess } from "@/lib/authz";
 import { deriveProjectStatus } from "@/lib/project-status";
 import StatusBadge from "@/components/StatusBadge";
 import DeleteProjectButton from "@/components/DeleteProjectButton";
-import AssignSecretaryModal from "@/components/AssignSecretaryModal";
 import { unassignSessionSecretary, updateProjectTaskType } from "../actions";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
@@ -41,14 +40,6 @@ export default async function ProjectDetailPage({
     ? project.sessions
     : project.sessions.filter((s) => s.secretaryId === user.id);
 
-  // 기존 간사 후보(전체 SECRETARY) — 배정 시 분과에 바로 매핑
-  const allSecretaries = isMaster
-    ? await prisma.user.findMany({
-        where: { role: "SECRETARY" },
-        orderBy: { name: "asc" },
-        select: { id: true, name: true, username: true },
-      })
-    : [];
 
   return (
     <div className="space-y-6">
@@ -96,13 +87,6 @@ export default async function ProjectDetailPage({
       {/* 소속 분과 — 버튼은 카드 밖(배경), 표만 카드 안 */}
       <div className="space-y-3">
         <div className="flex items-center justify-end gap-2">
-          {isMaster && (
-            <AssignSecretaryModal
-              projectId={id}
-              sessions={project.sessions.map((s) => ({ id: s.id, name: s.name }))}
-              secretaries={allSecretaries}
-            />
-          )}
           <Link
             href={`/admin/sessions/new?projectId=${id}`}
             className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700"
