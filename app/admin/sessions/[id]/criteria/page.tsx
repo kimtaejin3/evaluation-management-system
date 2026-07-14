@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { prisma } from "@/lib/db";
 import { requireAdminUser } from "@/lib/authz";
 import ExcelExportButton from "@/components/ExcelExportButton";
+import ExcelImportButton from "@/components/ExcelImportButton";
 import CriteriaPrintButton from "@/components/CriteriaPrintButton";
 import CriteriaEditor from "@/components/CriteriaEditor";
 import CriteriaPreviewTable from "@/components/CriteriaPreviewTable";
@@ -71,6 +72,7 @@ async function CriteriaContent({ id }: { id: string }) {
               배점 합계 {totalAll}점 · 기준 만점 {session?.maxScore ?? 100}점
             </span>
           )}
+          {canEdit && <ExcelImportButton sessionId={id} kind="criteria" />}
           {!adminBlocked && <CriteriaPrintButton sessionId={id} />}
           <ExcelExportButton href={`/api/sessions/${id}/export/criteria`} />
           {locked && (

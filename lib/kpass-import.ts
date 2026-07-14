@@ -3,10 +3,12 @@
 // 사람이 매핑(대화형)하는 구조. 여기서는 그 매핑을 적용·검증하는 순수 로직만 다룬다.
 import { defaultGradeOptions, type GradeOption } from './scoring'
 
-// 매핑 대상이 되는 Criterion 목표 필드.
-// 'grade' = 정성 등급 척도 한 칸(예: 탁월/우수/보통/미흡/불량). 여러 열이 동시에 grade로 매핑될 수 있고,
-// 각 열의 머리글이 등급 라벨, 셀 값이 그 등급의 점수가 된다.
-export type CriterionField = 'section' | 'name' | 'description' | 'maxScore' | 'weight' | 'grade'
+// 매핑 대상이 되는 Criterion 목표 필드 — 화면 표의 3단 구조에 1:1 대응.
+//   group   = 평가항목(대분류/그룹)
+//   subitem = 세부항목(중분류)
+//   name    = 평가지표(리프, 실제 채점 대상) — 필수. 평가지표가 없으면 세부항목을 리프로 대체.
+// 'grade' = 정성 등급 척도 한 칸(예: 탁월/우수/보통/미흡/불량). 여러 열이 동시에 grade로 매핑될 수 있다.
+export type CriterionField = 'group' | 'subitem' | 'name' | 'maxScore' | 'weight' | 'grade'
 
 export interface FieldDef {
   field: CriterionField
@@ -14,11 +16,11 @@ export interface FieldDef {
   required: boolean
 }
 
-// UI 드롭다운에 노출할 목표 필드 정의(순서 = 표시 순서)
+// UI 드롭다운에 노출할 목표 필드 정의(순서 = 표시 순서 = 자동매핑 우선순위)
 export const CRITERION_FIELDS: FieldDef[] = [
-  { field: 'section', label: '항목(대제목)', required: false },
-  { field: 'name', label: '세부항목명', required: true },
-  { field: 'description', label: '평가 관점(설명)', required: false },
+  { field: 'group', label: '평가항목', required: false },
+  { field: 'subitem', label: '세부항목', required: false },
+  { field: 'name', label: '평가지표', required: true },
   { field: 'maxScore', label: '배점(만점)', required: false },
   { field: 'grade', label: '평점(등급별 점수)', required: false },
   { field: 'weight', label: '가중치', required: false },
@@ -27,19 +29,20 @@ export const CRITERION_FIELDS: FieldDef[] = [
 // 헤더 동의어 맵 — 자동 매핑 추측용. 정규화(공백/괄호 제거, 소문자)된 헤더와 비교.
 // 공공/정부 평가표·심사표의 실제 표현 변형을 폭넓게 수집해 반영(정확 일치 우선 → 부분 포함).
 const SYNONYMS: Record<CriterionField, string[]> = {
-  section: [
-    '구분', '대분류', '평가부문', '부문', '평가영역', '영역', '평가분야', '분야',
-    '평가범주', '범주', '심사부문', '심사구분', '평가구분',
+  // 평가항목(대분류/그룹)
+  group: [
+    '평가항목', '구분', '대분류', '대항목', '평가부문', '부문', '평가영역', '영역',
+    '평가분야', '분야', '평가범주', '범주', '심사부문', '심사구분', '평가구분', '심사항목',
   ],
+  // 세부항목(중분류)
+  subitem: [
+    '세부항목', '세부항목명', '세부평가항목', '세부평가내용', '세부내용', '세부기준', '중항목', '중분류',
+  ],
+  // 평가지표(리프, 실제 채점 대상)
   name: [
-    '세부평가항목', '세부평가내용', '세부항목', '세부항목명', '세부내용', '세부지표',
-    '평가지표', '평가요소', '평가내용', '평가세부항목', '심사세부항목',
-    '검토항목', '지표', '요소', '내용', '항목명',
+    '평가지표', '지표', '지표명', '세부지표', '평가요소', '요소', '평가내용', '검토항목',
+    '심사지표', '심사세부항목', '항목명', '내용',
   ],
-  description: [
-    '평가관점', '관점', '착안사항', '평가착안', '평가기준', '심사기준', '세부기준',
-    '기준', '평가방법', '검토내용', '평가내용설명', '설명',
-  ], // '비고'(remarks)는 평가관점이 아니라 제외
   maxScore: [
     '배점', '만점', '평가점수', '최대점수', '기준점수', '배점기준', '득점', '점수', 'score',
   ], // 주의: '평점'은 등급 묶음 머리글이라 배점에 넣지 않음
@@ -59,11 +62,9 @@ const SYNONYMS: Record<CriterionField, string[]> = {
   ],
 }
 
-// 대체(fallback) 동의어 — 주 동의어로 못 잡은 뒤에만 적용. "평가항목/항목"은 양식에 따라
-// 대제목이거나 항목명이라, 다른 열이 이미 가져간 쪽의 반대로 흘러가도록 둘 다에 둔다.
-// (예: 구분 + 평가항목 → 평가항목=항목명 / 평가항목 + 세부항목명 → 평가항목=대제목)
+// 대체(fallback) 동의어 — 주 동의어로 평가지표(leaf)를 못 잡았을 때만 적용.
+// 예: "구분 + 평가항목" → 구분=평가항목(그룹), 남은 '평가항목' 열은 평가지표(리프)로.
 const FALLBACK_SYNONYMS: Partial<Record<CriterionField, string[]>> = {
-  section: ['평가항목', '항목', '심사항목'],
   name: ['평가항목', '항목', '심사항목'],
 }
 
@@ -236,9 +237,9 @@ export interface BuildOptions {
 }
 
 export interface CriterionDraft {
-  section: string | null
-  name: string
-  description: string | null
+  group: string | null // 평가항목
+  subitem: string | null // 세부항목 (없으면 커밋에서 평가지표명으로 대체)
+  name: string // 평가지표(리프)
   type: 'QUANTITATIVE' | 'QUALITATIVE'
   maxScore: number
   weight: number
@@ -269,38 +270,50 @@ export function buildCriteria(grid: string[][], mapping: ColumnMapping, opts: Bu
   const dataRows = grid.slice(dataStart)
 
   const colOf = (field: CriterionField): number => mapping.findIndex((f) => f === field)
+  const groupCol = colOf('group')
+  const subitemCol = colOf('subitem')
   const nameCol = colOf('name')
-  const sectionCol = colOf('section')
-  const descCol = colOf('description')
   const scoreCol = colOf('maxScore')
   const weightCol = colOf('weight')
   const gradeCols = mapping.map((f, i) => (f === 'grade' ? i : -1)).filter((i) => i >= 0)
 
-  if (nameCol < 0) {
-    warnings.push('필수 필드 "세부항목명"이 어느 열에도 매핑되지 않았습니다. 한 열을 "세부항목명"으로 지정하세요.')
+  // 리프(평가지표) 열: 평가지표가 매핑됐으면 그것, 아니면 세부항목을 리프로 대체.
+  const leafCol = nameCol >= 0 ? nameCol : subitemCol
+  // 세부항목 레벨은 평가지표·세부항목이 '둘 다' 매핑됐을 때만 별도 존재(그렇지 않으면 리프가 곧 세부항목).
+  const hasSubitemLevel = nameCol >= 0 && subitemCol >= 0
+
+  if (leafCol < 0) {
+    warnings.push('필수 필드 "평가지표"가 어느 열에도 매핑되지 않았습니다. 한 열을 "평가지표"(또는 "세부항목")로 지정하세요.')
     return { rows: [], warnings }
   }
 
   const typeMode = opts.typeMode ?? 'auto'
   const rows: CriterionDraft[] = []
-  let lastSection: string | null = null // 병합셀(구분) 세로 채움
+  let lastGroup: string | null = null // 병합셀(평가항목) 세로 채움
+  let lastSubitem: string | null = null // 병합셀(세부항목) 세로 채움
 
   dataRows.forEach((r, idx) => {
     const lineNo = idx + dataStart + 1 // 사용자 기준 행 번호(헤더 행 수 반영)
 
-    // 구분(섹션): 값이 있으면 갱신, 비었으면 위 행 값 이어받기(병합셀). "(25)" 같은 합계 표기 제거.
-    if (sectionCol >= 0) {
-      const raw = (r[sectionCol] ?? '').trim()
-      if (raw) lastSection = stripTotal(raw) || null
+    // 평가항목: 값이 있으면 갱신, 비었으면 위 행 값 이어받기(병합셀). "(25)" 같은 합계 표기 제거.
+    if (groupCol >= 0) {
+      const raw = (r[groupCol] ?? '').trim()
+      if (raw) lastGroup = stripTotal(raw) || null
     }
-    const section = sectionCol >= 0 ? lastSection : null
+    const group = groupCol >= 0 ? lastGroup : null
 
-    const name = stripBullets((r[nameCol] ?? '').trim())
-    if (!name || isSummaryName(name) || isSummaryName((r[sectionCol] ?? '').trim())) {
+    // 세부항목: 병합셀 세로 채움(평가지표와 별도로 매핑됐을 때만)
+    if (hasSubitemLevel) {
+      const raw = (r[subitemCol] ?? '').trim()
+      if (raw) lastSubitem = stripBullets(stripTotal(raw)) || null
+    }
+    const subitem = hasSubitemLevel ? lastSubitem : null
+
+    const name = stripBullets((r[leafCol] ?? '').trim())
+    if (!name || isSummaryName(name) || isSummaryName((r[groupCol] ?? '').trim())) {
       return // 빈 행·합계/소계 행 스킵
     }
 
-    const description = descCol >= 0 ? stripBullets((r[descCol] ?? '').trim()) || null : null
     const weight = weightCol >= 0 ? toNumber(r[weightCol] ?? '') ?? 1 : 1
 
     let type: 'QUANTITATIVE' | 'QUALITATIVE'
@@ -346,7 +359,7 @@ export function buildCriteria(grid: string[][], mapping: ColumnMapping, opts: Bu
       }
     }
 
-    rows.push({ section, name, description, type, maxScore, weight, gradeOptions })
+    rows.push({ group, subitem, name, type, maxScore, weight, gradeOptions })
   })
 
   if (rows.length === 0) {

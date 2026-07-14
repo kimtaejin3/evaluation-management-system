@@ -14,6 +14,7 @@ import {
 } from "../../actions";
 import SubjectUploadForm from "@/components/SubjectUploadForm";
 import ExcelExportButton from "@/components/ExcelExportButton";
+import ExcelImportButton from "@/components/ExcelImportButton";
 import ReviewWorkflowPanel, { type ReviewStatus } from "@/components/ReviewWorkflowPanel";
 import { SkeletonCard, SkeletonCardGrid } from "@/components/Skeletons";
 import { requireAdminUser } from "@/lib/authz";
@@ -126,8 +127,11 @@ async function SubjectsContent({ id }: { id: string }) {
         </p>
       ) : (
         <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-5">
-          <div className="text-sm font-semibold text-slate-700">
-            평가 대상 추가
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-sm font-semibold text-slate-700">
+              평가 대상 추가
+            </div>
+            <ExcelImportButton sessionId={id} kind="subjects" />
           </div>
 
           {/* 신규 평가 대상(기업) 등록 → 이 분과에 바로 편입 */}

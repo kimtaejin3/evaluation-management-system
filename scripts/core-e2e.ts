@@ -35,25 +35,34 @@ async function cleanup() {
 }
 
 // commitKpassImport 핵심(파싱→매핑→그룹/세부항목/리프 생성) 재현.
-// 실제 액션처럼 draft.section별로 그룹을 묶고, 그룹당 세부항목(행 1개=세부항목 1개)→리프를 생성.
+// 실제 액션처럼 draft.group→subitem→평가지표(리프) 3단으로 중첩 생성.
 // type/gradeOptions는 숫자 전용 임포트라 무시(리프는 항상 숫자 maxScore).
 async function importCriteria(sessionId: string, file: string) {
   const grid = parseSheet(readFileSync(`${SAMPLE_DIR}/${file}`))
   const mapping = autoDetectMapping(resolveHeader(grid, true).header)
   const { rows, warnings } = buildCriteria(grid, mapping, { hasHeader: true, typeMode: 'auto' })
 
-  type GroupBucket = { section: string; leaves: typeof rows }
-  const buckets: GroupBucket[] = []
-  const bucketBySection = new Map<string, GroupBucket>()
+  // 평가항목(group) → 세부항목(subitem) → 평가지표(리프) 3단 중첩
+  type SubBucket = { name: string; leaves: typeof rows }
+  type GroupBucket = { name: string; subs: SubBucket[]; subByName: Map<string, SubBucket> }
+  const groupBuckets: GroupBucket[] = []
+  const groupByName = new Map<string, GroupBucket>()
   for (const r of rows) {
-    const section = r.section?.trim() || '기타'
-    let bucket = bucketBySection.get(section)
-    if (!bucket) {
-      bucket = { section, leaves: [] }
-      bucketBySection.set(section, bucket)
-      buckets.push(bucket)
+    const gName = r.group?.trim() || '기타'
+    const sName = r.subitem?.trim() || r.name
+    let g = groupByName.get(gName)
+    if (!g) {
+      g = { name: gName, subs: [], subByName: new Map() }
+      groupByName.set(gName, g)
+      groupBuckets.push(g)
     }
-    bucket.leaves.push(r)
+    let sub = g.subByName.get(sName)
+    if (!sub) {
+      sub = { name: sName, leaves: [] }
+      g.subByName.set(sName, sub)
+      g.subs.push(sub)
+    }
+    sub.leaves.push(r)
   }
 
   await prisma.$transaction(async (tx) => {
@@ -61,29 +70,31 @@ async function importCriteria(sessionId: string, file: string) {
     await tx.criterionGroup.deleteMany({ where: { sessionId } })
     let groupOrder = 0
     let criterionOrder = 0
-    for (const bucket of buckets) {
+    for (const g of groupBuckets) {
       const group = await tx.criterionGroup.create({
         data: {
-          sessionId, name: bucket.section,
-          maxScore: bucket.leaves.reduce((sum, r) => sum + r.maxScore, 0),
+          sessionId, name: g.name,
+          maxScore: g.subs.reduce((sum, sub) => sum + sub.leaves.reduce((a, l) => a + l.maxScore, 0), 0),
           order: groupOrder++,
         },
       })
       let subitemOrder = 0
-      for (const r of bucket.leaves) {
+      for (const sub of g.subs) {
         const subitem = await tx.criterionSubitem.create({
-          data: { groupId: group.id, name: r.name, order: subitemOrder++ },
+          data: { groupId: group.id, name: sub.name, order: subitemOrder++ },
         })
-        await tx.criterion.create({
-          data: {
-            sessionId, subitemId: subitem.id, name: r.description || r.name,
-            maxScore: r.maxScore, weight: r.weight ?? 1, order: criterionOrder++,
-          },
-        })
+        for (const leaf of sub.leaves) {
+          await tx.criterion.create({
+            data: {
+              sessionId, subitemId: subitem.id, name: leaf.name,
+              maxScore: leaf.maxScore, weight: leaf.weight ?? 1, order: criterionOrder++,
+            },
+          })
+        }
       }
     }
   }, { timeout: 20000 })
-  return { rows, warnings, groupCount: buckets.length }
+  return { rows, warnings, groupCount: groupBuckets.length }
 }
 
 // commitEvaluatorImport 핵심 재현

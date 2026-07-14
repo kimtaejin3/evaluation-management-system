@@ -38,13 +38,16 @@ describe('parseTsv', () => {
 })
 
 describe('autoDetectMapping', () => {
-  it('동의어로 열을 목표 필드에 매핑', () => {
-    expect(autoDetectMapping(['구분', '세부항목', '배점'])).toEqual(['section', 'name', 'maxScore'])
+  it('동의어로 3단 열(평가항목/세부항목/평가지표)을 목표 필드에 매핑', () => {
+    expect(autoDetectMapping(['평가항목', '세부항목', '평가지표', '배점'])).toEqual([
+      'group', 'subitem', 'name', 'maxScore',
+    ])
   })
 
-  it('헤더 변형(점수/만점/공백·괄호)도 흡수', () => {
-    expect(autoDetectMapping(['대분류', '평가지표', '만점'])).toEqual(['section', 'name', 'maxScore'])
-    expect(autoDetectMapping(['평가 항목', '세부 항목명', '배점(점)'])).toEqual(['section', 'name', 'maxScore'])
+  it('세부항목 없이 구분+평가지표만 있으면 group/name', () => {
+    expect(autoDetectMapping(['구분', '세부항목', '배점'])).toEqual(['group', 'subitem', 'maxScore'])
+    expect(autoDetectMapping(['대분류', '평가지표', '만점'])).toEqual(['group', 'name', 'maxScore'])
+    expect(autoDetectMapping(['평가 항목', '세부 항목명', '배점(점)'])).toEqual(['group', 'subitem', 'maxScore'])
   })
 
   it('같은 필드 중복 매칭 시 첫 열만 채택', () => {
@@ -57,9 +60,9 @@ describe('autoDetectMapping', () => {
     expect(autoDetectMapping(['순번', '비고'])).toEqual([null, null])
   })
 
-  it('부분 포함도 너그럽게 매칭("구분자"·"평가구분"→section)', () => {
-    expect(autoDetectMapping(['구분자', '평가지표', '배점'])).toEqual(['section', 'name', 'maxScore'])
-    expect(autoDetectMapping(['평가구분', '세부항목명'])).toEqual(['section', 'name'])
+  it('부분 포함도 너그럽게 매칭("구분자"·"평가구분"→group)', () => {
+    expect(autoDetectMapping(['구분자', '평가지표', '배점'])).toEqual(['group', 'name', 'maxScore'])
+    expect(autoDetectMapping(['평가구분', '세부항목명'])).toEqual(['group', 'subitem'])
   })
 
   it('괄호 묶음은 제거 후 매칭("배점(점)"→maxScore, "탁월(5)"→grade)', () => {
@@ -67,36 +70,36 @@ describe('autoDetectMapping', () => {
     expect(autoDetectMapping(['탁월(5)', '우수(4)'])).toEqual(['grade', 'grade'])
   })
 
-  it('"평가항목"은 맥락에 따라 대제목/항목명 — 구분이 있으면 평가항목=항목명', () => {
-    // 공법선정 양식: 구분=대제목, 평가항목=항목명, 평가기준=설명, 배점, A사~E사=무시
+  it('"평가항목"이 이미 group이면 남은 열은 평가지표(리프)로 폴백', () => {
+    // 구분=평가항목(그룹), 평가항목 열은 평가지표(리프)로, 평가기준(설명)은 무시
     expect(
       autoDetectMapping(['구분', '평가항목', '평가기준', '배점', 'A사', 'B사', 'C사', 'D사', 'E사']),
-    ).toEqual(['section', 'name', 'description', 'maxScore', null, null, null, null, null])
-    // 반대 관습: 평가항목=대제목, 세부항목명=항목명
-    expect(autoDetectMapping(['평가항목', '세부항목명', '배점'])).toEqual(['section', 'name', 'maxScore'])
+    ).toEqual(['group', 'name', null, 'maxScore', null, null, null, null, null])
+    // 평가항목=그룹, 세부항목명=세부항목
+    expect(autoDetectMapping(['평가항목', '세부항목명', '배점'])).toEqual(['group', 'subitem', 'maxScore'])
   })
 
-  it('공공 양식 헤더 변형 — 평가부문/평가지표/가중치', () => {
+  it('공공 양식 헤더 변형 — 대분류/평가요소/가중치', () => {
     expect(autoDetectMapping(['대분류', '평가요소', '가중치', '배점'])).toEqual([
-      'section', 'name', 'weight', 'maxScore',
+      'group', 'name', 'weight', 'maxScore',
     ])
     expect(autoDetectMapping(['평가영역', '세부평가내용', '평가관점'])).toEqual([
-      'section', 'name', 'description',
+      'group', 'subitem', null,
     ])
   })
 
   it('다양한 등급 척도 — 수우미양가 / A~E / 상중하 / 적합부적합', () => {
     expect(autoDetectMapping(['구분', '지표', '수', '우', '미', '양', '가'])).toEqual([
-      'section', 'name', 'grade', 'grade', 'grade', 'grade', 'grade',
+      'group', 'name', 'grade', 'grade', 'grade', 'grade', 'grade',
     ])
     expect(autoDetectMapping(['분야', '지표', 'A', 'B', 'C', 'D', 'E'])).toEqual([
-      'section', 'name', 'grade', 'grade', 'grade', 'grade', 'grade',
+      'group', 'name', 'grade', 'grade', 'grade', 'grade', 'grade',
     ])
     expect(autoDetectMapping(['범주', '검토항목', '상', '중', '하'])).toEqual([
-      'section', 'name', 'grade', 'grade', 'grade',
+      'group', 'name', 'grade', 'grade', 'grade',
     ])
     expect(autoDetectMapping(['심사항목', '평가내용', '적합', '부적합'])).toEqual([
-      'section', 'name', 'grade', 'grade',
+      'group', 'name', 'grade', 'grade',
     ])
   })
 })
@@ -135,17 +138,41 @@ describe('looksLikeHeader', () => {
 
 describe('buildCriteria', () => {
   const grid = [
-    ['구분', '세부항목', '배점'],
+    ['구분', '평가지표', '배점'],
     ['사업성', '시장 진입 가능성', '30'],
     ['기술성', '기술 완성도', '20점'],
   ]
-  const mapping: ColumnMapping = ['section', 'name', 'maxScore']
+  const mapping: ColumnMapping = ['group', 'name', 'maxScore']
 
   it('헤더 제외하고 행을 Criterion 초안으로 변환', () => {
     const { rows, warnings } = buildCriteria(grid, mapping, { hasHeader: true })
     expect(warnings).toEqual([])
     expect(rows).toHaveLength(2)
-    expect(rows[0]).toMatchObject({ section: '사업성', name: '시장 진입 가능성', type: 'QUANTITATIVE', maxScore: 30, weight: 1 })
+    expect(rows[0]).toMatchObject({ group: '사업성', name: '시장 진입 가능성', type: 'QUANTITATIVE', maxScore: 30, weight: 1 })
+  })
+
+  it('평가항목·세부항목·평가지표 3열 → 세부항목 아래 여러 평가지표로 중첩', () => {
+    const g = [
+      ['평가항목', '세부항목', '평가지표', '배점'],
+      ['사업계획', '사업 타당성', '시장성', '5'],
+      ['사업계획', '사업 타당성', '수익성', '5'],
+      ['사업계획', '추진 체계', '전담 인력', '10'],
+    ]
+    const { rows } = buildCriteria(g, ['group', 'subitem', 'name', 'maxScore'], { hasHeader: true })
+    expect(rows).toHaveLength(3)
+    expect(rows[0]).toMatchObject({ group: '사업계획', subitem: '사업 타당성', name: '시장성' })
+    expect(rows[1]).toMatchObject({ group: '사업계획', subitem: '사업 타당성', name: '수익성' })
+    expect(rows[2]).toMatchObject({ group: '사업계획', subitem: '추진 체계', name: '전담 인력' })
+  })
+
+  it('평가항목·세부항목 병합셀(빈 칸)은 위 값으로 채움', () => {
+    const g = [
+      ['평가항목', '세부항목', '평가지표', '배점'],
+      ['사업계획', '사업 타당성', '시장성', '5'],
+      ['', '', '수익성', '5'],
+    ]
+    const { rows } = buildCriteria(g, ['group', 'subitem', 'name', 'maxScore'], { hasHeader: true })
+    expect(rows[1]).toMatchObject({ group: '사업계획', subitem: '사업 타당성', name: '수익성' })
   })
 
   it('"20점"처럼 단위 섞인 배점도 숫자 추출', () => {
@@ -159,15 +186,21 @@ describe('buildCriteria', () => {
     expect(rows).toHaveLength(2)
   })
 
-  it('name 미매핑이면 경고 후 빈 결과', () => {
-    const { rows, warnings } = buildCriteria(grid, ['section', null, 'maxScore'], { hasHeader: true })
+  it('평가지표 미매핑이면 경고 후 빈 결과', () => {
+    const { rows, warnings } = buildCriteria(grid, ['group', null, 'maxScore'], { hasHeader: true })
     expect(rows).toHaveLength(0)
-    expect(warnings[0]).toMatch(/세부항목명/)
+    expect(warnings[0]).toMatch(/평가지표/)
+  })
+
+  it('평가지표 없이 세부항목만 매핑되면 세부항목을 리프로 사용', () => {
+    const { rows } = buildCriteria(grid, ['group', 'subitem', 'maxScore'], { hasHeader: true })
+    expect(rows).toHaveLength(2)
+    expect(rows[0]).toMatchObject({ group: '사업성', name: '시장 진입 가능성' })
   })
 
   it('배점이 숫자가 아니면 만점 0 + 경고', () => {
     const g = [
-      ['세부항목', '배점'],
+      ['평가지표', '배점'],
       ['항목A', '해당없음'],
     ]
     const { rows, warnings } = buildCriteria(g, ['name', 'maxScore'], { hasHeader: true })
@@ -203,8 +236,8 @@ describe('buildCriteria — 정성 등급 척도표(grade)', () => {
   ]
   const map = autoDetectMapping(grid[0])
 
-  it('탁월~불량 헤더는 grade로, 구분/평가지표는 section/name으로 자동 매핑', () => {
-    expect(map).toEqual(['section', 'name', 'grade', 'grade', 'grade', 'grade', 'grade'])
+  it('탁월~불량 헤더는 grade로, 구분/평가지표는 group/name으로 자동 매핑', () => {
+    expect(map).toEqual(['group', 'name', 'grade', 'grade', 'grade', 'grade', 'grade'])
   })
 
   it('등급 열 → gradeOptions(정성), maxScore=최댓값', () => {
@@ -221,8 +254,8 @@ describe('buildCriteria — 정성 등급 척도표(grade)', () => {
 
   it('병합셀(구분) 세로 채움 + "(25)" 합계 표기 제거', () => {
     const { rows } = buildCriteria(grid, map, { hasHeader: true })
-    expect(rows[0].section).toBe('기술성')
-    expect(rows[1].section).toBe('기술성') // 빈 구분 → 위 값 이어받음
+    expect(rows[0].group).toBe('기술성')
+    expect(rows[1].group).toBe('기술성') // 빈 구분 → 위 값 이어받음
   })
 
   it('등급 가로 병합셀은 직전 점수로 채움', () => {
