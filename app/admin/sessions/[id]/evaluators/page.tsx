@@ -12,6 +12,7 @@ import { assignmentStatusLabel, type AssignmentStatus } from "@/lib/assignment";
 import { requireAdminUser } from "@/lib/authz";
 import { SkeletonCard, SkeletonTable } from "@/components/Skeletons";
 import PasswordCell from "@/components/PasswordCell";
+import ExcelExportButton from "@/components/ExcelExportButton";
 import EvaluatorReviewPanel, { type EvaluatorStatus } from "@/components/EvaluatorReviewPanel";
 
 const inputCls =
@@ -81,6 +82,14 @@ async function EvaluatorsContent({ id }: { id: string }) {
 
   return (
     <div className="space-y-6">
+      {/* 상단: 제목 + 엑셀 내보내기(역할·상태 무관 고정) */}
+      <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+        <h2 className="text-sm font-semibold text-slate-700">
+          평가위원 <span className="ml-0.5 text-xs text-slate-400">{assignments.length}명</span>
+        </h2>
+        <ExcelExportButton href={`/api/sessions/${id}/export/evaluators`} />
+      </div>
+
       {/* 배정 검토 워크플로 배너 — 간사: 제출/제출취소, 관리자: 승인/반려 */}
       {!locked && (
         <EvaluatorReviewPanel

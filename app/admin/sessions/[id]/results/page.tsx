@@ -6,6 +6,7 @@ import { TOTAL_SCORE } from "@/lib/criteria";
 import ResultsView from "./ResultsView";
 import CompleteReviewButton from "./CompleteReviewButton";
 import SubmitReviewButton from "./SubmitReviewButton";
+import ExcelExportButton from "@/components/ExcelExportButton";
 import { requireAdminUser } from "@/lib/authz";
 import { SkeletonCard, SkeletonTable } from "@/components/Skeletons";
 
@@ -110,8 +111,11 @@ async function ResultsContent({ id }: { id: string }) {
 
   return (
     <div className="space-y-5">
-      {/* 화면 전용 컨트롤 */}
-      <p className="text-sm text-slate-500 print:hidden">위원 평균 점수 기준 선정 결과입니다.</p>
+      {/* 화면 전용 컨트롤 — 엑셀 내보내기(역할·상태 무관 고정) */}
+      <div className="flex items-center justify-between gap-3 print:hidden">
+        <p className="text-sm text-slate-500">위원 평균 점수 기준 선정 결과입니다.</p>
+        <ExcelExportButton href={`/api/sessions/${id}/export/results`} />
+      </div>
 
       {/* 인쇄 문서 머리글 */}
       <div className="hidden print:block">

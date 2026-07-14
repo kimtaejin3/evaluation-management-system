@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { prisma } from "@/lib/db";
 import { requireAdminUser } from "@/lib/authz";
-import ImportCriteriaButton from "@/components/ImportCriteriaButton";
+import ExcelExportButton from "@/components/ExcelExportButton";
 import CriteriaPrintButton from "@/components/CriteriaPrintButton";
 import CriteriaEditor from "@/components/CriteriaEditor";
 import CriteriaPreviewTable from "@/components/CriteriaPreviewTable";
@@ -72,7 +72,7 @@ async function CriteriaContent({ id }: { id: string }) {
             </span>
           )}
           {!adminBlocked && <CriteriaPrintButton sessionId={id} />}
-          {canEdit && <ImportCriteriaButton sessionId={id} />}
+          <ExcelExportButton href={`/api/sessions/${id}/export/criteria`} />
           {locked && (
             <span className="text-xs text-slate-400">마감되어 수정할 수 없습니다</span>
           )}

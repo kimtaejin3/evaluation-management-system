@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { prisma } from "@/lib/db";
 import { requireAdminUser } from "@/lib/authz";
 import { SkeletonCard } from "@/components/Skeletons";
+import ExcelExportButton from "@/components/ExcelExportButton";
 import ReviewWorkflowPanel, { type ReviewStatus } from "@/components/ReviewWorkflowPanel";
 import {
   submitOpinions,
@@ -77,9 +78,13 @@ async function OpinionsContent({ id }: { id: string }) {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-slate-500">
-        평가위원이 각 지원기업에 대해 평가 화면에서 작성한 종합의견입니다.
-      </p>
+      {/* 상단: 안내 + 엑셀 내보내기(역할·상태 무관 고정) */}
+      <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-2">
+        <p className="text-sm text-slate-500">
+          평가위원이 각 지원기업에 대해 평가 화면에서 작성한 종합의견입니다.
+        </p>
+        <ExcelExportButton href={`/api/sessions/${id}/export/opinions`} />
+      </div>
 
       {/* 검토 워크플로 배너 — 간사: 제출/취소, 관리자: 승인/반려 */}
       {!locked && (
