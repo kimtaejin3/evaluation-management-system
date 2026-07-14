@@ -5,6 +5,7 @@ import { getSessionInsights } from "@/lib/progress";
 import { TOTAL_SCORE } from "@/lib/criteria";
 import ResultsView from "./ResultsView";
 import CompleteReviewButton from "./CompleteReviewButton";
+import SubmitReviewButton from "./SubmitReviewButton";
 import { requireAdminUser } from "@/lib/authz";
 import { SkeletonCard, SkeletonTable } from "@/components/Skeletons";
 
@@ -197,16 +198,32 @@ async function ResultsContent({ id }: { id: string }) {
         </div>
       </div>
 
-      {/* 관리자 검토 완료 (화면 전용, 최하단) */}
-      {me.role === "MASTER" && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-5 print:hidden">
-          <div>
-            <div className="text-sm font-semibold text-slate-700">분과 검토 완료</div>
-            <p className="mt-0.5 text-xs text-slate-400">검토를 마치면 분과가 ‘완료’ 상태가 되고 점수가 잠깁니다.</p>
+      {/* 분과 확정 (화면 전용, 최하단) — 간사: 제출 완료 / 관리자: 검토 완료 */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-5 print:hidden">
+        <div>
+          <div className="text-sm font-semibold text-slate-700">
+            {me.role === "MASTER" ? "분과 검토 완료" : "분과 제출 완료"}
           </div>
-          <CompleteReviewButton sessionId={id} closed={session?.status === "CLOSED"} />
+          <p className="mt-0.5 text-xs text-slate-400">
+            {me.role === "MASTER"
+              ? "간사가 제출 완료한 분과를 검토하면 ‘완료’ 상태가 되고 점수가 잠깁니다."
+              : "집계 결과를 확인한 뒤 제출 완료하면 관리자가 검토합니다."}
+          </p>
         </div>
-      )}
+        {me.role === "MASTER" ? (
+          <CompleteReviewButton
+            sessionId={id}
+            closed={session?.status === "CLOSED"}
+            submitted={session?.submittedForReviewAt != null}
+          />
+        ) : (
+          <SubmitReviewButton
+            sessionId={id}
+            submitted={session?.submittedForReviewAt != null}
+            closed={session?.status === "CLOSED"}
+          />
+        )}
+      </div>
 
       {/* 인쇄 전용 확인란 */}
       <div className="mt-16 hidden grid-cols-2 gap-10 print:grid">

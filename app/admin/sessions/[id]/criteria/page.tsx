@@ -1,8 +1,11 @@
 import { Suspense } from "react";
 import { prisma } from "@/lib/db";
+import { requireAdminUser } from "@/lib/authz";
 import ImportCriteriaButton from "@/components/ImportCriteriaButton";
+import CriteriaPrintButton from "@/components/CriteriaPrintButton";
 import CriteriaEditor from "@/components/CriteriaEditor";
 import CriteriaPreviewTable from "@/components/CriteriaPreviewTable";
+import CriteriaReviewPanel, { type CriteriaStatus } from "@/components/CriteriaReviewPanel";
 import { SkeletonTable } from "@/components/Skeletons";
 
 export default async function CriteriaPage({
@@ -19,6 +22,8 @@ export default async function CriteriaPage({
 }
 
 async function CriteriaContent({ id }: { id: string }) {
+  const me = await requireAdminUser();
+  const isMaster = me.role === "MASTER";
   const session = await prisma.evaluationSession.findUnique({ where: { id } });
   const groups = await prisma.criterionGroup.findMany({
     where: { sessionId: id },
@@ -36,6 +41,13 @@ async function CriteriaContent({ id }: { id: string }) {
     },
   });
   const locked = session?.status === "CLOSED";
+  const cs = (session?.criteriaStatus ?? "DRAFT") as CriteriaStatus;
+  // 간사 제출(SUBMITTED) 이후에만 관리자가 항목을 볼 수 있다. 제출 전(DRAFT/REJECTED)은 '입력중'.
+  const adminCanView = cs === "SUBMITTED" || cs === "APPROVED";
+  // 편집(추가·수정·삭제·가져오기)은 담당 간사만, 제출 전(DRAFT/REJECTED)에만. 관리자는 조회·인쇄만.
+  const canEdit = !locked && !isMaster && (cs === "DRAFT" || cs === "REJECTED");
+  // 관리자가 아직 항목을 볼 수 없는 상태(입력중/반려·미마감)
+  const adminBlocked = isMaster && !locked && !adminCanView;
 
   // 총 배점 = 모든 리프(평가지표) maxScore 합
   const totalAll = groups.reduce(
@@ -49,26 +61,39 @@ async function CriteriaContent({ id }: { id: string }) {
       <div className="flex items-center justify-between border-b border-slate-200 pb-2">
         <h2 className="text-sm font-semibold text-slate-700">
           평가 항목{" "}
-          <span className="ml-0.5 text-xs text-slate-400">
-            {groupCount}개
-          </span>
+          {!adminBlocked && (
+            <span className="ml-0.5 text-xs text-slate-400">{groupCount}개</span>
+          )}
         </h2>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-slate-400">
-            배점 합계 {totalAll}점 · 기준 만점 {session?.maxScore ?? 100}점
-          </span>
-          {locked ? (
+          {!adminBlocked && (
+            <span className="text-xs text-slate-400">
+              배점 합계 {totalAll}점 · 기준 만점 {session?.maxScore ?? 100}점
+            </span>
+          )}
+          {!adminBlocked && <CriteriaPrintButton sessionId={id} />}
+          {canEdit && <ImportCriteriaButton sessionId={id} />}
+          {locked && (
             <span className="text-xs text-slate-400">마감되어 수정할 수 없습니다</span>
-          ) : (
-            <ImportCriteriaButton sessionId={id} />
           )}
         </div>
       </div>
 
+      {!locked && (
+        <CriteriaReviewPanel
+          sessionId={id}
+          isMaster={isMaster}
+          status={cs}
+          rejectionReason={session?.criteriaRejectionReason ?? null}
+        />
+      )}
+
       {locked ? (
         <CriteriaPreviewTable groups={groups} />
-      ) : (
+      ) : adminBlocked ? null : canEdit ? (
         <CriteriaEditor sessionId={id} groups={groups} maxScore={session?.maxScore ?? 100} />
+      ) : (
+        <CriteriaPreviewTable groups={groups} />
       )}
     </div>
   );

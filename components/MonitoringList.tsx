@@ -1,12 +1,10 @@
 'use client'
 
 import { Fragment, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import type { ProgressData, Cell } from '@/lib/progress'
 import { cellStatusLabel, type CellStatus } from '@/lib/submission'
-import { decideSubjectSubmissions } from '@/app/admin/sessions/actions'
 
-// 기업(대상) 중심 리스트 — 각 대상 행에서 바로 승인/반려(그 대상의 제출완료 평가 일괄).
+// 기업(대상) 중심 리스트 — 각 대상의 입력/제출 진행 현황 조회.
 // '자세히 보기'는 위원별 상태·진행 조회(모달). 위원 정보는 상단 '평가 위원' KPI의 조회 버튼에서.
 
 export const PILL: Record<CellStatus, string> = {
@@ -23,34 +21,20 @@ export const statusLabel = (st: CellStatus) => (st === 'submitted' ? '미승인'
 
 type EvRow = { userId: string; name: string; isChair: boolean; cell: Cell }
 
-export default function MonitoringList({ data, sessionId }: { data: ProgressData; sessionId: string }) {
+export default function MonitoringList({ data }: { data: ProgressData }) {
   const { subjects, rows: evaluators } = data
-  const router = useRouter()
   const [openId, setOpenId] = useState<string | null>(null)
-  const [busy, setBusy] = useState<string | null>(null) // subjectId
-  const [confirm, setConfirm] = useState<{ subjectId: string; subjectName: string; approve: boolean; count: number } | null>(null)
 
   const evRowsAt = (si: number): EvRow[] =>
     evaluators.map((e) => ({ userId: e.userId, name: e.name, isChair: e.isChair, cell: e.cells[si] }))
 
   const openIdx = openId ? subjects.findIndex((s) => s.id === openId) : -1
 
-  const decide = async (subjectId: string, approve: boolean) => {
-    setBusy(subjectId)
-    try {
-      await decideSubjectSubmissions(sessionId, subjectId, approve)
-      router.refresh()
-    } finally {
-      setBusy(null)
-      setConfirm(null)
-    }
-  }
-
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <h2 className="text-sm font-semibold text-slate-700">기업별 평가 진행 현황</h2>
-        <span className="text-xs text-slate-400">각 대상의 제출완료(미승인) 평가를 행에서 바로 승인/반려할 수 있습니다.</span>
+        <span className="text-xs text-slate-400">각 대상의 위원별 입력·제출 현황을 확인할 수 있습니다.</span>
       </div>
 
       {subjects.length === 0 ? (
@@ -64,10 +48,9 @@ export default function MonitoringList({ data, sessionId }: { data: ProgressData
             const total = rows.length
             const inputCount = rows.filter((r) => isSubmitted(r.cell.status)).length
             const notInput = total - inputCount
-            const submittedCount = rows.filter((r) => r.cell.status === 'submitted').length // 미승인(결정 대상)
+            const submittedCount = rows.filter((r) => r.cell.status === 'submitted').length // 미승인
             const pct = total > 0 ? Math.round((inputCount / total) * 100) : 0
             const allDone = total > 0 && inputCount === total
-            const decidable = submittedCount > 0 && busy !== s.id
             return (
               <div key={s.id} className="flex items-center gap-4 px-4 py-3">
                 <div className="w-48 shrink-0">
@@ -90,23 +73,6 @@ export default function MonitoringList({ data, sessionId }: { data: ProgressData
                     <span className="whitespace-nowrap rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700">미승인 {submittedCount}</span>
                   )}
                 </div>
-                {/* 승인/반려 (자세히 보기 왼쪽) — 그 대상의 제출완료 평가 일괄 */}
-                <button
-                  type="button"
-                  disabled={!decidable}
-                  onClick={() => setConfirm({ subjectId: s.id, subjectName: s.name, approve: false, count: submittedCount })}
-                  className="shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  반려
-                </button>
-                <button
-                  type="button"
-                  disabled={!decidable}
-                  onClick={() => setConfirm({ subjectId: s.id, subjectName: s.name, approve: true, count: submittedCount })}
-                  className="shrink-0 rounded-lg bg-[var(--gov-navy)] px-3 py-1.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  승인
-                </button>
                 <button
                   type="button"
                   onClick={() => setOpenId(s.id)}
@@ -126,17 +92,6 @@ export default function MonitoringList({ data, sessionId }: { data: ProgressData
           rows={evRowsAt(openIdx)}
           summary={{ done: evRowsAt(openIdx).filter((r) => isSubmitted(r.cell.status)).length, total: evaluators.length }}
           onClose={() => setOpenId(null)}
-        />
-      )}
-
-      {confirm && (
-        <ConfirmDecideModal
-          subjectName={confirm.subjectName}
-          count={confirm.count}
-          approve={confirm.approve}
-          busy={busy === confirm.subjectId}
-          onCancel={() => setConfirm(null)}
-          onConfirm={() => decide(confirm.subjectId, confirm.approve)}
         />
       )}
     </section>
@@ -183,7 +138,6 @@ function SubjectDetailModal({
             <thead>
               <tr className="text-left text-xs text-slate-400">
                 <th className="px-3 py-2 font-medium">위원</th>
-                <th className="px-3 py-2 font-medium">상태</th>
                 <th className="px-3 py-2 font-medium">진행</th>
               </tr>
             </thead>
@@ -209,15 +163,12 @@ function SubjectDetailModal({
                           )}
                         </div>
                       </td>
-                      <td className="px-3 py-2.5 align-middle">
-                        <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${PILL[c.status]}`}>{statusLabel(c.status)}</span>
-                      </td>
                       <td className="px-3 py-2.5 align-middle text-xs tabular-nums text-slate-400">{c.done}/{c.total}</td>
                     </tr>
 
                     {isOpen && (
                       <tr>
-                        <td colSpan={3} className="px-3 pb-2.5">
+                        <td colSpan={2} className="px-3 pb-2.5">
                           <ul className="space-y-0.5 rounded-lg bg-slate-50 p-2">
                             {c.items.length === 0 && <li className="px-1 text-xs text-slate-400">평가 항목이 없습니다.</li>}
                             {c.items.map((it) => (
@@ -236,47 +187,6 @@ function SubjectDetailModal({
               })}
             </tbody>
           </table>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ── 승인/반려 확인 모달 (대상 단위) ──
-function ConfirmDecideModal({
-  subjectName,
-  count,
-  approve,
-  busy,
-  onConfirm,
-  onCancel,
-}: {
-  subjectName: string
-  count: number
-  approve: boolean
-  busy: boolean
-  onConfirm: () => void
-  onCancel: () => void
-}) {
-  return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" onClick={onCancel}>
-      <div className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <div className="text-sm font-semibold text-slate-800">{approve ? '승인' : '반려'} 확인</div>
-        <p className="mt-2 text-sm text-slate-600">
-          <span className="font-medium text-slate-800">{subjectName}</span>의 제출완료 평가 <span className="font-semibold">{count}건</span>을 {approve ? '승인' : '반려'}하시겠습니까?
-        </p>
-        <div className="mt-4 flex justify-end gap-2">
-          <button type="button" onClick={onCancel} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50">
-            취소
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onConfirm}
-            className={`rounded-lg px-3 py-1.5 text-sm font-semibold text-white transition disabled:opacity-50 ${approve ? 'bg-[var(--gov-navy)] hover:opacity-90' : 'bg-rose-600 hover:bg-rose-700'}`}
-          >
-            확인
-          </button>
         </div>
       </div>
     </div>

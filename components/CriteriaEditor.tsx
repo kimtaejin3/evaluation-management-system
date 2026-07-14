@@ -16,7 +16,13 @@ import {
 } from "@/app/admin/sessions/actions";
 import { groupTotal, isGroupBalanced, criteriaGrandTotal, isTotalValid } from "@/lib/criteria";
 import { TrashIcon, PencilIcon, PlusIcon } from "@/components/icons";
-import CriteriaPreviewTable from "@/components/CriteriaPreviewTable";
+import {
+  optReducer,
+  type LeafDTO,
+  type SubitemDTO,
+  type GroupDTO,
+  type OptAction,
+} from "@/components/criteria-editor-model";
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
@@ -32,35 +38,8 @@ const addBtn =
 const plusBtn =
   "rounded p-1 text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600";
 
-type LeafDTO = { id: string; name: string; maxScore: number };
-type SubitemDTO = { id: string; name: string; criteria: LeafDTO[] };
-type GroupDTO = { id: string; name: string; maxScore: number; subitems: SubitemDTO[] };
-
 type RunFn = (fn: () => Promise<void>) => void;
 type AddFn = (id: string, fd: FormData) => void;
-
-// 추가(그룹·세부항목·평가지표) 낙관적 업데이트 — 임시 id로 즉시 삽입, 서버 확정 후 revalidate로 교체
-type OptAction =
-  | { kind: "group"; id: string; name: string; maxScore: number }
-  | { kind: "subitem"; id: string; groupId: string; name: string }
-  | { kind: "criterion"; id: string; subitemId: string; name: string; maxScore: number };
-
-export function optReducer(state: GroupDTO[], a: OptAction): GroupDTO[] {
-  if (a.kind === "group") {
-    return [...state, { id: a.id, name: a.name, maxScore: a.maxScore, subitems: [] }];
-  }
-  if (a.kind === "subitem") {
-    return state.map((g) =>
-      g.id === a.groupId ? { ...g, subitems: [...g.subitems, { id: a.id, name: a.name, criteria: [] }] } : g,
-    );
-  }
-  return state.map((g) => ({
-    ...g,
-    subitems: g.subitems.map((s) =>
-      s.id === a.subitemId ? { ...s, criteria: [...s.criteria, { id: a.id, name: a.name, maxScore: a.maxScore }] } : s,
-    ),
-  }));
-}
 
 // 열 구조: 평가항목 · 세부항목 · 평가지표 · 배점 (4칸).
 // 삭제는 각 항목의 편집(연필) 아이콘 옆에 인라인으로 배치되어 전용 "삭제" 열이 불필요.
@@ -120,7 +99,6 @@ export default function CriteriaEditor({
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const [preview, setPreview] = useState(false);
   const [addingGroup, setAddingGroup] = useState(false);
   const [maxInput, setMaxInput] = useState(String(maxScore));
   const [optimisticGroups, applyOptimistic] = useOptimistic<GroupDTO[], OptAction>(groups, optReducer);
@@ -215,56 +193,42 @@ export default function CriteriaEditor({
         배점 합계는 <span className="font-medium text-slate-500">기준 만점 {fmt(maxScore)}점</span>과 정확히 일치해야 합니다. 집계 결과의 환산·등급이 이 만점을 기준으로 계산됩니다.
       </p>
 
-      <div className="flex items-center justify-end gap-2">
-        <button
-          type="button"
-          onClick={() => setPreview((v) => !v)}
-          className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
-        >
-          {preview ? "편집" : "미리보기"}
-        </button>
-      </div>
-
-      {preview ? (
-        <CriteriaPreviewTable groups={optimisticGroups} />
-      ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left text-slate-500">
-              <tr className="border-b border-slate-200">
-                <th className="px-4 py-2.5 font-medium">평가항목</th>
-                <th className="px-4 py-2.5 font-medium">세부항목</th>
-                <th className="px-4 py-2.5 font-medium">평가지표</th>
-                <th className="w-px whitespace-nowrap px-4 py-2.5 text-right font-medium">배점</th>
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 text-left text-slate-500">
+            <tr className="border-b border-slate-200">
+              <th className="px-4 py-2.5 font-medium">평가항목</th>
+              <th className="px-4 py-2.5 font-medium">세부항목</th>
+              <th className="px-4 py-2.5 font-medium">평가지표</th>
+              <th className="w-px whitespace-nowrap px-4 py-2.5 text-right font-medium">배점</th>
+            </tr>
+          </thead>
+          <tbody>
+            {optimisticGroups.map((g, idx) => (
+              <GroupBlock
+                key={g.id}
+                group={g}
+                isLastGroup={idx === optimisticGroups.length - 1}
+                run={run}
+                pending={pending}
+                onAddGroup={() => setAddingGroup(true)}
+                onAddSubitem={addSubitemOpt}
+                onAddCriterion={addCriterionOpt}
+              />
+            ))}
+            {optimisticGroups.length === 0 && (
+              <tr>
+                <td colSpan={COL_COUNT} className="px-4 py-8 text-center text-slate-400">
+                  <p className="mb-3">등록된 평가항목이 없습니다.</p>
+                  <button type="button" onClick={() => setAddingGroup(true)} className={addBtn}>
+                    + 평가항목 추가
+                  </button>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {optimisticGroups.map((g, idx) => (
-                <GroupBlock
-                  key={g.id}
-                  group={g}
-                  isLastGroup={idx === optimisticGroups.length - 1}
-                  run={run}
-                  pending={pending}
-                  onAddGroup={() => setAddingGroup(true)}
-                  onAddSubitem={addSubitemOpt}
-                  onAddCriterion={addCriterionOpt}
-                />
-              ))}
-              {optimisticGroups.length === 0 && (
-                <tr>
-                  <td colSpan={COL_COUNT} className="px-4 py-8 text-center text-slate-400">
-                    <p className="mb-3">등록된 평가항목이 없습니다.</p>
-                    <button type="button" onClick={() => setAddingGroup(true)} className={addBtn}>
-                      + 평가항목 추가
-                    </button>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+            )}
+          </tbody>
+        </table>
+      </div>
 
       {addingGroup && (
         <AddModal title="평가항목 추가" pending={pending} onClose={() => setAddingGroup(false)} onSubmit={submitAddGroup}>

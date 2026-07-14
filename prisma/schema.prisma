@@ -33,6 +33,30 @@ enum AssignmentStatus {
   REJECTED
 }
 
+// 평가항목 검토 상태: 간사 입력중(DRAFT) → 제출(SUBMITTED) → 관리자 승인(APPROVED)/반려(REJECTED)
+enum CriteriaStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+// 평가위원 배정 검토 상태: 간사 배정중(DRAFT) → 제출(SUBMITTED) → 관리자 승인(APPROVED)/반려(REJECTED)
+enum EvaluatorStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+// 공통 검토 상태(평가 대상·평가 의견서): 간사 작성/취합(DRAFT) → 제출(SUBMITTED) → 관리자 승인(APPROVED)/반려(REJECTED)
+enum ReviewStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
 model User {
   id           String       @id @default(cuid())
   username     String       @unique
@@ -79,6 +103,20 @@ model EvaluationSession {
   chairId         String?
   // 위원장이 작성하는 심사 전체 총평(1건)
   chairSummary    String?
+  // 간사가 집계 결과를 '제출 완료'한 시각. null이면 제출 전(제출중) — 관리자는 이 값이 있어야 '검토 완료' 가능.
+  submittedForReviewAt DateTime?
+  // 평가항목 검토 상태. 간사 제출 전(DRAFT/REJECTED)에는 관리자가 항목을 볼 수 없고, 제출(SUBMITTED) 후 승인/반려한다.
+  criteriaStatus          CriteriaStatus  @default(DRAFT)
+  criteriaRejectionReason String?
+  // 평가위원 배정 검토 상태. 간사 제출 전(DRAFT/REJECTED)에는 관리자가 배정을 볼 수 없고, 제출(SUBMITTED) 후 승인/반려한다.
+  evaluatorStatus          EvaluatorStatus @default(DRAFT)
+  evaluatorRejectionReason String?
+  // 평가 대상 검토 상태(간사 제출 → 관리자 승인/반려)
+  subjectReviewStatus          ReviewStatus @default(DRAFT)
+  subjectReviewRejectionReason String?
+  // 평가 의견서 검토 상태(간사 제출 → 관리자 승인/반려)
+  opinionStatus          ReviewStatus @default(DRAFT)
+  opinionRejectionReason String?
   criteria        Criterion[]
   criterionGroups CriterionGroup[]
   subjects        Subject[]

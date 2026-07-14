@@ -7,11 +7,14 @@ import {
   deleteSubject,
   uploadSubjectDocument,
   deleteSubjectDocument,
-  approveSubjects,
+  submitSubjectReview,
+  cancelSubmitSubjectReview,
+  approveSubjectReview,
+  rejectSubjectReview,
 } from "../../actions";
-import RejectSubjectsModal from "@/components/RejectSubjectsModal";
 import SubjectUploadForm from "@/components/SubjectUploadForm";
 import SubjectImportButton from "@/components/SubjectImportButton";
+import ReviewWorkflowPanel, { type ReviewStatus } from "@/components/ReviewWorkflowPanel";
 import { SkeletonCard, SkeletonCardGrid } from "@/components/Skeletons";
 import { requireAdminUser } from "@/lib/authz";
 
@@ -80,41 +83,38 @@ async function SubjectsContent({ id }: { id: string }) {
     }),
   ]);
   const locked = session?.status === "CLOSED";
-  const pendingCount = subjects.filter((s) => s.status === "PENDING").length;
+  const sr = (session?.subjectReviewStatus ?? "DRAFT") as ReviewStatus;
+  // 간사 제출(SUBMITTED) 이후에만 관리자가 평가 대상을 볼 수 있다.
+  const adminCanView = sr === "SUBMITTED" || sr === "APPROVED";
+  // 추가·수정·삭제·업로드는 담당 간사만, 제출 전(DRAFT/REJECTED)에만.
+  const canEdit = !locked && !isMaster && (sr === "DRAFT" || sr === "REJECTED");
+  const adminBlocked = isMaster && !locked && !adminCanView;
 
   return (
     <div className="space-y-6">
-      {/* 관리자 승인/반려 (상단, 마스터 전용) */}
-      {isMaster && subjects.length > 0 && (
-        <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-5">
-          <div>
-            <div className="text-sm font-semibold text-slate-700">관리자 검토</div>
-            <p className="mt-0.5 text-xs text-slate-400">
-              이 분과에 등록된 평가 대상 전체를 일괄 승인하거나, 사유를 남기고 반려할 수 있습니다.
-              {pendingCount > 0 && (
-                <span className="ml-1 font-medium text-amber-600">· 승인 대기 {pendingCount}</span>
-              )}
-            </p>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <form action={approveSubjects.bind(null, id)}>
-              <button className="rounded-md bg-[var(--gov-navy)] px-3 py-1.5 text-xs font-medium text-white transition hover:opacity-90">
-                승인
-              </button>
-            </form>
-            <RejectSubjectsModal sessionId={id} />
-          </div>
-        </div>
+      {/* 검토 워크플로 배너 — 간사: 제출/취소, 관리자: 승인/반려 */}
+      {!locked && (
+        <ReviewWorkflowPanel
+          sessionId={id}
+          isMaster={isMaster}
+          status={sr}
+          rejectionReason={session?.subjectReviewRejectionReason ?? null}
+          draftBadge="작성중"
+          onSubmit={submitSubjectReview}
+          onCancelSubmit={cancelSubmitSubjectReview}
+          onApprove={approveSubjectReview}
+          onReject={rejectSubjectReview}
+        />
       )}
 
-      {/* 대상 추가 (상단, 간사 전용) */}
+      {/* 대상 추가 (상단, 간사 전용, 제출 전) */}
       {locked ? (
         <p className="text-sm text-slate-400">
           마감된 분과는 평가 대상을 수정할 수 없습니다.
         </p>
-      ) : isMaster ? (
+      ) : isMaster ? null : !canEdit ? (
         <p className="text-sm text-slate-400">
-          평가 대상 등록·자료 업로드는 담당 간사만 할 수 있습니다. 관리자는 조회 및 승인/반려만 가능합니다.
+          제출 완료 상태에서는 평가 대상을 수정할 수 없습니다. 수정하려면 상단에서 제출을 취소하세요.
         </p>
       ) : (
         <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-5">
@@ -145,8 +145,8 @@ async function SubjectsContent({ id }: { id: string }) {
         </div>
       )}
 
-      {/* 대상 탭(빠른 이동) */}
-      {subjects.length > 0 && (
+      {/* 대상 탭(빠른 이동) — 관리자는 제출 후에만 */}
+      {!adminBlocked && subjects.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {subjects.map((s, i) => (
             <a
@@ -161,15 +161,15 @@ async function SubjectsContent({ id }: { id: string }) {
         </div>
       )}
 
-      {subjects.length === 0 && (
+      {!adminBlocked && subjects.length === 0 && (
         <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-400">
           편입된 평가 대상이 없습니다.{" "}
-          {!isMaster && !locked && "위에서 기업을 추가하세요."}
+          {canEdit && "위에서 기업을 추가하세요."}
         </div>
       )}
 
       <div className="space-y-4">
-        {subjects.map((s, i) => {
+        {!adminBlocked && subjects.map((s, i) => {
           const status = s.status as SubjectStatus;
           return (
             <div
@@ -211,7 +211,7 @@ async function SubjectsContent({ id }: { id: string }) {
                     )}
                   </div>
                 </div>
-                {!locked && !isMaster && (
+                {canEdit && (
                   <form
                     action={async () => {
                       "use server";
@@ -234,7 +234,7 @@ async function SubjectsContent({ id }: { id: string }) {
                   <p className="mt-1 text-sm text-rose-600">
                     {s.rejectionReason || "사유가 입력되지 않았습니다."}
                   </p>
-                  {!locked && !isMaster && (
+                  {canEdit && (
                     <form
                       action={editSubject.bind(null, id, s.id)}
                       className="mt-3 flex flex-wrap gap-2 border-t border-rose-100 pt-3"
@@ -289,7 +289,7 @@ async function SubjectsContent({ id }: { id: string }) {
                           {formatSize(d.size)}
                         </span>
                       </a>
-                      {!locked && !isMaster && (
+                      {canEdit && (
                         <form
                           action={async () => {
                             "use server";
@@ -311,7 +311,7 @@ async function SubjectsContent({ id }: { id: string }) {
                   )}
                 </ul>
 
-                {!locked && !isMaster && (
+                {canEdit && (
                   <SubjectUploadForm
                     action={uploadSubjectDocument.bind(null, id, s.companyId)}
                   />

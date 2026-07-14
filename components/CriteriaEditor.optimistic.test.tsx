@@ -19,7 +19,8 @@ vi.mock('@/app/admin/sessions/actions', () => ({
   updateSessionMaxScore: vi.fn(() => Promise.resolve()),
 }))
 
-import CriteriaEditor, { optReducer } from './CriteriaEditor'
+import CriteriaEditor from './CriteriaEditor'
+import { optReducer } from './criteria-editor-model'
 
 describe('optReducer (평가항목 낙관적 추가)', () => {
   it('평가항목(그룹)을 임시 id로 즉시 추가', () => {

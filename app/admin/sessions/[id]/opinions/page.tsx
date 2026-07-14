@@ -1,6 +1,14 @@
 import { Suspense } from "react";
 import { prisma } from "@/lib/db";
+import { requireAdminUser } from "@/lib/authz";
 import { SkeletonCard } from "@/components/Skeletons";
+import ReviewWorkflowPanel, { type ReviewStatus } from "@/components/ReviewWorkflowPanel";
+import {
+  submitOpinions,
+  cancelSubmitOpinions,
+  approveOpinions,
+  rejectOpinions,
+} from "../../actions";
 import OpinionViewer from "./OpinionViewer";
 
 export default async function OpinionsPage({
@@ -24,6 +32,8 @@ export default async function OpinionsPage({
 }
 
 async function OpinionsContent({ id }: { id: string }) {
+  const me = await requireAdminUser();
+  const isMaster = me.role === "MASTER";
   const [session, assignments, subjects, opinions] = await Promise.all([
     prisma.evaluationSession.findUnique({ where: { id } }),
     prisma.assignment.findMany({ where: { sessionId: id }, include: { user: { select: { id: true, name: true } } } }),
@@ -59,13 +69,34 @@ async function OpinionsContent({ id }: { id: string }) {
     )
     .filter((item) => item.subjectName);
 
+  const locked = session?.status === "CLOSED";
+  const os = (session?.opinionStatus ?? "DRAFT") as ReviewStatus;
+  // 간사 제출(SUBMITTED) 이후에만 관리자가 의견서를 볼 수 있다.
+  const adminCanView = os === "SUBMITTED" || os === "APPROVED";
+  const adminBlocked = isMaster && !locked && !adminCanView;
+
   return (
     <div className="space-y-4">
       <p className="text-sm text-slate-500">
         평가위원이 각 지원기업에 대해 평가 화면에서 작성한 종합의견입니다.
       </p>
 
-      {evaluators.length === 0 ? (
+      {/* 검토 워크플로 배너 — 간사: 제출/취소, 관리자: 승인/반려 */}
+      {!locked && (
+        <ReviewWorkflowPanel
+          sessionId={id}
+          isMaster={isMaster}
+          status={os}
+          rejectionReason={session?.opinionRejectionReason ?? null}
+          draftBadge="취합중"
+          onSubmit={submitOpinions}
+          onCancelSubmit={cancelSubmitOpinions}
+          onApprove={approveOpinions}
+          onReject={rejectOpinions}
+        />
+      )}
+
+      {adminBlocked ? null : evaluators.length === 0 ? (
         <div className="rounded-xl border border-slate-200 bg-white px-5 py-10 text-center text-slate-400">
           배정된 평가위원이 없습니다.
         </div>
