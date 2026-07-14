@@ -218,8 +218,9 @@ export async function rejectCriteria(sessionId: string, reason: string) {
   await assertMaster()
   const trimmed = (reason ?? '').trim()
   if (!trimmed) return
+  // 제출(SUBMITTED)뿐 아니라 승인(APPROVED) 이후에도 관리자가 다시 반려할 수 있다(간사 재수정).
   const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { criteriaStatus: true } })
-  if (!s || s.criteriaStatus !== 'SUBMITTED') return
+  if (!s || (s.criteriaStatus !== 'SUBMITTED' && s.criteriaStatus !== 'APPROVED')) return
   await prisma.evaluationSession.update({
     where: { id: sessionId },
     data: { criteriaStatus: 'REJECTED', criteriaRejectionReason: trimmed },
@@ -797,12 +798,16 @@ export async function rejectEvaluators(sessionId: string, reason: string) {
   await assertMaster()
   const trimmed = (reason ?? '').trim()
   if (!trimmed) return
+  // 승인(APPROVED) 이후에도 반려 가능. 승인으로 활성화됐던 배정은 다시 대기(PENDING)로 되돌려 비활성화한다.
   const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { evaluatorStatus: true } })
-  if (!s || s.evaluatorStatus !== 'SUBMITTED') return
-  await prisma.evaluationSession.update({
-    where: { id: sessionId },
-    data: { evaluatorStatus: 'REJECTED', evaluatorRejectionReason: trimmed },
-  })
+  if (!s || (s.evaluatorStatus !== 'SUBMITTED' && s.evaluatorStatus !== 'APPROVED')) return
+  await prisma.$transaction([
+    prisma.assignment.updateMany({ where: { sessionId, status: 'APPROVED' }, data: { status: 'PENDING', decidedAt: null } }),
+    prisma.evaluationSession.update({
+      where: { id: sessionId },
+      data: { evaluatorStatus: 'REJECTED', evaluatorRejectionReason: trimmed },
+    }),
+  ])
   revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
   revalidatePath(`/admin/sessions/${sessionId}`)
 }
@@ -906,12 +911,16 @@ export async function rejectSubjectReview(sessionId: string, reason: string) {
   await assertMaster()
   const trimmed = (reason ?? '').trim()
   if (!trimmed) return
+  // 승인(APPROVED) 이후에도 반려 가능. 승인 표시됐던 대상은 대기(PENDING)로 되돌린다.
   const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { subjectReviewStatus: true } })
-  if (!s || s.subjectReviewStatus !== 'SUBMITTED') return
-  await prisma.evaluationSession.update({
-    where: { id: sessionId },
-    data: { subjectReviewStatus: 'REJECTED', subjectReviewRejectionReason: trimmed },
-  })
+  if (!s || (s.subjectReviewStatus !== 'SUBMITTED' && s.subjectReviewStatus !== 'APPROVED')) return
+  await prisma.$transaction([
+    prisma.subject.updateMany({ where: { sessionId, status: 'APPROVED' }, data: { status: 'PENDING', decidedAt: null } }),
+    prisma.evaluationSession.update({
+      where: { id: sessionId },
+      data: { subjectReviewStatus: 'REJECTED', subjectReviewRejectionReason: trimmed },
+    }),
+  ])
   revalidatePath(`/admin/sessions/${sessionId}/subjects`)
   revalidatePath(`/admin/sessions/${sessionId}`)
 }
@@ -956,8 +965,9 @@ export async function rejectOpinions(sessionId: string, reason: string) {
   await assertMaster()
   const trimmed = (reason ?? '').trim()
   if (!trimmed) return
+  // 승인(APPROVED) 이후에도 반려 가능.
   const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { opinionStatus: true } })
-  if (!s || s.opinionStatus !== 'SUBMITTED') return
+  if (!s || (s.opinionStatus !== 'SUBMITTED' && s.opinionStatus !== 'APPROVED')) return
   await prisma.evaluationSession.update({
     where: { id: sessionId },
     data: { opinionStatus: 'REJECTED', opinionRejectionReason: trimmed },

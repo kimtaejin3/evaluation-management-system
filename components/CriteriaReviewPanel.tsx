@@ -41,7 +41,7 @@ export default function CriteriaReviewPanel({
       if (status === 'DRAFT') return '간사가 평가 항목을 입력 중입니다. 제출 후 검토할 수 있습니다.'
       if (status === 'REJECTED') return '반려됨 · 간사가 재작성 중입니다. 다시 제출하면 검토할 수 있습니다.'
       if (status === 'SUBMITTED') return '간사가 제출한 평가 항목입니다. 검토 후 승인 또는 반려하세요.'
-      return '승인 완료 — 이 분과의 평가 항목을 승인했습니다.'
+      return '승인 완료 — 필요 시 다시 반려하면 간사가 재수정합니다.'
     }
     if (status === 'DRAFT') return '평가 항목을 작성한 뒤 제출하면 관리자가 검토합니다.'
     if (status === 'REJECTED') return '관리자가 평가 항목을 반려했습니다. 항목을 수정한 뒤 다시 제출하세요.'
@@ -91,19 +91,21 @@ export default function CriteriaReviewPanel({
         )}
 
         {/* 관리자 액션 */}
-        {isMaster && status === 'SUBMITTED' && (
+        {isMaster && (status === 'SUBMITTED' || status === 'APPROVED') && (
           <>
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => {
-                if (!confirm('이 분과의 평가 항목을 승인할까요?')) return
-                run(() => approveCriteria(sessionId))
-              }}
-              className="rounded-lg bg-[var(--gov-navy)] px-4 py-1.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
-            >
-              {pending ? '처리 중…' : '승인'}
-            </button>
+            {status === 'SUBMITTED' && (
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => {
+                  if (!confirm('이 분과의 평가 항목을 승인할까요?')) return
+                  run(() => approveCriteria(sessionId))
+                }}
+                className="rounded-lg bg-[var(--gov-navy)] px-4 py-1.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+              >
+                {pending ? '처리 중…' : '승인'}
+              </button>
+            )}
             <RejectButton sessionId={sessionId} pending={pending} run={run} />
           </>
         )}
