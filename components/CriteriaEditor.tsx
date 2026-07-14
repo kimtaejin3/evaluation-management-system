@@ -6,7 +6,7 @@ import {
   addGroup,
   updateGroup,
   deleteGroup,
-  addSubitem,
+  addSubitemWithCriterion,
   updateSubitem,
   deleteSubitem,
   addCriterion,
@@ -134,12 +134,17 @@ export default function CriteriaEditor({
     });
   };
 
+  // 세부항목 + 첫 평가지표를 세트로 추가(낙관적: 세부항목 → 평가지표 순으로 즉시 삽입)
   const addSubitemOpt: AddFn = (groupId, fd) => {
     const name = String(fd.get("name") ?? "").trim();
-    if (!name) return;
+    const criterionName = String(fd.get("criterionName") ?? "").trim();
+    if (!name || !criterionName) return;
+    const maxScore = Number(fd.get("maxScore") ?? 0) || 0;
     start(async () => {
-      applyOptimistic({ kind: "subitem", id: nextTmp(), groupId, name });
-      await addSubitem(groupId, fd);
+      const tmpSub = nextTmp();
+      applyOptimistic({ kind: "subitem", id: tmpSub, groupId, name });
+      applyOptimistic({ kind: "criterion", id: nextTmp(), subitemId: tmpSub, name: criterionName, maxScore });
+      await addSubitemWithCriterion(groupId, fd);
       router.refresh();
     });
   };
@@ -439,14 +444,34 @@ function GroupNameCell({
         </div>
       )}
       {addingSubitem && (
-        <AddModal title="세부항목 추가" pending={pending} onClose={() => setAddingSubitem(false)} onSubmit={(fd) => onAddSubitem(group.id, fd)}>
-          <label className="block text-xs text-slate-500">
-            세부항목명
-            <input name="name" required placeholder="예: 목표 및 내용" className={`mt-1 w-full ${inputCls}`} autoFocus />
-          </label>
+        <AddModal title="세부항목·평가지표 추가" pending={pending} onClose={() => setAddingSubitem(false)} onSubmit={(fd) => onAddSubitem(group.id, fd)}>
+          <SubitemWithCriterionFields />
         </AddModal>
       )}
     </td>
+  );
+}
+
+// 세부항목 + 첫 평가지표를 함께 입력하는 폼 필드(세트 추가 공용)
+function SubitemWithCriterionFields() {
+  return (
+    <>
+      <label className="block text-xs text-slate-500">
+        세부항목명
+        <input name="name" required placeholder="예: 목표 및 내용" className={`mt-1 w-full ${inputCls}`} autoFocus />
+      </label>
+      <div className="rounded-md border border-slate-100 bg-slate-50 p-2.5">
+        <div className="mb-1.5 text-[11px] font-medium text-slate-500">첫 평가지표</div>
+        <label className="block text-xs text-slate-500">
+          평가지표명
+          <input name="criterionName" required placeholder="예: 사업 타당성" className={`mt-1 w-full ${inputCls}`} />
+        </label>
+        <label className="mt-2 block text-xs text-slate-500">
+          배점
+          <input name="maxScore" type="number" step="any" defaultValue={0} className={`mt-1 w-full ${inputCls}`} />
+        </label>
+      </div>
+    </>
   );
 }
 
@@ -502,16 +527,16 @@ function SubitemNameCell({
           <button type="button" onClick={onDelete} className="rounded p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600" title="세부항목 삭제" aria-label="세부항목 삭제">
             <TrashIcon className="h-3.5 w-3.5" />
           </button>
-          {showAddCriterion && (
+          {/* 세부항목 +버튼은 하나만: 비어있으면 첫 평가지표 추가, 아니면 새 세부항목(+평가지표) 세트 추가 */}
+          {showAddCriterion ? (
             <button type="button" onClick={() => setAddingCriterion(true)} className={plusBtn} title="평가지표 추가" aria-label="평가지표 추가">
               <PlusIcon className="h-3.5 w-3.5" />
             </button>
-          )}
-          {isLastSubitem && (
-            <button type="button" onClick={() => setAddingSubitem(true)} className={plusBtn} title="세부항목 추가" aria-label="세부항목 추가">
+          ) : isLastSubitem ? (
+            <button type="button" onClick={() => setAddingSubitem(true)} className={plusBtn} title="세부항목·평가지표 추가" aria-label="세부항목·평가지표 추가">
               <PlusIcon className="h-3.5 w-3.5" />
             </button>
-          )}
+          ) : null}
         </div>
       )}
       {addingCriterion && (
@@ -527,11 +552,8 @@ function SubitemNameCell({
         </AddModal>
       )}
       {addingSubitem && (
-        <AddModal title="세부항목 추가" pending={pending} onClose={() => setAddingSubitem(false)} onSubmit={(fd) => onAddSubitem(groupId, fd)}>
-          <label className="block text-xs text-slate-500">
-            세부항목명
-            <input name="name" required placeholder="예: 목표 및 내용" className={`mt-1 w-full ${inputCls}`} autoFocus />
-          </label>
+        <AddModal title="세부항목·평가지표 추가" pending={pending} onClose={() => setAddingSubitem(false)} onSubmit={(fd) => onAddSubitem(groupId, fd)}>
+          <SubitemWithCriterionFields />
         </AddModal>
       )}
     </td>
@@ -582,14 +604,14 @@ function CriterionRowCells({
   if (editing) {
     return (
       <>
-        <td className="px-4 py-3">
+        <td className="px-4 py-3 align-top">
           <input value={name} onChange={(e) => setName(e.target.value)} className={`w-full ${inputCls}`} autoFocus />
           <div className="mt-1.5 flex gap-2">
             <button type="button" onClick={cancel} className={miniBtn}>취소</button>
             <button type="button" onClick={save} disabled={pending} className={okBtn}>저장</button>
           </div>
         </td>
-        <td className="px-4 py-3 text-right">
+        <td className="px-4 py-3 text-right align-top">
           <input type="number" step="any" value={score} onChange={(e) => setScore(e.target.value)} className={`w-20 text-right ${inputCls}`} />
         </td>
       </>
@@ -626,7 +648,7 @@ function CriterionRowCells({
           </AddModal>
         )}
       </td>
-      <td className="px-4 py-3 text-right font-semibold tabular-nums text-slate-800">{criterion.maxScore}</td>
+      <td className="px-4 py-3 text-right align-top font-semibold tabular-nums text-slate-800">{criterion.maxScore}</td>
     </>
   );
 }

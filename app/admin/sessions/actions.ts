@@ -124,6 +124,25 @@ export async function addSubitem(groupId: string, formData: FormData) {
   await prisma.criterionSubitem.create({ data: { groupId, name, order: count } })
   revalidatePath(`/admin/sessions/${g.sessionId}/criteria`)
 }
+
+// 세부항목 + 첫 평가지표를 한 번에 생성(세트). 세부항목명(name) + 평가지표명(criterionName) + 배점(maxScore).
+export async function addSubitemWithCriterion(groupId: string, formData: FormData) {
+  const g = await prisma.criterionGroup.findUnique({ where: { id: groupId }, select: { sessionId: true } })
+  if (!g) return
+  const { user } = await assertSessionAccess(g.sessionId)
+  if (user.role === 'MASTER') return
+  const name = String(formData.get('name') ?? '').trim()
+  const criterionName = String(formData.get('criterionName') ?? '').trim()
+  if (!name || !criterionName) return
+  const maxScore = Number(formData.get('maxScore') ?? 0) || 0
+  const subCount = await prisma.criterionSubitem.count({ where: { groupId } })
+  const subitem = await prisma.criterionSubitem.create({ data: { groupId, name, order: subCount } })
+  const critCount = await prisma.criterion.count({ where: { sessionId: g.sessionId } })
+  await prisma.criterion.create({
+    data: { sessionId: g.sessionId, subitemId: subitem.id, name: criterionName, maxScore, order: critCount },
+  })
+  revalidatePath(`/admin/sessions/${g.sessionId}/criteria`)
+}
 export async function updateSubitem(subitemId: string, formData: FormData) {
   const s = await prisma.criterionSubitem.findUnique({ where: { id: subitemId }, select: { group: { select: { sessionId: true } } } })
   if (!s) return

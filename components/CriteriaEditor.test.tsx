@@ -11,6 +11,7 @@ vi.mock('@/app/admin/sessions/actions', () => ({
   updateGroup: vi.fn(),
   deleteGroup: vi.fn(),
   addSubitem: vi.fn(),
+  addSubitemWithCriterion: vi.fn(),
   updateSubitem: vi.fn(),
   deleteSubitem: vi.fn(),
   addCriterion: vi.fn(),

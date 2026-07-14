@@ -11,6 +11,7 @@ vi.mock('@/app/admin/sessions/actions', () => ({
   updateGroup: vi.fn(() => Promise.resolve()),
   deleteGroup: vi.fn(() => Promise.resolve()),
   addSubitem: vi.fn(() => new Promise(() => {})),
+  addSubitemWithCriterion: vi.fn(() => new Promise(() => {})),
   updateSubitem: vi.fn(() => Promise.resolve()),
   deleteSubitem: vi.fn(() => Promise.resolve()),
   addCriterion: vi.fn(() => new Promise(() => {})),
@@ -53,13 +54,15 @@ describe('CriteriaEditor 추가 UX', () => {
     expect(screen.queryByPlaceholderText('예: 사업계획')).toBeNull() // 입력창 즉시 닫힘
   })
 
-  it('세부항목 추가 시 입력창이 즉시 닫히고 세부항목이 바로 나타난다', async () => {
+  it('세부항목 추가 시 세부항목·첫 평가지표가 세트로 즉시 나타난다', async () => {
     const user = userEvent.setup()
     render(<CriteriaEditor sessionId="s1" groups={[{ id: 'g1', name: '사업계획', maxScore: 10, subitems: [] }]} maxScore={100} />)
     await user.click(screen.getByRole('button', { name: '세부항목 추가' }))
     await user.type(screen.getByPlaceholderText('예: 목표 및 내용'), '타당성')
+    await user.type(screen.getByPlaceholderText('예: 사업 타당성'), '시장성')
     await user.click(screen.getByRole('button', { name: '추가' }))
-    expect(screen.getByText('타당성')).toBeInTheDocument()
-    expect(screen.queryByPlaceholderText('예: 목표 및 내용')).toBeNull()
+    expect(screen.getByText('타당성')).toBeInTheDocument() // 세부항목
+    expect(screen.getByText('시장성')).toBeInTheDocument() // 첫 평가지표
+    expect(screen.queryByPlaceholderText('예: 목표 및 내용')).toBeNull() // 입력창 즉시 닫힘
   })
 })
