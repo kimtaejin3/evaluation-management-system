@@ -48,22 +48,6 @@ async function Content({ id }: { id: string }) {
     },
   });
 
-  // 분과별 승인 배정 위원 수 + 작성된 의견서 수
-  const [assignCounts, opinionCounts] = await Promise.all([
-    prisma.assignment.groupBy({
-      by: ["sessionId"],
-      where: { sessionId: { in: sessions.map((s) => s.id) }, status: "APPROVED" },
-      _count: { _all: true },
-    }),
-    prisma.opinion.groupBy({
-      by: ["sessionId"],
-      where: { sessionId: { in: sessions.map((s) => s.id) } },
-      _count: { _all: true },
-    }),
-  ]);
-  const assignOf = new Map(assignCounts.map((a) => [a.sessionId, a._count._all]));
-  const opinionOf = new Map(opinionCounts.map((o) => [o.sessionId, o._count._all]));
-
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         {sessions.length === 0 ? (
@@ -76,17 +60,12 @@ async function Content({ id }: { id: string }) {
                 <th className="px-5 py-3 font-medium">담당 간사</th>
                 <th className="px-5 py-3 font-medium">간사 검토</th>
                 <th className="px-5 py-3 font-medium">평가 대상 수</th>
-                <th className="px-5 py-3 font-medium">평가위원 수</th>
-                <th className="px-5 py-3 font-medium">작성 수</th>
                 <th className="px-5 py-3 font-medium">자세히 보기</th>
                 <th className="px-5 py-3 font-medium">승인 상태</th>
               </tr>
             </thead>
             <tbody>
               {sessions.map((s) => {
-                const assigned = assignOf.get(s.id) ?? 0;
-                const written = opinionOf.get(s.id) ?? 0;
-                const expected = assigned * s._count.subjects;
                 return (
                   <tr key={s.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60">
                     <td className="px-5 py-3">
@@ -105,13 +84,6 @@ async function Content({ id }: { id: string }) {
                       <ReviewStatusBadge status={s.opinionStatus} wording="review" />
                     </td>
                     <td className="px-5 py-3 text-slate-600">{s._count.subjects}</td>
-                    <td className="px-5 py-3 text-slate-600">{assigned}</td>
-                    <td className="px-5 py-3 text-slate-600">
-                      <span className="tabular-nums">
-                        {written}
-                        {expected > 0 && <span className="text-slate-400">/{expected}</span>}
-                      </span>
-                    </td>
                     <td className="px-5 py-3">
                       {/* 분과 상세의 평가 의견서 페이지로 이동 */}
                       <Link
