@@ -140,7 +140,7 @@ export default function ProjectSubjectsTable({
                   <button
                     type="button"
                     onClick={() => setOpenId(r.sessionId)}
-                    className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+                    className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium whitespace-nowrap text-slate-600 transition hover:bg-slate-50"
                   >
                     점수 보기
                   </button>
@@ -149,7 +149,7 @@ export default function ProjectSubjectsTable({
                   {/* 분과 상세의 평가 대상 페이지로 이동 (실시간 모니터링의 자세히 보기와 동일 패턴) */}
                   <Link
                     href={`/admin/sessions/${r.sessionId}/subjects`}
-                    className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+                    className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium whitespace-nowrap text-slate-600 transition hover:bg-slate-50"
                   >
                     자세히 보기
                   </Link>

@@ -166,71 +166,37 @@ type ProjectItem = {
   sessions: Session[];
 };
 
-// 마스터 사이드바: 과제 노드(접기/펼치기) + 과제 단위 페이지 메뉴.
+// 마스터 사이드바: 과제 노드 + 과제 단위 페이지 메뉴(항상 펼침, 접기 없음).
 // 관리자는 분과를 개별로 오가지 않고, 과제의 모니터링/평가항목/평가대상/평가위원/의견서
 // 페이지에서 분과들을 테이블 뷰로 한눈에 본다. (분과 상세는 각 페이지의 분과명 링크로 진입)
 function ProjectNode({
   project,
   pathname,
-  currentSessionId = null,
 }: {
   project: ProjectItem;
   pathname: string;
-  currentSessionId?: string | null;
 }) {
   const base = `/admin/projects/${project.id}`;
   const projActive = pathname === base;
-  // 과제 경로이거나, 이 과제 소속 분과 상세를 보고 있으면 펼침
-  const containsCurrentSession =
-    !!currentSessionId && project.sessions.some((s) => s.id === currentSessionId);
-  const [open, setOpen] = useState(pathname.startsWith(base) || containsCurrentSession);
   const tabActive = (suffix: string) =>
     suffix === "" ? pathname === base : pathname.startsWith(`${base}${suffix}`);
   return (
     <div>
-      <div className="flex items-center">
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          className="shrink-0 rounded p-1 text-slate-400 transition hover:text-white"
-          aria-label={open ? "메뉴 접기" : "메뉴 펼치기"}
-          aria-expanded={open}
-        >
-          <svg
-            viewBox="0 0 20 20"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-90" : ""}`}
-            aria-hidden
+      <Link href={base} className={sessionCls(projActive)} title={project.name}>
+        <span className="truncate">{project.name}</span>
+      </Link>
+      <div className="ml-3 space-y-0.5 border-l border-white/10 pl-2">
+        {PROJECT_TABS.map((t) => (
+          <Link
+            key={t.suffix}
+            href={`${base}${t.suffix}`}
+            className={sessionCls(tabActive(t.suffix))}
+            title={t.desc}
           >
-            <path d="m7 5 5 5-5 5" />
-          </svg>
-        </button>
-        <Link
-          href={base}
-          className={`${sessionCls(projActive)} flex-1`}
-          title={project.name}
-        >
-          <span className="truncate">{project.name}</span>
-        </Link>
+            <span className="truncate">{t.label}</span>
+          </Link>
+        ))}
       </div>
-      {open && (
-        <div className="ml-4 space-y-0.5 border-l border-white/10 pl-2">
-          {PROJECT_TABS.map((t) => (
-            <Link
-              key={t.suffix}
-              href={`${base}${t.suffix}`}
-              className={sessionCls(tabActive(t.suffix))}
-              title={t.desc}
-            >
-              <span className="truncate">{t.label}</span>
-            </Link>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -343,7 +309,7 @@ export default function AdminSidebar({
                   </div>
                 )}
                 {projects.map((p) => (
-                  <ProjectNode key={p.id} project={p} pathname={pathname} currentSessionId={sid} />
+                  <ProjectNode key={p.id} project={p} pathname={pathname} />
                 ))}
               </div>
             </div>

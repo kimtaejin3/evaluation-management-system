@@ -123,7 +123,7 @@ async function Content({ id }: { id: string }) {
                       {/* 해당 분과의 위원별 평가 실시간 상태(위원×대상 그리드)로 이동 */}
                       <Link
                         href={`/admin/sessions/${s.id}`}
-                        className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+                        className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium whitespace-nowrap text-slate-600 transition hover:bg-slate-50"
                       >
                         자세히 보기
                       </Link>

@@ -7,6 +7,7 @@ export const PROJECT_TABS = [
   { suffix: "/subjects", label: "평가대상", desc: "분과별 평가 대상 현황" },
   { suffix: "/evaluators", label: "평가위원 선정현황", desc: "분과별 위원 배정 현황" },
   { suffix: "/opinions", label: "평가의견서", desc: "분과별 의견서 작성 현황" },
+  { suffix: "/results", label: "집계 결과", desc: "분과별 집계·검토 현황" },
 ] as const;
 
 // 경로 접미사 → 탭 이름

@@ -15,7 +15,7 @@ export default function ReviewStatusBadge({
     ? "bg-indigo-50 text-indigo-700 ring-indigo-200"
     : "bg-slate-100 text-slate-500 ring-slate-200";
   return (
-    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${cls}`}>
+    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ring-1 ring-inset ${cls}`}>
       {label}
     </span>
   );
@@ -32,7 +32,7 @@ export function ApprovalBadge({ status }: { status: string }) {
   const s = APPROVAL[status];
   if (!s) return <span className="text-slate-300">—</span>;
   return (
-    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${s.cls}`}>
+    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ring-1 ring-inset ${s.cls}`}>
       {s.label}
     </span>
   );

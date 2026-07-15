@@ -88,7 +88,7 @@ async function Content({ id }: { id: string }) {
                       {/* 분과 상세의 평가 의견서 페이지로 이동 */}
                       <Link
                         href={`/admin/sessions/${s.id}/opinions`}
-                        className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+                        className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium whitespace-nowrap text-slate-600 transition hover:bg-slate-50"
                       >
                         자세히 보기
                       </Link>

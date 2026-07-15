@@ -63,7 +63,7 @@ export default function ReviewDecisionButtons({
           type="button"
           disabled={pending || !reason.trim()}
           onClick={() => run(() => ACTIONS[kind].reject(sessionId, reason.trim()))}
-          className="rounded bg-slate-600 px-2 py-1 text-xs font-medium text-white transition hover:bg-slate-700 disabled:opacity-40"
+          className="rounded bg-slate-600 px-2 py-1 text-xs font-medium whitespace-nowrap text-white transition hover:bg-slate-700 disabled:opacity-40"
         >
           반려
         </button>
@@ -85,7 +85,7 @@ export default function ReviewDecisionButtons({
         disabled={pending || !canApprove}
         onClick={() => run(() => ACTIONS[kind].approve(sessionId))}
         title={canApprove ? undefined : wording === 'review' ? '간사가 검토 완료해야 승인할 수 있습니다' : '간사가 제출 완료해야 승인할 수 있습니다'}
-        className="rounded bg-indigo-600 px-2 py-1 text-xs font-medium text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
+        className="rounded bg-indigo-600 px-2 py-1 text-xs font-medium whitespace-nowrap text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
       >
         승인
       </button>
@@ -94,7 +94,7 @@ export default function ReviewDecisionButtons({
         disabled={pending || !canReject}
         onClick={() => setRejecting(true)}
         title={canReject ? undefined : wording === 'review' ? '검토 완료 또는 승인 상태에서만 반려할 수 있습니다' : '제출 완료 또는 승인 상태에서만 반려할 수 있습니다'}
-        className="rounded border border-slate-300 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+        className="rounded border border-slate-300 bg-slate-50 px-2 py-1 text-xs font-medium whitespace-nowrap text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
       >
         반려
       </button>
