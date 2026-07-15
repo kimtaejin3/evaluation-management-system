@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { fmtYmd } from "@/lib/dates";
 import { getSessionProgress } from "@/lib/progress";
 import MonitoringList from "@/components/MonitoringList";
 import EvaluatorRoster from "@/components/EvaluatorRoster";
@@ -65,7 +66,13 @@ async function SessionInfo({ id }: { id: string }) {
       : "—";
   const meta: { label: string; value: string }[] = [
     { label: "담당 간사", value: session.secretary?.name ?? "미배정" },
-    { label: "평가일자", value: fmtDate(session.eventDate) },
+    {
+      label: "평가 기간",
+      value:
+        session.startDate || session.endDate
+          ? `${fmtYmd(session.startDate)} ~ ${fmtYmd(session.endDate)}`
+          : fmtYmd(session.eventDate),
+    },
     { label: "평가 항목 수", value: `${criteriaCount}개` },
     { label: "평가 대상 수", value: `${session._count.subjects}개` },
     { label: "평가위원 수", value: `${session._count.assignments}명` },

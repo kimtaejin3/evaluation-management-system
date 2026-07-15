@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { assertProjectAccess } from "@/lib/authz";
-import ReviewStatusBadge from "@/components/ReviewStatusBadge";
+import ReviewStatusBadge, { ApprovalBadge } from "@/components/ReviewStatusBadge";
 import ReviewDecisionButtons from "@/components/ReviewDecisionButtons";
 import { SkeletonTable } from "@/components/Skeletons";
 
@@ -19,7 +19,7 @@ export default async function ProjectOpinionsPage({
     <div className="space-y-6">
       <div>
         <Link href={`/admin/projects/${id}`} className="text-sm text-slate-400 hover:text-slate-600">
-          ← 분과 관리
+          ← 분과 목록
         </Link>
         <h1 className="mt-1 text-2xl font-bold">평가의견서</h1>
         <p className="mt-1 text-sm text-slate-500">
@@ -75,11 +75,11 @@ async function Content({ id }: { id: string }) {
                 <th className="px-5 py-3 font-medium">분과명</th>
                 <th className="px-5 py-3 font-medium">담당 간사</th>
                 <th className="px-5 py-3 font-medium">간사 검토</th>
-                {isMaster && <th className="px-5 py-3 font-medium">액션</th>}
                 <th className="px-5 py-3 font-medium">평가 대상 수</th>
                 <th className="px-5 py-3 font-medium">평가위원 수</th>
                 <th className="px-5 py-3 font-medium">작성 수</th>
                 <th className="px-5 py-3 font-medium">자세히 보기</th>
+                <th className="px-5 py-3 font-medium">승인 상태</th>
               </tr>
             </thead>
             <tbody>
@@ -104,11 +104,6 @@ async function Content({ id }: { id: string }) {
                       {/* 간사 검토 상태 — 의견서는 간사가 '검토'하는 도메인 */}
                       <ReviewStatusBadge status={s.opinionStatus} wording="review" />
                     </td>
-                    {isMaster && (
-                      <td className="px-5 py-3">
-                        <ReviewDecisionButtons sessionId={s.id} status={s.opinionStatus} kind="opinions" wording="review" />
-                      </td>
-                    )}
                     <td className="px-5 py-3 text-slate-600">{s._count.subjects}</td>
                     <td className="px-5 py-3 text-slate-600">{assigned}</td>
                     <td className="px-5 py-3 text-slate-600">
@@ -125,6 +120,14 @@ async function Content({ id }: { id: string }) {
                       >
                         자세히 보기
                       </Link>
+                    </td>
+                    <td className="px-5 py-3">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <ApprovalBadge status={s.opinionStatus} />
+                        {isMaster && (
+                          <ReviewDecisionButtons sessionId={s.id} status={s.opinionStatus} kind="opinions" wording="review" />
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );

@@ -1,6 +1,8 @@
 import { Suspense } from "react";
 import { prisma } from "@/lib/db";
 import { requireAdminUser } from "@/lib/authz";
+import { criteriaScopeForSession } from "@/lib/criteria-scope";
+import { computeWeightedScore } from "@/lib/scoring";
 import { SkeletonCard } from "@/components/Skeletons";
 import ExcelExportButton from "@/components/ExcelExportButton";
 import ReviewWorkflowPanel, { type ReviewStatus } from "@/components/ReviewWorkflowPanel";
@@ -35,12 +37,29 @@ export default async function OpinionsPage({
 async function OpinionsContent({ id }: { id: string }) {
   const me = await requireAdminUser();
   const isMaster = me.role === "MASTER";
-  const [session, assignments, subjects, opinions] = await Promise.all([
+  // 평가항목은 과제(Project) 단위 공통 — 점수 컬럼·지원기업별 점수 계산용
+  const criteriaWhere = await criteriaScopeForSession(id);
+  const [session, assignments, subjects, opinions, criteria, scores] = await Promise.all([
     prisma.evaluationSession.findUnique({ where: { id } }),
     prisma.assignment.findMany({ where: { sessionId: id }, include: { user: { select: { id: true, name: true } } } }),
     prisma.subject.findMany({ where: { sessionId: id }, orderBy: { name: "asc" } }),
     prisma.opinion.findMany({ where: { sessionId: id }, select: { evaluatorId: true, subjectId: true, text: true } }),
+    prisma.criterion.findMany({ where: criteriaWhere, select: { id: true, weight: true } }),
+    prisma.score.findMany({ where: { sessionId: id }, select: { evaluatorId: true, subjectId: true, criterionId: true, value: true } }),
   ]);
+
+  // (위원:대상)별 총점 — 전 항목을 입력한 조합만 산출(그 외 null)
+  const totalCriteria = criteria.length;
+  const scoreRowsOf = new Map<string, { criterionId: string; value: number }[]>();
+  for (const sc of scores) {
+    const k = `${sc.evaluatorId}:${sc.subjectId}`;
+    if (!scoreRowsOf.has(k)) scoreRowsOf.set(k, []);
+    scoreRowsOf.get(k)!.push({ criterionId: sc.criterionId, value: sc.value });
+  }
+  const totalOf = (evaluatorId: string, subjectId: string): number | null => {
+    const rows = scoreRowsOf.get(`${evaluatorId}:${subjectId}`) ?? [];
+    return totalCriteria > 0 && rows.length >= totalCriteria ? computeWeightedScore(rows, criteria) : null;
+  };
 
   // (위원:대상) → 종합의견 텍스트
   const opinionOf = new Map<string, string>();
@@ -66,6 +85,7 @@ async function OpinionsContent({ id }: { id: string }) {
           subjectId: s.id,
           subjectName: subjectNameOf.get(s.id) ?? "",
           text: opinionOf.get(`${ev.id}:${s.id}`) ?? "",
+          score: totalOf(ev.id, s.id),
         })),
     )
     .filter((item) => item.subjectName);
@@ -109,6 +129,43 @@ async function OpinionsContent({ id }: { id: string }) {
         </div>
       ) : (
         <OpinionViewer items={items} />
+      )}
+
+      {/* 지원기업별 점수 — 전 항목을 입력한 위원들의 총점 평균 */}
+      {!adminBlocked && subjects.length > 0 && (
+        <div className="space-y-2">
+          <h2 className="text-sm font-semibold text-slate-700">지원기업별 점수</h2>
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <table className="w-full text-sm">
+              <thead className="text-left text-slate-500">
+                <tr className="border-b border-slate-100 bg-slate-50/60">
+                  <th className="px-5 py-2.5 font-medium">지원기업</th>
+                  <th className="px-5 py-2.5 text-right font-medium">채점 완료 위원</th>
+                  <th className="px-5 py-2.5 text-right font-medium">평균 점수</th>
+                </tr>
+              </thead>
+              <tbody>
+                {subjects.map((s) => {
+                  const totals = evaluators
+                    .map((ev) => totalOf(ev.id, s.id))
+                    .filter((v): v is number => v !== null);
+                  const avg = totals.length ? totals.reduce((a, b) => a + b, 0) / totals.length : null;
+                  return (
+                    <tr key={s.id} className="border-b border-slate-50 last:border-0">
+                      <td className="px-5 py-2.5 text-slate-800">{s.name}</td>
+                      <td className="px-5 py-2.5 text-right tabular-nums text-slate-600">
+                        {totals.length}/{evaluators.length}
+                      </td>
+                      <td className="px-5 py-2.5 text-right font-medium tabular-nums text-slate-800">
+                        {avg !== null ? avg.toFixed(2) : <span className="text-slate-300">—</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
     </div>
   );

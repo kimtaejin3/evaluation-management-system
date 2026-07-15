@@ -21,7 +21,7 @@ export default async function ProjectSubjectsPage({
     <div className="space-y-6">
       <div>
         <Link href={`/admin/projects/${id}`} className="text-sm text-slate-400 hover:text-slate-600">
-          ← 분과 관리
+          ← 분과 목록
         </Link>
         <h1 className="mt-1 text-2xl font-bold">평가대상</h1>
         <p className="mt-1 text-sm text-slate-500">

@@ -22,7 +22,7 @@ export default async function ProjectCriteriaPage({
     <div className="space-y-6">
       <div>
         <Link href={`/admin/projects/${id}`} className="text-sm text-slate-400 hover:text-slate-600">
-          ← 분과 관리
+          ← 분과 목록
         </Link>
         <h1 className="mt-1 text-2xl font-bold">평가항목</h1>
         <p className="mt-1 text-sm text-slate-500">
@@ -116,7 +116,6 @@ async function Content({ id }: { id: string }) {
                   <th className="px-5 py-2.5 font-medium">담당 간사</th>
                   <th className="px-5 py-2.5 font-medium">확인 여부</th>
                   <th className="px-5 py-2.5 font-medium">확인 시각</th>
-                  <th className="px-5 py-2.5 font-medium">자세히 보기</th>
                 </tr>
               </thead>
               <tbody>
@@ -148,15 +147,6 @@ async function Content({ id }: { id: string }) {
                       {s.criteriaAckAt
                         ? s.criteriaAckAt.toLocaleString("ko-KR", { dateStyle: "medium", timeStyle: "short" })
                         : "—"}
-                    </td>
-                    <td className="px-5 py-2.5">
-                      {/* 분과 상세의 평가 항목 페이지로 이동 */}
-                      <Link
-                        href={`/admin/sessions/${s.id}/criteria`}
-                        className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
-                      >
-                        자세히 보기
-                      </Link>
                     </td>
                   </tr>
                 ))}

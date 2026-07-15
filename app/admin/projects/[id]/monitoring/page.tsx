@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { assertProjectAccess } from "@/lib/authz";
 import { getSessionProgress } from "@/lib/progress";
+import { fmtYmd } from "@/lib/dates";
 import StatusBadge from "@/components/StatusBadge";
 import { SkeletonTable } from "@/components/Skeletons";
 
@@ -21,9 +22,9 @@ export default async function ProjectMonitoringPage({
     <div className="space-y-6">
       <div>
         <Link href={`/admin/projects/${id}`} className="text-sm text-slate-400 hover:text-slate-600">
-          ← 분과 관리
+          ← 분과 목록
         </Link>
-        <h1 className="mt-1 text-2xl font-bold">실시간 모니터링</h1>
+        <h1 className="mt-1 text-2xl font-bold">평가 실시간 모니터링</h1>
         <p className="mt-1 text-sm text-slate-500">분과별 채점 진행 현황입니다. 분과명을 누르면 상세 현황으로 이동합니다.</p>
       </div>
       <Suspense fallback={<SkeletonTable rows={5} cols={7} />}>
@@ -32,6 +33,13 @@ export default async function ProjectMonitoringPage({
     </div>
   );
 }
+
+const fmtPeriod = (s: { startDate: Date | null; endDate: Date | null; eventDate: Date | null }) =>
+  s.startDate || s.endDate
+    ? `${fmtYmd(s.startDate)} ~ ${fmtYmd(s.endDate)}`
+    : s.eventDate
+      ? fmtYmd(s.eventDate)
+      : "미정";
 
 async function Content({ id }: { id: string }) {
   await assertProjectAccess(id);
@@ -42,6 +50,8 @@ async function Content({ id }: { id: string }) {
       id: true,
       name: true,
       status: true,
+      startDate: true,
+      endDate: true,
       eventDate: true,
       secretary: { select: { name: true } },
     },
@@ -67,7 +77,7 @@ async function Content({ id }: { id: string }) {
               <tr className="border-b border-slate-100 bg-slate-50/60">
                 <th className="px-5 py-3 font-medium">분과명</th>
                 <th className="px-5 py-3 font-medium">평가 상태</th>
-                <th className="px-5 py-3 font-medium">평가일자</th>
+                <th className="px-5 py-3 font-medium">평가 기간</th>
                 <th className="px-5 py-3 font-medium">담당 간사</th>
                 <th className="px-5 py-3 font-medium">평가 대상 수</th>
                 <th className="px-5 py-3 font-medium">평가위원 수</th>
@@ -94,9 +104,7 @@ async function Content({ id }: { id: string }) {
                     <td className="px-5 py-3">
                       <StatusBadge status={s.status} />
                     </td>
-                    <td className="px-5 py-3 text-slate-600">
-                      {s.eventDate ? new Date(s.eventDate).toLocaleDateString("ko-KR") : "미정"}
-                    </td>
+                    <td className="px-5 py-3 text-slate-600">{fmtPeriod(s)}</td>
                     <td className="px-5 py-3 text-slate-600">
                       {s.secretary?.name ?? <span className="text-xs text-slate-400">미배정</span>}
                     </td>

@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { prisma } from "@/lib/db";
 import { criteriaScopeForSession } from "@/lib/criteria-scope";
+import { fmtYmd } from "@/lib/dates";
 import { computeFinalScores, rankSubjects } from "@/lib/scoring";
 import { getSessionInsights } from "@/lib/progress";
 import { TOTAL_SCORE } from "@/lib/criteria";
@@ -40,7 +41,7 @@ export default async function ResultsPage({
 async function ResultsContent({ id }: { id: string }) {
   const me = await requireAdminUser();
   const [session, subjects, criteria, scores, assignments, insights, approvedSubs] = await Promise.all([
-    prisma.evaluationSession.findUnique({ where: { id } }),
+    prisma.evaluationSession.findUnique({ where: { id }, include: { project: { select: { startDate: true, endDate: true } } } }),
     prisma.subject.findMany({ where: { sessionId: id } }),
     prisma.criterion.findMany({
       where: await criteriaScopeForSession(id),
@@ -131,8 +132,8 @@ async function ResultsContent({ id }: { id: string }) {
               <td className="border border-black px-3 py-1.5">{session?.name}</td>
               <th className="w-28 border border-black bg-slate-100 px-3 py-1.5 text-left font-medium">평가 기간</th>
               <td className="border border-black px-3 py-1.5">
-                {session?.startDate || session?.endDate
-                  ? `${fmtDate(session?.startDate ?? null)} ~ ${fmtDate(session?.endDate ?? null)}`
+                {session?.project?.startDate || session?.project?.endDate
+                  ? `${fmtYmd(session?.project?.startDate ?? null)} ~ ${fmtYmd(session?.project?.endDate ?? null)}`
                   : "—"}
               </td>
             </tr>

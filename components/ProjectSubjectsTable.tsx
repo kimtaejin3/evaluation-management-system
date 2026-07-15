@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import ReviewStatusBadge from './ReviewStatusBadge'
+import ReviewStatusBadge, { ApprovalBadge } from './ReviewStatusBadge'
 import ReviewDecisionButtons from './ReviewDecisionButtons'
 
 export interface ProjectSubjectRow {
@@ -19,7 +19,7 @@ export interface ProjectSubjectRow {
   evaluatorsHidden?: boolean
 }
 
-// 점수 보기 모달 — 대상×위원 점수 매트릭스
+// 점수 보기 모달 — 평가 대상별 점수(채점 완료 위원의 총점 평균)
 function ScoresModal({ row, onClose }: { row: ProjectSubjectRow; onClose: () => void }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
@@ -33,13 +33,13 @@ function ScoresModal({ row, onClose }: { row: ProjectSubjectRow; onClose: () => 
       onClick={onClose}
     >
       <div
-        className="my-8 w-full max-w-3xl rounded-xl bg-white p-6 shadow-xl"
+        className="my-8 w-full max-w-2xl rounded-xl bg-white p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <h3 className="text-base font-semibold text-slate-800">{row.name} — 위원별 점수</h3>
-            <p className="mt-0.5 text-xs text-slate-400">전 항목을 입력한 대상만 총점이 표시됩니다.</p>
+            <h3 className="text-base font-semibold text-slate-800">{row.name} — 평가 대상별 점수</h3>
+            <p className="mt-0.5 text-xs text-slate-400">전 항목을 입력한 위원들의 총점 평균입니다.</p>
           </div>
           <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600" aria-label="닫기">
             ✕
@@ -48,48 +48,40 @@ function ScoresModal({ row, onClose }: { row: ProjectSubjectRow; onClose: () => 
 
         {row.evaluatorsHidden ? (
           <p className="py-6 text-center text-sm text-slate-400">
-            간사가 평가위원 배정을 제출하기 전에는 위원별 점수가 표시되지 않습니다.
+            간사가 평가위원 배정을 제출하기 전에는 점수가 표시되지 않습니다.
           </p>
         ) : row.subjects.length === 0 || row.evaluators.length === 0 ? (
           <p className="py-6 text-center text-sm text-slate-400">
             {row.subjects.length === 0 ? '등록된 평가 대상이 없습니다.' : '배정된 평가위원이 없습니다.'}
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-120 text-sm">
-              <thead className="text-left text-slate-500">
-                <tr className="border-b border-slate-200">
-                  <th className="py-2 pr-4 font-medium">평가 대상</th>
-                  {row.evaluators.map((e) => (
-                    <th key={e.id} className="px-3 py-2 text-right font-medium">
-                      {e.name}
-                    </th>
-                  ))}
-                  <th className="px-3 py-2 text-right font-medium">평균</th>
-                </tr>
-              </thead>
-              <tbody>
-                {row.subjects.map((sub) => {
-                  const vals = row.evaluators.map((e) => row.totals[`${e.id}:${sub.id}`] ?? null)
-                  const done = vals.filter((v): v is number => v !== null)
-                  const avg = done.length ? done.reduce((a, b) => a + b, 0) / done.length : null
-                  return (
-                    <tr key={sub.id} className="border-b border-slate-100 last:border-0">
-                      <td className="py-2 pr-4 text-slate-800">{sub.name}</td>
-                      {vals.map((v, i) => (
-                        <td key={row.evaluators[i].id} className="px-3 py-2 text-right tabular-nums text-slate-700">
-                          {v !== null ? v.toFixed(1) : <span className="text-slate-300">—</span>}
-                        </td>
-                      ))}
-                      <td className="px-3 py-2 text-right font-medium tabular-nums text-slate-800">
-                        {avg !== null ? avg.toFixed(2) : <span className="text-slate-300">—</span>}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+          <table className="w-full text-sm">
+            <thead className="text-left text-slate-500">
+              <tr className="border-b border-slate-200">
+                <th className="py-2 pr-4 font-medium">평가 대상</th>
+                <th className="px-3 py-2 text-right font-medium">채점 완료 위원</th>
+                <th className="px-3 py-2 text-right font-medium">평균 점수</th>
+              </tr>
+            </thead>
+            <tbody>
+              {row.subjects.map((sub) => {
+                const vals = row.evaluators.map((e) => row.totals[`${e.id}:${sub.id}`] ?? null)
+                const done = vals.filter((v): v is number => v !== null)
+                const avg = done.length ? done.reduce((a, b) => a + b, 0) / done.length : null
+                return (
+                  <tr key={sub.id} className="border-b border-slate-100 last:border-0">
+                    <td className="py-2 pr-4 text-slate-800">{sub.name}</td>
+                    <td className="px-3 py-2 text-right tabular-nums text-slate-600">
+                      {done.length}/{row.evaluators.length}
+                    </td>
+                    <td className="px-3 py-2 text-right font-medium tabular-nums text-slate-800">
+                      {avg !== null ? avg.toFixed(2) : <span className="text-slate-300">—</span>}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         )}
       </div>
     </div>
@@ -119,10 +111,10 @@ export default function ProjectSubjectsTable({
               <th className="px-5 py-3 font-medium">분과명</th>
               <th className="px-5 py-3 font-medium">담당 간사</th>
               <th className="px-5 py-3 font-medium">간사 제출</th>
-              {isMaster && <th className="px-5 py-3 font-medium">액션</th>}
               <th className="px-5 py-3 font-medium">평가 대상 수</th>
               <th className="px-5 py-3 font-medium">점수</th>
               <th className="px-5 py-3 font-medium">자세히 보기</th>
+              <th className="px-5 py-3 font-medium">승인 상태</th>
             </tr>
           </thead>
           <tbody>
@@ -143,11 +135,6 @@ export default function ProjectSubjectsTable({
                 <td className="px-5 py-3">
                   <ReviewStatusBadge status={r.reviewStatus} />
                 </td>
-                {isMaster && (
-                  <td className="px-5 py-3">
-                    <ReviewDecisionButtons sessionId={r.sessionId} status={r.reviewStatus} kind="subjects" />
-                  </td>
-                )}
                 <td className="px-5 py-3 text-slate-600">{r.subjectCount}</td>
                 <td className="px-5 py-3">
                   <button
@@ -166,6 +153,14 @@ export default function ProjectSubjectsTable({
                   >
                     자세히 보기
                   </Link>
+                </td>
+                <td className="px-5 py-3">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <ApprovalBadge status={r.reviewStatus} />
+                    {isMaster && (
+                      <ReviewDecisionButtons sessionId={r.sessionId} status={r.reviewStatus} kind="subjects" />
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

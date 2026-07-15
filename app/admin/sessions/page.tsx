@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { fmtYmd } from "@/lib/dates";
 import type { Prisma } from "@prisma/client";
 import { requireAdminUser } from "@/lib/authz";
 import StatusBadge from "@/components/StatusBadge";
@@ -127,7 +128,7 @@ async function SessionList({
               <th className="px-5 py-3 font-semibold">항목</th>
               <th className="px-5 py-3 font-semibold">대상</th>
               <th className="px-5 py-3 font-semibold">위원</th>
-              <th className="px-5 py-3 font-semibold">종료일</th>
+              <th className="px-5 py-3 font-semibold">평가 기간</th>
               <th className="px-5 py-3 font-semibold">동작</th>
             </tr>
           </thead>
@@ -155,13 +156,11 @@ async function SessionList({
                   {s._count.assignments}
                 </td>
                 <td className="px-5 py-3 text-slate-500">
-                  {s.endDate
-                    ? new Date(s.endDate).toLocaleDateString("ko-KR", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })
-                    : "—"}
+                  {s.startDate || s.endDate
+                    ? `${fmtYmd(s.startDate)} ~ ${fmtYmd(s.endDate)}`
+                    : s.eventDate
+                      ? fmtYmd(s.eventDate)
+                      : "—"}
                 </td>
                 <td className="px-5 py-3">
                   <div className="relative z-10 flex items-center gap-3">

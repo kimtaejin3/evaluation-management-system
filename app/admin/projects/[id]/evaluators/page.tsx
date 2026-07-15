@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { assertProjectAccess } from "@/lib/authz";
-import ReviewStatusBadge from "@/components/ReviewStatusBadge";
+import ReviewStatusBadge, { ApprovalBadge } from "@/components/ReviewStatusBadge";
 import ReviewDecisionButtons from "@/components/ReviewDecisionButtons";
 import PasswordCell from "@/components/PasswordCell";
 import { SkeletonTable } from "@/components/Skeletons";
@@ -20,7 +20,7 @@ export default async function ProjectEvaluatorsPage({
     <div className="space-y-6">
       <div>
         <Link href={`/admin/projects/${id}`} className="text-sm text-slate-400 hover:text-slate-600">
-          ← 분과 관리
+          ← 분과 목록
         </Link>
         <h1 className="mt-1 text-2xl font-bold">평가위원 선정현황</h1>
         <p className="mt-1 text-sm text-slate-500">
@@ -33,12 +33,6 @@ export default async function ProjectEvaluatorsPage({
     </div>
   );
 }
-
-const ASSIGN_STATUS: Record<string, { label: string; cls: string }> = {
-  PENDING: { label: "대기", cls: "bg-slate-100 text-slate-600 ring-slate-200" },
-  APPROVED: { label: "승인", cls: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
-  REJECTED: { label: "반려", cls: "bg-rose-50 text-rose-700 ring-rose-200" },
-};
 
 async function Content({ id }: { id: string }) {
   const { user } = await assertProjectAccess(id);
@@ -75,13 +69,11 @@ async function Content({ id }: { id: string }) {
               <tr className="border-b border-slate-100 bg-slate-50/60">
                 <th className="px-5 py-3 font-medium">분과명</th>
                 <th className="px-5 py-3 font-medium">간사 제출</th>
-                {isMaster && <th className="px-5 py-3 font-medium">액션</th>}
                 <th className="px-5 py-3 font-medium">위원명</th>
                 <th className="px-5 py-3 font-medium">아이디</th>
                 <th className="px-5 py-3 font-medium">비밀번호</th>
                 <th className="px-5 py-3 font-medium">연락처</th>
-                <th className="px-5 py-3 font-medium">배정 상태</th>
-                <th className="px-5 py-3 font-medium">자세히 보기</th>
+                <th className="px-5 py-3 font-medium">승인 상태</th>
               </tr>
             </thead>
             <tbody>
@@ -94,15 +86,15 @@ async function Content({ id }: { id: string }) {
                   s.evaluatorStatus !== "SUBMITTED" &&
                   s.evaluatorStatus !== "APPROVED";
                 const rows = adminBlocked ? 1 : s.assignments.length || 1;
-                // 마지막 컬럼(분과 단위) — 분과 상세의 평가 위원 페이지로 이동
+                // 마지막 컬럼(분과 단위) — 승인 상태(배지·관리자 버튼)
                 const tail = (
                   <td rowSpan={rows} className="border-l border-slate-100 px-5 py-3 align-top">
-                    <Link
-                      href={`/admin/sessions/${s.id}/evaluators`}
-                      className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
-                    >
-                      자세히 보기
-                    </Link>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <ApprovalBadge status={s.evaluatorStatus} />
+                      {isMaster && (
+                        <ReviewDecisionButtons sessionId={s.id} status={s.evaluatorStatus} kind="evaluators" />
+                      )}
+                    </div>
                   </td>
                 );
                 const head = (
@@ -119,18 +111,13 @@ async function Content({ id }: { id: string }) {
                     <td rowSpan={rows} className="border-r border-slate-100 px-5 py-3 align-top">
                       <ReviewStatusBadge status={s.evaluatorStatus} />
                     </td>
-                    {isMaster && (
-                      <td rowSpan={rows} className="border-r border-slate-100 px-5 py-3 align-top">
-                        <ReviewDecisionButtons sessionId={s.id} status={s.evaluatorStatus} kind="evaluators" />
-                      </td>
-                    )}
                   </>
                 );
                 if (adminBlocked) {
                   return (
                     <tr key={s.id} className="border-b border-slate-50 last:border-0">
                       {head}
-                      <td colSpan={5} className="px-5 py-3 text-sm text-slate-400">
+                      <td colSpan={4} className="px-5 py-3 text-sm text-slate-400">
                         간사 제출 전에는 배정 위원이 표시되지 않습니다.
                       </td>
                       {tail}
@@ -141,7 +128,7 @@ async function Content({ id }: { id: string }) {
                   return (
                     <tr key={s.id} className="border-b border-slate-50 last:border-0">
                       {head}
-                      <td colSpan={5} className="px-5 py-3 text-sm text-slate-400">
+                      <td colSpan={4} className="px-5 py-3 text-sm text-slate-400">
                         배정된 위원 없음
                       </td>
                       {tail}
@@ -149,7 +136,6 @@ async function Content({ id }: { id: string }) {
                   );
                 }
                 return s.assignments.map((a, i) => {
-                  const st = ASSIGN_STATUS[a.status] ?? ASSIGN_STATUS.PENDING;
                   return (
                     <tr key={a.id} className="border-b border-slate-50 last:border-0">
                       {i === 0 && head}
@@ -166,11 +152,6 @@ async function Content({ id }: { id: string }) {
                         <PasswordCell value={a.user.tempPassword} />
                       </td>
                       <td className="px-5 py-3 text-slate-600">{a.user.phone ?? "—"}</td>
-                      <td className="px-5 py-3">
-                        <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${st.cls}`}>
-                          {st.label}
-                        </span>
-                      </td>
                       {i === 0 && tail}
                     </tr>
                   );

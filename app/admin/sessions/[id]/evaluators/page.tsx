@@ -8,7 +8,6 @@ import {
   setChair,
 } from "../../actions";
 import { resetEvaluatorPassword, deleteEvaluator } from "@/app/admin/actions";
-import { assignmentStatusLabel, type AssignmentStatus } from "@/lib/assignment";
 import { requireAdminUser } from "@/lib/authz";
 import { SkeletonCard, SkeletonTable } from "@/components/Skeletons";
 import PasswordCell from "@/components/PasswordCell";
@@ -71,11 +70,6 @@ async function EvaluatorsContent({ id }: { id: string }) {
   const orderedAssignments = [...assignments].sort(
     (a, b) => (b.userId === chairId ? 1 : 0) - (a.userId === chairId ? 1 : 0),
   );
-  const badgeCls: Record<AssignmentStatus, string> = {
-    PENDING: "bg-amber-50 text-amber-700",
-    APPROVED: "bg-emerald-50 text-emerald-700",
-    REJECTED: "bg-rose-50 text-rose-600",
-  };
   const chairUser = assignments.find((a) => a.userId === chairId)?.user ?? null;
   const chairCandidates = assignments.filter(
     (a) => a.status === "APPROVED" && a.userId !== chairId,
@@ -227,7 +221,6 @@ async function EvaluatorsContent({ id }: { id: string }) {
           <thead className="text-left text-slate-500">
             <tr className="border-b border-slate-100">
               <th className="px-5 py-3 font-medium">이름</th>
-              <th className="px-5 py-3 font-medium">상태</th>
               <th className="px-5 py-3 font-medium">아이디</th>
               <th className="px-5 py-3 font-medium">연락처</th>
               <th className="px-5 py-3 font-medium">비밀번호</th>
@@ -248,19 +241,6 @@ async function EvaluatorsContent({ id }: { id: string }) {
                       <span className="ml-2 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
                         위원장
                       </span>
-                    )}
-                  </td>
-                  <td className="px-5 py-3">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${badgeCls[a.status as AssignmentStatus]}`}
-                    >
-                      {assignmentStatusLabel(a.status as AssignmentStatus)}
-                    </span>
-                    {a.status === "REJECTED" && (
-                      <p className="mt-1 text-xs text-rose-500">
-                        반려 사유:{" "}
-                        {a.rejectionReason || "사유가 입력되지 않았습니다."}
-                      </p>
                     )}
                   </td>
                   <td className="px-5 py-3 text-slate-600">

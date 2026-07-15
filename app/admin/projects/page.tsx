@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { assertMaster } from "@/lib/authz";
 import { deriveProjectStatus } from "@/lib/project-status";
+import { fmtYmd } from "@/lib/dates";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   DRAFT: { label: "준비중", cls: "bg-slate-100 text-slate-600 ring-slate-200" },
@@ -60,6 +61,11 @@ export default async function ProjectsPage() {
                 </div>
                 {p.description && <p className="mt-1 line-clamp-2 text-sm text-slate-500">{p.description}</p>}
                 <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                  {(p.startDate || p.endDate) && (
+                    <span className="rounded-md bg-slate-100 px-2 py-0.5">
+                      {fmtYmd(p.startDate)} ~ {fmtYmd(p.endDate)}
+                    </span>
+                  )}
                   <span className="rounded-md bg-slate-100 px-2 py-0.5">분과 {total}개{inProgress > 0 ? ` · 진행중 ${inProgress}` : ""}</span>
                   <span className="rounded-md bg-slate-100 px-2 py-0.5">
                     담당 간사 {p.secretaries.length === 0 ? "미배정" : p.secretaries.map((s) => s.name).join(", ")}

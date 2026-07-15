@@ -9,6 +9,8 @@ type OpinionItem = {
   subjectId: string;
   subjectName: string;
   text: string;
+  // 이 위원이 이 지원기업에 준 총점(전 항목 입력 시에만 산출, 아니면 null)
+  score: number | null;
 };
 
 const TRUNCATE_LENGTH = 200;
@@ -42,6 +44,7 @@ export default function OpinionViewer({ items }: { items: OpinionItem[] }) {
               <tr className="border-b border-slate-100">
                 <th className="w-40 px-5 py-3 font-medium">평가위원</th>
                 <th className="w-40 px-5 py-3 font-medium">지원기업</th>
+                <th className="w-24 px-5 py-3 text-right font-medium">점수</th>
                 <th className="px-5 py-3 font-medium">종합의견</th>
               </tr>
             </thead>
@@ -56,6 +59,9 @@ export default function OpinionViewer({ items }: { items: OpinionItem[] }) {
                       {item.isChair ? <span className="ml-1 text-xs text-indigo-500">(위원장)</span> : null}
                     </td>
                     <td className="px-5 py-3 text-slate-700">{item.subjectName}</td>
+                    <td className="px-5 py-3 text-right tabular-nums text-slate-700">
+                      {item.score !== null ? item.score.toFixed(1) : <span className="text-slate-300">—</span>}
+                    </td>
                     <td className="px-5 py-3 text-slate-600">
                       <p className="line-clamp-3 whitespace-pre-wrap leading-relaxed">{preview}</p>
                       {isLong && (

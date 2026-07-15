@@ -22,16 +22,24 @@ export async function createSession(formData: FormData) {
   if (!name || !projectId) return
   // 과제 접근 권한 검증(간사는 배정된 과제만)
   await assertProjectAccess(projectId)
-  const startDate = formData.get('startDate') ? new Date(String(formData.get('startDate'))) : null
-  const endDate = formData.get('endDate') ? new Date(String(formData.get('endDate'))) : null
-  const eventDate = formData.get('eventDate') ? new Date(String(formData.get('eventDate'))) : null
+  // 분과 평가 기간(시작일/종료일) — 소속 과제 기간 안에 있어야 한다.
+  const startRaw = String(formData.get('startDate') ?? '').trim()
+  const endRaw = String(formData.get('endDate') ?? '').trim()
+  if (!startRaw || !endRaw) return
+  const startDate = new Date(startRaw)
+  const endDate = new Date(endRaw)
+  if (endDate < startDate) return
+  const project = await prisma.project.findUnique({ where: { id: projectId }, select: { startDate: true, endDate: true } })
+  if (project?.startDate && startDate < project.startDate) return
+  if (project?.endDate && endDate > project.endDate) return
   const session = await prisma.evaluationSession.create({
     data: {
       name,
       description: String(formData.get('description') ?? '') || null,
       startDate,
       endDate,
-      eventDate,
+      // eventDate는 마감 판정·평가화면 안내용 — 종료일과 동기화 유지
+      eventDate: endDate,
       projectId,
       // 간사가 만들면 본인이 담당, 마스터가 만들면 폼의 secretaryId(선택)
       secretaryId: user.role === 'SECRETARY' ? user.id : (String(formData.get('secretaryId') ?? '') || null),

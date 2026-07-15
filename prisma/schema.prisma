@@ -81,7 +81,11 @@ model Project {
   description String?
   // 인쇄 평가표 헤더용 — 과제유형(예: 지역특화 R&D). 과제명은 name을 사용.
   taskType    String?
+  // (레거시) 평가일 — 기간(startDate/endDate)으로 대체. 컬럼은 보존.
   dueDate     DateTime?
+  // 과제 수행 기간
+  startDate   DateTime?
+  endDate     DateTime?
   // 집계 환산·등급 기준 만점(기본 100). 평가항목 배점 합계는 이 값과 일치해야 하며, 소속 분과 maxScore의 원본.
   maxScore    Int                 @default(100)
   secretaries User[]              @relation("ProjectSecretaries")

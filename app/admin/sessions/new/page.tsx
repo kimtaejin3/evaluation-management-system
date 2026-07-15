@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/db'
 import { requireAdminUser } from '@/lib/authz'
+import { fmtYmd } from '@/lib/dates'
 import { createSession } from '../actions'
 
 const labelCls = 'block text-sm font-medium text-slate-700'
@@ -22,13 +23,19 @@ export default async function NewSessionPage({
     prisma.project.findMany({
       where: isMaster ? {} : { secretaries: { some: { id: user.id } } },
       orderBy: { createdAt: 'desc' },
-      select: { id: true, name: true },
+      select: { id: true, name: true, startDate: true, endDate: true },
     }),
     // 담당 간사 선택은 마스터만 가능(간사가 만들면 본인이 자동 담당)
     isMaster
       ? prisma.user.findMany({ where: { role: 'SECRETARY' }, orderBy: { name: 'asc' }, select: { id: true, name: true, username: true } })
       : Promise.resolve([]),
   ])
+
+  // 미리 선택된 과제(분과 추가로 진입)의 기간 — 평가 기간 입력 범위(min/max)로 사용
+  const selected = projectId ? projects.find((p) => p.id === projectId) : undefined
+  const toInput = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : undefined)
+  const min = toInput(selected?.startDate ?? null)
+  const max = toInput(selected?.endDate ?? null)
 
   if (projects.length === 0) {
     return (
@@ -67,19 +74,17 @@ export default async function NewSessionPage({
             <label className={labelCls}>설명</label>
             <textarea name="description" rows={2} className={`${inputCls} resize-none`} placeholder="분과에 대한 간단한 설명(선택)" />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={labelCls}>시작일</label>
-              <input name="startDate" type="date" className={inputCls} />
-            </div>
-            <div>
-              <label className={labelCls}>종료일</label>
-              <input name="endDate" type="date" className={inputCls} />
-            </div>
-          </div>
           <div>
-            <label className={labelCls}>평가일</label>
-            <input name="eventDate" type="date" className={inputCls} />
+            <label className={labelCls}>평가 기간 <span className="text-rose-500">*</span></label>
+            <div className="grid grid-cols-2 gap-4">
+              <input name="startDate" type="date" required min={min} max={max} className={inputCls} />
+              <input name="endDate" type="date" required min={min} max={max} className={inputCls} />
+            </div>
+            {selected?.startDate && selected?.endDate && (
+              <p className="mt-1 text-xs text-slate-400">
+                과제 기간({fmtYmd(selected.startDate)} ~ {fmtYmd(selected.endDate)}) 안에서 입력하세요.
+              </p>
+            )}
           </div>
           {isMaster && (
             <div>

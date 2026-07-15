@@ -26,9 +26,15 @@ export default async function NewProjectPage() {
           <label className="text-sm font-medium text-slate-700">과제유형</label>
           <input name="taskType" required className={inputCls} placeholder="예) 지역특화 R&D — 인쇄 평가표 헤더에 표시" />
         </div>
-        <div>
-          <label className="text-sm font-medium text-slate-700">평가일</label>
-          <input name="dueDate" type="datetime-local" required className={inputCls} />
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-sm font-medium text-slate-700">시작일</label>
+            <input name="startDate" type="date" required className={inputCls} />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-slate-700">종료일</label>
+            <input name="endDate" type="date" required className={inputCls} />
+          </div>
         </div>
         <button className="rounded-md bg-indigo-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-indigo-700">
           과제 생성

@@ -10,17 +10,19 @@ export async function createProject(formData: FormData) {
   await assertMaster()
   const name = String(formData.get('name') ?? '').trim()
   const description = String(formData.get('description') ?? '').trim()
-  const dueRaw = String(formData.get('dueDate') ?? '').trim()
+  const startRaw = String(formData.get('startDate') ?? '').trim()
+  const endRaw = String(formData.get('endDate') ?? '').trim()
   const taskType = String(formData.get('taskType') ?? '').trim()
-  // 과제명·과제 개요·과제유형·평가일 모두 필수
-  if (!name || !description || !taskType || !dueRaw) return
+  // 과제명·과제 개요·과제유형·기간(시작일/종료일) 모두 필수
+  if (!name || !description || !taskType || !startRaw || !endRaw) return
   const p = await prisma.project.create({
     data: {
       name,
       description,
       // 인쇄 평가표 헤더용 과제유형
       taskType,
-      dueDate: new Date(dueRaw),
+      startDate: new Date(startRaw),
+      endDate: new Date(endRaw),
     },
   })
   redirect(`/admin/projects/${p.id}`)
