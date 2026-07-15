@@ -131,7 +131,7 @@ async function SubjectsContent({ id }: { id: string }) {
             <div className="text-sm font-semibold text-slate-700">
               평가 대상 추가
             </div>
-            <ExcelImportButton sessionId={id} kind="subjects" />
+            <ExcelImportButton scopeId={id} kind="subjects" />
           </div>
 
           {/* 신규 평가 대상(기업) 등록 → 이 분과에 바로 편입 */}

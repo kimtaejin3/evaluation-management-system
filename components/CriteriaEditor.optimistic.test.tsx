@@ -17,7 +17,7 @@ vi.mock('@/app/admin/sessions/actions', () => ({
   addCriterion: vi.fn(() => new Promise(() => {})),
   updateCriterion: vi.fn(() => Promise.resolve()),
   deleteCriterion: vi.fn(() => Promise.resolve()),
-  updateSessionMaxScore: vi.fn(() => Promise.resolve()),
+  updateProjectMaxScore: vi.fn(() => Promise.resolve()),
 }))
 
 import CriteriaEditor from './CriteriaEditor'
@@ -46,7 +46,7 @@ describe('optReducer (평가항목 낙관적 추가)', () => {
 describe('CriteriaEditor 추가 UX', () => {
   it('평가항목 추가 시 입력창이 즉시 닫히고 항목이 바로 나타난다(서버 응답 전)', async () => {
     const user = userEvent.setup()
-    render(<CriteriaEditor sessionId="s1" groups={[]} maxScore={100} />)
+    render(<CriteriaEditor projectId="p1" groups={[]} maxScore={100} />)
     await user.click(screen.getByRole('button', { name: '+ 평가항목 추가' })) // 그룹이 없을 때는 안내 영역의 텍스트 버튼(폴백)
     await user.type(screen.getByPlaceholderText('예: 사업계획'), '기대효과')
     await user.click(screen.getByRole('button', { name: '추가' }))
@@ -56,7 +56,7 @@ describe('CriteriaEditor 추가 UX', () => {
 
   it('세부항목 추가 시 세부항목·첫 평가지표가 세트로 즉시 나타난다', async () => {
     const user = userEvent.setup()
-    render(<CriteriaEditor sessionId="s1" groups={[{ id: 'g1', name: '사업계획', maxScore: 10, subitems: [] }]} maxScore={100} />)
+    render(<CriteriaEditor projectId="p1" groups={[{ id: 'g1', name: '사업계획', maxScore: 10, subitems: [] }]} maxScore={100} />)
     await user.click(screen.getByRole('button', { name: '세부항목 추가' }))
     await user.type(screen.getByPlaceholderText('예: 목표 및 내용'), '타당성')
     await user.type(screen.getByPlaceholderText('예: 사업 타당성'), '시장성')

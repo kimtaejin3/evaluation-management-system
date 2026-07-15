@@ -29,10 +29,10 @@ export default function EvaluatorReviewPanel({
   const run = (fn: () => Promise<void>) => start(async () => { await fn(); router.refresh() })
 
   const tone: Record<EvaluatorStatus, string> = {
-    DRAFT: 'border-slate-200 bg-slate-50 text-slate-600',
-    SUBMITTED: 'border-violet-200 bg-violet-50 text-violet-700',
+    DRAFT: 'border-indigo-200 bg-indigo-50/60 text-slate-700',
+    SUBMITTED: 'border-indigo-200 bg-indigo-50/60 text-slate-700',
     APPROVED: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-    REJECTED: 'border-rose-200 bg-rose-50 text-rose-700',
+    REJECTED: 'border-amber-200 bg-amber-50 text-amber-700',
   }
 
   const message = (() => {
@@ -49,7 +49,7 @@ export default function EvaluatorReviewPanel({
   })()
 
   return (
-    <div className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3 text-sm ${tone[status]}`}>
+    <div className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm ${tone[status]}`}>
       <div className="min-w-0">
         <span className="font-semibold">{STATUS_LABEL[status]}</span>
         <span className="ml-2 opacity-90">{message}</span>
@@ -68,7 +68,7 @@ export default function EvaluatorReviewPanel({
               if (!confirm('평가위원 배정을 제출할까요? 제출하면 관리자가 검토하며, 제출 중에는 배정을 변경할 수 없습니다.')) return
               run(() => submitEvaluators(sessionId))
             }}
-            className="rounded-lg bg-[var(--gov-navy)] px-4 py-1.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+            className="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50"
           >
             {pending ? '처리 중…' : status === 'REJECTED' ? '다시 제출' : '제출'}
           </button>
@@ -98,7 +98,7 @@ export default function EvaluatorReviewPanel({
                   if (!confirm('이 분과의 평가위원 배정을 승인할까요? 승인하면 위원들이 평가에 참여할 수 있습니다.')) return
                   run(() => approveEvaluators(sessionId))
                 }}
-                className="rounded-lg bg-[var(--gov-navy)] px-4 py-1.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+                className="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50"
               >
                 {pending ? '처리 중…' : '승인'}
               </button>
@@ -153,7 +153,7 @@ function RejectButton({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-lg border border-rose-300 bg-white px-3 py-1.5 text-sm font-medium text-rose-600 transition hover:bg-rose-50"
+        className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
       >
         반려
       </button>
@@ -172,7 +172,7 @@ function RejectButton({
               required
               rows={4}
               placeholder="반려 사유를 입력하세요"
-              className="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-rose-500 focus:outline-none focus:ring-1 focus:ring-rose-500"
+              className="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
             />
             <div className="mt-4 flex justify-end gap-2">
               <button type="button" onClick={() => setOpen(false)} className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-600 transition hover:bg-slate-50">
@@ -182,7 +182,7 @@ function RejectButton({
                 type="button"
                 onClick={submit}
                 disabled={pending || !reason.trim()}
-                className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-rose-700 disabled:opacity-40"
+                className="rounded-lg bg-slate-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700 disabled:opacity-40"
               >
                 {pending ? '처리 중…' : '반려'}
               </button>

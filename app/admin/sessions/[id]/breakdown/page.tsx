@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import { prisma } from '@/lib/db'
+import { criteriaScopeForSession } from '@/lib/criteria-scope'
 import { computeWeightedScore } from '@/lib/scoring'
 import { SkeletonTable } from '@/components/Skeletons'
 
@@ -24,7 +25,7 @@ async function BreakdownContent({ id }: { id: string }) {
     prisma.evaluationSession.findUnique({ where: { id }, select: { chairId: true } }),
     prisma.subject.findMany({ where: { sessionId: id }, orderBy: { order: 'asc' } }),
     prisma.criterion.findMany({
-      where: { sessionId: id },
+      where: await criteriaScopeForSession(id),
       include: { subitem: { include: { group: true } } },
       orderBy: [
         { subitem: { group: { order: 'asc' } } },

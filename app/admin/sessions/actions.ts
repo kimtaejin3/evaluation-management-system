@@ -72,180 +72,147 @@ export async function setSessionStatus(sessionId: string, status: 'DRAFT' | 'IN_
   revalidatePath(`/admin/sessions/${sessionId}`)
 }
 
-// ── 평가항목(그룹) ──
-export async function addGroup(sessionId: string, formData: FormData) {
-  const { user } = await assertSessionAccess(sessionId)
-  if (user.role === 'MASTER') return
+// ── 평가항목(그룹) — 과제(Project) 단위, 관리자(MASTER) 전용 편집 ──
+// 평가항목은 과제의 모든 분과가 공유하므로 관리자가 과제당 1벌을 작성하고, 각 분과 간사는 '확인'만 한다.
+// 평가항목 변경은 과제 페이지 + 소속 분과들의 확인/채점 화면에 두루 영향 → 레이아웃 단위로 갱신.
+function revalidateCriteria(projectId: string) {
+  revalidatePath('/admin', 'layout')
+  revalidatePath(`/admin/projects/${projectId}/criteria`)
+}
+
+export async function addGroup(projectId: string, formData: FormData) {
+  const { user } = await assertProjectAccess(projectId)
+  if (user.role !== 'MASTER') return
   const name = String(formData.get('name') ?? '').trim()
   if (!name) return
   const maxScore = Number(formData.get('maxScore') ?? 0) || 0
-  const count = await prisma.criterionGroup.count({ where: { sessionId } })
-  await prisma.criterionGroup.create({ data: { sessionId, name, maxScore, order: count } })
-  revalidatePath(`/admin/sessions/${sessionId}/criteria`)
+  const count = await prisma.criterionGroup.count({ where: { projectId } })
+  await prisma.criterionGroup.create({ data: { projectId, name, maxScore, order: count } })
+  revalidateCriteria(projectId)
 }
 
-// 분과 기준 만점 수정(집계 환산 분모). 평가항목 배점 합계가 이 값과 일치해야 함.
-export async function updateSessionMaxScore(sessionId: string, maxScore: number) {
-  const { user } = await assertSessionAccess(sessionId)
-  if (user.role === 'MASTER') return
+// 과제 기준 만점 수정(집계 환산 분모). 평가항목 배점 합계가 이 값과 일치해야 함.
+// 분과 집계는 session.maxScore를 쓰므로 소속 분과들에도 동기화한다.
+export async function updateProjectMaxScore(projectId: string, maxScore: number) {
+  const { user } = await assertProjectAccess(projectId)
+  if (user.role !== 'MASTER') return
   const v = Math.round(Number(maxScore))
   if (!Number.isFinite(v) || v <= 0) return
-  await prisma.evaluationSession.update({ where: { id: sessionId }, data: { maxScore: v } })
-  revalidatePath(`/admin/sessions/${sessionId}/criteria`)
-  revalidatePath(`/admin/sessions/${sessionId}/results`)
+  await prisma.project.update({ where: { id: projectId }, data: { maxScore: v } })
+  await prisma.evaluationSession.updateMany({ where: { projectId }, data: { maxScore: v } })
+  revalidateCriteria(projectId)
 }
 export async function updateGroup(groupId: string, formData: FormData) {
-  const g = await prisma.criterionGroup.findUnique({ where: { id: groupId }, select: { sessionId: true } })
-  if (!g) return
-  const { user } = await assertSessionAccess(g.sessionId)
-  if (user.role === 'MASTER') return
+  const g = await prisma.criterionGroup.findUnique({ where: { id: groupId }, select: { projectId: true } })
+  if (!g?.projectId) return
+  const { user } = await assertProjectAccess(g.projectId)
+  if (user.role !== 'MASTER') return
   const name = String(formData.get('name') ?? '').trim()
   const maxScore = Number(formData.get('maxScore') ?? 0) || 0
   await prisma.criterionGroup.update({ where: { id: groupId }, data: { ...(name ? { name } : {}), maxScore } })
-  revalidatePath(`/admin/sessions/${g.sessionId}/criteria`)
+  revalidateCriteria(g.projectId)
 }
 export async function deleteGroup(groupId: string) {
-  const g = await prisma.criterionGroup.findUnique({ where: { id: groupId }, select: { sessionId: true } })
-  if (!g) return
-  const { user } = await assertSessionAccess(g.sessionId)
-  if (user.role === 'MASTER') return
+  const g = await prisma.criterionGroup.findUnique({ where: { id: groupId }, select: { projectId: true } })
+  if (!g?.projectId) return
+  const { user } = await assertProjectAccess(g.projectId)
+  if (user.role !== 'MASTER') return
   await prisma.criterionGroup.delete({ where: { id: groupId } })
-  revalidatePath(`/admin/sessions/${g.sessionId}/criteria`)
+  revalidateCriteria(g.projectId)
 }
 // ── 세부항목 ──
 export async function addSubitem(groupId: string, formData: FormData) {
-  const g = await prisma.criterionGroup.findUnique({ where: { id: groupId }, select: { sessionId: true } })
-  if (!g) return
-  const { user } = await assertSessionAccess(g.sessionId)
-  if (user.role === 'MASTER') return
+  const g = await prisma.criterionGroup.findUnique({ where: { id: groupId }, select: { projectId: true } })
+  if (!g?.projectId) return
+  const { user } = await assertProjectAccess(g.projectId)
+  if (user.role !== 'MASTER') return
   const name = String(formData.get('name') ?? '').trim()
   if (!name) return
   const count = await prisma.criterionSubitem.count({ where: { groupId } })
   await prisma.criterionSubitem.create({ data: { groupId, name, order: count } })
-  revalidatePath(`/admin/sessions/${g.sessionId}/criteria`)
+  revalidateCriteria(g.projectId)
 }
 
 // 세부항목 + 첫 평가지표를 한 번에 생성(세트). 세부항목명(name) + 평가지표명(criterionName) + 배점(maxScore).
 export async function addSubitemWithCriterion(groupId: string, formData: FormData) {
-  const g = await prisma.criterionGroup.findUnique({ where: { id: groupId }, select: { sessionId: true } })
-  if (!g) return
-  const { user } = await assertSessionAccess(g.sessionId)
-  if (user.role === 'MASTER') return
+  const g = await prisma.criterionGroup.findUnique({ where: { id: groupId }, select: { projectId: true } })
+  if (!g?.projectId) return
+  const { user } = await assertProjectAccess(g.projectId)
+  if (user.role !== 'MASTER') return
   const name = String(formData.get('name') ?? '').trim()
   const criterionName = String(formData.get('criterionName') ?? '').trim()
   if (!name || !criterionName) return
   const maxScore = Number(formData.get('maxScore') ?? 0) || 0
   const subCount = await prisma.criterionSubitem.count({ where: { groupId } })
   const subitem = await prisma.criterionSubitem.create({ data: { groupId, name, order: subCount } })
-  const critCount = await prisma.criterion.count({ where: { sessionId: g.sessionId } })
+  const critCount = await prisma.criterion.count({ where: { projectId: g.projectId } })
   await prisma.criterion.create({
-    data: { sessionId: g.sessionId, subitemId: subitem.id, name: criterionName, maxScore, order: critCount },
+    data: { projectId: g.projectId, subitemId: subitem.id, name: criterionName, maxScore, order: critCount },
   })
-  revalidatePath(`/admin/sessions/${g.sessionId}/criteria`)
+  revalidateCriteria(g.projectId)
 }
 export async function updateSubitem(subitemId: string, formData: FormData) {
-  const s = await prisma.criterionSubitem.findUnique({ where: { id: subitemId }, select: { group: { select: { sessionId: true } } } })
-  if (!s) return
-  const { user } = await assertSessionAccess(s.group.sessionId)
-  if (user.role === 'MASTER') return
+  const s = await prisma.criterionSubitem.findUnique({ where: { id: subitemId }, select: { group: { select: { projectId: true } } } })
+  if (!s?.group.projectId) return
+  const { user } = await assertProjectAccess(s.group.projectId)
+  if (user.role !== 'MASTER') return
   const name = String(formData.get('name') ?? '').trim()
   if (name) await prisma.criterionSubitem.update({ where: { id: subitemId }, data: { name } })
-  revalidatePath(`/admin/sessions/${s.group.sessionId}/criteria`)
+  revalidateCriteria(s.group.projectId)
 }
 export async function deleteSubitem(subitemId: string) {
-  const s = await prisma.criterionSubitem.findUnique({ where: { id: subitemId }, select: { group: { select: { sessionId: true } } } })
-  if (!s) return
-  const { user } = await assertSessionAccess(s.group.sessionId)
-  if (user.role === 'MASTER') return
+  const s = await prisma.criterionSubitem.findUnique({ where: { id: subitemId }, select: { group: { select: { projectId: true } } } })
+  if (!s?.group.projectId) return
+  const { user } = await assertProjectAccess(s.group.projectId)
+  if (user.role !== 'MASTER') return
   await prisma.criterionSubitem.delete({ where: { id: subitemId } })
-  revalidatePath(`/admin/sessions/${s.group.sessionId}/criteria`)
+  revalidateCriteria(s.group.projectId)
 }
 // ── 평가지표(리프) ──
 export async function addCriterion(subitemId: string, formData: FormData) {
-  const s = await prisma.criterionSubitem.findUnique({ where: { id: subitemId }, select: { group: { select: { sessionId: true } } } })
-  if (!s) return
-  const sessionId = s.group.sessionId
-  const { user } = await assertSessionAccess(sessionId)
-  if (user.role === 'MASTER') return
+  const s = await prisma.criterionSubitem.findUnique({ where: { id: subitemId }, select: { group: { select: { projectId: true } } } })
+  if (!s?.group.projectId) return
+  const projectId = s.group.projectId
+  const { user } = await assertProjectAccess(projectId)
+  if (user.role !== 'MASTER') return
   const name = String(formData.get('name') ?? '').trim()
   if (!name) return
   const maxScore = Number(formData.get('maxScore') ?? 0) || 0
-  const count = await prisma.criterion.count({ where: { sessionId } })
-  await prisma.criterion.create({ data: { sessionId, subitemId, name, maxScore, order: count } })
-  revalidatePath(`/admin/sessions/${sessionId}/criteria`)
+  const count = await prisma.criterion.count({ where: { projectId } })
+  await prisma.criterion.create({ data: { projectId, subitemId, name, maxScore, order: count } })
+  revalidateCriteria(projectId)
 }
 export async function updateCriterion(criterionId: string, formData: FormData) {
-  const c = await prisma.criterion.findUnique({ where: { id: criterionId }, select: { sessionId: true } })
-  if (!c) return
-  const { user } = await assertSessionAccess(c.sessionId)
-  if (user.role === 'MASTER') return
+  const c = await prisma.criterion.findUnique({ where: { id: criterionId }, select: { projectId: true } })
+  if (!c?.projectId) return
+  const { user } = await assertProjectAccess(c.projectId)
+  if (user.role !== 'MASTER') return
   const name = String(formData.get('name') ?? '').trim()
   const maxScore = Number(formData.get('maxScore') ?? 0) || 0
   await prisma.criterion.update({ where: { id: criterionId }, data: { ...(name ? { name } : {}), maxScore } })
-  revalidatePath(`/admin/sessions/${c.sessionId}/criteria`)
+  revalidateCriteria(c.projectId)
 }
 export async function deleteCriterion(criterionId: string) {
-  const c = await prisma.criterion.findUnique({ where: { id: criterionId }, select: { sessionId: true } })
-  if (!c) return
-  const { user } = await assertSessionAccess(c.sessionId)
-  if (user.role === 'MASTER') return
+  const c = await prisma.criterion.findUnique({ where: { id: criterionId }, select: { projectId: true } })
+  if (!c?.projectId) return
+  const { user } = await assertProjectAccess(c.projectId)
+  if (user.role !== 'MASTER') return
   await prisma.criterion.delete({ where: { id: criterionId } })
-  revalidatePath(`/admin/sessions/${c.sessionId}/criteria`)
+  revalidateCriteria(c.projectId)
 }
 
-// ── 평가항목 검토 워크플로: 간사 제출 → 관리자 승인/반려 ──
-// 간사 제출 → 관리자 검토 대기(SUBMITTED). 관리자는 조회만이므로 MASTER는 차단. 항목이 없으면 제출 불가.
-export async function submitCriteria(sessionId: string) {
-  const { user } = await assertSessionAccess(sessionId)
+// ── 평가항목 확인: 관리자가 작성한 과제 공통 항목을 담당 간사가 '확인' ──
+// 관리자는 과제 평가항목 페이지에서 분과별 확인 여부(간사·시각)를 본다.
+export async function ackCriteria(sessionId: string) {
+  const { user, session } = await assertSessionAccess(sessionId)
   if (user.role === 'MASTER') return
-  const count = await prisma.criterion.count({ where: { sessionId } })
+  if (!session.projectId) return
+  // 확인할 항목이 없으면 확인 불가
+  const count = await prisma.criterion.count({ where: { projectId: session.projectId } })
   if (count === 0) return
-  await prisma.evaluationSession.update({
-    where: { id: sessionId },
-    data: { criteriaStatus: 'SUBMITTED', criteriaRejectionReason: null },
-  })
+  await prisma.evaluationSession.update({ where: { id: sessionId }, data: { criteriaAckAt: new Date() } })
   revalidatePath(`/admin/sessions/${sessionId}/criteria`)
-  revalidatePath(`/admin/sessions/${sessionId}`)
-}
-
-// 간사 제출 취소 → 다시 입력중(DRAFT). 관리자 승인/반려 전(SUBMITTED)에만 가능.
-export async function cancelSubmitCriteria(sessionId: string) {
-  const { user } = await assertSessionAccess(sessionId)
-  if (user.role === 'MASTER') return
-  const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { criteriaStatus: true } })
-  if (!s || s.criteriaStatus !== 'SUBMITTED') return
-  await prisma.evaluationSession.update({ where: { id: sessionId }, data: { criteriaStatus: 'DRAFT' } })
-  revalidatePath(`/admin/sessions/${sessionId}/criteria`)
-  revalidatePath(`/admin/sessions/${sessionId}`)
-}
-
-// 관리자 평가항목 승인(SUBMITTED → APPROVED). 마스터 전용.
-export async function approveCriteria(sessionId: string) {
-  await assertMaster()
-  const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { criteriaStatus: true } })
-  if (!s || s.criteriaStatus !== 'SUBMITTED') return
-  await prisma.evaluationSession.update({
-    where: { id: sessionId },
-    data: { criteriaStatus: 'APPROVED', criteriaRejectionReason: null },
-  })
-  revalidatePath(`/admin/sessions/${sessionId}/criteria`)
-  revalidatePath(`/admin/sessions/${sessionId}`)
-}
-
-// 관리자 평가항목 반려(SUBMITTED → REJECTED) + 사유. 간사가 재작성/재제출. 마스터 전용.
-export async function rejectCriteria(sessionId: string, reason: string) {
-  await assertMaster()
-  const trimmed = (reason ?? '').trim()
-  if (!trimmed) return
-  // 제출(SUBMITTED)뿐 아니라 승인(APPROVED) 이후에도 관리자가 다시 반려할 수 있다(간사 재수정).
-  const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { criteriaStatus: true } })
-  if (!s || (s.criteriaStatus !== 'SUBMITTED' && s.criteriaStatus !== 'APPROVED')) return
-  await prisma.evaluationSession.update({
-    where: { id: sessionId },
-    data: { criteriaStatus: 'REJECTED', criteriaRejectionReason: trimmed },
-  })
-  revalidatePath(`/admin/sessions/${sessionId}/criteria`)
-  revalidatePath(`/admin/sessions/${sessionId}`)
+  revalidatePath(`/admin/projects/${session.projectId}/criteria`)
 }
 
 // ── 평가표 엑셀 임포트(파일 업로드 + 복붙) ──
@@ -280,12 +247,10 @@ export async function parseSheetUpload(formData: FormData): Promise<{ grid: stri
   }
 }
 
-export async function commitKpassImport(sessionId: string, payload: KpassImportPayload): Promise<KpassImportResult> {
-  const { user } = await assertSessionAccess(sessionId)
-  if (user.role === 'MASTER') return { ok: false, error: '가져오기는 담당 간사만 가능합니다.' }
-  const cs = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { criteriaStatus: true } })
-  if (!cs || (cs.criteriaStatus !== 'DRAFT' && cs.criteriaStatus !== 'REJECTED'))
-    return { ok: false, error: '제출 완료 상태에서는 가져올 수 없습니다. 제출을 취소한 뒤 다시 시도하세요.' }
+export async function commitKpassImport(projectId: string, payload: KpassImportPayload): Promise<KpassImportResult> {
+  // 평가항목은 과제 단위 — 관리자만 가져올 수 있다.
+  const { user } = await assertProjectAccess(projectId)
+  if (user.role !== 'MASTER') return { ok: false, error: '가져오기는 관리자만 가능합니다.' }
   const grid = payload.grid ?? []
   if (grid.length === 0) return { ok: false, error: '가져올 내용이 없습니다.' }
 
@@ -300,11 +265,11 @@ export async function commitKpassImport(sessionId: string, payload: KpassImportP
     return { ok: false, error: warnings[0] ?? '가져올 항목이 없습니다.', warnings }
   }
 
-  // 점수가 이미 입력된 세션은 기존 항목 대체 금지(데이터 보호)
+  // 이 과제 항목으로 점수가 이미 입력됐다면 기존 항목 대체 금지(데이터 보호)
   if (payload.replaceCriteria) {
-    const scoreCount = await prisma.score.count({ where: { sessionId } })
+    const scoreCount = await prisma.score.count({ where: { criterion: { projectId } } })
     if (scoreCount > 0) {
-      return { ok: false, error: '이미 채점이 시작된 심사라 기존 평가항목을 대체할 수 없습니다. "기존 항목 대체"를 해제하고 추가하세요.' }
+      return { ok: false, error: '이미 채점이 시작된 과제라 기존 평가항목을 대체할 수 없습니다. "기존 항목 대체"를 해제하고 추가하세요.' }
     }
   }
 
@@ -338,18 +303,18 @@ export async function commitKpassImport(sessionId: string, payload: KpassImportP
       let criterionOrder: number
       if (payload.replaceCriteria) {
         // CriterionGroup 삭제 → cascade로 하위 CriterionSubitem/Criterion/Score까지 함께 삭제
-        await tx.criterionGroup.deleteMany({ where: { sessionId } })
+        await tx.criterionGroup.deleteMany({ where: { projectId } })
         groupOrder = 0
         criterionOrder = 0
       } else {
-        groupOrder = await tx.criterionGroup.count({ where: { sessionId } })
-        criterionOrder = await tx.criterion.count({ where: { sessionId } })
+        groupOrder = await tx.criterionGroup.count({ where: { projectId } })
+        criterionOrder = await tx.criterion.count({ where: { projectId } })
       }
 
       for (const g of groupBuckets) {
         const group = await tx.criterionGroup.create({
           data: {
-            sessionId,
+            projectId,
             name: g.name,
             maxScore: g.subs.reduce((sum, sub) => sum + sub.leaves.reduce((a, l) => a + l.maxScore, 0), 0),
             order: groupOrder++,
@@ -364,7 +329,7 @@ export async function commitKpassImport(sessionId: string, payload: KpassImportP
           for (const leaf of sub.leaves) {
             await tx.criterion.create({
               data: {
-                sessionId,
+                projectId,
                 subitemId: subitem.id,
                 name: leaf.name,
                 maxScore: leaf.maxScore,
@@ -379,7 +344,7 @@ export async function commitKpassImport(sessionId: string, payload: KpassImportP
     { timeout: 20000 },
   )
 
-  revalidatePath(`/admin/sessions/${sessionId}/criteria`)
+  revalidateCriteria(projectId)
   return { ok: true, created: rows.length, warnings }
 }
 

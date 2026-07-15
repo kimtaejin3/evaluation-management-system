@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { prisma } from "@/lib/db";
+import { criteriaScopeForSession } from "@/lib/criteria-scope";
 import { computeFinalScores, rankSubjects } from "@/lib/scoring";
 import { getSessionInsights } from "@/lib/progress";
 import { TOTAL_SCORE } from "@/lib/criteria";
@@ -42,7 +43,7 @@ async function ResultsContent({ id }: { id: string }) {
     prisma.evaluationSession.findUnique({ where: { id } }),
     prisma.subject.findMany({ where: { sessionId: id } }),
     prisma.criterion.findMany({
-      where: { sessionId: id },
+      where: await criteriaScopeForSession(id),
       include: { subitem: { include: { group: true } } },
     }),
     prisma.score.findMany({ where: { sessionId: id } }),

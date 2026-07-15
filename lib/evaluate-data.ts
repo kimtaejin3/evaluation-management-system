@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { computeWeightedScore } from '@/lib/scoring'
+import { criteriaScopeForSession } from '@/lib/criteria-scope'
 import { isAssignmentActive } from '@/lib/assignment'
 
 export interface CriterionView {
@@ -35,6 +36,8 @@ export async function getSheetData(
   sessionId: string,
   subjectId: string,
 ): Promise<SheetData | null> {
+  // 평가항목은 과제(Project) 단위 공통 — 분과의 소속 과제 항목을 읽는다.
+  const criteriaWhere = await criteriaScopeForSession(sessionId)
   const [subject, session, criteria, existing, opinion, subjects, myScores, submission, assignment] = await Promise.all([
     prisma.subject.findUnique({
       where: { id: subjectId },
@@ -48,7 +51,7 @@ export async function getSheetData(
     }),
     prisma.evaluationSession.findUnique({ where: { id: sessionId } }),
     prisma.criterion.findMany({
-      where: { sessionId },
+      where: criteriaWhere,
       include: { subitem: { include: { group: true } } },
     }),
     prisma.score.findMany({ where: { evaluatorId: userId, subjectId } }),
@@ -168,13 +171,30 @@ export async function getHomeData(userId: string): Promise<HomeSession[]> {
                 },
               },
             },
-            criteria: { include: { subitem: { include: { group: true } } } },
           },
         },
       },
     }),
     prisma.score.findMany({ where: { evaluatorId: userId }, select: { subjectId: true, criterionId: true, value: true } }),
   ])
+
+  // 평가항목은 과제(Project) 단위 공통 — 배정 분과들의 소속 과제 항목을 한 번에 조회.
+  // (과제 미소속 레거시 분과는 세션 단위 항목으로 폴백)
+  const projectIds = [...new Set(assignments.map((a) => a.session.projectId).filter((v): v is string => !!v))]
+  const legacySessionIds = assignments.filter((a) => !a.session.projectId).map((a) => a.session.id)
+  const allCriteria = await prisma.criterion.findMany({
+    where: {
+      OR: [
+        ...(projectIds.length ? [{ projectId: { in: projectIds } }] : []),
+        ...(legacySessionIds.length ? [{ sessionId: { in: legacySessionIds } }] : []),
+      ],
+    },
+    include: { subitem: { include: { group: true } } },
+  })
+  const criteriaOfSession = (s: { id: string; projectId: string | null }) =>
+    s.projectId
+      ? allCriteria.filter((c) => c.projectId === s.projectId)
+      : allCriteria.filter((c) => c.sessionId === s.id)
 
   const rowsBySubject = new Map<string, { criterionId: string; value: number }[]>()
   for (const s of myScores) {
@@ -183,8 +203,9 @@ export async function getHomeData(userId: string): Promise<HomeSession[]> {
   }
 
   return assignments.map((a) => {
-    const total = a.session.criteria.length
-    const weights = a.session.criteria.map((c) => ({ id: c.id, weight: c.weight }))
+    const sessionCriteria = criteriaOfSession(a.session)
+    const total = sessionCriteria.length
+    const weights = sessionCriteria.map((c) => ({ id: c.id, weight: c.weight }))
     const subjects: HomeSubject[] = a.session.subjects.map((sub) => {
       const rows = rowsBySubject.get(sub.id) ?? []
       const complete = total > 0 && rows.length >= total
@@ -208,7 +229,7 @@ export async function getHomeData(userId: string): Promise<HomeSession[]> {
       eventDate: a.session.eventDate ? a.session.eventDate.toISOString() : null,
       doneSubjects: subjects.filter((s) => s.status === 'complete').length,
       totalSubjects: subjects.length,
-      criteria: a.session.criteria
+      criteria: sessionCriteria
         .slice()
         .sort((x, y) => {
           const gX = x.subitem?.group.order ?? 0
@@ -258,9 +279,11 @@ export async function getChairData(userId: string, sessionId: string): Promise<C
   if (!session || session.chairId !== userId) return null
   const chairId = session.chairId
 
+  // 평가항목은 과제(Project) 단위 공통
+  const criteriaWhere = await criteriaScopeForSession(sessionId)
   const [subjects, criteria, assignments, scores, opinions] = await Promise.all([
     prisma.subject.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } }),
-    prisma.criterion.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true, maxScore: true, weight: true } }),
+    prisma.criterion.findMany({ where: criteriaWhere, orderBy: { order: 'asc' }, select: { id: true, name: true, maxScore: true, weight: true } }),
     prisma.assignment.findMany({ where: { sessionId }, include: { user: { select: { id: true, name: true } } } }),
     prisma.score.findMany({ where: { sessionId }, select: { evaluatorId: true, subjectId: true, criterionId: true, value: true } }),
     prisma.opinion.findMany({ where: { sessionId }, select: { evaluatorId: true, subjectId: true, text: true } }),

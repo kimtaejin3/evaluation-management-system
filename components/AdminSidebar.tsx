@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { SessionsIcon, UsersIcon } from "./icons";
 import { SESSION_TABS as SUB_ITEMS } from "@/lib/session-nav";
+import { PROJECT_TABS } from "@/lib/project-nav";
 
 const APP_VERSION = "0.1.0";
 
@@ -165,18 +166,26 @@ type ProjectItem = {
   sessions: Session[];
 };
 
-// 마스터 사이드바: 과제 노드(접기/펼치기) + 하위 분과 목록
+// 마스터 사이드바: 과제 노드(접기/펼치기) + 과제 단위 페이지 메뉴.
+// 관리자는 분과를 개별로 오가지 않고, 과제의 모니터링/평가항목/평가대상/평가위원/의견서
+// 페이지에서 분과들을 테이블 뷰로 한눈에 본다. (분과 상세는 각 페이지의 분과명 링크로 진입)
 function ProjectNode({
   project,
   pathname,
+  currentSessionId = null,
 }: {
   project: ProjectItem;
   pathname: string;
+  currentSessionId?: string | null;
 }) {
-  const projActive = pathname === `/admin/projects/${project.id}`;
-  const [open, setOpen] = useState(
-    pathname.startsWith(`/admin/projects/${project.id}`),
-  );
+  const base = `/admin/projects/${project.id}`;
+  const projActive = pathname === base;
+  // 과제 경로이거나, 이 과제 소속 분과 상세를 보고 있으면 펼침
+  const containsCurrentSession =
+    !!currentSessionId && project.sessions.some((s) => s.id === currentSessionId);
+  const [open, setOpen] = useState(pathname.startsWith(base) || containsCurrentSession);
+  const tabActive = (suffix: string) =>
+    suffix === "" ? pathname === base : pathname.startsWith(`${base}${suffix}`);
   return (
     <div>
       <div className="flex items-center">
@@ -184,7 +193,7 @@ function ProjectNode({
           type="button"
           onClick={() => setOpen((o) => !o)}
           className="shrink-0 rounded p-1 text-slate-400 transition hover:text-white"
-          aria-label={open ? "분과 접기" : "분과 펼치기"}
+          aria-label={open ? "메뉴 접기" : "메뉴 펼치기"}
           aria-expanded={open}
         >
           <svg
@@ -201,7 +210,7 @@ function ProjectNode({
           </svg>
         </button>
         <Link
-          href={`/admin/projects/${project.id}`}
+          href={base}
           className={`${sessionCls(projActive)} flex-1`}
           title={project.name}
         >
@@ -210,26 +219,14 @@ function ProjectNode({
       </div>
       {open && (
         <div className="ml-4 space-y-0.5 border-l border-white/10 pl-2">
-          {project.sessions.length === 0 && (
-            <div className="px-3 py-1 text-[11px] text-slate-500">
-              분과 없음
-            </div>
-          )}
-          {project.sessions.map((s) => (
+          {PROJECT_TABS.map((t) => (
             <Link
-              key={s.id}
-              href={`/admin/sessions/${s.id}`}
-              className={sessionCls(false)}
-              title={`${s.name} · ${STATUS[s.status]?.label ?? s.status}`}
+              key={t.suffix}
+              href={`${base}${t.suffix}`}
+              className={sessionCls(tabActive(t.suffix))}
+              title={t.desc}
             >
-              <span className="flex items-center gap-1.5">
-                <span
-                  className={`shrink-0 text-[10px] font-medium ${STATUS_TEXT[s.status] ?? "text-slate-400"}`}
-                >
-                  {STATUS[s.status]?.label ?? s.status}
-                </span>
-                <span className="truncate">{s.name}</span>
-              </span>
+              <span className="truncate">{t.label}</span>
             </Link>
           ))}
         </div>
@@ -271,8 +268,8 @@ export default function AdminSidebar({
         </div>
       </div>
 
-      {sid ? (
-        /* ── 세션 모드: 이 분과의 메뉴만 ── */
+      {sid && !isMaster ? (
+        /* ── 세션 모드(간사 전용): 이 분과의 메뉴만. 마스터는 분과 상세에서도 과제 사이드바 유지 ── */
         <>
           <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
             {(() => {
@@ -346,7 +343,7 @@ export default function AdminSidebar({
                   </div>
                 )}
                 {projects.map((p) => (
-                  <ProjectNode key={p.id} project={p} pathname={pathname} />
+                  <ProjectNode key={p.id} project={p} pathname={pathname} currentSessionId={sid} />
                 ))}
               </div>
             </div>

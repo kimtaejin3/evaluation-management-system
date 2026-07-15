@@ -86,14 +86,16 @@ async function OpinionsContent({ id }: { id: string }) {
         <ExcelExportButton href={`/api/sessions/${id}/export/opinions`} />
       </div>
 
-      {/* 검토 워크플로 배너 — 간사: 제출/취소, 관리자: 승인/반려 */}
+      {/* 간사 검토 상태 배너 — 간사: 검토 완료/취소, 관리자: 승인/반려. 의견서는 위원이 작성하고
+          간사는 내용을 '검토'만 하므로 제출 대신 검토 표현을 쓴다(wording="review"). */}
       {!locked && (
         <ReviewWorkflowPanel
           sessionId={id}
           isMaster={isMaster}
           status={os}
           rejectionReason={session?.opinionRejectionReason ?? null}
-          draftBadge="취합중"
+          draftBadge="검토중"
+          wording="review"
           onSubmit={submitOpinions}
           onCancelSubmit={cancelSubmitOpinions}
           onApprove={approveOpinions}

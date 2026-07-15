@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx'
 import { prisma } from '@/lib/db'
+import { criteriaScopeForSession } from '@/lib/criteria-scope'
 import { getCurrentToken } from '@/lib/session'
 import { canTokenAccessSession } from '@/lib/authz'
 import { computeFinalScores, rankSubjects, overallGrade } from '@/lib/scoring'
@@ -16,7 +17,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const [session, subjects, criteria, scores, approvedSubs] = await Promise.all([
     prisma.evaluationSession.findUnique({ where: { id }, select: { maxScore: true } }),
     prisma.subject.findMany({ where: { sessionId: id }, orderBy: { order: 'asc' } }),
-    prisma.criterion.findMany({ where: { sessionId: id }, select: { id: true, weight: true } }),
+    prisma.criterion.findMany({ where: await criteriaScopeForSession(id), select: { id: true, weight: true } }),
     prisma.score.findMany({ where: { sessionId: id }, select: { evaluatorId: true, subjectId: true, criterionId: true, value: true } }),
     prisma.submission.findMany({ where: { sessionId: id, status: 'APPROVED' }, select: { evaluatorId: true, subjectId: true } }),
   ])

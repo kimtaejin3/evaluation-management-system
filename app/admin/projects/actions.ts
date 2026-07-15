@@ -26,16 +26,6 @@ export async function createProject(formData: FormData) {
   redirect(`/admin/projects/${p.id}`)
 }
 
-// 과제 과제유형 수정(마스터) — 인쇄 헤더용
-export async function updateProjectTaskType(projectId: string, formData: FormData) {
-  await assertMaster()
-  await prisma.project.update({
-    where: { id: projectId },
-    data: { taskType: String(formData.get('taskType') ?? '').trim() || null },
-  })
-  revalidatePath(`/admin/projects/${projectId}`)
-}
-
 // "배정" = 간사(기존 선택)를 분과에 배정. 과제 접근 권한도 함께 부여(project.secretaries).
 export async function assignSecretaryToSession(projectId: string, formData: FormData) {
   await assertMaster()

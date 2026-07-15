@@ -82,8 +82,13 @@ model Project {
   // 인쇄 평가표 헤더용 — 과제유형(예: 지역특화 R&D). 과제명은 name을 사용.
   taskType    String?
   dueDate     DateTime?
+  // 집계 환산·등급 기준 만점(기본 100). 평가항목 배점 합계는 이 값과 일치해야 하며, 소속 분과 maxScore의 원본.
+  maxScore    Int                 @default(100)
   secretaries User[]              @relation("ProjectSecretaries")
   sessions    EvaluationSession[]
+  // 평가항목은 과제 단위(모든 분과 공통) — 관리자가 작성, 간사는 확인
+  criteria        Criterion[]
+  criterionGroups CriterionGroup[]
   createdAt   DateTime            @default(now())
 }
 
@@ -105,9 +110,11 @@ model EvaluationSession {
   chairSummary    String?
   // 간사가 집계 결과를 '제출 완료'한 시각. null이면 제출 전(제출중) — 관리자는 이 값이 있어야 '검토 완료' 가능.
   submittedForReviewAt DateTime?
-  // 평가항목 검토 상태. 간사 제출 전(DRAFT/REJECTED)에는 관리자가 항목을 볼 수 없고, 제출(SUBMITTED) 후 승인/반려한다.
+  // (레거시) 평가항목 검토 상태 — 평가항목이 과제 단위로 이동하면서 미사용. 컬럼은 보존.
   criteriaStatus          CriteriaStatus  @default(DRAFT)
   criteriaRejectionReason String?
+  // 담당 간사가 과제 공통 평가항목을 '확인'한 시각(null = 미확인)
+  criteriaAckAt           DateTime?
   // 평가위원 배정 검토 상태. 간사 제출 전(DRAFT/REJECTED)에는 관리자가 배정을 볼 수 없고, 제출(SUBMITTED) 후 승인/반려한다.
   evaluatorStatus          EvaluatorStatus @default(DRAFT)
   evaluatorRejectionReason String?
@@ -132,29 +139,38 @@ model EvaluationSession {
   secretary   User?    @relation("SessionSecretary", fields: [secretaryId], references: [id], onDelete: SetNull)
 }
 
+// 평가항목은 과제(Project) 단위로 관리한다(과제의 모든 분과 공통).
+// sessionId는 과제 단위 이전(移轉) 전의 레거시 스코프 — 신규 데이터는 projectId만 사용.
 model Criterion {
-  id        String            @id @default(cuid())
-  sessionId String
-  session   EvaluationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  id        String             @id @default(cuid())
+  projectId String?
+  project   Project?           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sessionId String?
+  session   EvaluationSession? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   name      String
   maxScore  Float
-  weight    Float             @default(1)
-  order     Int               @default(0)
+  weight    Float              @default(1)
+  order     Int                @default(0)
   subitemId String
-  subitem   CriterionSubitem  @relation(fields: [subitemId], references: [id], onDelete: Cascade)
+  subitem   CriterionSubitem   @relation(fields: [subitemId], references: [id], onDelete: Cascade)
   scores    Score[]
+
+  @@index([projectId])
 }
 
 model CriterionGroup {
   id        String             @id @default(cuid())
-  sessionId String
-  session   EvaluationSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  projectId String?
+  project   Project?           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sessionId String?
+  session   EvaluationSession? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   name      String
   maxScore  Float              @default(0)
   order     Int                @default(0)
   subitems  CriterionSubitem[]
 
   @@index([sessionId])
+  @@index([projectId])
 }
 
 model CriterionSubitem {

@@ -112,7 +112,7 @@ async function EvaluatorsContent({ id }: { id: string }) {
             <div className="text-sm font-semibold text-slate-700">
               평가위원 배정
             </div>
-            <ExcelImportButton sessionId={id} kind="evaluators" />
+            <ExcelImportButton scopeId={id} kind="evaluators" />
           </div>
           {/* 관리자가 전역으로 등록한 위원만 불러와 배정 */}
           <form action={assignEvaluator.bind(null, id)} className="flex gap-2">

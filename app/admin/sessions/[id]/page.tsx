@@ -43,10 +43,16 @@ async function SessionInfo({ id }: { id: string }) {
   const session = await prisma.evaluationSession.findUnique({
     where: { id },
     include: {
-      _count: { select: { criteria: true, subjects: true, assignments: true } },
+      _count: { select: { subjects: true, assignments: true } },
       secretary: { select: { name: true } },
     },
   });
+  // 평가항목은 과제(Project) 단위 공통 — 소속 과제의 항목 수를 센다.
+  const criteriaCount = session
+    ? await prisma.criterion.count({
+        where: session.projectId ? { projectId: session.projectId } : { sessionId: id },
+      })
+    : 0;
   if (!session) notFound();
 
   const fmtDate = (d: Date | null) =>
@@ -60,7 +66,7 @@ async function SessionInfo({ id }: { id: string }) {
   const meta: { label: string; value: string }[] = [
     { label: "담당 간사", value: session.secretary?.name ?? "미배정" },
     { label: "평가일자", value: fmtDate(session.eventDate) },
-    { label: "평가 항목 수", value: `${session._count.criteria}개` },
+    { label: "평가 항목 수", value: `${criteriaCount}개` },
     { label: "평가 대상 수", value: `${session._count.subjects}개` },
     { label: "평가위원 수", value: `${session._count.assignments}명` },
   ];

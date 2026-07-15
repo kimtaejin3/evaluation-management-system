@@ -12,7 +12,7 @@ import {
   addCriterion,
   updateCriterion,
   deleteCriterion,
-  updateSessionMaxScore,
+  updateProjectMaxScore,
 } from "@/app/admin/sessions/actions";
 import { groupTotal, isGroupBalanced, criteriaGrandTotal, isTotalValid } from "@/lib/criteria";
 import { TrashIcon, PencilIcon, PlusIcon } from "@/components/icons";
@@ -88,12 +88,13 @@ function AddModal({
   );
 }
 
+// 평가항목은 과제(Project) 단위 — 관리자가 과제 평가항목 페이지에서 편집한다.
 export default function CriteriaEditor({
-  sessionId,
+  projectId,
   groups,
   maxScore,
 }: {
-  sessionId: string;
+  projectId: string;
   groups: GroupDTO[];
   maxScore: number;
 }) {
@@ -111,7 +112,7 @@ export default function CriteriaEditor({
   const saveMax = () => {
     if (!maxDirty) return;
     start(async () => {
-      await updateSessionMaxScore(sessionId, parsedMax);
+      await updateProjectMaxScore(projectId, parsedMax);
       router.refresh();
     });
   };
@@ -129,7 +130,7 @@ export default function CriteriaEditor({
     const maxScore = Number(fd.get("maxScore") ?? 0) || 0;
     start(async () => {
       applyOptimistic({ kind: "group", id: nextTmp(), name, maxScore });
-      await addGroup(sessionId, fd);
+      await addGroup(projectId, fd);
       router.refresh();
     });
   };
@@ -163,17 +164,19 @@ export default function CriteriaEditor({
   const grandTotal = criteriaGrandTotal(optimisticGroups);
   const totalValid = isTotalValid(grandTotal, maxScore); // 배점 합계 == 기준 만점(strict)
   const diff = grandTotal - maxScore; // >0: 초과, <0: 부족 (둘 다 오류)
+  // 일치 시엔 뉴트럴(흰 배경)로 두고 확인 문구만 은은하게 — 화면 메인 컬러와의 조화 우선.
+  // 불일치만 앰버(주의) 톤으로 드러낸다.
   const tone = totalValid
-    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+    ? "border-slate-200 bg-white text-slate-700"
     : "border-amber-300 bg-amber-50 text-amber-700";
 
   return (
     <div className="space-y-4">
       {/* 배점 합계는 기준 만점과 정확히 일치해야 함(초과 불가) */}
-      <div className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg border px-4 py-2.5 text-sm ${tone}`}>
+      <div className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-xl border px-4 py-2.5 text-sm ${tone}`}>
         <span className="font-semibold">
           총 배점 합계 {fmt(grandTotal)} / {fmt(maxScore)}
-          <span className="ml-1 text-xs font-medium">
+          <span className={`ml-1 text-xs font-medium ${totalValid ? "text-emerald-600" : ""}`}>
             {totalValid
               ? "✓ 기준 만점과 일치"
               : `⚠ 기준 만점과 같아야 합니다 — ${diff > 0 ? `${fmt(diff)}점 초과` : `${fmt(-diff)}점 부족`}`}

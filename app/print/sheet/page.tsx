@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { assertSessionAccess } from "@/lib/authz";
 import { prisma } from "@/lib/db";
+import { criteriaScopeForSession } from "@/lib/criteria-scope";
 import PrintButton from "@/app/admin/sessions/[id]/results/PrintButton";
 import AutoPrint from "./AutoPrint";
 import SheetDoc, { type SheetCriterion, type SheetDocData } from "./SheetDoc";
@@ -35,7 +36,7 @@ export default async function SheetPrintPage({
   const [session, evaluator, criteria] = await Promise.all([
     prisma.evaluationSession.findUnique({ where: { id: sessionId }, include: { project: { select: { name: true, taskType: true } } } }),
     prisma.user.findUnique({ where: { id: evaluatorId }, select: { name: true } }),
-    prisma.criterion.findMany({ where: { sessionId }, include: { subitem: { include: { group: true } } } }),
+    prisma.criterion.findMany({ where: await criteriaScopeForSession(sessionId), include: { subitem: { include: { group: true } } } }),
   ]);
   if (!session || !evaluator) notFound();
   sortCriteria(criteria);

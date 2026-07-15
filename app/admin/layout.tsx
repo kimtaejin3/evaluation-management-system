@@ -52,13 +52,23 @@ export default async function AdminLayout({
     status: deriveProjectStatus(p.sessions.map((s) => s.status)),
     sessions: p.sessions.map((s) => ({ id: s.id, name: s.name, status: s.status })),
   }));
+  // 헤더 타이틀용 과제 목록 — 마스터는 전체, 간사는 담당 분과의 소속 과제로 파생
+  const headerProjects = isMaster
+    ? projectItems.map((p) => ({ id: p.id, name: p.name, status: p.status }))
+    : [
+        ...new Map(
+          sessionItems
+            .filter((s) => s.projectId && s.projectName)
+            .map((s) => [s.projectId as string, { id: s.projectId as string, name: s.projectName as string }]),
+        ).values(),
+      ];
   return (
     <div className="flex min-h-screen bg-slate-100 text-slate-900">
       <TopProgressBar />
       <AdminSidebar sessions={sessionItems} projects={projectItems} role={user.role as "MASTER" | "SECRETARY"} />
       <div className="flex min-h-screen flex-1 flex-col overflow-x-auto">
         <header className="flex items-center justify-between border-b border-slate-200 px-8 py-3">
-          <HeaderTitle sessions={sessions} />
+          <HeaderTitle sessions={sessionItems} projects={headerProjects} />
           <div className="flex items-center gap-4 text-sm text-slate-500">
             <span>
               <span className="font-medium text-slate-700">

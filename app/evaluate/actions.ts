@@ -64,8 +64,10 @@ export async function autoSaveScore(
   })
   if (!canEvaluatorEdit(sub?.status ?? null)) return { ok: false, error: 'locked' }
 
+  // 평가항목은 과제(Project) 단위 공통 — 분과의 소속 과제 항목인지 확인(레거시: 세션 항목)
   const c = await prisma.criterion.findUnique({ where: { id: criterionId } })
-  if (!c || c.sessionId !== sessionId) return { ok: false, error: 'bad-criterion' }
+  const belongs = !!c && (session.projectId ? c.projectId === session.projectId : c.sessionId === sessionId)
+  if (!c || !belongs) return { ok: false, error: 'bad-criterion' }
 
   if (raw === '' || raw == null) {
     await prisma.score.deleteMany({ where: { evaluatorId: user.id, subjectId, criterionId } })
@@ -114,7 +116,10 @@ export async function saveScores(
     return { error: '이미 제출/승인되어 수정할 수 없습니다.' }
   }
 
-  const criteria = await prisma.criterion.findMany({ where: { sessionId } })
+  // 평가항목은 과제(Project) 단위 공통
+  const criteria = await prisma.criterion.findMany({
+    where: session.projectId ? { projectId: session.projectId } : { sessionId },
+  })
 
   for (const c of criteria) {
     const raw = formData.get(`c_${c.id}`)

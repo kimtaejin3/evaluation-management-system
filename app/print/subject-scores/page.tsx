@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { assertSessionAccess } from "@/lib/authz";
 import { prisma } from "@/lib/db";
+import { criteriaScopeForSession } from "@/lib/criteria-scope";
 import AutoPrint from "@/app/print/sheet/AutoPrint";
 import SubjectScoreDoc, { type SubjectScoreData } from "./SubjectScoreDoc";
 
@@ -20,7 +21,7 @@ export default async function SubjectScoresPrintPage({
 
   const [session, criteria, assignments] = await Promise.all([
     prisma.evaluationSession.findUnique({ where: { id: sessionId } }),
-    prisma.criterion.findMany({ where: { sessionId }, include: { subitem: { include: { group: true } } } }),
+    prisma.criterion.findMany({ where: await criteriaScopeForSession(sessionId), include: { subitem: { include: { group: true } } } }),
     prisma.assignment.findMany({ where: { sessionId }, include: { user: { select: { id: true, name: true } } } }),
   ]);
   if (!session) notFound();

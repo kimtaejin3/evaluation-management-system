@@ -65,9 +65,21 @@ async function SessionList({
     where,
     orderBy: { createdAt: "desc" },
     include: {
-      _count: { select: { subjects: true, criteria: true, assignments: true } },
+      _count: { select: { subjects: true, assignments: true } },
     },
   });
+
+  // 평가항목은 과제(Project) 단위 공통 — 과제별 항목 수를 한 번에 집계
+  const projectIds = [...new Set(all.map((s) => s.projectId).filter((v): v is string => !!v))];
+  const critByProject = new Map(
+    (
+      await prisma.criterion.groupBy({
+        by: ["projectId"],
+        where: { projectId: { in: projectIds } },
+        _count: { _all: true },
+      })
+    ).map((g) => [g.projectId, g._count._all]),
+  );
 
   // 연도 옵션(전체 분과 기준) + 필터 적용
   const years = [...new Set(all.map(sessionYear))].sort((a, b) => b - a);
@@ -134,7 +146,7 @@ async function SessionList({
                   <StatusBadge status={s.status} />
                 </td>
                 <td className="px-5 py-3 text-slate-600">
-                  {s._count.criteria}
+                  {s.projectId ? (critByProject.get(s.projectId) ?? 0) : 0}
                 </td>
                 <td className="px-5 py-3 text-slate-600">
                   {s._count.subjects}

@@ -7,12 +7,15 @@ export type ReviewStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED'
 
 // 간사 제출 → 관리자 승인/반려 공통 검토 배너.
 // 서버 액션은 페이지(서버 컴포넌트)에서 주입한다. draftBadge로 도메인별 '작성중/배정중' 라벨만 다르게.
+// wording: 'submit'(기본, 간사가 작성해 제출) | 'review'(간사가 내용을 검토 — 평가 의견서처럼
+// 위원이 작성한 것을 간사가 확인만 하는 도메인은 '제출' 대신 '검토' 표현을 쓴다)
 export default function ReviewWorkflowPanel({
   sessionId,
   isMaster,
   status,
   rejectionReason,
   draftBadge = '작성중',
+  wording = 'submit',
   onSubmit,
   onCancelSubmit,
   onApprove,
@@ -23,6 +26,7 @@ export default function ReviewWorkflowPanel({
   status: ReviewStatus
   rejectionReason: string | null
   draftBadge?: string
+  wording?: 'submit' | 'review'
   onSubmit: (sessionId: string) => Promise<void>
   onCancelSubmit: (sessionId: string) => Promise<void>
   onApprove: (sessionId: string) => Promise<void>
@@ -33,24 +37,53 @@ export default function ReviewWorkflowPanel({
   const run = (fn: () => Promise<void>) => start(async () => { await fn(); router.refresh() })
 
   const tone: Record<ReviewStatus, string> = {
-    DRAFT: 'border-slate-200 bg-slate-50 text-slate-600',
-    SUBMITTED: 'border-violet-200 bg-violet-50 text-violet-700',
+    DRAFT: 'border-indigo-200 bg-indigo-50/60 text-slate-700',
+    SUBMITTED: 'border-indigo-200 bg-indigo-50/60 text-slate-700',
     APPROVED: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-    REJECTED: 'border-rose-200 bg-rose-50 text-rose-700',
+    REJECTED: 'border-amber-200 bg-amber-50 text-amber-700',
   }
+  const isReview = wording === 'review'
   const label: Record<ReviewStatus, string> = {
     DRAFT: draftBadge,
-    SUBMITTED: '제출됨',
+    SUBMITTED: isReview ? '검토 완료' : '제출됨',
     APPROVED: '승인됨',
     REJECTED: '반려됨',
   }
+  // 버튼·확인창 용어
+  const t = isReview
+    ? {
+        submit: '검토 완료',
+        resubmit: '다시 검토 완료',
+        cancel: '검토 취소',
+        submitConfirm: '검토를 완료할까요? 완료하면 관리자가 승인/반려를 진행합니다.',
+        cancelConfirm: '검토 완료를 취소하고 다시 검토 상태로 되돌릴까요?',
+      }
+    : {
+        submit: '제출',
+        resubmit: '다시 제출',
+        cancel: '제출 취소',
+        submitConfirm: '제출할까요? 제출하면 관리자가 검토하며, 제출 중에는 수정할 수 없습니다.',
+        cancelConfirm: '제출을 취소하고 다시 수정 상태로 되돌릴까요?',
+      }
 
   const message = (() => {
     if (isMaster) {
+      if (isReview) {
+        if (status === 'DRAFT') return '간사가 검토 중입니다. 검토 완료 후 확인할 수 있습니다.'
+        if (status === 'REJECTED') return '반려됨 · 간사가 다시 검토 중입니다. 검토 완료하면 확인할 수 있습니다.'
+        if (status === 'SUBMITTED') return '간사가 검토를 완료했습니다. 확인 후 승인 또는 반려하세요.'
+        return '승인 완료 — 필요 시 다시 반려하면 간사가 재검토합니다.'
+      }
       if (status === 'DRAFT') return '간사가 작성 중입니다. 제출 후 검토할 수 있습니다.'
       if (status === 'REJECTED') return '반려됨 · 간사가 수정 중입니다. 다시 제출하면 검토할 수 있습니다.'
       if (status === 'SUBMITTED') return '간사가 제출했습니다. 검토 후 승인 또는 반려하세요.'
       return '승인 완료 — 필요 시 다시 반려하면 간사가 재수정합니다.'
+    }
+    if (isReview) {
+      if (status === 'DRAFT') return '의견서를 확인한 뒤 검토 완료하면 관리자가 승인합니다.'
+      if (status === 'REJECTED') return '관리자가 반려했습니다. 내용을 확인한 뒤 다시 검토 완료하세요.'
+      if (status === 'SUBMITTED') return '검토 완료 · 관리자 승인을 기다리는 중입니다.'
+      return '관리자가 승인했습니다.'
     }
     if (status === 'DRAFT') return '작성한 뒤 제출하면 관리자가 검토합니다.'
     if (status === 'REJECTED') return '관리자가 반려했습니다. 수정한 뒤 다시 제출하세요.'
@@ -59,7 +92,7 @@ export default function ReviewWorkflowPanel({
   })()
 
   return (
-    <div className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3 text-sm ${tone[status]}`}>
+    <div className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm ${tone[status]}`}>
       <div className="min-w-0">
         <span className="font-semibold">{label[status]}</span>
         <span className="ml-2 opacity-90">{message}</span>
@@ -74,12 +107,12 @@ export default function ReviewWorkflowPanel({
             type="button"
             disabled={pending}
             onClick={() => {
-              if (!confirm('제출할까요? 제출하면 관리자가 검토하며, 제출 중에는 수정할 수 없습니다.')) return
+              if (!confirm(t.submitConfirm)) return
               run(() => onSubmit(sessionId))
             }}
-            className="rounded-lg bg-[var(--gov-navy)] px-4 py-1.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+            className="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50"
           >
-            {pending ? '처리 중…' : status === 'REJECTED' ? '다시 제출' : '제출'}
+            {pending ? '처리 중…' : status === 'REJECTED' ? t.resubmit : t.submit}
           </button>
         )}
         {!isMaster && status === 'SUBMITTED' && (
@@ -87,12 +120,12 @@ export default function ReviewWorkflowPanel({
             type="button"
             disabled={pending}
             onClick={() => {
-              if (!confirm('제출을 취소하고 다시 수정 상태로 되돌릴까요?')) return
+              if (!confirm(t.cancelConfirm)) return
               run(() => onCancelSubmit(sessionId))
             }}
             className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
           >
-            {pending ? '처리 중…' : '제출 취소'}
+            {pending ? '처리 중…' : t.cancel}
           </button>
         )}
 
@@ -106,7 +139,7 @@ export default function ReviewWorkflowPanel({
                   if (!confirm('승인할까요?')) return
                   run(() => onApprove(sessionId))
                 }}
-                className="rounded-lg bg-[var(--gov-navy)] px-4 py-1.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+                className="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50"
               >
                 {pending ? '처리 중…' : '승인'}
               </button>
@@ -154,7 +187,7 @@ function RejectButton({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-lg border border-rose-300 bg-white px-3 py-1.5 text-sm font-medium text-rose-600 transition hover:bg-rose-50"
+        className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
       >
         반려
       </button>
@@ -173,7 +206,7 @@ function RejectButton({
               required
               rows={4}
               placeholder="반려 사유를 입력하세요"
-              className="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-rose-500 focus:outline-none focus:ring-1 focus:ring-rose-500"
+              className="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
             />
             <div className="mt-4 flex justify-end gap-2">
               <button type="button" onClick={() => setOpen(false)} className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-600 transition hover:bg-slate-50">
@@ -183,7 +216,7 @@ function RejectButton({
                 type="button"
                 onClick={submit}
                 disabled={pending || !reason.trim()}
-                className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-rose-700 disabled:opacity-40"
+                className="rounded-lg bg-slate-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700 disabled:opacity-40"
               >
                 {pending ? '처리 중…' : '반려'}
               </button>
