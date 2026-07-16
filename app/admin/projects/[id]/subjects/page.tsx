@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { assertProjectAccess } from "@/lib/authz";
 import { computeWeightedScore } from "@/lib/scoring";
 import ProjectSubjectsTable, { type ProjectSubjectRow } from "@/components/ProjectSubjectsTable";
+import ExcelExportButton from "@/components/ExcelExportButton";
 import { SkeletonTable } from "@/components/Skeletons";
 
 export const dynamic = "force-dynamic";
@@ -19,14 +20,17 @@ export default async function ProjectSubjectsPage({
   // 제목·설명은 정적이므로 Suspense 밖에서 즉시 렌더 — 로딩 중에도 보인다.
   return (
     <div className="space-y-6">
-      <div>
-        <Link href={`/admin/projects/${id}`} className="text-sm text-slate-400 hover:text-slate-600">
-          ← 분과 목록
-        </Link>
-        <h1 className="mt-1 text-2xl font-bold">평가대상</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          분과별 평가 대상 현황입니다. 분과명을 누르면 기업 자료 제출 현황을 조회할 수 있습니다.
-        </p>
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <Link href={`/admin/projects/${id}`} className="text-sm text-slate-400 hover:text-slate-600">
+            ← 분과 목록
+          </Link>
+          <h1 className="mt-1 text-2xl font-bold">평가대상</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            분과별 평가 대상 현황입니다. 분과명을 누르면 기업 자료 제출 현황을 조회할 수 있습니다.
+          </p>
+        </div>
+        <ExcelExportButton href={`/api/projects/${id}/export/subjects`} />
       </div>
       <Suspense fallback={<SkeletonTable rows={6} cols={5} />}>
         <Content id={id} />

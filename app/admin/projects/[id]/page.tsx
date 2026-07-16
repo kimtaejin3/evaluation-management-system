@@ -7,6 +7,7 @@ import StatusBadge from "@/components/StatusBadge";
 import DeleteProjectButton from "@/components/DeleteProjectButton";
 import SessionSecretaryCell from "@/components/SessionSecretaryCell";
 import PasswordCell from "@/components/PasswordCell";
+import ExcelExportButton from "@/components/ExcelExportButton";
 import { resetEvaluatorPassword } from "@/app/admin/actions";
 import { removeSecretaryFromProject } from "../actions";
 import AddProjectSecretaryModal from "@/components/AddProjectSecretaryModal";
@@ -104,13 +105,19 @@ export default async function ProjectDetailPage({
           분과 추가는 간사·관리자 모두 가능(관리자는 생성 시 담당 간사 선택).
           간사 배정/해제는 표의 '담당 간사' 셀에서 행 단위로 한다. */}
       <div className="space-y-3">
-        <div className="flex items-center justify-end gap-2">
-          <Link
-            href={`/admin/sessions/new?projectId=${id}`}
-            className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium whitespace-nowrap text-white transition hover:bg-indigo-700"
-          >
-            + 분과 추가
-          </Link>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-slate-700">
+            분과 목록 <span className="ml-0.5 text-xs text-slate-400">{visibleSessions.length}개</span>
+          </h2>
+          <div className="flex items-center gap-2">
+            <ExcelExportButton href={`/api/projects/${id}/export/sessions`} />
+            <Link
+              href={`/admin/sessions/new?projectId=${id}`}
+              className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium whitespace-nowrap text-white transition hover:bg-indigo-700"
+            >
+              + 분과 추가
+            </Link>
+          </div>
         </div>
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         {visibleSessions.length === 0 ? (
@@ -179,7 +186,10 @@ export default async function ProjectDetailPage({
             <h2 className="text-sm font-semibold text-slate-700">
               참여 간사 <span className="ml-0.5 text-xs text-slate-400">{secretaries.length}명</span>
             </h2>
-            <AddProjectSecretaryModal projectId={id} candidates={candidates} />
+            <div className="flex items-center gap-2">
+              <ExcelExportButton href={`/api/projects/${id}/export/secretaries`} />
+              <AddProjectSecretaryModal projectId={id} candidates={candidates} />
+            </div>
           </div>
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
             <table className="table-grid w-full text-sm">

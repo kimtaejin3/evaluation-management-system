@@ -6,13 +6,18 @@ export function fmtYmd(d: Date | string | null | undefined): string {
   return `${dt.getFullYear()}.${pad(dt.getMonth() + 1)}.${pad(dt.getDate())}`
 }
 
-// 상대 시간 표기 — '방금 전', 'n분 전', 'n시간 전', 'n일 전' (모니터링 조회 시간 등)
-export function fmtRelative(d: Date | string, now: Date = new Date()): string {
-  const diffMs = now.getTime() - new Date(d).getTime()
-  const min = Math.floor(diffMs / 60000)
-  if (min < 1) return '방금 전'
-  if (min < 60) return `${min}분 전`
-  const hours = Math.floor(min / 60)
-  if (hours < 24) return `${hours}시간 전`
-  return `${Math.floor(hours / 24)}일 전`
+// 일시 표기 — 'YYYY.MM.DD HH:mm', 한국 시간(Asia/Seoul) 고정.
+// 서버가 UTC(예: Vercel)여도 KST로 일관 표시되도록 timeZone을 명시한다.
+export function fmtDateTimeKst(d: Date | string): string {
+  const parts = new Intl.DateTimeFormat('ko-KR', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(new Date(d))
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? ''
+  return `${get('year')}.${get('month')}.${get('day')} ${get('hour')}:${get('minute')}`
 }

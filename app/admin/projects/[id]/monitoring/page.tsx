@@ -3,7 +3,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { assertProjectAccess } from "@/lib/authz";
 import { getSessionProgress } from "@/lib/progress";
-import { fmtYmd, fmtRelative } from "@/lib/dates";
+import { fmtYmd, fmtDateTimeKst } from "@/lib/dates";
+import ExcelExportButton from "@/components/ExcelExportButton";
 import MonitorDetailLink from "@/components/MonitorDetailLink";
 import StatusBadge from "@/components/StatusBadge";
 import { SkeletonTable } from "@/components/Skeletons";
@@ -21,12 +22,15 @@ export default async function ProjectMonitoringPage({
   // 제목·설명은 정적이므로 Suspense 밖에서 즉시 렌더 — 로딩 중에도 보인다.
   return (
     <div className="space-y-6">
-      <div>
-        <Link href={`/admin/projects/${id}`} className="text-sm text-slate-400 hover:text-slate-600">
-          ← 분과 목록
-        </Link>
-        <h1 className="mt-1 text-2xl font-bold">평가 실시간 모니터링</h1>
-        <p className="mt-1 text-sm text-slate-500">분과별 채점 진행 현황입니다. 분과명을 누르면 상세 현황으로 이동합니다.</p>
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <Link href={`/admin/projects/${id}`} className="text-sm text-slate-400 hover:text-slate-600">
+            ← 분과 목록
+          </Link>
+          <h1 className="mt-1 text-2xl font-bold">평가 실시간 모니터링</h1>
+          <p className="mt-1 text-sm text-slate-500">분과별 채점 진행 현황입니다. 분과명을 누르면 상세 현황으로 이동합니다.</p>
+        </div>
+        <ExcelExportButton href={`/api/projects/${id}/export/monitoring`} />
       </div>
       <Suspense fallback={<SkeletonTable rows={5} cols={7} />}>
         <Content id={id} />
@@ -130,7 +134,7 @@ async function Content({ id }: { id: string }) {
                     <td className="px-5 py-3 text-slate-600">
                       {/* 내가 마지막으로 자세히 보기를 누른 시점 */}
                       {viewedAtOf.has(s.id) ? (
-                        <span className="whitespace-nowrap">{fmtRelative(viewedAtOf.get(s.id)!)}</span>
+                        <span className="tabular-nums whitespace-nowrap">{fmtDateTimeKst(viewedAtOf.get(s.id)!)}</span>
                       ) : (
                         <span className="text-slate-300">—</span>
                       )}

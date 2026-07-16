@@ -97,9 +97,11 @@ body {
 .table-grid td {
   border: 1px solid var(--color-slate-300);
 }
-/* 헤더 배경 — 기존 slate-50/60(#FBFCFD)보다 진하게 통일 */
+/* 헤더 — 사이드바 남색 배경 + 흰 글씨(구분선은 밝은 남색) */
 .table-grid thead th {
-  background-color: var(--color-slate-100);
+  background-color: var(--gov-navy);
+  color: #fff;
+  border-color: #2a4a78;
 }
 /* 둥근 컨테이너 테두리와 겹치는 바깥쪽 선은 제거 */
 .table-grid tr > *:first-child {
