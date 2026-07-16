@@ -55,7 +55,7 @@ function ScoresModal({ row, onClose }: { row: ProjectSubjectRow; onClose: () => 
             {row.subjects.length === 0 ? '등록된 평가 대상이 없습니다.' : '배정된 평가위원이 없습니다.'}
           </p>
         ) : (
-          <table className="w-full text-sm">
+          <table className="table-grid w-full text-sm">
             <thead className="text-left text-slate-500">
               <tr className="border-b border-slate-200">
                 <th className="py-2 pr-4 font-medium">평가 대상</th>
@@ -105,7 +105,7 @@ export default function ProjectSubjectsTable({
       {rows.length === 0 ? (
         <p className="px-5 py-8 text-center text-sm text-slate-400">아직 분과가 없습니다.</p>
       ) : (
-        <table className="w-full text-sm">
+        <table className="table-grid w-full text-sm">
           <thead className="text-left text-slate-500">
             <tr className="border-b border-slate-100 bg-slate-50/60">
               <th className="px-5 py-3 font-medium">분과명</th>

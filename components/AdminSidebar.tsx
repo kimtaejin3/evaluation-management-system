@@ -217,8 +217,6 @@ export default function AdminSidebar({
   const current = sid ? sessions.find((s) => s.id === sid) : null;
 
   const isExact = (p: string) => pathname === p;
-  const sessionsActive =
-    pathname === "/admin/sessions" || pathname === "/admin/sessions/new";
   const projectsActive = pathname.startsWith("/admin/projects");
   const leafActive = (suffix: string) =>
     suffix === ""
@@ -314,46 +312,103 @@ export default function AdminSidebar({
               </div>
             </div>
           ) : (
-            /* 간사: 내 분과 목록 */
-            <div>
-              <Link href="/admin/sessions" className={topCls(sessionsActive)}>
-                <SessionsIcon />내 분과
-              </Link>
-              <div className="mt-1 ml-3 space-y-0.5 border-l border-white/15 pl-2">
-                {sessions.length === 0 && (
-                  <div className="px-3 py-1.5 text-xs text-slate-500">
-                    등록된 분과 없음
+            /* 간사: 참여중인 과제가 최상위(아이콘) → 그 아래 내가 담당하는 분과.
+               담당 분과가 아직 없어도 참여 과제는 항상 보인다. */
+            <div className="space-y-2">
+              {projects.length === 0 && sessions.length === 0 && (
+                <div className="px-3 py-1.5 text-xs text-slate-500">
+                  참여중인 과제가 없습니다
+                </div>
+              )}
+              {projects.map((p) => {
+                const mine = sessions.filter((s) => s.projectId === p.id);
+                return (
+                  <div key={p.id}>
+                    <Link
+                      href={`/admin/projects/${p.id}`}
+                      className={topCls(pathname === `/admin/projects/${p.id}`)}
+                      title={p.name}
+                    >
+                      <SessionsIcon />
+                      <span className="truncate">{p.name}</span>
+                    </Link>
+                    <div className="mt-1 ml-3 space-y-0.5 border-l border-white/15 pl-2">
+                      {mine.length === 0 && (
+                        <div className="px-3 py-1 text-[11px] text-slate-500">담당 분과 없음</div>
+                      )}
+                      {mine.map((s) => (
+                        <Link
+                          key={s.id}
+                          href={`/admin/sessions/${s.id}`}
+                          className={sessionCls(false)}
+                          title={`${s.name} · ${STATUS[s.status]?.label ?? s.status}`}
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <span
+                              className={`shrink-0 text-[10px] font-medium ${STATUS_TEXT[s.status] ?? "text-slate-400"}`}
+                            >
+                              {STATUS[s.status]?.label ?? s.status}
+                            </span>
+                            <span className="truncate">{s.name}</span>
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
                   </div>
-                )}
-                {sessions.map((s) => (
-                  <Link
-                    key={s.id}
-                    href={`/admin/sessions/${s.id}`}
-                    className={sessionCls(false)}
-                    title={`${s.name} · ${STATUS[s.status]?.label ?? s.status}`}
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <span
-                        className={`shrink-0 text-[10px] font-medium ${STATUS_TEXT[s.status] ?? "text-slate-400"}`}
-                      >
-                        {STATUS[s.status]?.label ?? s.status}
-                      </span>
-                      <span className="truncate">{s.name}</span>
-                    </span>
-                  </Link>
-                ))}
-              </div>
+                );
+              })}
+              {/* 참여 과제에 속하지 않는 담당 분과(미분류 등) */}
+              {(() => {
+                const orphan = sessions.filter((s) => !projects.some((p) => p.id === s.projectId));
+                if (orphan.length === 0) return null;
+                return (
+                  <div>
+                    <div className="flex items-center gap-2.5 px-3 py-2 text-sm text-slate-400">
+                      <SessionsIcon />
+                      미분류
+                    </div>
+                    <div className="mt-1 ml-3 space-y-0.5 border-l border-white/15 pl-2">
+                      {orphan.map((s) => (
+                        <Link
+                          key={s.id}
+                          href={`/admin/sessions/${s.id}`}
+                          className={sessionCls(false)}
+                          title={`${s.name} · ${STATUS[s.status]?.label ?? s.status}`}
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <span
+                              className={`shrink-0 text-[10px] font-medium ${STATUS_TEXT[s.status] ?? "text-slate-400"}`}
+                            >
+                              {STATUS[s.status]?.label ?? s.status}
+                            </span>
+                            <span className="truncate">{s.name}</span>
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
 
           {isMaster && (
-            <Link
-              href="/admin/evaluators"
-              className={topCls(pathname.startsWith("/admin/evaluators"))}
-            >
-              <UsersIcon />
-              평가위원 · 간사 관리
-            </Link>
+            <>
+              <Link
+                href="/admin/secretaries"
+                className={topCls(pathname.startsWith("/admin/secretaries"))}
+              >
+                <UsersIcon />
+                간사 관리
+              </Link>
+              <Link
+                href="/admin/evaluators"
+                className={topCls(pathname.startsWith("/admin/evaluators"))}
+              >
+                <UsersIcon />
+                평가위원 관리
+              </Link>
+            </>
           )}
         </nav>
       )}

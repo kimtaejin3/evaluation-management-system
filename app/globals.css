@@ -87,3 +87,30 @@ body {
     padding: 0 !important;
   }
 }
+
+/* 관리자 목록 테이블 공통 — 세로선 포함 그리드 구분선.
+   기존 행 구분선(slate-50/100)보다 진한 slate-300으로 통일. */
+.table-grid {
+  border-collapse: collapse;
+}
+.table-grid th,
+.table-grid td {
+  border: 1px solid var(--color-slate-300);
+}
+/* 헤더 배경 — 기존 slate-50/60(#FBFCFD)보다 진하게 통일 */
+.table-grid thead th {
+  background-color: var(--color-slate-100);
+}
+/* 둥근 컨테이너 테두리와 겹치는 바깥쪽 선은 제거 */
+.table-grid tr > *:first-child {
+  border-left: 0;
+}
+.table-grid tr > *:last-child {
+  border-right: 0;
+}
+.table-grid thead tr:first-child > * {
+  border-top: 0;
+}
+.table-grid tbody tr:last-child > td {
+  border-bottom: 0;
+}

@@ -120,7 +120,7 @@ async function SessionList({
       </form>
 
       <div className="overflow-hidden rounded-md border border-slate-200 bg-white">
-        <table className="w-full text-sm">
+        <table className="table-grid w-full text-sm">
           <thead className="bg-slate-50 text-left text-slate-600">
             <tr className="border-b border-slate-200">
               <th className="px-5 py-3 font-semibold">분과명</th>

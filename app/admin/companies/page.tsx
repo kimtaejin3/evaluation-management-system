@@ -80,7 +80,7 @@ async function CompanyList() {
                   </div>
                 </div>
                 <form action={async () => { "use server"; await deleteCompany(c.id); }}>
-                  <button className="text-sm text-rose-600 hover:underline">삭제</button>
+                  <button className="text-sm text-slate-500 hover:text-slate-700 hover:underline">삭제</button>
                 </form>
               </div>
 

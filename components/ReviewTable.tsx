@@ -31,7 +31,7 @@ export default function ReviewTable({ sessionId, rows }: { sessionId: string; ro
     <section className="space-y-3">
       <h2 className="text-sm font-semibold text-slate-700">제출 검토</h2>
       <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-        <table className="w-full text-sm">
+        <table className="table-grid w-full text-sm">
           <thead className="bg-slate-50 text-left text-slate-500">
             <tr className="border-b border-slate-200">
               <th className="px-4 py-2 font-medium">대상</th>

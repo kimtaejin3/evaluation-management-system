@@ -5,8 +5,12 @@ import { deriveProjectStatus } from "@/lib/project-status";
 import { fmtYmd } from "@/lib/dates";
 import StatusBadge from "@/components/StatusBadge";
 import DeleteProjectButton from "@/components/DeleteProjectButton";
-import AssignSecretaryModal from "@/components/AssignSecretaryModal";
-import { unassignSessionSecretary } from "../actions";
+import SessionSecretaryCell from "@/components/SessionSecretaryCell";
+import PasswordCell from "@/components/PasswordCell";
+import { resetEvaluatorPassword } from "@/app/admin/actions";
+import { removeSecretaryFromProject } from "../actions";
+import AddProjectSecretaryModal from "@/components/AddProjectSecretaryModal";
+
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   DRAFT: { label: "준비중", cls: "bg-slate-100 text-slate-600 ring-slate-200" },
@@ -33,6 +37,11 @@ export default async function ProjectDetailPage({
           _count: { select: { subjects: true, assignments: true } },
         },
       },
+      // 참여 간사(간사 풀에서 이 과제에 추가된 사람들)
+      secretaries: {
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, username: true, phone: true, employeeNo: true, tempPassword: true },
+      },
     },
   });
   if (!project) return null;
@@ -42,17 +51,23 @@ export default async function ProjectDetailPage({
     ? project.sessions
     : project.sessions.filter((s) => s.secretaryId === user.id);
 
-  // 관리자 간사 배정 모달용 — 미배정 분과 + 간사 목록
-  const unassignedSessions = isMaster
-    ? project.sessions.filter((s) => !s.secretaryId).map((s) => ({ id: s.id, name: s.name }))
-    : [];
-  const secretaries = isMaster
+  // 참여 간사(이 과제) — 담당 배정 모달 + 하단 간사 테이블 공용.
+  // 추가 후보 = 간사 풀(간사 관리)에서 아직 이 과제에 참여하지 않은 간사.
+  const secretaries = project.secretaries;
+  const candidates = isMaster
     ? await prisma.user.findMany({
-        where: { role: "SECRETARY" },
+        where: { role: "SECRETARY", id: { notIn: secretaries.map((s) => s.id) } },
         orderBy: { name: "asc" },
         select: { id: true, name: true, username: true },
       })
     : [];
+  // 간사별 이 과제 내 담당 분과
+  const sessionsOfSecretary = new Map<string, string[]>();
+  for (const s of project.sessions) {
+    if (!s.secretaryId) continue;
+    if (!sessionsOfSecretary.has(s.secretaryId)) sessionsOfSecretary.set(s.secretaryId, []);
+    sessionsOfSecretary.get(s.secretaryId)!.push(s.name);
+  }
 
 
   return (
@@ -86,28 +101,24 @@ export default async function ProjectDetailPage({
       </div>
 
       {/* 소속 분과 — 버튼은 카드 밖(배경), 표만 카드 안.
-          분과 추가는 간사만, 관리자는 미배정 분과에 간사 배정만 한다. */}
+          분과 추가는 간사·관리자 모두 가능(관리자는 생성 시 담당 간사 선택).
+          간사 배정/해제는 표의 '담당 간사' 셀에서 행 단위로 한다. */}
       <div className="space-y-3">
-        {!isMaster && (
-          <div className="flex items-center justify-end gap-2">
-            <Link
-              href={`/admin/sessions/new?projectId=${id}`}
-              className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700"
-            >
-              + 분과 추가
-            </Link>
-          </div>
-        )}
-        {isMaster && (
-          <div className="flex items-center justify-end gap-2">
-            <AssignSecretaryModal projectId={id} sessions={unassignedSessions} secretaries={secretaries} />
-          </div>
-        )}
+        <div className="flex items-center justify-end gap-2">
+          <Link
+            href={`/admin/sessions/new?projectId=${id}`}
+            className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium whitespace-nowrap text-white transition hover:bg-indigo-700"
+          >
+            + 분과 추가
+          </Link>
+        </div>
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         {visibleSessions.length === 0 ? (
-          <p className="px-5 py-8 text-center text-sm text-slate-400">아직 분과가 없습니다. ‘분과 추가’로 시작하세요.</p>
+          <p className="px-5 py-8 text-center text-sm text-slate-400">
+            {isMaster ? "아직 분과가 없습니다. ‘분과 추가’로 시작하세요." : "내가 만든 분과가 없습니다. ‘분과 추가’로 시작하세요."}
+          </p>
         ) : (
-          <table className="w-full text-sm">
+          <table className="table-grid w-full text-sm">
             <thead className="text-left text-slate-500">
               <tr className="border-b border-slate-100 bg-slate-50/60">
                 <th className="px-5 py-3 font-medium">분과명</th>
@@ -139,15 +150,16 @@ export default async function ProjectDetailPage({
                   <td className="px-5 py-3 text-slate-600">{s._count.subjects}</td>
                   <td className="px-5 py-3 text-slate-600">{s._count.assignments}</td>
                   <td className="px-5 py-3">
-                    {s.secretary?.name ? (
-                      <span className="inline-flex items-center gap-2">
-                        <span className="text-slate-700">{s.secretary.name}</span>
-                        {isMaster && s.secretaryId && (
-                          <form action={async () => { "use server"; await unassignSessionSecretary(id, s.id); }}>
-                            <button className="text-xs text-slate-400 hover:text-rose-600 hover:underline">해제</button>
-                          </form>
-                        )}
-                      </span>
+                    {isMaster ? (
+                      <SessionSecretaryCell
+                        projectId={id}
+                        sessionId={s.id}
+                        sessionName={s.name}
+                        secretaryName={s.secretary?.name ?? null}
+                        secretaries={secretaries}
+                      />
+                    ) : s.secretary?.name ? (
+                      <span className="text-slate-700">{s.secretary.name}</span>
                     ) : (
                       <span className="text-xs text-slate-400">미배정</span>
                     )}
@@ -159,6 +171,93 @@ export default async function ProjectDetailPage({
         )}
         </div>
       </div>
+
+      {/* 간사 관리 — 분과 목록 아래(관리자 전용): 간사 목록 + 생성 */}
+      {isMaster && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-700">
+              참여 간사 <span className="ml-0.5 text-xs text-slate-400">{secretaries.length}명</span>
+            </h2>
+            <AddProjectSecretaryModal projectId={id} candidates={candidates} />
+          </div>
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <table className="table-grid w-full text-sm">
+              <thead className="text-left text-slate-500">
+                <tr className="border-b border-slate-100 bg-slate-50/60">
+                  <th className="px-5 py-2.5 font-medium">이름</th>
+                  <th className="px-5 py-2.5 font-medium">아이디</th>
+                  <th className="px-5 py-2.5 font-medium">연락처</th>
+                  <th className="px-5 py-2.5 font-medium">사번</th>
+                  <th className="px-5 py-2.5 font-medium">비밀번호</th>
+                  <th className="px-5 py-2.5 font-medium">담당 분과</th>
+                  <th className="px-5 py-2.5 text-right"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {secretaries.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-5 py-8 text-center text-sm text-slate-400">
+                      참여 간사가 없습니다. 위의 '간사 추가'로 간사 풀에서 추가하세요.
+                    </td>
+                  </tr>
+                )}
+                {secretaries.map((u) => (
+                  <tr key={u.id} className="border-b border-slate-50 last:border-0">
+                    <td className="px-5 py-2.5 font-medium text-slate-800">{u.name}</td>
+                    <td className="px-5 py-2.5 text-slate-600">{u.username}</td>
+                    <td className="px-5 py-2.5 text-slate-600">
+                      {u.phone ?? <span className="text-slate-300">—</span>}
+                    </td>
+                    <td className="px-5 py-2.5 text-slate-600">
+                      {u.employeeNo ?? <span className="text-slate-300">—</span>}
+                    </td>
+                    <td className="px-5 py-2.5">
+                      <PasswordCell value={u.tempPassword} />
+                    </td>
+                    <td className="px-5 py-2.5">
+                      {sessionsOfSecretary.has(u.id) ? (
+                        <span className="flex flex-wrap gap-1">
+                          {sessionsOfSecretary.get(u.id)!.map((name) => (
+                            <span key={name} className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                              {name}
+                            </span>
+                          ))}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-400">배정 없음</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-2.5 text-right">
+                      <div className="flex items-center justify-end gap-3">
+                        <form
+                          action={async () => {
+                            "use server";
+                            await resetEvaluatorPassword(u.id);
+                          }}
+                        >
+                          <button className="text-sm whitespace-nowrap text-slate-500 hover:text-indigo-600 hover:underline">
+                            비번 재발급
+                          </button>
+                        </form>
+                        <form
+                          action={async () => {
+                            "use server";
+                            await removeSecretaryFromProject(id, u.id);
+                          }}
+                        >
+                          <button className="text-sm whitespace-nowrap text-slate-500 hover:text-slate-700 hover:underline">제외</button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      )}
     </div>
   );
 }

@@ -45,6 +45,8 @@ export async function createSession(formData: FormData) {
       secretaryId: user.role === 'SECRETARY' ? user.id : (String(formData.get('secretaryId') ?? '') || null),
     },
   })
+  // 사이드바(간사 분과 트리·과제 화면)까지 즉시 반영
+  revalidatePath('/admin', 'layout')
   redirect(`/admin/sessions/${session.id}`)
 }
 
@@ -61,6 +63,7 @@ export async function deleteSession(sessionId: string) {
   await prisma.document.deleteMany({ where: { sessionId } })
   await prisma.opinion.deleteMany({ where: { sessionId } })
   await prisma.editingPresence.deleteMany({ where: { sessionId } })
+  await prisma.monitorView.deleteMany({ where: { sessionId } })
   await prisma.evaluationSession.delete({ where: { id: sessionId } })
   // 사이드바(admin 레이아웃)의 분과·과제 목록까지 갱신
   revalidatePath('/admin', 'layout')
@@ -207,6 +210,16 @@ export async function deleteCriterion(criterionId: string) {
   if (user.role !== 'MASTER') return
   await prisma.criterion.delete({ where: { id: criterionId } })
   revalidateCriteria(c.projectId)
+}
+
+// ── 실시간 모니터링 '자세히 보기' 클릭 기록 — (사용자×분과) 마지막 조회 시점 ──
+export async function recordMonitorView(sessionId: string) {
+  const user = await requireAdminUser()
+  await prisma.monitorView.upsert({
+    where: { userId_sessionId: { userId: user.id, sessionId } },
+    update: { viewedAt: new Date() },
+    create: { userId: user.id, sessionId, viewedAt: new Date() },
+  })
 }
 
 // ── 평가항목 확인: 관리자가 작성한 과제 공통 항목을 담당 간사가 '확인' ──

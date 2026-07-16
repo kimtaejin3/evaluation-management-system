@@ -217,7 +217,7 @@ async function EvaluatorsContent({ id }: { id: string }) {
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 font-semibold">
           <span>배정된 평가위원 ({assignments.length})</span>
         </div>
-        <table className="w-full text-sm">
+        <table className="table-grid w-full text-sm">
           <thead className="text-left text-slate-500">
             <tr className="border-b border-slate-100">
               <th className="px-5 py-3 font-medium">이름</th>
@@ -283,7 +283,7 @@ async function EvaluatorsContent({ id }: { id: string }) {
                             revalidatePath(`/admin/sessions/${id}/evaluators`);
                           }}
                         >
-                          <button className="text-sm text-rose-600 hover:underline">
+                          <button className="text-sm text-slate-500 hover:text-slate-700 hover:underline">
                             계정 삭제
                           </button>
                         </form>

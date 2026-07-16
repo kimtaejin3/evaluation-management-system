@@ -64,7 +64,7 @@ async function BreakdownContent({ id }: { id: string }) {
       <section className="space-y-3">
         <h2 className="font-semibold text-slate-700">위원별 점수</h2>
         <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-          <table className="w-full text-sm">
+          <table className="table-grid w-full text-sm">
             <thead className="text-left text-slate-500">
               <tr className="border-b border-slate-100">
                 <th className="px-5 py-3 font-medium">대상</th>
@@ -120,7 +120,7 @@ async function BreakdownContent({ id }: { id: string }) {
             return (
               <div key={sub.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
                 <div className="border-b border-slate-100 px-4 py-3 font-medium text-slate-800">{sub.name}</div>
-                <table className="w-full text-sm">
+                <table className="table-grid w-full text-sm">
                   <thead className="text-left text-slate-400">
                     <tr className="border-b border-slate-100">
                       <th className="px-4 py-2 font-medium">항목</th>

@@ -202,7 +202,7 @@ export default function CriteriaEditor({
       </p>
 
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-        <table className="w-full text-sm">
+        <table className="table-grid w-full text-sm">
           <thead className="bg-slate-50 text-left text-slate-500">
             <tr className="border-b border-slate-200">
               <th className="px-4 py-2.5 font-medium">평가항목</th>
@@ -426,7 +426,7 @@ function GroupNameCell({
             <button type="button" onClick={() => setEditing(true)} className="rounded p-1 text-slate-400 transition hover:bg-slate-100 hover:text-indigo-600" title="수정" aria-label="평가항목 수정">
               <PencilIcon className="h-3.5 w-3.5" />
             </button>
-            <button type="button" onClick={onDelete} className="rounded p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600" title="평가항목 삭제" aria-label="평가항목 삭제">
+            <button type="button" onClick={onDelete} className="rounded p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600" title="평가항목 삭제" aria-label="평가항목 삭제">
               <TrashIcon className="h-3.5 w-3.5" />
             </button>
             {showAddSubitem && (
@@ -527,7 +527,7 @@ function SubitemNameCell({
           <button type="button" onClick={() => setEditing(true)} className="rounded p-1 text-slate-400 transition hover:bg-slate-100 hover:text-indigo-600" title="수정" aria-label="세부항목 수정">
             <PencilIcon className="h-3.5 w-3.5" />
           </button>
-          <button type="button" onClick={onDelete} className="rounded p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600" title="세부항목 삭제" aria-label="세부항목 삭제">
+          <button type="button" onClick={onDelete} className="rounded p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600" title="세부항목 삭제" aria-label="세부항목 삭제">
             <TrashIcon className="h-3.5 w-3.5" />
           </button>
           {/* 세부항목 +버튼은 하나만: 비어있으면 첫 평가지표 추가, 아니면 새 세부항목(+평가지표) 세트 추가 */}
@@ -629,7 +629,7 @@ function CriterionRowCells({
           <button type="button" onClick={() => setEditing(true)} className="rounded p-1 text-slate-400 transition hover:bg-slate-100 hover:text-indigo-600" title="수정" aria-label="평가지표 수정">
             <PencilIcon className="h-3.5 w-3.5" />
           </button>
-          <button type="button" onClick={onDelete} className="rounded p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600" title="평가지표 삭제" aria-label="평가지표 삭제">
+          <button type="button" onClick={onDelete} className="rounded p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600" title="평가지표 삭제" aria-label="평가지표 삭제">
             <TrashIcon className="h-3.5 w-3.5" />
           </button>
           {isLastCriterion && (

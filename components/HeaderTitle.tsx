@@ -11,7 +11,10 @@ const EXACT: Record<string, string> = {
   "/admin/projects/new": "새 과제 등록",
   "/admin/sessions": "분과 관리",
   "/admin/sessions/new": "새 분과 등록",
-  "/admin/evaluators": "평가위원 · 간사 관리",
+  "/admin/secretaries": "간사 관리",
+  "/admin/secretaries/new": "새 간사 등록",
+  "/admin/evaluators": "평가위원 관리",
+  "/admin/evaluators/new": "새 평가위원 등록",
   "/admin/companies": "평가 대상 관리",
   "/evaluate": "평가 대상",
 };
@@ -49,7 +52,7 @@ export default function HeaderTitle({
     );
   }
 
-  // 분과 페이지: 소속 과제명 · 분과명 + 상태 배지 (탭 이름은 각 페이지 헤더에서 표시)
+  // 분과 페이지: 소속 과제명 · 분과명 + 상태 배지 (현재 위치 경로는 헤더 아래 AdminBreadcrumb에서)
   const m = pathname.match(/^\/admin\/sessions\/([^/]+)/);
   const session = m && m[1] !== "new" ? sessions.find((s) => s.id === m[1]) : undefined;
   if (session) {

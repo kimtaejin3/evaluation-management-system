@@ -27,7 +27,7 @@ export default function DeleteSessionButton({ sessionId, sessionName }: { sessio
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="shrink-0 rounded-lg border border-rose-300 px-4 py-1.5 text-sm font-medium text-rose-600 transition hover:bg-rose-50"
+        className="shrink-0 rounded-lg border border-slate-300 px-4 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
       >
         삭제
       </button>
@@ -44,7 +44,7 @@ export default function DeleteSessionButton({ sessionId, sessionName }: { sessio
               <button type="button" onClick={() => setOpen(false)} disabled={pending} className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-600 transition hover:bg-slate-50 disabled:opacity-40">
                 취소
               </button>
-              <button type="button" onClick={confirm} disabled={pending} className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-rose-700 disabled:opacity-40">
+              <button type="button" onClick={confirm} disabled={pending} className="rounded-lg bg-slate-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700 disabled:opacity-40">
                 {pending ? '삭제 중…' : '삭제'}
               </button>
             </div>

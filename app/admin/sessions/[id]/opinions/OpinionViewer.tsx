@@ -39,7 +39,7 @@ export default function OpinionViewer({ items }: { items: OpinionItem[] }) {
         {items.length === 0 ? (
           <div className="px-5 py-8 text-center text-slate-400">작성된 종합의견이 없습니다.</div>
         ) : (
-          <table className="w-full text-sm">
+          <table className="table-grid w-full text-sm">
             <thead className="text-left text-slate-500">
               <tr className="border-b border-slate-100">
                 <th className="w-40 px-5 py-3 font-medium">평가위원</th>

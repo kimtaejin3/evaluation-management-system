@@ -2,6 +2,7 @@
 
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { hashPassword } from '@/lib/auth'
 import { passwordFromPhone } from '@/lib/phone'
@@ -28,12 +29,16 @@ export async function createEvaluator(formData: FormData) {
     update: { name, phone, role },
     create: { username, name, phone, role, passwordHash: await hashPassword(password), tempPassword: password },
   })
+  revalidatePath('/admin', 'layout')
   revalidatePath('/admin/evaluators')
+  // 전용 등록 페이지에서 생성하므로 목록으로 복귀
+  redirect('/admin/evaluators')
 }
 
 export async function deleteEvaluator(userId: string) {
   await requireAdminUser()
   await prisma.user.delete({ where: { id: userId } })
+  revalidatePath('/admin', 'layout')
   revalidatePath('/admin/evaluators')
 }
 
@@ -45,6 +50,7 @@ export async function resetEvaluatorPassword(userId: string) {
     where: { id: userId },
     data: { passwordHash: await hashPassword(newPw), tempPassword: newPw },
   })
+  revalidatePath('/admin', 'layout')
   revalidatePath('/admin/evaluators')
 }
 

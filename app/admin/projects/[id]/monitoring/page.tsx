@@ -3,7 +3,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { assertProjectAccess } from "@/lib/authz";
 import { getSessionProgress } from "@/lib/progress";
-import { fmtYmd } from "@/lib/dates";
+import { fmtYmd, fmtRelative } from "@/lib/dates";
+import MonitorDetailLink from "@/components/MonitorDetailLink";
 import StatusBadge from "@/components/StatusBadge";
 import { SkeletonTable } from "@/components/Skeletons";
 
@@ -42,7 +43,7 @@ const fmtPeriod = (s: { startDate: Date | null; endDate: Date | null; eventDate:
       : "미정";
 
 async function Content({ id }: { id: string }) {
-  await assertProjectAccess(id);
+  const { user } = await assertProjectAccess(id);
   const sessions = await prisma.evaluationSession.findMany({
     where: { projectId: id },
     orderBy: { createdAt: "asc" },
@@ -67,12 +68,18 @@ async function Content({ id }: { id: string }) {
   });
   const opinionOf = new Map(opinionCounts.map((o) => [o.sessionId, o._count._all]));
 
+  // 내(현재 관리자)가 '자세히 보기'를 마지막으로 누른 시점 — 조회 시간 컬럼
+  const views = await prisma.monitorView.findMany({
+    where: { userId: user.id, sessionId: { in: sessions.map((s) => s.id) } },
+  });
+  const viewedAtOf = new Map(views.map((v) => [v.sessionId, v.viewedAt]));
+
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         {sessions.length === 0 ? (
           <p className="px-5 py-8 text-center text-sm text-slate-400">아직 분과가 없습니다.</p>
         ) : (
-          <table className="w-full text-sm">
+          <table className="table-grid w-full text-sm">
             <thead className="text-left text-slate-500">
               <tr className="border-b border-slate-100 bg-slate-50/60">
                 <th className="px-5 py-3 font-medium">분과명</th>
@@ -83,6 +90,7 @@ async function Content({ id }: { id: string }) {
                 <th className="px-5 py-3 font-medium">평가위원 수</th>
                 <th className="px-5 py-3 font-medium">완료 위원</th>
                 <th className="px-5 py-3 font-medium">평가 의견서</th>
+                <th className="px-5 py-3 font-medium">조회 시간</th>
                 <th className="px-5 py-3 font-medium">자세히 보기</th>
               </tr>
             </thead>
@@ -119,14 +127,17 @@ async function Content({ id }: { id: string }) {
                         {expected > 0 && <span className="text-slate-400">/{expected}</span>}
                       </span>
                     </td>
+                    <td className="px-5 py-3 text-slate-600">
+                      {/* 내가 마지막으로 자세히 보기를 누른 시점 */}
+                      {viewedAtOf.has(s.id) ? (
+                        <span className="whitespace-nowrap">{fmtRelative(viewedAtOf.get(s.id)!)}</span>
+                      ) : (
+                        <span className="text-slate-300">—</span>
+                      )}
+                    </td>
                     <td className="px-5 py-3">
-                      {/* 해당 분과의 위원별 평가 실시간 상태(위원×대상 그리드)로 이동 */}
-                      <Link
-                        href={`/admin/sessions/${s.id}`}
-                        className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium whitespace-nowrap text-slate-600 transition hover:bg-slate-50"
-                      >
-                        자세히 보기
-                      </Link>
+                      {/* 클릭 시점을 기록하고 분과 실시간 상태(위원×대상 그리드)로 이동 */}
+                      <MonitorDetailLink sessionId={s.id} />
                     </td>
                   </tr>
                 );

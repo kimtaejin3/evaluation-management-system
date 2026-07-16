@@ -25,6 +25,8 @@ export async function createProject(formData: FormData) {
       endDate: new Date(endRaw),
     },
   })
+  // 사이드바(과제 목록)·과제 관리 화면까지 즉시 반영
+  revalidatePath('/admin', 'layout')
   redirect(`/admin/projects/${p.id}`)
 }
 
@@ -38,6 +40,7 @@ export async function assignSecretaryToSession(projectId: string, formData: Form
   if (!session || session.projectId !== projectId) return
   await prisma.project.update({ where: { id: projectId }, data: { secretaries: { connect: { id: userId } } } })
   await prisma.evaluationSession.update({ where: { id: sessionId }, data: { secretaryId: userId } })
+  revalidatePath('/admin', 'layout')
   revalidatePath(`/admin/projects/${projectId}`)
 }
 
@@ -60,6 +63,7 @@ export async function createSecretaryAndAssignToSession(projectId: string, formD
   })
   await prisma.project.update({ where: { id: projectId }, data: { secretaries: { connect: { id: user.id } } } })
   await prisma.evaluationSession.update({ where: { id: sessionId }, data: { secretaryId: user.id } })
+  revalidatePath('/admin', 'layout')
   revalidatePath(`/admin/projects/${projectId}`)
 }
 
@@ -69,6 +73,7 @@ export async function unassignSessionSecretary(projectId: string, sessionId: str
   const session = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { projectId: true } })
   if (!session || session.projectId !== projectId) return
   await prisma.evaluationSession.update({ where: { id: sessionId }, data: { secretaryId: null } })
+  revalidatePath('/admin', 'layout')
   revalidatePath(`/admin/projects/${projectId}`)
 }
 
@@ -79,4 +84,61 @@ export async function deleteProject(projectId: string) {
   // 사이드바(admin 레이아웃)의 과제 목록 갱신 후 이동
   revalidatePath('/admin', 'layout')
   redirect('/admin/projects')
+}
+
+// 과제 참여 간사 추가(마스터) — 간사 관리의 간사 풀에서 골라 이 과제에 연결
+export async function addSecretaryToProject(projectId: string, formData: FormData) {
+  await assertMaster()
+  const userId = String(formData.get('userId') ?? '').trim()
+  if (!userId) return
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } })
+  if (user?.role !== 'SECRETARY') return
+  await prisma.project.update({ where: { id: projectId }, data: { secretaries: { connect: { id: userId } } } })
+  revalidatePath('/admin', 'layout')
+  revalidatePath(`/admin/projects/${projectId}`)
+}
+
+// 과제 참여 간사 제외(마스터) — 연결 해제 + 이 과제 내 담당 분과도 함께 해제
+export async function removeSecretaryFromProject(projectId: string, userId: string) {
+  await assertMaster()
+  await prisma.project.update({ where: { id: projectId }, data: { secretaries: { disconnect: { id: userId } } } })
+  await prisma.evaluationSession.updateMany({ where: { projectId, secretaryId: userId }, data: { secretaryId: null } })
+  revalidatePath('/admin', 'layout')
+  revalidatePath(`/admin/projects/${projectId}`)
+}
+
+// 간사 생성(마스터) — 이름·아이디·연락처·사번. 비밀번호는 연락처 끝 4자리로 발급.
+// 기존 아이디면 정보를 갱신하며 역할을 간사로 승격한다. 생성 후 원래 과제 화면으로 복귀.
+// 과제 화면에서 만들면 그 과제의 참여 간사로 연결되어(project.secretaries) 분과를 만들 수 있다.
+export async function createSecretary(formData: FormData) {
+  await assertMaster()
+  const projectId = String(formData.get('projectId') ?? '').trim()
+  const name = String(formData.get('name') ?? '').trim()
+  const username = String(formData.get('username') ?? '').trim()
+  const phone = String(formData.get('phone') ?? '').trim()
+  const employeeNo = String(formData.get('employeeNo') ?? '').trim() || null
+  const password = passwordFromPhone(phone)
+  if (!name || !username || !phone || !password) return
+
+  const user = await prisma.user.upsert({
+    where: { username },
+    update: { name, phone, employeeNo, role: 'SECRETARY' },
+    create: {
+      username,
+      name,
+      phone,
+      employeeNo,
+      role: 'SECRETARY',
+      passwordHash: await hashPassword(password),
+      tempPassword: password,
+    },
+  })
+  if (projectId) {
+    await prisma.project.update({
+      where: { id: projectId },
+      data: { secretaries: { connect: { id: user.id } } },
+    })
+  }
+  revalidatePath('/admin', 'layout')
+  redirect(projectId ? `/admin/projects/${projectId}` : '/admin/secretaries')
 }

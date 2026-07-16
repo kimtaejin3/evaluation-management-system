@@ -35,7 +35,7 @@ export default function DeleteProjectButton({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-rose-600 transition hover:bg-rose-50"
+        className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50"
       >
         과제 삭제
       </button>
@@ -67,7 +67,7 @@ export default function DeleteProjectButton({
                 type="button"
                 onClick={confirm}
                 disabled={pending}
-                className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-rose-700 disabled:opacity-40"
+                className="rounded-lg bg-slate-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700 disabled:opacity-40"
               >
                 {pending ? '삭제 중…' : '삭제'}
               </button>

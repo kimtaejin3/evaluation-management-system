@@ -16,8 +16,8 @@ export default async function NewSessionPage({
   const { projectId } = await searchParams
   const isMaster = user.role === 'MASTER'
   // 취소/뒤로가기는 소속 과제로(없으면 분과 목록)
-  const backHref = projectId ? `/admin/projects/${projectId}` : '/admin/sessions'
-  const backLabel = projectId ? '← 과제로' : '← 분과 목록'
+  const backHref = projectId ? `/admin/projects/${projectId}` : '/admin/projects'
+  const backLabel = '← 분과 목록'
   // 접근 가능한 과제: 마스터=전체, 간사=배정된 과제
   const [projects, secretaries] = await Promise.all([
     prisma.project.findMany({
@@ -31,8 +31,13 @@ export default async function NewSessionPage({
       : Promise.resolve([]),
   ])
 
-  // 미리 선택된 과제(분과 추가로 진입)의 기간 — 평가 기간 입력 범위(min/max)로 사용
-  const selected = projectId ? projects.find((p) => p.id === projectId) : undefined
+  // 간사는 과제를 고르지 않는다 — 진입한 과제(쿼리) 또는 참여중인 과제로 고정.
+  // 마스터는 드롭다운으로 선택(진입한 과제가 있으면 미리 선택).
+  const fixedProject = !isMaster
+    ? ((projectId ? projects.find((p) => p.id === projectId) : undefined) ?? projects[0])
+    : undefined
+  // 선택된 과제의 기간 — 평가 기간 입력 범위(min/max)로 사용
+  const selected = fixedProject ?? (projectId ? projects.find((p) => p.id === projectId) : undefined)
   const toInput = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : undefined)
   const min = toInput(selected?.startDate ?? null)
   const max = toInput(selected?.endDate ?? null)
@@ -51,7 +56,7 @@ export default async function NewSessionPage({
 
   return (
     <div className="max-w-2xl">
-      <Link href="/admin/sessions" className="text-sm text-slate-400 hover:text-slate-600">← 분과 목록</Link>
+      <Link href={backHref} className="text-sm text-slate-400 hover:text-slate-600">{backLabel}</Link>
       <h1 className="mt-1 text-2xl font-bold">새 분과 등록</h1>
       <p className="mt-1 text-sm text-slate-500">평가를 진행할 분과의 기본 정보를 입력합니다.</p>
 
@@ -59,12 +64,22 @@ export default async function NewSessionPage({
         <div className="space-y-4 p-5">
           <div>
             <label className={labelCls}>과제 <span className="text-rose-500">*</span></label>
-            <select name="projectId" required defaultValue={projectId ?? ''} className={inputCls}>
-              <option value="" disabled>과제 선택</option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
+            {fixedProject ? (
+              <>
+                {/* 간사: 참여중인 과제로 고정(선택 불가) */}
+                <input type="hidden" name="projectId" value={fixedProject.id} />
+                <p className="mt-1.5 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                  {fixedProject.name}
+                </p>
+              </>
+            ) : (
+              <select name="projectId" required defaultValue={projectId ?? ''} className={inputCls}>
+                <option value="" disabled>과제 선택</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            )}
           </div>
           <div>
             <label className={labelCls}>분과명 <span className="text-rose-500">*</span></label>

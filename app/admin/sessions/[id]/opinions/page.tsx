@@ -136,7 +136,7 @@ async function OpinionsContent({ id }: { id: string }) {
         <div className="space-y-2">
           <h2 className="text-sm font-semibold text-slate-700">지원기업별 점수</h2>
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-            <table className="w-full text-sm">
+            <table className="table-grid w-full text-sm">
               <thead className="text-left text-slate-500">
                 <tr className="border-b border-slate-100 bg-slate-50/60">
                   <th className="px-5 py-2.5 font-medium">지원기업</th>
