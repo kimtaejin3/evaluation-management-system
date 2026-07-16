@@ -8,6 +8,8 @@ import DeleteProjectButton from "@/components/DeleteProjectButton";
 import SessionSecretaryCell from "@/components/SessionSecretaryCell";
 import PasswordCell from "@/components/PasswordCell";
 import ExcelExportButton from "@/components/ExcelExportButton";
+import SortableTh from "@/components/SortableTh";
+import { parseSessionSort, sortSessions } from "@/lib/session-sort";
 import { resetEvaluatorPassword } from "@/app/admin/actions";
 import { removeSecretaryFromProject } from "../actions";
 import AddProjectSecretaryModal from "@/components/AddProjectSecretaryModal";
@@ -21,10 +23,13 @@ const STATUS: Record<string, { label: string; cls: string }> = {
 
 export default async function ProjectDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ sort?: string; dir?: string }>;
 }) {
   const { id } = await params;
+  const { sort, dir } = parseSessionSort(await searchParams);
   const { user } = await assertProjectAccess(id);
   const isMaster = user.role === "MASTER";
 
@@ -48,9 +53,12 @@ export default async function ProjectDetailPage({
   if (!project) return null;
 
   // 간사에게는 본인이 담당(secretaryId)인 분과만 노출(미배정·타 간사 분과 숨김). 마스터는 전체.
-  const visibleSessions = isMaster
-    ? project.sessions
-    : project.sessions.filter((s) => s.secretaryId === user.id);
+  // 분과명·평가 기간 헤더 클릭 정렬(?sort=&dir=) 적용.
+  const visibleSessions = sortSessions(
+    isMaster ? project.sessions : project.sessions.filter((s) => s.secretaryId === user.id),
+    sort,
+    dir,
+  );
 
   // 참여 간사(이 과제) — 담당 배정 모달 + 하단 간사 테이블 공용.
   // 추가 후보 = 간사 풀(간사 관리)에서 아직 이 과제에 참여하지 않은 간사.
@@ -128,9 +136,9 @@ export default async function ProjectDetailPage({
           <table className="table-grid w-full text-sm">
             <thead className="text-left text-slate-500">
               <tr className="border-b border-slate-100 bg-slate-50/60">
-                <th className="px-5 py-3 font-medium">분과명</th>
+                <SortableTh label="분과명" field="name" sort={sort} dir={dir} basePath={`/admin/projects/${id}`} />
                 <th className="px-5 py-3 font-medium">평가 상태</th>
-                <th className="px-5 py-3 font-medium">평가 기간</th>
+                <SortableTh label="평가 기간" field="period" sort={sort} dir={dir} basePath={`/admin/projects/${id}`} />
                 <th className="px-5 py-3 font-medium">평가 대상 수</th>
                 <th className="px-5 py-3 font-medium">평가위원 수</th>
                 <th className="px-5 py-3 font-medium">담당 간사</th>

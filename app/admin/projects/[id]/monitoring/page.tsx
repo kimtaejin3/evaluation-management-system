@@ -6,6 +6,8 @@ import { getSessionProgress } from "@/lib/progress";
 import { fmtYmd, fmtDateTimeKst } from "@/lib/dates";
 import ExcelExportButton from "@/components/ExcelExportButton";
 import MonitorDetailLink from "@/components/MonitorDetailLink";
+import SortableTh from "@/components/SortableTh";
+import { parseSessionSort, sortSessions, type SessionSortField } from "@/lib/session-sort";
 import StatusBadge from "@/components/StatusBadge";
 import { SkeletonTable } from "@/components/Skeletons";
 
@@ -15,10 +17,13 @@ export const dynamic = "force-dynamic";
 // 분과명을 클릭하면 해당 분과의 상세 모니터링(위원×대상 그리드)으로 이동한다.
 export default async function ProjectMonitoringPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ sort?: string; dir?: string }>;
 }) {
   const { id } = await params;
+  const { sort, dir } = parseSessionSort(await searchParams);
   // 제목·설명은 정적이므로 Suspense 밖에서 즉시 렌더 — 로딩 중에도 보인다.
   return (
     <div className="space-y-6">
@@ -33,7 +38,7 @@ export default async function ProjectMonitoringPage({
         <ExcelExportButton href={`/api/projects/${id}/export/monitoring`} />
       </div>
       <Suspense fallback={<SkeletonTable rows={5} cols={7} />}>
-        <Content id={id} />
+        <Content id={id} sort={sort} dir={dir} />
       </Suspense>
     </div>
   );
@@ -46,9 +51,17 @@ const fmtPeriod = (s: { startDate: Date | null; endDate: Date | null; eventDate:
       ? fmtYmd(s.eventDate)
       : "미정";
 
-async function Content({ id }: { id: string }) {
+async function Content({
+  id,
+  sort,
+  dir,
+}: {
+  id: string;
+  sort?: SessionSortField;
+  dir: "asc" | "desc";
+}) {
   const { user } = await assertProjectAccess(id);
-  const sessions = await prisma.evaluationSession.findMany({
+  const fetched = await prisma.evaluationSession.findMany({
     where: { projectId: id },
     orderBy: { createdAt: "asc" },
     select: {
@@ -61,6 +74,8 @@ async function Content({ id }: { id: string }) {
       secretary: { select: { name: true } },
     },
   });
+  // 분과명·평가 기간 헤더 클릭 정렬 적용(진행률 계산 전에 정렬해 인덱스 정합 유지)
+  const sessions = sortSessions(fetched, sort, dir);
 
   const progress = await Promise.all(sessions.map((s) => getSessionProgress(s.id)));
 
@@ -86,9 +101,9 @@ async function Content({ id }: { id: string }) {
           <table className="table-grid w-full text-sm">
             <thead className="text-left text-slate-500">
               <tr className="border-b border-slate-100 bg-slate-50/60">
-                <th className="px-5 py-3 font-medium">분과명</th>
+                <SortableTh label="분과명" field="name" sort={sort} dir={dir} basePath={`/admin/projects/${id}/monitoring`} />
                 <th className="px-5 py-3 font-medium">평가 상태</th>
-                <th className="px-5 py-3 font-medium">평가 기간</th>
+                <SortableTh label="평가 기간" field="period" sort={sort} dir={dir} basePath={`/admin/projects/${id}/monitoring`} />
                 <th className="px-5 py-3 font-medium">담당 간사</th>
                 <th className="px-5 py-3 font-medium">평가 대상 수</th>
                 <th className="px-5 py-3 font-medium">평가위원 수</th>
