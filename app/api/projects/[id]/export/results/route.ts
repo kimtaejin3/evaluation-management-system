@@ -4,7 +4,7 @@ import { getCurrentToken } from '@/lib/session'
 import { canTokenAccessProject } from '@/lib/authz'
 import { computeFinalScores, rankSubjects } from '@/lib/scoring'
 
-// 집계 결과 → xlsx (분과/간사 제출/1위(잠정)/검토 상태)
+// 집계 결과 → xlsx (분과/간사 제출/선정 결과/검토 상태)
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const token = await getCurrentToken()
   if (!token) return new Response('Unauthorized', { status: 401 })
@@ -46,7 +46,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       분과명: s.name,
       '담당 간사': s.secretary?.name ?? '미배정',
       '간사 제출': s.submittedForReviewAt ? '제출' : '미제출',
-      '1위(잠정)': top ? `${subjectName.get(top.subjectId) ?? ''} (${top.finalScore.toFixed(2)}점)` : '',
+      '선정 결과': top ? `${subjectName.get(top.subjectId) ?? ''} (${top.finalScore.toFixed(2)}점)` : '',
       '검토 상태': s.status === 'CLOSED' ? '검토 완료' : s.submittedForReviewAt ? '대기' : '',
     }
   })

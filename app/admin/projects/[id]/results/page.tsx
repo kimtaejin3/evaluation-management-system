@@ -90,7 +90,7 @@ async function Content({ id }: { id: string }) {
               <th className="px-5 py-3 font-medium">분과명</th>
               <th className="px-5 py-3 font-medium">담당 간사</th>
               <th className="px-5 py-3 font-medium">간사 제출</th>
-              <th className="px-5 py-3 font-medium">1위(잠정)</th>
+              <th className="px-5 py-3 font-medium">선정 결과</th>
               <th className="px-5 py-3 font-medium">자세히 보기</th>
               <th className="px-5 py-3 font-medium">검토 상태</th>
             </tr>
