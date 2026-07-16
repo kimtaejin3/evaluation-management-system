@@ -11,9 +11,10 @@ export default function ReviewStatusBadge({
   // 제출(SUBMITTED) 또는 승인(APPROVED)이면 제출된 것. 반려(REJECTED)는 재수정 상태라 미제출.
   const submitted = status === "SUBMITTED" || status === "APPROVED";
   const label = wording === "review" ? (submitted ? "검토 완료" : "미검토") : submitted ? "제출" : "미제출";
+  // 완료(제출·검토 완료)=초록, 미완료=주황 — 진행중(파랑)·준비(회색)와 한눈에 구별.
   const cls = submitted
-    ? "bg-indigo-50 text-indigo-700 ring-indigo-200"
-    : "bg-slate-100 text-slate-500 ring-slate-200";
+    ? "bg-emerald-100 text-emerald-800 ring-emerald-300"
+    : "bg-amber-100 text-amber-800 ring-amber-300";
   return (
     <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ring-1 ring-inset ${cls}`}>
       {label}
@@ -23,9 +24,9 @@ export default function ReviewStatusBadge({
 
 // 관리자 승인 상태 배지 — '승인 상태' 컬럼용. 제출 전(DRAFT)은 대시로 표시.
 const APPROVAL: Record<string, { label: string; cls: string }> = {
-  SUBMITTED: { label: "대기", cls: "bg-amber-50 text-amber-700 ring-amber-200" },
-  APPROVED: { label: "승인", cls: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
-  REJECTED: { label: "반려", cls: "bg-rose-50 text-rose-700 ring-rose-200" },
+  SUBMITTED: { label: "대기", cls: "bg-amber-100 text-amber-800 ring-amber-300" },
+  APPROVED: { label: "승인", cls: "bg-emerald-100 text-emerald-800 ring-emerald-300" },
+  REJECTED: { label: "반려", cls: "bg-rose-100 text-rose-800 ring-rose-300" },
 };
 
 export function ApprovalBadge({ status }: { status: string }) {

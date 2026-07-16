@@ -5,17 +5,14 @@ import { useEffect, useState } from "react";
 type OpinionItem = {
   evaluatorId: string;
   evaluatorName: string;
-  isChair: boolean;
   subjectId: string;
   subjectName: string;
   text: string;
-  // 이 위원이 이 지원기업에 준 총점(전 항목 입력 시에만 산출, 아니면 null)
-  score: number | null;
 };
 
 const TRUNCATE_LENGTH = 200;
 
-// 모든 (평가위원 × 지원기업) 종합의견을 flat 리스트로 표시.
+// 평가위원장이 지원기업별로 작성한 종합의견을 표시(평가위원장 / 종합의견 2컬럼).
 // 긴 텍스트는 잘라서 보여주고 "더보기" 클릭 시 모달로 전체 텍스트를 표시.
 export default function OpinionViewer({ items }: { items: OpinionItem[] }) {
   const [modalItem, setModalItem] = useState<OpinionItem | null>(null);
@@ -37,14 +34,12 @@ export default function OpinionViewer({ items }: { items: OpinionItem[] }) {
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         {items.length === 0 ? (
-          <div className="px-5 py-8 text-center text-slate-400">작성된 종합의견이 없습니다.</div>
+          <div className="px-5 py-8 text-center text-slate-400">작성된 평가위원장 종합의견이 없습니다.</div>
         ) : (
           <table className="table-grid w-full text-sm">
             <thead className="text-left text-slate-500">
               <tr className="border-b border-slate-100">
-                <th className="w-40 px-5 py-3 font-medium">평가위원</th>
-                <th className="w-40 px-5 py-3 font-medium">지원기업</th>
-                <th className="w-24 px-5 py-3 text-right font-medium">점수</th>
+                <th className="w-40 px-5 py-3 font-medium">평가위원장</th>
                 <th className="px-5 py-3 font-medium">종합의견</th>
               </tr>
             </thead>
@@ -54,14 +49,7 @@ export default function OpinionViewer({ items }: { items: OpinionItem[] }) {
                 const preview = isLong ? `${item.text.slice(0, TRUNCATE_LENGTH)}…` : item.text;
                 return (
                   <tr key={`${item.evaluatorId}:${item.subjectId}`} className="border-b border-slate-50 align-top last:border-0">
-                    <td className="px-5 py-3 font-medium text-slate-700">
-                      {item.evaluatorName}
-                      {item.isChair ? <span className="ml-1 text-xs text-indigo-500">(위원장)</span> : null}
-                    </td>
-                    <td className="px-5 py-3 text-slate-700">{item.subjectName}</td>
-                    <td className="px-5 py-3 text-right tabular-nums text-slate-700">
-                      {item.score !== null ? item.score.toFixed(1) : <span className="text-slate-300">—</span>}
-                    </td>
+                    <td className="px-5 py-3 font-medium text-slate-700">{item.evaluatorName}</td>
                     <td className="px-5 py-3 text-slate-600">
                       <p className="line-clamp-3 whitespace-pre-wrap leading-relaxed">{preview}</p>
                       {isLong && (
@@ -94,7 +82,7 @@ export default function OpinionViewer({ items }: { items: OpinionItem[] }) {
             <div className="mb-3 flex items-start justify-between gap-4">
               <h3 className="text-sm font-semibold text-slate-800">
                 {modalItem.evaluatorName}
-                {modalItem.isChair ? <span className="ml-1 text-xs font-normal text-indigo-500">(위원장)</span> : null}
+                <span className="ml-1 text-xs font-normal text-indigo-500">(위원장)</span>
                 <span className="mx-1.5 text-slate-300">·</span>
                 {modalItem.subjectName}
               </h3>

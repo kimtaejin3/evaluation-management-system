@@ -272,16 +272,6 @@ model Opinion {
   @@unique([evaluatorId, subjectId])
 }
 
-// 관리자 실시간 모니터링 '자세히 보기' 조회 기록 — (사용자×분과) 마지막 클릭 시점.
-// EditingPresence처럼 관계 없이 두고 분과 삭제 시 수동 정리한다.
-model MonitorView {
-  userId    String
-  sessionId String
-  viewedAt  DateTime
-
-  @@id([userId, sessionId])
-}
-
 // 평가위원이 현재 입력 중인 항목(실시간 표시용). 위원당 1개 활성 항목, updatedAt 신선도로 만료 판단.
 model EditingPresence {
   evaluatorId String   @id

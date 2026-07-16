@@ -4,7 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { initialAssignmentStatus } from '@/lib/assignment'
-import { saveUpload, deleteUpload, isPdf } from '@/lib/storage'
+import { saveUpload, deleteUpload, isPdf, r2Enabled, presignR2Upload, headR2Upload } from '@/lib/storage'
+import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from '@/lib/upload-limits'
 import { canCloseSession, CLOSE_BLOCKED_MESSAGE } from '@/lib/session-rules'
 import { randomUUID } from 'crypto'
 import { hashPassword } from '@/lib/auth'
@@ -63,7 +64,6 @@ export async function deleteSession(sessionId: string) {
   await prisma.document.deleteMany({ where: { sessionId } })
   await prisma.opinion.deleteMany({ where: { sessionId } })
   await prisma.editingPresence.deleteMany({ where: { sessionId } })
-  await prisma.monitorView.deleteMany({ where: { sessionId } })
   await prisma.evaluationSession.delete({ where: { id: sessionId } })
   // 사이드바(admin 레이아웃)의 분과·과제 목록까지 갱신
   revalidatePath('/admin', 'layout')
@@ -210,16 +210,6 @@ export async function deleteCriterion(criterionId: string) {
   if (user.role !== 'MASTER') return
   await prisma.criterion.delete({ where: { id: criterionId } })
   revalidateCriteria(c.projectId)
-}
-
-// ── 실시간 모니터링 '자세히 보기' 클릭 기록 — (사용자×분과) 마지막 조회 시점 ──
-export async function recordMonitorView(sessionId: string) {
-  const user = await requireAdminUser()
-  await prisma.monitorView.upsert({
-    where: { userId_sessionId: { userId: user.id, sessionId } },
-    update: { viewedAt: new Date() },
-    create: { userId: user.id, sessionId, viewedAt: new Date() },
-  })
 }
 
 // ── 평가항목 확인: 관리자가 작성한 과제 공통 항목을 담당 간사가 '확인' ──
@@ -631,6 +621,64 @@ export async function uploadSubjectDocument(sessionId: string, companyId: string
     })
   }
   revalidatePath(`/admin/sessions/${sessionId}/subjects`)
+}
+
+// ── 브라우저 → R2 직접 업로드(대용량) ─────────────────────────────
+// 서버 액션 본문 한도(4MB)를 우회하기 위해 presigned URL로 브라우저가 R2에 바로 PUT한다.
+// 흐름: presign(자격·형식·한도 검증 후 URL 발급) → 브라우저 PUT → register(존재·크기 확인 후 DB 등록)
+
+type PresignResult =
+  | { direct: true; uploadUrl: string; storedName: string; url: string }
+  | { direct: false } // R2 미설정 환경 — 기존 서버 액션 업로드로 폴백
+  | { error: string }
+
+export async function presignSubjectUpload(
+  sessionId: string,
+  fileName: string,
+  fileSize: number,
+  fileType: string,
+): Promise<PresignResult> {
+  const { user } = await assertSessionAccess(sessionId)
+  if (user.role === 'MASTER') return { error: '간사만 업로드할 수 있습니다.' }
+  if (!(await subjectsEditable(sessionId))) return { error: '제출/승인 상태에서는 자료를 수정할 수 없습니다.' }
+  if (!fileName.toLowerCase().endsWith('.pdf') && fileType !== 'application/pdf')
+    return { error: 'PDF만 업로드할 수 있습니다.' }
+  if (fileSize > MAX_UPLOAD_BYTES) return { error: `파일이 너무 큽니다. 최대 ${MAX_UPLOAD_MB}MB까지 업로드할 수 있습니다.` }
+  if (!r2Enabled()) return { direct: false }
+  const { uploadUrl, storedName, url } = await presignR2Upload(fileName, fileType || 'application/pdf')
+  return { direct: true, uploadUrl, storedName, url }
+}
+
+export async function registerSubjectDocument(
+  sessionId: string,
+  companyId: string,
+  meta: { storedName: string; url: string; originalName: string; mimeType: string },
+): Promise<{ ok: true } | { error: string }> {
+  const { user } = await assertSessionAccess(sessionId)
+  if (user.role === 'MASTER') return { error: '간사만 업로드할 수 있습니다.' }
+  if (!(await subjectsEditable(sessionId))) return { error: '제출/승인 상태에서는 자료를 수정할 수 없습니다.' }
+  // presign에서 발급한 키 형식만 허용(임의 키 등록 방지)
+  if (meta.url !== `r2:documents/${meta.storedName}` || !/^[0-9a-f-]{36}\.[a-z0-9]+$/i.test(meta.storedName))
+    return { error: '잘못된 업로드 정보입니다.' }
+  const size = await headR2Upload(meta.url)
+  if (size === null) return { error: '업로드된 파일을 찾을 수 없습니다. 다시 시도해주세요.' }
+  if (size > MAX_UPLOAD_BYTES) {
+    await deleteUpload(meta.storedName, meta.url)
+    return { error: `파일이 너무 큽니다. 최대 ${MAX_UPLOAD_MB}MB까지 업로드할 수 있습니다.` }
+  }
+  await prisma.document.create({
+    data: {
+      companyId,
+      sessionId,
+      originalName: meta.originalName,
+      storedName: meta.storedName,
+      url: meta.url,
+      mimeType: meta.mimeType || 'application/pdf',
+      size,
+    },
+  })
+  revalidatePath(`/admin/sessions/${sessionId}/subjects`)
+  return { ok: true }
 }
 
 export async function deleteSubjectDocument(sessionId: string, documentId: string) {

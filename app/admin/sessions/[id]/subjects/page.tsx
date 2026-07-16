@@ -5,7 +5,6 @@ import {
   addSubject,
   editSubject,
   deleteSubject,
-  uploadSubjectDocument,
   deleteSubjectDocument,
   submitSubjectReview,
   cancelSubmitSubjectReview,
@@ -320,11 +319,7 @@ async function SubjectsContent({ id }: { id: string }) {
                   )}
                 </ul>
 
-                {canEdit && (
-                  <SubjectUploadForm
-                    action={uploadSubjectDocument.bind(null, id, s.companyId)}
-                  />
-                )}
+                {canEdit && <SubjectUploadForm sessionId={id} companyId={s.companyId} />}
               </div>
             </div>
           );

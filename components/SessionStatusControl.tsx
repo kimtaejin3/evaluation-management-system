@@ -7,9 +7,9 @@ import { canCloseSession } from '@/lib/session-rules'
 type Status = 'DRAFT' | 'IN_PROGRESS' | 'CLOSED'
 
 const MAP: Record<Status, { label: string; cls: string }> = {
-  DRAFT: { label: '준비', cls: 'bg-slate-100 text-slate-600 ring-slate-200 hover:bg-slate-200' },
-  IN_PROGRESS: { label: '진행중', cls: 'bg-indigo-50 text-indigo-700 ring-indigo-200 hover:bg-indigo-100' },
-  CLOSED: { label: '완료', cls: 'bg-slate-200 text-slate-600 ring-slate-300 hover:bg-slate-300' },
+  DRAFT: { label: '준비', cls: 'bg-slate-200 text-slate-700 ring-slate-300 hover:bg-slate-300' },
+  IN_PROGRESS: { label: '진행중', cls: 'bg-blue-100 text-blue-800 ring-blue-300 hover:bg-blue-200' },
+  CLOSED: { label: '완료', cls: 'bg-emerald-100 text-emerald-800 ring-emerald-300 hover:bg-emerald-200' },
 }
 
 const FLOW: { key: Status; label: string; desc: string }[] = [

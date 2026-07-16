@@ -2,7 +2,8 @@ import { mkdir, writeFile, unlink, readFile } from 'fs/promises'
 import path from 'path'
 import { randomUUID } from 'crypto'
 import { put, del } from '@vercel/blob'
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3'
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 
 export const UPLOAD_DIR = path.join(process.cwd(), 'storage', 'uploads')
 
@@ -32,6 +33,39 @@ function r2(): S3Client {
 export interface StoredFile {
   storedName: string
   url: string | null
+}
+
+// 브라우저 → R2 직접 업로드(대용량) 지원 여부
+export function r2Enabled(): boolean {
+  return useR2
+}
+
+// 브라우저가 R2로 바로 PUT할 수 있는 presigned URL 발급(10분 유효).
+// storedName은 서버에서 생성해 임의 키 업로드를 방지한다.
+export async function presignR2Upload(
+  fileName: string,
+  contentType: string,
+): Promise<{ uploadUrl: string; storedName: string; url: string }> {
+  const ext = path.extname(fileName).toLowerCase() || '.pdf'
+  const storedName = `${randomUUID()}${ext}`
+  const key = `documents/${storedName}`
+  const uploadUrl = await getSignedUrl(
+    r2(),
+    new PutObjectCommand({ Bucket: R2_BUCKET, Key: key, ContentType: contentType }),
+    { expiresIn: 600 },
+  )
+  return { uploadUrl, storedName, url: `${R2_PREFIX}${key}` }
+}
+
+// 직접 업로드 완료 확인 — 객체 존재 여부와 실제 크기를 R2에서 조회(클라이언트 신고값을 신뢰하지 않음)
+export async function headR2Upload(url: string): Promise<number | null> {
+  if (!url.startsWith(R2_PREFIX)) return null
+  try {
+    const res = await r2().send(new HeadObjectCommand({ Bucket: R2_BUCKET, Key: url.slice(R2_PREFIX.length) }))
+    return res.ContentLength ?? 0
+  } catch {
+    return null
+  }
 }
 
 // 업로드 허용 형식: PDF만. 확장자(.pdf) 또는 MIME(application/pdf)로 판별.

@@ -13,6 +13,7 @@ import {
   rejectOpinions,
 } from "../../actions";
 import OpinionViewer from "./OpinionViewer";
+import SubjectScoresDetail from "@/components/SubjectScoresDetail";
 
 export default async function OpinionsPage({
   params,
@@ -73,19 +74,18 @@ async function OpinionsContent({ id }: { id: string }) {
 
   const subjectNameOf = new Map(subjects.map((s) => [s.id, s.name]));
 
-  // 텍스트가 있는 (위원 × 지원기업) 조합만 flat 리스트로 구성
+  // 평가위원장이 작성한 종합의견만 표시 — '평가위원장 종합의견' 섹션(지원기업별 점수 위)
   const items = evaluators
+    .filter((ev) => ev.isChair)
     .flatMap((ev) =>
       subjects
         .filter((s) => opinionOf.has(`${ev.id}:${s.id}`))
         .map((s) => ({
           evaluatorId: ev.id,
           evaluatorName: ev.name,
-          isChair: ev.isChair,
           subjectId: s.id,
           subjectName: subjectNameOf.get(s.id) ?? "",
           text: opinionOf.get(`${ev.id}:${s.id}`) ?? "",
-          score: totalOf(ev.id, s.id),
         })),
     )
     .filter((item) => item.subjectName);
@@ -128,7 +128,10 @@ async function OpinionsContent({ id }: { id: string }) {
           배정된 평가위원이 없습니다.
         </div>
       ) : (
-        <OpinionViewer items={items} />
+        <div className="space-y-2">
+          <h2 className="text-sm font-semibold text-slate-700">평가위원장 종합의견</h2>
+          <OpinionViewer items={items} />
+        </div>
       )}
 
       {/* 지원기업별 점수 — 전 항목을 입력한 위원들의 총점 평균 */}
@@ -141,7 +144,8 @@ async function OpinionsContent({ id }: { id: string }) {
                 <tr className="border-b border-slate-100 bg-slate-50/60">
                   <th className="px-5 py-2.5 font-medium">지원기업</th>
                   <th className="px-5 py-2.5 text-right font-medium">채점 완료 위원</th>
-                  <th className="px-5 py-2.5 text-right font-medium">평균 점수</th>
+                  <th className="px-5 py-2.5 text-right font-medium">점수</th>
+                  <th className="px-5 py-2.5 font-medium">자세히 보기</th>
                 </tr>
               </thead>
               <tbody>
@@ -158,6 +162,22 @@ async function OpinionsContent({ id }: { id: string }) {
                       </td>
                       <td className="px-5 py-2.5 text-right font-medium tabular-nums text-slate-800">
                         {avg !== null ? avg.toFixed(2) : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="px-5 py-2.5">
+                        {/* 채점 완료 위원의 총점·종합의견을 모달로 확인(미완료 위원은 제외) */}
+                        <SubjectScoresDetail
+                          subjectName={s.name}
+                          evaluators={evaluators.flatMap((ev) => {
+                            const score = totalOf(ev.id, s.id);
+                            if (score === null) return [];
+                            return [{
+                              name: ev.name,
+                              isChair: ev.isChair,
+                              score,
+                              opinion: opinionOf.get(`${ev.id}:${s.id}`) ?? null,
+                            }];
+                          })}
+                        />
                       </td>
                     </tr>
                   );

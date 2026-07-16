@@ -115,11 +115,11 @@ async function Content({ id }: { id: string }) {
                   </td>
                   <td className="px-5 py-3">
                     {submitted ? (
-                      <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium whitespace-nowrap text-indigo-700 ring-1 ring-inset ring-indigo-200">
+                      <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium whitespace-nowrap text-emerald-800 ring-1 ring-inset ring-emerald-300">
                         제출
                       </span>
                     ) : (
-                      <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium whitespace-nowrap text-slate-500 ring-1 ring-inset ring-slate-200">
+                      <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium whitespace-nowrap text-amber-800 ring-1 ring-inset ring-amber-300">
                         미제출
                       </span>
                     )}

@@ -21,11 +21,11 @@ export default function ResultsReviewCell({
   const [pending, start] = useTransition()
 
   const badge = closed ? (
-    <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium whitespace-nowrap text-emerald-700 ring-1 ring-inset ring-emerald-200">
+    <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium whitespace-nowrap text-emerald-800 ring-1 ring-inset ring-emerald-300">
       검토 완료
     </span>
   ) : submitted ? (
-    <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium whitespace-nowrap text-amber-700 ring-1 ring-inset ring-amber-200">
+    <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium whitespace-nowrap text-amber-800 ring-1 ring-inset ring-amber-300">
       대기
     </span>
   ) : (
