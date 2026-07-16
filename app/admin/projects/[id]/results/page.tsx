@@ -126,10 +126,7 @@ async function Content({ id }: { id: string }) {
                   </td>
                   <td className="px-5 py-3 text-slate-700">
                     {top ? (
-                      <span>
-                        {top.name}{" "}
-                        <span className="tabular-nums text-slate-500">· {top.score.toFixed(2)}점</span>
-                      </span>
+                      <span>{top.name}</span>
                     ) : (
                       <span className="text-slate-300">—</span>
                     )}

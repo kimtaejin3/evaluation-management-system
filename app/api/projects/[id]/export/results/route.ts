@@ -46,7 +46,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       분과명: s.name,
       '담당 간사': s.secretary?.name ?? '미배정',
       '간사 제출': s.submittedForReviewAt ? '제출' : '미제출',
-      '선정 결과': top ? `${subjectName.get(top.subjectId) ?? ''} (${top.finalScore.toFixed(2)}점)` : '',
+      '선정 결과': top ? (subjectName.get(top.subjectId) ?? '') : '',
       '검토 상태': s.status === 'CLOSED' ? '검토 완료' : s.submittedForReviewAt ? '대기' : '',
     }
   })
