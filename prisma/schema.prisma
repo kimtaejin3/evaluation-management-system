@@ -337,6 +337,8 @@ model Submission {
   subjectId   String
   status      SubmissionStatus  @default(DRAFT)
   submittedAt DateTime?
+  // 제출 시 위원이 그린 핸드사인(PNG data URL) — 인쇄 평가표 '(인)' 자리에 표시
+  signature   String?
   decidedAt   DateTime?
   decidedById String?
   updatedAt   DateTime          @updatedAt

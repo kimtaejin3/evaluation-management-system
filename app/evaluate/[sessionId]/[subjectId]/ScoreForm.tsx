@@ -11,6 +11,7 @@ import {
 } from "@/app/evaluate/actions";
 import DocPreviewBoard from "@/components/DocPreviewBoard";
 import SubjectPicker from "@/components/SubjectPicker";
+import SignaturePad from "@/components/SignaturePad";
 import { canEvaluatorEdit } from "@/lib/submission";
 
 // 행 = 채점 단위. 통합(퉁) 배점 세부항목은 행이 1개이고 indicators에 설명용 지표들이 담긴다.
@@ -75,6 +76,8 @@ export default function ScoreForm({
   );
   const [confirm, setConfirm] = useState(false);
   const [comment, setComment] = useState(initialComment);
+  // 제출 서명(핸드사인) — 제출 확인 모달에서 매번 새로 그린다
+  const [signature, setSignature] = useState<string | null>(null);
   const [vals, setVals] = useState<Record<string, string>>(() => {
     const o: Record<string, string> = {};
     for (const c of criteria) o[c.id] = c.value != null ? String(c.value) : "";
@@ -215,10 +218,11 @@ export default function ScoreForm({
 
   return (
     <form action={formAction}>
-      {/* 제출용 히든 값(전 항목) */}
+      {/* 제출용 히든 값(전 항목 + 서명) */}
       {criteria.map((c) => (
         <input key={c.id} type="hidden" name={`c_${c.id}`} value={vals[c.id]} />
       ))}
+      <input type="hidden" name="signature" value={signature ?? ""} />
 
       {/* 헤더 (현재 너비 유지) */}
       <div className="sticky top-0 z-20 border-b border-slate-200 bg-white">
@@ -528,7 +532,10 @@ export default function ScoreForm({
               <div className="space-y-2">
                 <button
                   type="button"
-                  onClick={() => setConfirm(true)}
+                  onClick={() => {
+                    setSignature(null); // 제출할 때마다 새로 서명
+                    setConfirm(true);
+                  }}
                   disabled={!canSubmit || isPending}
                   className="w-full rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-40"
                 >
@@ -582,6 +589,15 @@ export default function ScoreForm({
                 </span>
               </div>
             </div>
+
+            {/* 제출 서명 — 인쇄 평가표 '(인)' 자리에 표시됩니다 */}
+            <div className="mt-4">
+              <div className="mb-1.5 text-sm font-medium text-slate-700">
+                제출 서명 <span className="text-xs font-normal text-slate-400">— 평가표의 (인) 자리에 들어갑니다</span>
+              </div>
+              <SignaturePad onChange={setSignature} width={352} height={110} />
+            </div>
+
             <div className="mt-5 flex items-center justify-between gap-2">
               <button
                 type="button"
@@ -593,7 +609,8 @@ export default function ScoreForm({
               <button
                 name="intent"
                 value="submit"
-                disabled={isPending}
+                disabled={isPending || !signature}
+                title={signature ? undefined : "서명해야 제출할 수 있습니다"}
                 className="rounded-lg bg-indigo-600 px-6 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
               >
                 {isPending ? "제출 중…" : "평가 제출"}

@@ -27,6 +27,8 @@ export type SheetDocData = {
   units: SheetUnit[]; // 이미 정렬된 상태
   valueOf: Map<string, number | null>; // unitId → 점수
   opinionText: string;
+  // 제출 시 위원이 그린 핸드사인(PNG data URL) — '(인)' 자리에 도장처럼 표시
+  signature: string | null;
   printedDate: string;
 };
 
@@ -185,12 +187,22 @@ export default function SheetDoc({ data, pageBreak = false }: { data: SheetDocDa
         </tbody>
       </table>
 
-      {/* 하단 — 날짜(좌) · 평가위원 서명(우) */}
+      {/* 하단 — 날짜(좌) · 평가위원 서명(우). 제출 서명이 있으면 '(인)' 위에 도장처럼 겹쳐 표시 */}
       <div className="mt-6 flex items-end justify-between text-sm">
         <span>{data.printedDate}</span>
         <span>
           평가위원 : <span className="font-semibold">{data.evaluatorName}</span>
-          <span className="ml-1">(인)</span>
+          <span className="relative ml-1 inline-block">
+            (인)
+            {data.signature && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={data.signature}
+                alt="서명"
+                className="pointer-events-none absolute -top-8 left-1/2 h-12 w-auto max-w-28 -translate-x-1/2"
+              />
+            )}
+          </span>
         </span>
       </div>
     </div>

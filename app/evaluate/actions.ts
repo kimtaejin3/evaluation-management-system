@@ -235,11 +235,17 @@ export async function saveScores(
     return { saved: true }
   }
 
-  // 제출: 제출완료 상태로 기록(재제출 시에도 SUBMITTED로 갱신)
+  // 제출 서명(핸드사인) — 제출할 때마다 필수. 인쇄 평가표 '(인)' 자리에 표시된다.
+  const signature = String(formData.get('signature') ?? '')
+  if (!signature.startsWith('data:image/png;base64,') || signature.length > 300_000) {
+    return { error: '제출 서명이 필요합니다. 제출 확인 창에서 서명해주세요.' }
+  }
+
+  // 제출: 제출완료 상태로 기록(재제출 시에도 SUBMITTED로 갱신, 서명도 갱신)
   await prisma.submission.upsert({
     where: { evaluatorId_subjectId: { evaluatorId: user.id, subjectId } },
-    update: { status: 'SUBMITTED', submittedAt: new Date() },
-    create: { sessionId, evaluatorId: user.id, subjectId, status: 'SUBMITTED', submittedAt: new Date() },
+    update: { status: 'SUBMITTED', submittedAt: new Date(), signature },
+    create: { sessionId, evaluatorId: user.id, subjectId, status: 'SUBMITTED', submittedAt: new Date(), signature },
   })
 
   // 제출 후: 같은 심사의 다음 평가대상으로 이동. 마지막이면 목록으로(제출 안내).

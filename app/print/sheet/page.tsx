@@ -36,14 +36,16 @@ export default async function SheetPrintPage({
   if (subjects.length === 0) notFound();
 
   const subjectIds = subjects.map((s) => s.id);
-  const [scores, opinions] = await Promise.all([
+  const [scores, opinions, submissions] = await Promise.all([
     prisma.score.findMany({
       where: { sessionId, evaluatorId, subjectId: { in: subjectIds } },
       select: { subjectId: true, criterionId: true, subitemId: true, value: true },
     }),
     prisma.opinion.findMany({ where: { evaluatorId, subjectId: { in: subjectIds } }, select: { subjectId: true, text: true } }),
+    prisma.submission.findMany({ where: { evaluatorId, subjectId: { in: subjectIds } }, select: { subjectId: true, signature: true } }),
   ]);
   const opinionOf = new Map(opinions.map((o) => [o.subjectId, o.text]));
+  const signatureOf = new Map(submissions.map((s) => [s.subjectId, s.signature]));
 
   // 단일 모드 진행 표시용(전체 모드는 대상 수만 표시)
   const singleFilled = all ? 0 : scores.filter((s) => s.subjectId === subjects[0].id && s.value != null).length;
@@ -62,6 +64,7 @@ export default async function SheetPrintPage({
       units,
       valueOf,
       opinionText: opinionOf.get(subject.id) ?? "",
+      signature: signatureOf.get(subject.id) ?? null,
       printedDate,
     };
   });
