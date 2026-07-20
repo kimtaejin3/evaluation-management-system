@@ -144,31 +144,25 @@ export async function addSubitem(groupId: string, formData: FormData) {
   revalidateCriteria(g.projectId)
 }
 
-// 세부항목 + 첫 평가지표를 한 번에 생성(세트). 세부항목명(name) + 평가지표명(criterionName) + 배점(maxScore).
-export async function addSubitemWithCriterion(groupId: string, formData: FormData) {
-  const g = await prisma.criterionGroup.findUnique({ where: { id: groupId }, select: { projectId: true } })
-  if (!g?.projectId) return
-  const { user } = await assertProjectAccess(g.projectId)
-  if (user.role !== 'MASTER') return
-  const name = String(formData.get('name') ?? '').trim()
-  const criterionName = String(formData.get('criterionName') ?? '').trim()
-  if (!name || !criterionName) return
-  const maxScore = Number(formData.get('maxScore') ?? 0) || 0
-  const subCount = await prisma.criterionSubitem.count({ where: { groupId } })
-  const subitem = await prisma.criterionSubitem.create({ data: { groupId, name, order: subCount } })
-  const critCount = await prisma.criterion.count({ where: { projectId: g.projectId } })
-  await prisma.criterion.create({
-    data: { projectId: g.projectId, subitemId: subitem.id, name: criterionName, maxScore, order: critCount },
-  })
-  revalidateCriteria(g.projectId)
-}
 export async function updateSubitem(subitemId: string, formData: FormData) {
-  const s = await prisma.criterionSubitem.findUnique({ where: { id: subitemId }, select: { group: { select: { projectId: true } } } })
+  const s = await prisma.criterionSubitem.findUnique({
+    where: { id: subitemId },
+    select: { maxScore: true, group: { select: { projectId: true } } },
+  })
   if (!s?.group.projectId) return
   const { user } = await assertProjectAccess(s.group.projectId)
   if (user.role !== 'MASTER') return
   const name = String(formData.get('name') ?? '').trim()
-  if (name) await prisma.criterionSubitem.update({ where: { id: subitemId }, data: { name } })
+  // 통합 배점 모드일 때만 통합 배점 수정 허용(모드 전환은 지표 전부 삭제로만)
+  const lumpRaw = formData.get('maxScore')
+  const lump = lumpRaw == null ? NaN : Number(lumpRaw)
+  await prisma.criterionSubitem.update({
+    where: { id: subitemId },
+    data: {
+      ...(name ? { name } : {}),
+      ...(s.maxScore != null && Number.isFinite(lump) ? { maxScore: lump } : {}),
+    },
+  })
   revalidateCriteria(s.group.projectId)
 }
 export async function deleteSubitem(subitemId: string) {
@@ -180,6 +174,45 @@ export async function deleteSubitem(subitemId: string) {
   revalidateCriteria(s.group.projectId)
 }
 // ── 평가지표(리프) ──
+// 평가지표 일괄 추가 — 여러 줄을 한 번에 넣고 배점 방식 선택.
+// mode 'lump': 세부항목 통합 배점(퉁) — 지표는 설명용(배점 0), 통합 배점(lumpScore)을 세부항목에 저장.
+// mode 'per' : 지표별 배점 — 줄마다 배점(scores[i]).
+// 이미 방식이 정해진 세부항목(지표 존재 또는 통합 배점 설정)은 저장된 방식을 따른다.
+export async function addCriteriaBatch(subitemId: string, formData: FormData) {
+  const s = await prisma.criterionSubitem.findUnique({
+    where: { id: subitemId },
+    select: { maxScore: true, group: { select: { projectId: true } }, _count: { select: { criteria: true } } },
+  })
+  if (!s?.group.projectId) return
+  const projectId = s.group.projectId
+  const { user } = await assertProjectAccess(projectId)
+  if (user.role !== 'MASTER') return
+
+  const names = formData.getAll('names').map((v) => String(v).trim())
+  const scores = formData.getAll('scores').map((v) => Number(v) || 0)
+  const rows = names.map((name, i) => ({ name, score: scores[i] ?? 0 })).filter((r) => r.name)
+  if (rows.length === 0) return
+
+  const existingMode = s.maxScore != null ? 'lump' : s._count.criteria > 0 ? 'per' : null
+  const mode = existingMode ?? (String(formData.get('mode')) === 'lump' ? 'lump' : 'per')
+  const lump = Number(formData.get('lumpScore') ?? NaN)
+  // 신규 통합 세부항목은 통합 배점이 필수
+  if (mode === 'lump' && s.maxScore == null && !Number.isFinite(lump)) return
+
+  let order = await prisma.criterion.count({ where: { projectId } })
+  await prisma.$transaction(async (tx) => {
+    for (const r of rows) {
+      await tx.criterion.create({
+        data: { projectId, subitemId, name: r.name, maxScore: mode === 'per' ? r.score : 0, order: order++ },
+      })
+    }
+    if (mode === 'lump' && Number.isFinite(lump)) {
+      await tx.criterionSubitem.update({ where: { id: subitemId }, data: { maxScore: lump } })
+    }
+  })
+  revalidateCriteria(projectId)
+}
+
 export async function addCriterion(subitemId: string, formData: FormData) {
   const s = await prisma.criterionSubitem.findUnique({ where: { id: subitemId }, select: { group: { select: { projectId: true } } } })
   if (!s?.group.projectId) return
@@ -204,11 +237,22 @@ export async function updateCriterion(criterionId: string, formData: FormData) {
   revalidateCriteria(c.projectId)
 }
 export async function deleteCriterion(criterionId: string) {
-  const c = await prisma.criterion.findUnique({ where: { id: criterionId }, select: { projectId: true } })
+  const c = await prisma.criterion.findUnique({
+    where: { id: criterionId },
+    select: { projectId: true, subitemId: true, subitem: { select: { maxScore: true } } },
+  })
   if (!c?.projectId) return
   const { user } = await assertProjectAccess(c.projectId)
   if (user.role !== 'MASTER') return
   await prisma.criterion.delete({ where: { id: criterionId } })
+  // 통합 배점 세부항목에서 마지막 지표를 지우면 방식 초기화(다시 선택 가능) + 해당 통합 점수 정리
+  if (c.subitem.maxScore != null) {
+    const remaining = await prisma.criterion.count({ where: { subitemId: c.subitemId } })
+    if (remaining === 0) {
+      await prisma.score.deleteMany({ where: { subitemId: c.subitemId } })
+      await prisma.criterionSubitem.update({ where: { id: c.subitemId }, data: { maxScore: null } })
+    }
+  }
   revalidateCriteria(c.projectId)
 }
 

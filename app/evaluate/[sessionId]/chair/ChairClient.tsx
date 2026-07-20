@@ -68,6 +68,7 @@ export default function ChairClient({ sessionId }: { sessionId: string }) {
                           state={c.state}
                           score={c.score}
                           items={c.items}
+                          groupComments={c.groupComments}
                           opinion={c.opinion}
                         />
                       </td>

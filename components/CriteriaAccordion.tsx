@@ -2,11 +2,13 @@
 
 import { useState } from 'react'
 
+// 행 = 채점 단위. 통합(퉁) 배점 세부항목은 1행이고 indicators에 설명용 지표들이 담긴다.
 export interface PreviewCriterion {
   id: string
   groupName: string
   subitemName: string
   name: string
+  indicators: string[]
   maxScore: number
 }
 
@@ -98,7 +100,18 @@ export default function CriteriaAccordion({ criteria }: { criteria: PreviewCrite
                         )
                       }
                       cells.push(
-                        <td key="c" className="px-4 py-3 text-slate-700">{c.name}</td>,
+                        <td key="c" className="px-4 py-3 text-slate-700">
+                          {c.indicators.length > 0 ? (
+                            /* 통합 배점 — 지표는 설명, 점수는 세부항목당 1개 */
+                            <ul className="list-disc space-y-0.5 pl-4">
+                              {c.indicators.map((t, i) => (
+                                <li key={i}>{t}</li>
+                              ))}
+                            </ul>
+                          ) : (
+                            c.name
+                          )}
+                        </td>,
                         <td key="m" className="px-4 py-3 text-right font-semibold tabular-nums text-slate-800">{c.maxScore}</td>,
                       )
                       return (

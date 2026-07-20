@@ -3,6 +3,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { assertProjectAccess } from "@/lib/authz";
 import { computeWeightedScore } from "@/lib/scoring";
+import { scoringUnitsForScope } from "@/lib/criteria-scope";
+import { scoreUnitId } from "@/lib/criteria-units";
 import ProjectSubjectsTable, { type ProjectSubjectRow } from "@/components/ProjectSubjectsTable";
 import ExcelExportButton from "@/components/ExcelExportButton";
 import { SkeletonTable } from "@/components/Skeletons";
@@ -58,8 +60,8 @@ async function Content({ id }: { id: string }) {
 
   // 위원별 점수 매트릭스 — 배정 상태와 무관하게, 전 항목을 입력한 (위원×대상)만 총점 산출.
   // 평가항목은 과제 단위 공통이므로 한 번만 읽는다.
-  const [criteria, subjects, assignments, scores] = await Promise.all([
-    prisma.criterion.findMany({ where: { projectId: id }, select: { id: true, weight: true } }),
+  const [units, subjects, assignments, scores] = await Promise.all([
+    scoringUnitsForScope({ projectId: id }),
     prisma.subject.findMany({
       where: { sessionId: { in: sessionIds } },
       orderBy: { order: "asc" },
@@ -72,17 +74,18 @@ async function Content({ id }: { id: string }) {
     }),
     prisma.score.findMany({
       where: { sessionId: { in: sessionIds } },
-      select: { sessionId: true, evaluatorId: true, subjectId: true, criterionId: true, value: true },
+      select: { sessionId: true, evaluatorId: true, subjectId: true, criterionId: true, subitemId: true, value: true },
     }),
   ]);
-  const totalCriteria = criteria.length;
+  const totalCriteria = units.length;
+  const weights = units.map((u) => ({ id: u.unitId, weight: u.weight }));
 
-  // (위원:대상)별 입력 점수 묶음
+  // (위원:대상)별 입력 점수 묶음(채점 단위 기준)
   const scoreRows = new Map<string, { criterionId: string; value: number }[]>();
   for (const sc of scores) {
     const k = `${sc.evaluatorId}:${sc.subjectId}`;
     if (!scoreRows.has(k)) scoreRows.set(k, []);
-    scoreRows.get(k)!.push({ criterionId: sc.criterionId, value: sc.value });
+    scoreRows.get(k)!.push({ criterionId: scoreUnitId(sc), value: sc.value });
   }
 
   const rows: ProjectSubjectRow[] = sessions.map((s) => {
@@ -103,7 +106,7 @@ async function Content({ id }: { id: string }) {
       for (const sub of sessionSubjects) {
         const rows0 = scoreRows.get(`${e.id}:${sub.id}`) ?? [];
         totals[`${e.id}:${sub.id}`] =
-          totalCriteria > 0 && rows0.length >= totalCriteria ? computeWeightedScore(rows0, criteria) : null;
+          totalCriteria > 0 && rows0.length >= totalCriteria ? computeWeightedScore(rows0, weights) : null;
       }
     }
     return {

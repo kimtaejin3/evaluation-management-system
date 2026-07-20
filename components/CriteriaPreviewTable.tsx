@@ -1,15 +1,13 @@
-import { groupTotal } from "@/lib/criteria";
+import { subitemsTotal } from "@/lib/criteria";
 
 type LeafDTO = { id: string; name: string; maxScore: number };
-type SubitemDTO = { id: string; name: string; criteria: LeafDTO[] };
+// maxScore: null = 지표별 배점, 값 있음 = 세부항목 통합 배점(퉁) — 배점 칸을 세로 병합해 1개만 표시
+type SubitemDTO = { id: string; name: string; maxScore: number | null; criteria: LeafDTO[] };
 type GroupDTO = { id: string; name: string; maxScore: number; subitems: SubitemDTO[] };
 
 // 구성된 평가지를 읽기전용 표로 보여줌 (미리보기 · 마감된 분과 공용)
 export default function CriteriaPreviewTable({ groups }: { groups: GroupDTO[] }) {
-  const grand = groups.reduce(
-    (s, g) => s + groupTotal(g.subitems.flatMap((x) => x.criteria)),
-    0,
-  );
+  const grand = groups.reduce((s, g) => s + subitemsTotal(g.subitems), 0);
 
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
@@ -24,7 +22,7 @@ export default function CriteriaPreviewTable({ groups }: { groups: GroupDTO[] })
         </thead>
         <tbody>
           {groups.map((g) => {
-            const gTotal = groupTotal(g.subitems.flatMap((x) => x.criteria));
+            const gTotal = subitemsTotal(g.subitems);
             const groupRowSpan =
               g.subitems.reduce((n, s) => n + Math.max(1, s.criteria.length), 0) || 1;
             const groupCell = (
@@ -52,6 +50,7 @@ export default function CriteriaPreviewTable({ groups }: { groups: GroupDTO[] })
 
             return g.subitems.map((s, sIdx) => {
               const subRowSpan = Math.max(1, s.criteria.length);
+              const lump = s.maxScore != null;
               if (s.criteria.length === 0) {
                 return (
                   <tr key={s.id} className="border-b border-slate-100 last:border-0">
@@ -59,8 +58,9 @@ export default function CriteriaPreviewTable({ groups }: { groups: GroupDTO[] })
                     <td className="border-r border-slate-100 px-4 py-3 align-top text-slate-700">
                       {s.name}
                     </td>
-                    <td colSpan={2} className="px-4 py-3 text-xs text-slate-400">
-                      평가지표가 없습니다.
+                    <td className="px-4 py-3 text-xs text-slate-400">평가지표가 없습니다.</td>
+                    <td className="px-4 py-3 text-right font-semibold tabular-nums text-slate-800">
+                      {lump ? s.maxScore : ""}
                     </td>
                   </tr>
                 );
@@ -74,12 +74,31 @@ export default function CriteriaPreviewTable({ groups }: { groups: GroupDTO[] })
                       className="border-r border-slate-100 px-4 py-3 align-top text-slate-700"
                     >
                       {s.name}
+                      {lump && (
+                        <span className="mt-1 block">
+                          <span className="inline-flex items-center rounded bg-indigo-50 px-1.5 py-0.5 text-[11px] font-medium text-indigo-600">
+                            통합 배점
+                          </span>
+                        </span>
+                      )}
                     </td>
                   )}
                   <td className="px-4 py-3 text-slate-700">{c.name}</td>
-                  <td className="px-4 py-3 text-right font-semibold tabular-nums text-slate-800">
-                    {c.maxScore}
-                  </td>
+                  {/* 통합(퉁) 배점 — 지표 행들을 세로 병합해 세부항목 점수 1개만 표시 */}
+                  {lump ? (
+                    cIdx === 0 && (
+                      <td
+                        rowSpan={subRowSpan}
+                        className="px-4 py-3 text-right align-top font-semibold tabular-nums text-slate-800"
+                      >
+                        {s.maxScore}
+                      </td>
+                    )
+                  ) : (
+                    <td className="px-4 py-3 text-right font-semibold tabular-nums text-slate-800">
+                      {c.maxScore}
+                    </td>
+                  )}
                 </tr>
               ));
             });

@@ -56,3 +56,6 @@ storage/
 
 # Superpowers scratch
 .superpowers/
+
+# Claude Code 로컬 설정(개인 권한 설정 — 커밋 금지)
+.claude/settings.local.json

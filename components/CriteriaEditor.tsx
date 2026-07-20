@@ -6,15 +6,15 @@ import {
   addGroup,
   updateGroup,
   deleteGroup,
-  addSubitemWithCriterion,
+  addSubitem,
   updateSubitem,
   deleteSubitem,
-  addCriterion,
+  addCriteriaBatch,
   updateCriterion,
   deleteCriterion,
   updateProjectMaxScore,
 } from "@/app/admin/sessions/actions";
-import { groupTotal, isGroupBalanced, criteriaGrandTotal, isTotalValid } from "@/lib/criteria";
+import { subitemsTotal, isGroupBalanced, criteriaGrandTotal, isTotalValid } from "@/lib/criteria";
 import { TrashIcon, PencilIcon, PlusIcon } from "@/components/icons";
 import {
   optReducer,
@@ -34,15 +34,16 @@ const okBtn =
   "rounded-md bg-indigo-600 px-3 py-1 text-xs font-medium text-white transition hover:bg-indigo-700 disabled:opacity-40";
 const addBtn =
   "inline-flex items-center gap-1 rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700 transition hover:bg-indigo-100";
-// 리스트 마지막 아이템의 아이콘 줄에 붙는 작은 추가(+) 버튼 — 편집/삭제 아이콘과 동일한 크기·톤
+// 리스트 마지막 아이템의 아이콘 줄에 붙는 작은 추가(+) 버튼 — 무엇을 추가하는지 라벨로 구분
+// (세부항목/평가지표 추가 버튼이 나란히 놓일 수 있어 아이콘만으로는 구분이 안 됨)
 const plusBtn =
-  "rounded p-1 text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600";
+  "inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[11px] font-medium whitespace-nowrap text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600";
 
 type RunFn = (fn: () => Promise<void>) => void;
 type AddFn = (id: string, fd: FormData) => void;
 
 // 열 구조: 평가항목 · 세부항목 · 평가지표 · 배점 (4칸).
-// 삭제는 각 항목의 편집(연필) 아이콘 옆에 인라인으로 배치되어 전용 "삭제" 열이 불필요.
+// 통합 배점(퉁) 세부항목은 배점 칸이 지표 행들을 세로 병합해 점수 1개만 보인다.
 const COL_COUNT = 4;
 
 // 추가 입력 모달 — 제출 시 즉시 닫히고(urgent), onSubmit(낙관적+서버)만 transition으로.
@@ -75,7 +76,13 @@ function AddModal({
         <h3 className="text-base font-bold text-slate-900">{title}</h3>
         {children}
         <div className="flex items-center justify-end gap-2 pt-1">
-          <button type="button" onClick={onClose} className={miniBtn}>취소</button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md border border-slate-300 px-4 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+          >
+            취소
+          </button>
           <button
             disabled={pending}
             className="rounded-md bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-40"
@@ -85,6 +92,63 @@ function AddModal({
         </div>
       </form>
     </div>
+  );
+}
+
+// 평가지표 일괄 추가 필드 — 여러 줄을 한 번에, 배점 방식 택1.
+// lockedMode: 세부항목에 이미 방식이 정해져 있으면 'lump'|'per'(선택지 숨김), 새 세부항목이면 null(선택).
+function CriteriaBatchFields({ lockedMode }: { lockedMode: "per" | "lump" | null }) {
+  const [mode, setMode] = useState<"per" | "lump">(lockedMode ?? "lump");
+  const [count, setCount] = useState(1);
+  const lump = mode === "lump";
+  return (
+    <>
+      {lockedMode === null ? (
+        <fieldset className="space-y-1.5">
+          <legend className="text-xs text-slate-500">배점 방식</legend>
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input type="radio" name="mode" value="lump" checked={lump} onChange={() => setMode("lump")} />
+            세부항목 통합 배점 <span className="text-xs text-slate-400">— 지표는 설명, 점수는 세부항목에 1개</span>
+          </label>
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input type="radio" name="mode" value="per" checked={!lump} onChange={() => setMode("per")} />
+            지표별 배점 <span className="text-xs text-slate-400">— 지표마다 점수</span>
+          </label>
+        </fieldset>
+      ) : (
+        <input type="hidden" name="mode" value={lockedMode} />
+      )}
+
+      <div className="space-y-2">
+        {Array.from({ length: count }).map((_, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <input
+              name="names"
+              required={i === 0}
+              placeholder={`평가지표 ${i + 1}`}
+              className={`min-w-0 flex-1 ${inputCls}`}
+              autoFocus={i === 0}
+            />
+            {!lump && (
+              <input name="scores" type="number" step="any" placeholder="배점" className={`w-20 ${inputCls}`} />
+            )}
+          </div>
+        ))}
+        <button type="button" onClick={() => setCount((c) => c + 1)} className={addBtn}>
+          + 줄 추가
+        </button>
+      </div>
+
+      {lump && lockedMode === null && (
+        <label className="block text-xs text-slate-500">
+          통합 배점 <span className="text-slate-400">(이 세부항목 전체 점수)</span>
+          <input name="lumpScore" type="number" step="any" required className={`mt-1 w-full ${inputCls}`} />
+        </label>
+      )}
+      {lockedMode === "lump" && (
+        <p className="text-xs text-slate-400">이 세부항목은 통합 배점 방식입니다 — 지표는 설명으로 추가됩니다.</p>
+      )}
+    </>
   );
 }
 
@@ -135,28 +199,34 @@ export default function CriteriaEditor({
     });
   };
 
-  // 세부항목 + 첫 평가지표를 세트로 추가(낙관적: 세부항목 → 평가지표 순으로 즉시 삽입)
+  // 세부항목 추가 — 이름만 입력(평가지표는 별도의 일괄 추가 모달에서)
   const addSubitemOpt: AddFn = (groupId, fd) => {
     const name = String(fd.get("name") ?? "").trim();
-    const criterionName = String(fd.get("criterionName") ?? "").trim();
-    if (!name || !criterionName) return;
-    const maxScore = Number(fd.get("maxScore") ?? 0) || 0;
+    if (!name) return;
     start(async () => {
-      const tmpSub = nextTmp();
-      applyOptimistic({ kind: "subitem", id: tmpSub, groupId, name });
-      applyOptimistic({ kind: "criterion", id: nextTmp(), subitemId: tmpSub, name: criterionName, maxScore });
-      await addSubitemWithCriterion(groupId, fd);
+      applyOptimistic({ kind: "subitem", id: nextTmp(), groupId, name });
+      await addSubitem(groupId, fd);
       router.refresh();
     });
   };
 
-  const addCriterionOpt: AddFn = (subitemId, fd) => {
-    const name = String(fd.get("name") ?? "").trim();
-    if (!name) return;
-    const maxScore = Number(fd.get("maxScore") ?? 0) || 0;
+  // 평가지표 일괄 추가 — 서버 액션과 동일하게 FormData(names/scores/mode/lumpScore)를 해석해 낙관적 반영
+  const addCriteriaOpt: AddFn = (subitemId, fd) => {
+    const names = fd.getAll("names").map((v) => String(v).trim());
+    const scores = fd.getAll("scores").map((v) => Number(v) || 0);
+    const mode = String(fd.get("mode")) === "lump" ? "lump" : "per";
+    const rows = names.map((name, i) => ({ name, score: scores[i] ?? 0 })).filter((r) => r.name);
+    if (rows.length === 0) return;
+    const lumpRaw = Number(fd.get("lumpScore") ?? NaN);
+    const lumpScore = mode === "lump" && Number.isFinite(lumpRaw) ? lumpRaw : null;
     start(async () => {
-      applyOptimistic({ kind: "criterion", id: nextTmp(), subitemId, name, maxScore });
-      await addCriterion(subitemId, fd);
+      applyOptimistic({
+        kind: "criteria-batch",
+        subitemId,
+        items: rows.map((r) => ({ id: nextTmp(), name: r.name, maxScore: mode === "per" ? r.score : 0 })),
+        lumpScore,
+      });
+      await addCriteriaBatch(subitemId, fd);
       router.refresh();
     });
   };
@@ -221,7 +291,7 @@ export default function CriteriaEditor({
                 pending={pending}
                 onAddGroup={() => setAddingGroup(true)}
                 onAddSubitem={addSubitemOpt}
-                onAddCriterion={addCriterionOpt}
+                onAddCriteria={addCriteriaOpt}
               />
             ))}
             {optimisticGroups.length === 0 && (
@@ -256,6 +326,7 @@ export default function CriteriaEditor({
 
 // 한 평가항목(그룹)의 모든 행. 열 구조는 항상 4칸(평가항목·세부항목·평가지표·배점)으로 고정.
 // 추가 트리거는 각 리스트 마지막 아이템의 아이콘 줄에 있는 +버튼(그룹/세부항목/평가지표 각각) — 전용 추가 행은 없음.
+// 통합 배점 세부항목은 배점 칸을 rowSpan으로 병합해 세부항목 점수 1개만 표시한다.
 function GroupBlock({
   group,
   isLastGroup,
@@ -263,7 +334,7 @@ function GroupBlock({
   pending,
   onAddGroup,
   onAddSubitem,
-  onAddCriterion,
+  onAddCriteria,
 }: {
   group: GroupDTO;
   isLastGroup: boolean;
@@ -271,7 +342,7 @@ function GroupBlock({
   pending: boolean;
   onAddGroup: () => void;
   onAddSubitem: AddFn;
-  onAddCriterion: AddFn;
+  onAddCriteria: AddFn;
 }) {
   // 세부항목 1개가 차지하는 행 수 = 평가지표 개수(0이면 1행으로 자기 자신만 표시)
   const subBlock = (s: SubitemDTO) => Math.max(s.criteria.length, 1);
@@ -311,6 +382,7 @@ function GroupBlock({
   group.subitems.forEach((s, sIdx) => {
     const isLastSubitem = sIdx === group.subitems.length - 1;
     const subRowSpan = subBlock(s);
+    const lump = s.maxScore != null;
 
     if (s.criteria.length === 0) {
       // 평가지표가 하나도 없는 세부항목 — 세부항목 셀만 있는 빈 행 1개("+ 평가지표"는 SubitemNameCell 안에 표시)
@@ -326,11 +398,19 @@ function GroupBlock({
           groupId={group.id}
           isLastSubitem={isLastSubitem}
           onAddSubitem={onAddSubitem}
-          onAddCriterion={onAddCriterion}
+          onAddCriteria={onAddCriteria}
         />,
       );
       cells.push(<td key="c" className="px-4 py-2" />);
-      cells.push(<td key="m" className="px-4 py-2" />);
+      cells.push(
+        lump ? (
+          <td key="m" className="px-4 py-3 text-right align-top font-semibold tabular-nums text-slate-800">
+            {fmt(s.maxScore!)}
+          </td>
+        ) : (
+          <td key="m" className="px-4 py-2" />
+        ),
+      );
       rows.push(<tr key={`${s.id}-empty`} className="border-b border-slate-100">{cells}</tr>);
       return;
     }
@@ -350,7 +430,7 @@ function GroupBlock({
             groupId={group.id}
             isLastSubitem={isLastSubitem}
             onAddSubitem={onAddSubitem}
-            onAddCriterion={onAddCriterion}
+            onAddCriteria={onAddCriteria}
           />,
         );
       }
@@ -358,13 +438,22 @@ function GroupBlock({
         <CriterionRowCells
           key="cr"
           criterion={c}
+          lump={lump}
           run={run}
           pending={pending}
           subitemId={s.id}
           isLastCriterion={isLastCriterion}
-          onAddCriterion={onAddCriterion}
+          onAddCriteria={onAddCriteria}
         />,
       );
+      if (lump && cIdx === 0) {
+        // 통합 배점 — 지표 행들을 세로 병합해 세부항목 점수 1개만 표시(수정은 세부항목 연필에서)
+        cells.push(
+          <td key="m" rowSpan={subRowSpan} className="px-4 py-3 text-right align-top font-semibold tabular-nums text-slate-800">
+            {fmt(s.maxScore!)}
+          </td>,
+        );
+      }
       rows.push(<tr key={c.id} className="border-b border-slate-100 last:border-0">{cells}</tr>);
     });
   });
@@ -391,7 +480,7 @@ function GroupNameCell({
 }) {
   const [editing, setEditing] = useState(false);
   const [addingSubitem, setAddingSubitem] = useState(false);
-  const total = groupTotal(group.subitems.flatMap((s) => s.criteria));
+  const total = subitemsTotal(group.subitems);
   const balanced = isGroupBalanced(group.maxScore, total);
   const showAddSubitem = group.subitems.length === 0;
 
@@ -431,50 +520,33 @@ function GroupNameCell({
             </button>
             {showAddSubitem && (
               <button type="button" onClick={() => setAddingSubitem(true)} className={plusBtn} title="세부항목 추가" aria-label="세부항목 추가">
-                <PlusIcon className="h-3.5 w-3.5" />
+                <PlusIcon className="h-3 w-3" />
+                세부항목
               </button>
             )}
             {isLastGroup && (
               <button type="button" onClick={onAddGroup} className={plusBtn} title="평가항목 추가" aria-label="평가항목 추가">
-                <PlusIcon className="h-3.5 w-3.5" />
+                <PlusIcon className="h-3 w-3" />
+                평가항목
               </button>
             )}
           </div>
           <div className="text-xs text-slate-400">
-            합계 {total} / 목표 {group.maxScore}
+            합계 {fmt(total)} / 목표 {fmt(group.maxScore)}
             {!balanced && <span className="ml-1 rounded bg-amber-50 px-1.5 py-0.5 font-medium text-amber-600">⚠ 불일치</span>}
           </div>
         </div>
       )}
       {addingSubitem && (
-        <AddModal title="세부항목·평가지표 추가" pending={pending} onClose={() => setAddingSubitem(false)} onSubmit={(fd) => onAddSubitem(group.id, fd)}>
-          <SubitemWithCriterionFields />
+        <AddModal title="세부항목 추가" pending={pending} onClose={() => setAddingSubitem(false)} onSubmit={(fd) => onAddSubitem(group.id, fd)}>
+          <label className="block text-xs text-slate-500">
+            세부항목명
+            <input name="name" required placeholder="예: 목표 및 내용" className={`mt-1 w-full ${inputCls}`} autoFocus />
+          </label>
+          <p className="text-xs text-slate-400">평가지표와 배점은 추가된 세부항목의 + 버튼에서 일괄 입력합니다.</p>
         </AddModal>
       )}
     </td>
-  );
-}
-
-// 세부항목 + 첫 평가지표를 함께 입력하는 폼 필드(세트 추가 공용)
-function SubitemWithCriterionFields() {
-  return (
-    <>
-      <label className="block text-xs text-slate-500">
-        세부항목명
-        <input name="name" required placeholder="예: 목표 및 내용" className={`mt-1 w-full ${inputCls}`} autoFocus />
-      </label>
-      <div className="rounded-md border border-slate-100 bg-slate-50 p-2.5">
-        <div className="mb-1.5 text-[11px] font-medium text-slate-500">첫 평가지표</div>
-        <label className="block text-xs text-slate-500">
-          평가지표명
-          <input name="criterionName" required placeholder="예: 사업 타당성" className={`mt-1 w-full ${inputCls}`} />
-        </label>
-        <label className="mt-2 block text-xs text-slate-500">
-          배점
-          <input name="maxScore" type="number" step="any" defaultValue={0} className={`mt-1 w-full ${inputCls}`} />
-        </label>
-      </div>
-    </>
   );
 }
 
@@ -486,7 +558,7 @@ function SubitemNameCell({
   groupId,
   isLastSubitem,
   onAddSubitem,
-  onAddCriterion,
+  onAddCriteria,
 }: {
   subitem: SubitemDTO;
   rowSpan: number;
@@ -495,12 +567,13 @@ function SubitemNameCell({
   groupId: string;
   isLastSubitem: boolean;
   onAddSubitem: AddFn;
-  onAddCriterion: AddFn;
+  onAddCriteria: AddFn;
 }) {
   const [editing, setEditing] = useState(false);
   const [addingSubitem, setAddingSubitem] = useState(false);
-  const [addingCriterion, setAddingCriterion] = useState(false);
-  const showAddCriterion = subitem.criteria.length === 0;
+  const [addingCriteria, setAddingCriteria] = useState(false);
+  const lump = subitem.maxScore != null;
+  const showAddCriteria = subitem.criteria.length === 0;
 
   const submit = (fd: FormData) =>
     run(async () => {
@@ -516,69 +589,89 @@ function SubitemNameCell({
       {editing ? (
         <form action={submit} className="flex flex-col gap-2">
           <input name="name" defaultValue={subitem.name} className={inputCls} autoFocus />
+          {lump && (
+            <label className="flex items-center gap-1 text-xs text-slate-500">
+              통합 배점
+              <input name="maxScore" type="number" step="any" defaultValue={subitem.maxScore!} className={`w-24 ${inputCls}`} />
+            </label>
+          )}
           <div className="flex gap-2">
             <button type="button" onClick={() => setEditing(false)} className={miniBtn}>취소</button>
             <button disabled={pending} className={okBtn}>저장</button>
           </div>
         </form>
       ) : (
-        <div className="flex items-center gap-1.5">
-          <span className="font-medium text-slate-700">{subitem.name}</span>
-          <button type="button" onClick={() => setEditing(true)} className="rounded p-1 text-slate-400 transition hover:bg-slate-100 hover:text-indigo-600" title="수정" aria-label="세부항목 수정">
-            <PencilIcon className="h-3.5 w-3.5" />
-          </button>
-          <button type="button" onClick={onDelete} className="rounded p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600" title="세부항목 삭제" aria-label="세부항목 삭제">
-            <TrashIcon className="h-3.5 w-3.5" />
-          </button>
-          {/* 세부항목 +버튼은 하나만: 비어있으면 첫 평가지표 추가, 아니면 새 세부항목(+평가지표) 세트 추가 */}
-          {showAddCriterion ? (
-            <button type="button" onClick={() => setAddingCriterion(true)} className={plusBtn} title="평가지표 추가" aria-label="평가지표 추가">
-              <PlusIcon className="h-3.5 w-3.5" />
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5">
+            <span className="font-medium text-slate-700">{subitem.name}</span>
+            <button type="button" onClick={() => setEditing(true)} className="rounded p-1 text-slate-400 transition hover:bg-slate-100 hover:text-indigo-600" title="수정" aria-label="세부항목 수정">
+              <PencilIcon className="h-3.5 w-3.5" />
             </button>
-          ) : isLastSubitem ? (
-            <button type="button" onClick={() => setAddingSubitem(true)} className={plusBtn} title="세부항목·평가지표 추가" aria-label="세부항목·평가지표 추가">
-              <PlusIcon className="h-3.5 w-3.5" />
+            <button type="button" onClick={onDelete} className="rounded p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600" title="세부항목 삭제" aria-label="세부항목 삭제">
+              <TrashIcon className="h-3.5 w-3.5" />
             </button>
-          ) : null}
+            {/* 세부항목의 +버튼 — 지표 추가·세부항목 추가를 각각 독립 버튼으로(겹쳐도 라벨로 구분) */}
+            {showAddCriteria && (
+              <button type="button" onClick={() => setAddingCriteria(true)} className={plusBtn} title="평가지표 추가" aria-label="평가지표 추가">
+                <PlusIcon className="h-3 w-3" />
+                지표
+              </button>
+            )}
+            {isLastSubitem && (
+              <button type="button" onClick={() => setAddingSubitem(true)} className={plusBtn} title="세부항목 추가" aria-label="세부항목 추가">
+                <PlusIcon className="h-3 w-3" />
+                세부항목
+              </button>
+            )}
+          </div>
+          {lump && (
+            <span className="inline-flex items-center rounded bg-indigo-50 px-1.5 py-0.5 text-[11px] font-medium text-indigo-600">
+              통합 배점
+            </span>
+          )}
         </div>
       )}
-      {addingCriterion && (
-        <AddModal title="평가지표 추가" pending={pending} onClose={() => setAddingCriterion(false)} onSubmit={(fd) => onAddCriterion(subitem.id, fd)}>
-          <label className="block text-xs text-slate-500">
-            평가지표명
-            <input name="name" required placeholder="예: 사업 타당성" className={`mt-1 w-full ${inputCls}`} autoFocus />
-          </label>
-          <label className="block text-xs text-slate-500">
-            배점
-            <input name="maxScore" type="number" step="any" defaultValue={0} className={`mt-1 w-full ${inputCls}`} />
-          </label>
+      {addingCriteria && (
+        <AddModal
+          title="평가지표 추가"
+          pending={pending}
+          onClose={() => setAddingCriteria(false)}
+          onSubmit={(fd) => onAddCriteria(subitem.id, fd)}
+        >
+          <CriteriaBatchFields lockedMode={lump ? "lump" : subitem.criteria.length > 0 ? "per" : null} />
         </AddModal>
       )}
       {addingSubitem && (
-        <AddModal title="세부항목·평가지표 추가" pending={pending} onClose={() => setAddingSubitem(false)} onSubmit={(fd) => onAddSubitem(groupId, fd)}>
-          <SubitemWithCriterionFields />
+        <AddModal title="세부항목 추가" pending={pending} onClose={() => setAddingSubitem(false)} onSubmit={(fd) => onAddSubitem(groupId, fd)}>
+          <label className="block text-xs text-slate-500">
+            세부항목명
+            <input name="name" required placeholder="예: 목표 및 내용" className={`mt-1 w-full ${inputCls}`} autoFocus />
+          </label>
+          <p className="text-xs text-slate-400">평가지표와 배점은 추가된 세부항목의 + 버튼에서 일괄 입력합니다.</p>
         </AddModal>
       )}
     </td>
   );
 }
 
-// 평가지표 편집은 이름·배점이 서로 다른 열(td)에 있어 <form>으로 감쌀 수 없으므로,
-// 제어 입력 + 버튼 클릭 시 FormData를 구성해 액션을 호출한다(항상 2칸 고정: 이름/배점).
+// 평가지표 행 — 지표별 모드: 이름+배점 2칸. 통합(퉁) 모드: 이름 1칸만(배점 칸은 세부항목이 병합 표시).
+// 이름·배점이 서로 다른 열(td)에 있어 <form>으로 감쌀 수 없으므로 제어 입력 + FormData로 액션 호출.
 function CriterionRowCells({
   criterion,
+  lump,
   run,
   pending,
   subitemId,
   isLastCriterion,
-  onAddCriterion,
+  onAddCriteria,
 }: {
   criterion: LeafDTO;
+  lump: boolean;
   run: RunFn;
   pending: boolean;
   subitemId: string;
   isLastCriterion: boolean;
-  onAddCriterion: AddFn;
+  onAddCriteria: AddFn;
 }) {
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -588,7 +681,7 @@ function CriterionRowCells({
   const save = () => {
     const fd = new FormData();
     fd.set("name", name);
-    fd.set("maxScore", score);
+    fd.set("maxScore", lump ? "0" : score);
     run(async () => {
       await updateCriterion(criterion.id, fd);
       setEditing(false);
@@ -614,9 +707,11 @@ function CriterionRowCells({
             <button type="button" onClick={save} disabled={pending} className={okBtn}>저장</button>
           </div>
         </td>
-        <td className="px-4 py-3 text-right align-top">
-          <input type="number" step="any" value={score} onChange={(e) => setScore(e.target.value)} className={`w-20 text-right ${inputCls}`} />
-        </td>
+        {!lump && (
+          <td className="px-4 py-3 text-right align-top">
+            <input type="number" step="any" value={score} onChange={(e) => setScore(e.target.value)} className={`w-20 text-right ${inputCls}`} />
+          </td>
+        )}
       </>
     );
   }
@@ -634,24 +729,20 @@ function CriterionRowCells({
           </button>
           {isLastCriterion && (
             <button type="button" onClick={() => setAdding(true)} className={plusBtn} title="평가지표 추가" aria-label="평가지표 추가">
-              <PlusIcon className="h-3.5 w-3.5" />
+              <PlusIcon className="h-3 w-3" />
+              지표
             </button>
           )}
         </div>
         {adding && (
-          <AddModal title="평가지표 추가" pending={pending} onClose={() => setAdding(false)} onSubmit={(fd) => onAddCriterion(subitemId, fd)}>
-            <label className="block text-xs text-slate-500">
-              평가지표명
-              <input name="name" required placeholder="예: 사업 타당성" className={`mt-1 w-full ${inputCls}`} autoFocus />
-            </label>
-            <label className="block text-xs text-slate-500">
-              배점
-              <input name="maxScore" type="number" step="any" defaultValue={0} className={`mt-1 w-full ${inputCls}`} />
-            </label>
+          <AddModal title="평가지표 추가" pending={pending} onClose={() => setAdding(false)} onSubmit={(fd) => onAddCriteria(subitemId, fd)}>
+            <CriteriaBatchFields lockedMode={lump ? "lump" : "per"} />
           </AddModal>
         )}
       </td>
-      <td className="px-4 py-3 text-right align-top font-semibold tabular-nums text-slate-800">{criterion.maxScore}</td>
+      {!lump && (
+        <td className="px-4 py-3 text-right align-top font-semibold tabular-nums text-slate-800">{fmt(criterion.maxScore)}</td>
+      )}
     </>
   );
 }

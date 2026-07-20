@@ -29,14 +29,19 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     },
   })
 
+  // 통합(퉁) 배점 세부항목은 배점을 첫 지표 행에만 1번 기재(지표는 설명)
   const rows = groups.flatMap((g) =>
     g.subitems.flatMap((sub) =>
-      sub.criteria.map((c) => ({
-        평가항목: g.name,
-        세부항목: sub.name,
-        평가지표: c.name,
-        배점: c.maxScore,
-      })),
+      sub.criteria.length === 0
+        ? sub.maxScore != null
+          ? [{ 평가항목: g.name, 세부항목: sub.name, 평가지표: '', 배점: sub.maxScore as number | string }]
+          : []
+        : sub.criteria.map((c, i) => ({
+            평가항목: g.name,
+            세부항목: sub.name,
+            평가지표: c.name,
+            배점: sub.maxScore != null ? (i === 0 ? sub.maxScore : '') : c.maxScore,
+          })),
     ),
   )
 

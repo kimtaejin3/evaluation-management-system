@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import { assertSessionAccess } from "@/lib/authz";
 import { prisma } from "@/lib/db";
-import { criteriaScopeForSession } from "@/lib/criteria-scope";
+import { criteriaScopeForSession, scoringUnitsForScope } from "@/lib/criteria-scope";
+import { scoreUnitId } from "@/lib/criteria-units";
 import AutoPrint from "@/app/print/sheet/AutoPrint";
 import SubjectScoreDoc, { type SubjectScoreData } from "./SubjectScoreDoc";
 
@@ -19,22 +20,12 @@ export default async function SubjectScoresPrintPage({
   const all = subjectId === "all";
   const printedDate = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
 
-  const [session, criteria, assignments] = await Promise.all([
+  const [session, units, assignments] = await Promise.all([
     prisma.evaluationSession.findUnique({ where: { id: sessionId } }),
-    prisma.criterion.findMany({ where: await criteriaScopeForSession(sessionId), include: { subitem: { include: { group: true } } } }),
+    scoringUnitsForScope(await criteriaScopeForSession(sessionId)),
     prisma.assignment.findMany({ where: { sessionId }, include: { user: { select: { id: true, name: true } } } }),
   ]);
   if (!session) notFound();
-
-  criteria.sort((a, b) => {
-    const ga = a.subitem?.group.order ?? 0;
-    const gb = b.subitem?.group.order ?? 0;
-    if (ga !== gb) return ga - gb;
-    const sa = a.subitem?.order ?? 0;
-    const sb = b.subitem?.order ?? 0;
-    if (sa !== sb) return sa - sb;
-    return a.order - b.order;
-  });
   const evaluators = assignments.map((a) => ({ id: a.userId, name: a.user.name }));
 
   const subjects = all
@@ -45,17 +36,17 @@ export default async function SubjectScoresPrintPage({
   const subjectIds = subjects.map((s) => s.id);
   const scores = await prisma.score.findMany({
     where: { sessionId, subjectId: { in: subjectIds } },
-    select: { subjectId: true, evaluatorId: true, criterionId: true, value: true },
+    select: { subjectId: true, evaluatorId: true, criterionId: true, subitemId: true, value: true },
   });
 
   const docs: SubjectScoreData[] = subjects.map((subject) => {
     const scoreOf = new Map<string, number>();
-    for (const s of scores) if (s.subjectId === subject.id) scoreOf.set(`${s.evaluatorId}:${s.criterionId}`, s.value);
+    for (const s of scores) if (s.subjectId === subject.id) scoreOf.set(`${s.evaluatorId}:${scoreUnitId(s)}`, s.value);
     return {
       subjectName: subject.name,
       sessionName: session.name,
       evaluators,
-      criteria,
+      units,
       scoreOf,
       printedDate,
     };

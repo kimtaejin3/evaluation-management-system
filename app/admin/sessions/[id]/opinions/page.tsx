@@ -1,7 +1,8 @@
 import { Suspense } from "react";
 import { prisma } from "@/lib/db";
 import { requireAdminUser } from "@/lib/authz";
-import { criteriaScopeForSession } from "@/lib/criteria-scope";
+import { criteriaScopeForSession, scoringUnitsForScope } from "@/lib/criteria-scope";
+import { scoreUnitId } from "@/lib/criteria-units";
 import { computeWeightedScore } from "@/lib/scoring";
 import { SkeletonCard } from "@/components/Skeletons";
 import ExcelExportButton from "@/components/ExcelExportButton";
@@ -38,28 +39,32 @@ export default async function OpinionsPage({
 async function OpinionsContent({ id }: { id: string }) {
   const me = await requireAdminUser();
   const isMaster = me.role === "MASTER";
-  // 평가항목은 과제(Project) 단위 공통 — 점수 컬럼·지원기업별 점수 계산용
+  // 평가항목은 과제(Project) 단위 공통 — 채점 단위(지표별/통합) 기준으로 점수 계산
   const criteriaWhere = await criteriaScopeForSession(id);
-  const [session, assignments, subjects, opinions, criteria, scores] = await Promise.all([
+  const [session, assignments, subjects, opinions, units, scores] = await Promise.all([
     prisma.evaluationSession.findUnique({ where: { id } }),
     prisma.assignment.findMany({ where: { sessionId: id }, include: { user: { select: { id: true, name: true } } } }),
     prisma.subject.findMany({ where: { sessionId: id }, orderBy: { name: "asc" } }),
     prisma.opinion.findMany({ where: { sessionId: id }, select: { evaluatorId: true, subjectId: true, text: true } }),
-    prisma.criterion.findMany({ where: criteriaWhere, select: { id: true, weight: true } }),
-    prisma.score.findMany({ where: { sessionId: id }, select: { evaluatorId: true, subjectId: true, criterionId: true, value: true } }),
+    scoringUnitsForScope(criteriaWhere),
+    prisma.score.findMany({
+      where: { sessionId: id },
+      select: { evaluatorId: true, subjectId: true, criterionId: true, subitemId: true, value: true },
+    }),
   ]);
 
-  // (위원:대상)별 총점 — 전 항목을 입력한 조합만 산출(그 외 null)
-  const totalCriteria = criteria.length;
+  // (위원:대상)별 총점 — 전 단위를 입력한 조합만 산출(그 외 null)
+  const weights = units.map((u) => ({ id: u.unitId, weight: u.weight }));
+  const totalCriteria = units.length;
   const scoreRowsOf = new Map<string, { criterionId: string; value: number }[]>();
   for (const sc of scores) {
     const k = `${sc.evaluatorId}:${sc.subjectId}`;
     if (!scoreRowsOf.has(k)) scoreRowsOf.set(k, []);
-    scoreRowsOf.get(k)!.push({ criterionId: sc.criterionId, value: sc.value });
+    scoreRowsOf.get(k)!.push({ criterionId: scoreUnitId(sc), value: sc.value });
   }
   const totalOf = (evaluatorId: string, subjectId: string): number | null => {
     const rows = scoreRowsOf.get(`${evaluatorId}:${subjectId}`) ?? [];
-    return totalCriteria > 0 && rows.length >= totalCriteria ? computeWeightedScore(rows, criteria) : null;
+    return totalCriteria > 0 && rows.length >= totalCriteria ? computeWeightedScore(rows, weights) : null;
   };
 
   // (위원:대상) → 종합의견 텍스트

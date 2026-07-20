@@ -11,10 +11,9 @@ vi.mock('@/app/admin/sessions/actions', () => ({
   updateGroup: vi.fn(),
   deleteGroup: vi.fn(),
   addSubitem: vi.fn(),
-  addSubitemWithCriterion: vi.fn(),
   updateSubitem: vi.fn(),
   deleteSubitem: vi.fn(),
-  addCriterion: vi.fn(),
+  addCriteriaBatch: vi.fn(),
   updateCriterion: vi.fn(),
   deleteCriterion: vi.fn(),
   updateProjectMaxScore: vi.fn(),
@@ -26,7 +25,7 @@ const groups = [
     name: '사업계획',
     maxScore: 30,
     subitems: [
-      { id: 'sub1', name: '타당성', criteria: [{ id: 'c1', name: '시장성', maxScore: 30 }] },
+      { id: 'sub1', name: '타당성', maxScore: null, criteria: [{ id: 'c1', name: '시장성', maxScore: 30 }] },
     ],
   },
 ]

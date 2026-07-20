@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx'
 import { prisma } from '@/lib/db'
-import { criteriaScopeForSession } from '@/lib/criteria-scope'
+import { criteriaScopeForSession, scoringUnitsForScope } from '@/lib/criteria-scope'
+import { scoreUnitId } from '@/lib/criteria-units'
 import { getCurrentToken } from '@/lib/session'
 import { canTokenAccessSession } from '@/lib/authz'
 import { computeFinalScores, rankSubjects, overallGrade } from '@/lib/scoring'
@@ -14,19 +15,22 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params
   if (!(await canTokenAccessSession(token, id))) return new Response('Unauthorized', { status: 401 })
 
-  const [session, subjects, criteria, scores, approvedSubs] = await Promise.all([
+  const [session, subjects, units, scores, approvedSubs] = await Promise.all([
     prisma.evaluationSession.findUnique({ where: { id }, select: { maxScore: true } }),
     prisma.subject.findMany({ where: { sessionId: id }, orderBy: { order: 'asc' } }),
-    prisma.criterion.findMany({ where: await criteriaScopeForSession(id), select: { id: true, weight: true } }),
-    prisma.score.findMany({ where: { sessionId: id }, select: { evaluatorId: true, subjectId: true, criterionId: true, value: true } }),
+    scoringUnitsForScope(await criteriaScopeForSession(id)),
+    prisma.score.findMany({
+      where: { sessionId: id },
+      select: { evaluatorId: true, subjectId: true, criterionId: true, subitemId: true, value: true },
+    }),
     prisma.submission.findMany({ where: { sessionId: id, status: 'APPROVED' }, select: { evaluatorId: true, subjectId: true } }),
   ])
 
   const approved = new Set(approvedSubs.map((s) => `${s.evaluatorId}:${s.subjectId}`))
   const approvedScores = scores.filter((s) => approved.has(`${s.evaluatorId}:${s.subjectId}`))
   const finalScores = computeFinalScores(
-    approvedScores.map((s) => ({ evaluatorId: s.evaluatorId, subjectId: s.subjectId, criterionId: s.criterionId, value: s.value })),
-    criteria,
+    approvedScores.map((s) => ({ evaluatorId: s.evaluatorId, subjectId: s.subjectId, criterionId: scoreUnitId(s), value: s.value })),
+    units.map((u) => ({ id: u.unitId, weight: u.weight })),
   )
   const ranked = rankSubjects(finalScores)
   const nameOf = new Map(subjects.map((s) => [s.id, s.name]))

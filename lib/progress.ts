@@ -1,6 +1,7 @@
 import { prisma } from './db'
 import { computeWeightedScore } from './scoring'
-import { criteriaScopeForSession } from './criteria-scope'
+import { criteriaScopeForSession, scoringUnitsForScope } from './criteria-scope'
+import { scoreUnitId } from './criteria-units'
 import { cellStatus, type CellStatus, type SubmissionStatus } from './submission'
 
 export type CellState = 'done' | 'partial' | 'none'
@@ -57,42 +58,45 @@ export interface ProgressData {
 export async function getSessionProgress(sessionId: string): Promise<ProgressData> {
   // 평가항목은 과제(Project) 단위 공통 — 분과의 소속 과제 항목을 읽는다.
   const criteriaWhere = await criteriaScopeForSession(sessionId)
-  const [session, subjects, criteria, assignments, scores, editing, submissions] = await Promise.all([
+  const [session, subjects, units, assignments, scores, editing, submissions] = await Promise.all([
     prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { chairId: true } }),
     prisma.subject.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } }),
-    prisma.criterion.findMany({ where: criteriaWhere, orderBy: { order: 'asc' }, select: { id: true, name: true, weight: true } }),
+    scoringUnitsForScope(criteriaWhere),
     prisma.assignment.findMany({ where: { sessionId, status: 'APPROVED' }, include: { user: true } }),
-    prisma.score.findMany({ where: { sessionId }, select: { evaluatorId: true, subjectId: true, criterionId: true, value: true } }),
+    prisma.score.findMany({
+      where: { sessionId },
+      select: { evaluatorId: true, subjectId: true, criterionId: true, subitemId: true, value: true },
+    }),
     prisma.editingPresence.findMany({ where: { sessionId }, select: { evaluatorId: true, subjectId: true, criterionId: true, updatedAt: true } }),
     prisma.submission.findMany({ where: { sessionId }, select: { evaluatorId: true, subjectId: true, status: true } }),
   ])
   const chairId = session?.chairId ?? null
   const subOf = new Map<string, SubmissionStatus>()
   for (const s of submissions) subOf.set(`${s.evaluatorId}:${s.subjectId}`, s.status)
-  const weights = criteria.map((c) => ({ id: c.id, weight: c.weight }))
+  const weights = units.map((u) => ({ id: u.unitId, weight: u.weight }))
   const scoreRowsOf = new Map<string, { criterionId: string; value: number }[]>()
   for (const s of scores) {
     const k = `${s.evaluatorId}:${s.subjectId}`
     if (!scoreRowsOf.has(k)) scoreRowsOf.set(k, [])
-    scoreRowsOf.get(k)!.push({ criterionId: s.criterionId, value: s.value })
+    scoreRowsOf.get(k)!.push({ criterionId: scoreUnitId(s), value: s.value })
   }
 
-  const totalCriteria = criteria.length
-  // 입력된 (위원:대상:항목) 집합
+  const totalCriteria = units.length
+  // 입력된 (위원:대상:단위) 집합
   const filled = new Set<string>()
-  for (const s of scores) filled.add(`${s.evaluatorId}:${s.subjectId}:${s.criterionId}`)
-  // 현재 입력 중 (위원:대상:항목) → 시각(ms)
+  for (const s of scores) filled.add(`${s.evaluatorId}:${s.subjectId}:${scoreUnitId(s)}`)
+  // 현재 입력 중 (위원:대상:단위) → 시각(ms) — EditingPresence.criterionId에 unitId가 기록된다
   const editingAtOf = new Map<string, number>()
   for (const e of editing) editingAtOf.set(`${e.evaluatorId}:${e.subjectId}:${e.criterionId}`, e.updatedAt.getTime())
 
   const cellOf = (evId: string, subId: string): Cell => {
-    const items: CellItem[] = criteria.map((c) => {
-      const done = filled.has(`${evId}:${subId}:${c.id}`)
+    const items: CellItem[] = units.map((u) => {
+      const done = filled.has(`${evId}:${subId}:${u.unitId}`)
       return {
-        id: c.id,
-        name: c.name,
+        id: u.unitId,
+        name: u.label,
         done,
-        editingAt: done ? null : (editingAtOf.get(`${evId}:${subId}:${c.id}`) ?? null),
+        editingAt: done ? null : (editingAtOf.get(`${evId}:${subId}:${u.unitId}`) ?? null),
       }
     })
     const done = items.filter((it) => it.done).length
@@ -146,7 +150,7 @@ export async function getSessionProgress(sessionId: string): Promise<ProgressDat
 
   return {
     subjects,
-    criteria,
+    criteria: units.map((u) => ({ id: u.unitId, name: u.label })),
     totalCriteria,
     rows,
     review,
@@ -163,17 +167,19 @@ export async function getSessionProgress(sessionId: string): Promise<ProgressDat
 // 점수 개수·최신 수정시각(추가/수정), 배정·대상·항목 개수(구조 변경/삭제)를 조합.
 export async function getProgressVersion(sessionId: string): Promise<string> {
   const criteriaWhere = await criteriaScopeForSession(sessionId)
-  const [scoreAgg, assignCount, subjCount, critCount, editAgg] = await Promise.all([
+  const [scoreAgg, assignCount, subjCount, critCount, lumpCount, editAgg] = await Promise.all([
     prisma.score.aggregate({ where: { sessionId }, _count: { _all: true }, _max: { updatedAt: true } }),
     prisma.assignment.count({ where: { sessionId, status: 'APPROVED' } }),
     prisma.subject.count({ where: { sessionId } }),
     prisma.criterion.count({ where: criteriaWhere }),
+    // 통합 배점(퉁) 세부항목 수 — 배점 방식 전환도 구조 변경으로 감지
+    prisma.criterionSubitem.count({ where: { group: criteriaWhere, maxScore: { not: null } } }),
     // 입력 중(포커스) 변화도 감지해 대시보드 애니메이션이 실시간 반영되게 함
     prisma.editingPresence.aggregate({ where: { sessionId }, _count: { _all: true }, _max: { updatedAt: true } }),
   ])
   const ts = scoreAgg._max.updatedAt ? scoreAgg._max.updatedAt.getTime() : 0
   const ets = editAgg._max.updatedAt ? editAgg._max.updatedAt.getTime() : 0
-  return `${scoreAgg._count._all}:${ts}:${assignCount}:${subjCount}:${critCount}:${editAgg._count._all}:${ets}`
+  return `${scoreAgg._count._all}:${ts}:${assignCount}:${subjCount}:${critCount}:${lumpCount}:${editAgg._count._all}:${ets}`
 }
 
 // ---- 대시보드 인사이트(잠정 순위 + 위원 간 편차) ----
@@ -194,11 +200,14 @@ export interface SessionInsights {
 
 export async function getSessionInsights(sessionId: string): Promise<SessionInsights> {
   const criteriaWhere = await criteriaScopeForSession(sessionId)
-  const [subjects, criteria, assignments, allScores, approvedSubs] = await Promise.all([
+  const [subjects, units, assignments, allScores, approvedSubs] = await Promise.all([
     prisma.subject.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } }),
-    prisma.criterion.findMany({ where: criteriaWhere, select: { id: true, weight: true } }),
+    scoringUnitsForScope(criteriaWhere),
     prisma.assignment.findMany({ where: { sessionId, status: 'APPROVED' }, select: { userId: true } }),
-    prisma.score.findMany({ where: { sessionId }, select: { evaluatorId: true, subjectId: true, criterionId: true, value: true } }),
+    prisma.score.findMany({
+      where: { sessionId },
+      select: { evaluatorId: true, subjectId: true, criterionId: true, subitemId: true, value: true },
+    }),
     prisma.submission.findMany({ where: { sessionId, status: 'APPROVED' }, select: { evaluatorId: true, subjectId: true } }),
   ])
 
@@ -206,7 +215,8 @@ export async function getSessionInsights(sessionId: string): Promise<SessionInsi
   const approved = new Set(approvedSubs.map((s) => `${s.evaluatorId}:${s.subjectId}`))
   const scores = allScores.filter((s) => approved.has(`${s.evaluatorId}:${s.subjectId}`))
 
-  const totalCriteria = criteria.length
+  const totalCriteria = units.length
+  const weights = units.map((u) => ({ id: u.unitId, weight: u.weight }))
   const evaluatorIds = assignments.map((a) => a.userId)
 
   // subject -> evaluator -> rows
@@ -215,7 +225,7 @@ export async function getSessionInsights(sessionId: string): Promise<SessionInsi
     if (!grouped.has(s.subjectId)) grouped.set(s.subjectId, new Map())
     const byEval = grouped.get(s.subjectId)!
     if (!byEval.has(s.evaluatorId)) byEval.set(s.evaluatorId, [])
-    byEval.get(s.evaluatorId)!.push({ criterionId: s.criterionId, value: s.value })
+    byEval.get(s.evaluatorId)!.push({ criterionId: scoreUnitId(s), value: s.value })
   }
 
   const base = subjects.map((sub) => {
@@ -226,7 +236,7 @@ export async function getSessionInsights(sessionId: string): Promise<SessionInsi
       for (const evId of evaluatorIds) {
         const rows = byEval.get(evId)
         if (rows && rows.length >= totalCriteria) {
-          totals.push(computeWeightedScore(rows, criteria))
+          totals.push(computeWeightedScore(rows, weights))
         }
       }
     }

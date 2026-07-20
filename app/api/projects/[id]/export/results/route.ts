@@ -3,6 +3,8 @@ import { prisma } from '@/lib/db'
 import { getCurrentToken } from '@/lib/session'
 import { canTokenAccessProject } from '@/lib/authz'
 import { computeFinalScores, rankSubjects } from '@/lib/scoring'
+import { scoringUnitsForScope } from '@/lib/criteria-scope'
+import { scoreUnitId } from '@/lib/criteria-units'
 
 // 집계 결과 → xlsx (분과/간사 제출/선정 결과/검토 상태)
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -24,11 +26,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   })
   // 1위 — 분과 집계 결과와 동일 계산(승인 제출 점수 → computeFinalScores → rankSubjects)
   const sessionIds = sessions.map((s) => s.id)
-  const [criteria, allScores, approvedSubs, subjects] = await Promise.all([
-    prisma.criterion.findMany({ where: { projectId: id }, select: { id: true, weight: true } }),
+  const [units, allScores, approvedSubs, subjects] = await Promise.all([
+    scoringUnitsForScope({ projectId: id }),
     prisma.score.findMany({
       where: { sessionId: { in: sessionIds } },
-      select: { sessionId: true, evaluatorId: true, subjectId: true, criterionId: true, value: true },
+      select: { sessionId: true, evaluatorId: true, subjectId: true, criterionId: true, subitemId: true, value: true },
     }),
     prisma.submission.findMany({
       where: { sessionId: { in: sessionIds }, status: 'APPROVED' },
@@ -39,9 +41,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const approved = new Set(approvedSubs.map((s) => `${s.evaluatorId}:${s.subjectId}`))
   const subjectName = new Map(subjects.map((s) => [s.id, s.name]))
 
+  const weights = units.map((u) => ({ id: u.unitId, weight: u.weight }))
   const rows = sessions.map((s) => {
-    const scoreRows = allScores.filter((sc) => sc.sessionId === s.id && approved.has(`${sc.evaluatorId}:${sc.subjectId}`))
-    const top = rankSubjects(computeFinalScores(scoreRows, criteria)).find((r) => r.rank === 1)
+    const scoreRows = allScores
+      .filter((sc) => sc.sessionId === s.id && approved.has(`${sc.evaluatorId}:${sc.subjectId}`))
+      .map((sc) => ({ evaluatorId: sc.evaluatorId, subjectId: sc.subjectId, criterionId: scoreUnitId(sc), value: sc.value }))
+    const top = rankSubjects(computeFinalScores(scoreRows, weights)).find((r) => r.rank === 1)
     return {
       분과명: s.name,
       '담당 간사': s.secretary?.name ?? '미배정',

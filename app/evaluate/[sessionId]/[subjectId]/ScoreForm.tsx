@@ -1,10 +1,11 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { Fragment, useActionState, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   saveScores,
   autoSaveScore,
+  autoSaveGroupComment,
   pingEditing,
   clearEditing,
 } from "@/app/evaluate/actions";
@@ -12,11 +13,14 @@ import DocPreviewBoard from "@/components/DocPreviewBoard";
 import SubjectPicker from "@/components/SubjectPicker";
 import { canEvaluatorEdit } from "@/lib/submission";
 
+// 행 = 채점 단위. 통합(퉁) 배점 세부항목은 행이 1개이고 indicators에 설명용 지표들이 담긴다.
 export interface CriterionView {
   id: string;
+  groupId: string;
   groupName: string;
   subitemName: string;
   name: string;
+  indicators: string[];
   maxScore: number;
   weight: number;
   value: number | null;
@@ -35,6 +39,7 @@ export default function ScoreForm({
   documents,
   criteria,
   initialComment,
+  groupComments = {},
   subjects = [],
   submissionStatus = null,
   onSelectSubject,
@@ -51,6 +56,8 @@ export default function ScoreForm({
   documents: { id: string; name: string; mimeType: string }[];
   criteria: CriterionView[];
   initialComment: string;
+  // 평가항목(그룹)별 의견 초기값 — groupId → 텍스트
+  groupComments?: Record<string, string>;
   subjects?: { id: string; name: string }[];
   otherScores?: Record<string, { name: string; value: number }[]>;
   otherPending?: Record<string, string[]>;
@@ -95,6 +102,25 @@ export default function ScoreForm({
     if (timers.current[id]) clearTimeout(timers.current[id]);
     if (immediate) runSave(id, v);
     else timers.current[id] = setTimeout(() => runSave(id, v), 700);
+  };
+
+  // 평가항목(그룹)별 의견 — 점수와 동일한 디바운스 자동 저장
+  const [gcVals, setGcVals] = useState<Record<string, string>>(groupComments);
+  const runGcSave = async (groupId: string, raw: string) => {
+    setAutoState("saving");
+    try {
+      const res = await autoSaveGroupComment(sessionId, subjectId, groupId, raw);
+      setAutoState(res?.ok ? "saved" : "error");
+    } catch {
+      setAutoState("error");
+    }
+  };
+  const setGcVal = (groupId: string, v: string) => {
+    setGcVals((p) => ({ ...p, [groupId]: v }));
+    onDirty?.();
+    const key = `gc:${groupId}`;
+    if (timers.current[key]) clearTimeout(timers.current[key]);
+    timers.current[key] = setTimeout(() => runGcSave(groupId, v), 700);
   };
 
   // 입력 중(포커스) 추적
@@ -158,15 +184,16 @@ export default function ScoreForm({
 
   // 평가항목(group) → 세부항목(subitem) → 평가지표(criterion). criteria는 이미 group.order→subitem.order→criterion.order로 정렬되어 옴.
   type Grp = {
+    id: string;
     no: number;
     name: string;
     subs: { name: string; items: CriterionView[] }[];
   };
   const groups: Grp[] = [];
   criteria.forEach((c) => {
-    let g = groups.find((x) => x.name === c.groupName);
+    let g = groups.find((x) => x.id === c.groupId);
     if (!g) {
-      g = { no: groups.length + 1, name: c.groupName, subs: [] };
+      g = { id: c.groupId, no: groups.length + 1, name: c.groupName, subs: [] };
       groups.push(g);
     }
     let sg = g.subs.find((x) => x.name === c.subitemName);
@@ -285,7 +312,8 @@ export default function ScoreForm({
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-left text-slate-500">
                 <tr className="border-b border-slate-200">
-                  <th className="px-3 py-2 font-medium">평가항목</th>
+                  {/* 평가항목명이 좁은 열 폭 때문에 줄바꿈되지 않도록 내용 폭에 맞춰 고정 */}
+                  <th className="w-px whitespace-nowrap px-3 py-2 font-medium">평가항목</th>
                   <th className="px-3 py-2 font-medium">세부항목</th>
                   <th className="px-3 py-2 font-medium">평가지표</th>
                   <th className="w-px whitespace-nowrap px-3 py-2 text-right font-medium">
@@ -304,7 +332,7 @@ export default function ScoreForm({
                       0,
                     ) || 1;
                   let groupPlaced = false;
-                  return g.subs.map((sg) => {
+                  const itemRows = g.subs.map((sg) => {
                     const subRowSpan = Math.max(1, sg.items.length);
                     return sg.items.map((c, cIdx) => {
                       const outOfRange = !isInRange(c);
@@ -314,7 +342,7 @@ export default function ScoreForm({
                           <td
                             key="g"
                             rowSpan={groupRowSpan}
-                            className="border-r border-slate-100 px-3 py-3 align-top"
+                            className="whitespace-nowrap border-r border-slate-100 px-3 py-3 align-top"
                           >
                             <span className="flex items-center gap-1.5">
                               <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-semibold text-indigo-700">
@@ -343,9 +371,18 @@ export default function ScoreForm({
                       }
                       cells.push(
                         <td key="c" className="px-3 py-2.5 align-top">
-                          <div className="font-medium text-slate-800">
-                            {c.name}
-                          </div>
+                          {c.indicators.length > 0 ? (
+                            /* 통합 배점 — 지표들은 설명, 점수는 세부항목당 1개 */
+                            <ul className="list-disc space-y-0.5 pl-4 text-slate-700">
+                              {c.indicators.map((t, i) => (
+                                <li key={i}>{t}</li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <div className="font-medium text-slate-800">
+                              {c.name}
+                            </div>
+                          )}
                         </td>,
                         <td
                           key="m"
@@ -389,6 +426,30 @@ export default function ScoreForm({
                       );
                     });
                   });
+                  return (
+                    <Fragment key={g.id}>
+                      {itemRows}
+                      {/* 평가항목(그룹)별 의견 — 그룹 블록 아래 전체 폭, 자동 저장 */}
+                      <tr className="border-b border-slate-100 bg-slate-50/60">
+                        <td colSpan={5} className="px-3 py-2">
+                          <div className="flex items-start gap-2">
+                            <span className="mt-1.5 shrink-0 text-xs font-medium whitespace-nowrap text-slate-500">
+                              {g.name} 의견
+                            </span>
+                            <textarea
+                              value={gcVals[g.id] ?? ""}
+                              onChange={(e) => setGcVal(g.id, e.target.value)}
+                              disabled={locked}
+                              rows={1}
+                              maxLength={500}
+                              placeholder="이 평가항목에 대한 의견 (선택)"
+                              className="min-h-8 w-full resize-y rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-50"
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    </Fragment>
+                  );
                 })}
                 {criteria.length === 0 && (
                   <tr>
@@ -400,6 +461,25 @@ export default function ScoreForm({
                     </td>
                   </tr>
                 )}
+                {/* 종합의견 — 평가항목별 의견과 같은 결로 표 맨 아래 전체 폭(제출 시 comment로 저장) */}
+                <tr className="border-t border-slate-200 bg-slate-50/60">
+                  <td colSpan={5} className="px-3 py-3">
+                    <div className="mb-1.5 flex items-center justify-between">
+                      <span className="text-sm font-semibold text-slate-700">종합의견</span>
+                      <span className="text-xs text-slate-400">{comment.length} / 1000</span>
+                    </div>
+                    <textarea
+                      name="comment"
+                      value={comment}
+                      maxLength={1000}
+                      onChange={(e) => setComment(e.target.value)}
+                      disabled={locked}
+                      rows={4}
+                      placeholder="대상에 대한 종합적인 평가 의견을 입력하세요. (선택)"
+                      className="w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-50"
+                    />
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -420,27 +500,6 @@ export default function ScoreForm({
                   입력 {filledCount}/{criteria.length}
                 </div>
               </div>
-            </div>
-
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-sm font-semibold text-slate-700">
-                  종합의견
-                </span>
-                <span className="text-xs text-slate-400">
-                  {comment.length} / 1000
-                </span>
-              </div>
-              <textarea
-                name="comment"
-                value={comment}
-                maxLength={1000}
-                onChange={(e) => setComment(e.target.value)}
-                disabled={locked}
-                rows={8}
-                placeholder="대상에 대한 종합적인 평가 의견을 입력하세요. (선택)"
-                className="w-full resize-none rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              />
             </div>
 
             {state?.error && (

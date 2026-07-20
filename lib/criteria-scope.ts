@@ -12,3 +12,35 @@ export async function criteriaScopeForSession(sessionId: string): Promise<Criter
   })
   return s?.projectId ? { projectId: s.projectId } : { sessionId }
 }
+
+// 채점 단위(ScoringUnit) 조회 — 그룹→세부항목→지표를 순서대로 읽어 unit 목록으로 변환.
+// 채점 화면·집계·진행률·인쇄·엑셀이 모두 이 목록을 기준으로 동작한다.
+import { buildScoringUnits, type ScoringUnit } from './criteria-units'
+
+export async function scoringUnitsForScope(where: CriteriaScope): Promise<ScoringUnit[]> {
+  const groups = await prisma.criterionGroup.findMany({
+    where,
+    orderBy: { order: 'asc' },
+    select: {
+      id: true,
+      name: true,
+      subitems: {
+        orderBy: { order: 'asc' },
+        select: {
+          id: true,
+          name: true,
+          maxScore: true,
+          criteria: {
+            orderBy: { order: 'asc' },
+            select: { id: true, name: true, maxScore: true, weight: true },
+          },
+        },
+      },
+    },
+  })
+  return buildScoringUnits(groups)
+}
+
+export async function scoringUnitsForSession(sessionId: string): Promise<ScoringUnit[]> {
+  return scoringUnitsForScope(await criteriaScopeForSession(sessionId))
+}

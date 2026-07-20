@@ -13,6 +13,7 @@ export default function ChairScoreCell({
   state,
   score,
   items,
+  groupComments = [],
   opinion = null,
 }: {
   evaluatorName: string
@@ -21,6 +22,8 @@ export default function ChairScoreCell({
   state: 'done' | 'partial' | 'none'
   score: number | null
   items: Item[]
+  // 평가항목(그룹)별 의견 — 작성된 것만
+  groupComments?: { groupName: string; text: string }[]
   opinion?: string | null
 }) {
   const [open, setOpen] = useState(false)
@@ -94,6 +97,21 @@ export default function ChairScoreCell({
               ))}
               {total === 0 && <li className="px-1 text-xs text-slate-400">평가 항목이 없습니다.</li>}
             </ul>
+
+            {/* 평가항목(그룹)별 의견 */}
+            {groupComments.length > 0 && (
+              <div className="mt-3 border-t border-slate-100 pt-3">
+                <div className="mb-1 text-xs font-medium text-slate-500">평가항목별 의견</div>
+                <ul className="space-y-1.5">
+                  {groupComments.map((gc, i) => (
+                    <li key={i} className="rounded-md bg-slate-50 px-2.5 py-1.5">
+                      <div className="text-xs font-medium text-slate-500">{gc.groupName}</div>
+                      <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{gc.text}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {/* 위원 종합의견 */}
             <div className="mt-3 border-t border-slate-100 pt-3">

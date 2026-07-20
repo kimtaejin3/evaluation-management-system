@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { prisma } from "@/lib/db";
-import { criteriaScopeForSession } from "@/lib/criteria-scope";
+import { criteriaScopeForSession, scoringUnitsForScope } from "@/lib/criteria-scope";
+import { scoreUnitId } from "@/lib/criteria-units";
 import { fmtYmd } from "@/lib/dates";
 import { computeFinalScores, rankSubjects } from "@/lib/scoring";
 import { getSessionInsights } from "@/lib/progress";
@@ -40,13 +41,10 @@ export default async function ResultsPage({
 
 async function ResultsContent({ id }: { id: string }) {
   const me = await requireAdminUser();
-  const [session, subjects, criteria, scores, assignments, insights, approvedSubs] = await Promise.all([
+  const [session, subjects, units, scores, assignments, insights, approvedSubs] = await Promise.all([
     prisma.evaluationSession.findUnique({ where: { id }, include: { project: { select: { startDate: true, endDate: true } } } }),
     prisma.subject.findMany({ where: { sessionId: id } }),
-    prisma.criterion.findMany({
-      where: await criteriaScopeForSession(id),
-      include: { subitem: { include: { group: true } } },
-    }),
+    scoringUnitsForScope(await criteriaScopeForSession(id)),
     prisma.score.findMany({ where: { sessionId: id } }),
     prisma.assignment.findMany({ where: { sessionId: id }, include: { user: { select: { id: true, name: true } } } }),
     getSessionInsights(id),
@@ -61,28 +59,21 @@ async function ResultsContent({ id }: { id: string }) {
     approvedScores.map((s) => ({
       evaluatorId: s.evaluatorId,
       subjectId: s.subjectId,
-      criterionId: s.criterionId,
+      criterionId: scoreUnitId(s),
       value: s.value,
     })),
-    criteria.map((c) => ({ id: c.id, weight: c.weight })),
+    units.map((u) => ({ id: u.unitId, weight: u.weight })),
   );
   const ranked = rankSubjects(finalScores);
   const subjectName = new Map(subjects.map((s) => [s.id, s.name]));
-  const orderedCriteria = [...criteria].sort((a, b) => {
-    const ga = a.subitem?.group.order ?? 0;
-    const gb = b.subitem?.group.order ?? 0;
-    if (ga !== gb) return ga - gb;
-    const sa = a.subitem?.order ?? 0;
-    const sb = b.subitem?.order ?? 0;
-    if (sa !== sb) return sa - sb;
-    return a.order - b.order;
-  });
+  // 채점 단위(units)는 이미 그룹→세부항목→지표 순으로 정렬되어 있다
+  const orderedCriteria = units;
   // 환산·등급 기준 만점 = 분과 설정값(기본 100). 가점이 있으면 100 초과 점수 가능.
   const maxTotal = session?.maxScore ?? TOTAL_SCORE;
   const divergent = insights.rows.filter((r) => r.spread !== null && r.spread >= 10);
   // (위원:대상:항목) → 점수 (RankingTable에 전달, 클라이언트에서 평균·위원별 계산)
   const scoreVal = new Map<string, number>();
-  for (const s of approvedScores) scoreVal.set(`${s.evaluatorId}:${s.subjectId}:${s.criterionId}`, s.value);
+  for (const s of approvedScores) scoreVal.set(`${s.evaluatorId}:${s.subjectId}:${scoreUnitId(s)}`, s.value);
   const printedAt = new Date().toLocaleString("ko-KR", { dateStyle: "long", timeStyle: "short" });
   const chair = session?.chairId ? await prisma.user.findUnique({ where: { id: session.chairId }, select: { name: true } }) : null;
 
@@ -98,7 +89,7 @@ async function ResultsContent({ id }: { id: string }) {
   const NO_GROUP = "미분류";
   const sectionGroups: { section: string; items: typeof orderedCriteria }[] = [];
   for (const c of orderedCriteria) {
-    const key = c.subitem?.group.name || NO_GROUP;
+    const key = c.groupName || NO_GROUP;
     const last = sectionGroups[sectionGroups.length - 1];
     if (last && last.section === key) last.items.push(c);
     else sectionGroups.push({ section: key, items: [c] });
@@ -106,7 +97,7 @@ async function ResultsContent({ id }: { id: string }) {
   // 항목 번호 체계: 평가항목 1,2,3… / 세부항목 1-1,1-2…
   const itemCode = new Map<string, string>();
   sectionGroups.forEach((g, gi) => {
-    g.items.forEach((c, ci) => itemCode.set(c.id, `${gi + 1}-${ci + 1}`));
+    g.items.forEach((c, ci) => itemCode.set(c.unitId, `${gi + 1}-${ci + 1}`));
   });
   // 선정(1위) 대상 — 동점이면 복수
   const winners = orderedSubjects.filter((s) => s.rank === 1);
@@ -158,7 +149,7 @@ async function ResultsContent({ id }: { id: string }) {
           sessionId={id}
           winners={winners.map((w) => ({ id: w.id, name: w.name, finalScore: w.finalScore }))}
           subjects={orderedSubjects}
-          criteria={orderedCriteria.map((c) => ({ id: c.id, code: itemCode.get(c.id) ?? "", name: c.name, weight: c.weight }))}
+          criteria={orderedCriteria.map((c) => ({ id: c.unitId, code: itemCode.get(c.unitId) ?? "", name: c.label, weight: c.weight }))}
           evaluators={assignments.map((a) => ({ id: a.userId, name: a.user.name }))}
           scores={Object.fromEntries(scoreVal)}
           maxTotal={maxTotal}

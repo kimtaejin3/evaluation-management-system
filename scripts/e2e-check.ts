@@ -116,7 +116,7 @@ async function main() {
   const scores = await prisma.score.findMany({ where: { sessionId: session.id } })
   const weights = [cQuant, cQual].map((c) => ({ id: c.id, weight: c.weight }))
   assert(computeWeightedScore([{ criterionId: cQuant.id, value: 40 }, { criterionId: cQual.id, value: 30 }], weights) === 70, 'G1 가중 점수 = Σ(점수×가중치)')
-  const finals = computeFinalScores(scores.map((s) => ({ evaluatorId: s.evaluatorId, subjectId: s.subjectId, criterionId: s.criterionId, value: s.value })), weights)
+  const finals = computeFinalScores(scores.map((s) => ({ evaluatorId: s.evaluatorId, subjectId: s.subjectId, criterionId: s.criterionId ?? s.subitemId ?? '', value: s.value })), weights)
   assert(finals.get(subA.id) === 62, `G2 대상A 최종 62 (실제 ${finals.get(subA.id)})`)
   const ranked = rankSubjects(finals)
   assert(ranked[0].subjectId === subA.id && ranked[0].rank === 1, 'G3 대상A 1위')

@@ -1,14 +1,19 @@
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
-type Item = { id: string; name: string; maxScore: number; value: number | null };
-type Sub = { name: string; items: Item[] };
+// 세부항목 블록 — 지표별 모드: lines=지표(각각 점수), 통합(퉁) 모드: lines=설명용 지표, 점수는 1개.
+type Sub = { key: string; name: string; lines: string[]; maxScore: number; filled: boolean; score: number };
 type Grp = { name: string; subs: Sub[] };
 
-export type SheetCriterion = {
-  id: string;
-  name: string;
+// 채점 단위(unit) — lib/criteria-units.ScoringUnit에서 인쇄에 필요한 필드만
+export type SheetUnit = {
+  unitId: string;
+  kind: "criterion" | "subitem";
+  groupName: string;
+  subitemId: string;
+  subitemName: string;
+  label: string;
+  indicators: string[];
   maxScore: number;
-  subitem: { name: string | null; group: { name: string | null } } | null;
 };
 
 export type SheetDocData = {
@@ -19,30 +24,45 @@ export type SheetDocData = {
   companyName: string;
   leadResearcher: string | null;
   evaluatorName: string;
-  criteria: SheetCriterion[]; // 이미 정렬된 상태
-  valueOf: Map<string, number | null>;
+  units: SheetUnit[]; // 이미 정렬된 상태
+  valueOf: Map<string, number | null>; // unitId → 점수
   opinionText: string;
   printedDate: string;
 };
 
 // 위원별 평가표(K-PASS 양식) 단일 문서. 전체 인쇄 시 여러 개를 페이지 나눔으로 이어 렌더.
 export default function SheetDoc({ data, pageBreak = false }: { data: SheetDocData; pageBreak?: boolean }) {
-  const { criteria, valueOf } = data;
+  const { units, valueOf } = data;
 
   const groups: Grp[] = [];
-  for (const c of criteria) {
-    const gName = c.subitem?.group.name ?? "미분류";
-    const sName = c.subitem?.name ?? "";
+  for (const u of units) {
+    const gName = u.groupName || "미분류";
     let g = groups.find((x) => x.name === gName);
     if (!g) { g = { name: gName, subs: [] }; groups.push(g); }
-    let sg = g.subs.find((x) => x.name === sName);
-    if (!sg) { sg = { name: sName, items: [] }; g.subs.push(sg); }
-    sg.items.push({ id: c.id, name: c.name, maxScore: c.maxScore, value: valueOf.get(c.id) ?? null });
+    if (u.kind === "subitem") {
+      const v = valueOf.get(u.unitId) ?? null;
+      g.subs.push({
+        key: u.subitemId,
+        name: u.subitemName,
+        lines: u.indicators.length ? u.indicators : [u.subitemName],
+        maxScore: u.maxScore,
+        filled: v != null,
+        score: v ?? 0,
+      });
+    } else {
+      let sg = g.subs.find((x) => x.key === u.subitemId);
+      if (!sg) { sg = { key: u.subitemId, name: u.subitemName, lines: [], maxScore: 0, filled: true, score: 0 }; g.subs.push(sg); }
+      const v = valueOf.get(u.unitId) ?? null;
+      sg.lines.push(u.label);
+      sg.maxScore += u.maxScore;
+      sg.filled = sg.filled && v != null;
+      sg.score += v ?? 0;
+    }
   }
 
-  const maxTotal = criteria.reduce((s, c) => s + c.maxScore, 0);
-  const total = criteria.reduce((s, c) => s + (valueOf.get(c.id) ?? 0), 0);
-  const filled = criteria.filter((c) => valueOf.get(c.id) != null).length;
+  const maxTotal = units.reduce((s, u) => s + u.maxScore, 0);
+  const total = units.reduce((s, u) => s + (valueOf.get(u.unitId) ?? 0), 0);
+  const filled = units.filter((u) => valueOf.get(u.unitId) != null).length;
 
   const th = "border border-black bg-slate-200 px-2 py-1 text-center text-sm font-bold print:bg-slate-200";
   const td = "border border-black px-3 py-1 text-sm";
@@ -91,15 +111,12 @@ export default function SheetDoc({ data, pageBreak = false }: { data: SheetDocDa
         </thead>
         <tbody>
           {groups.map((g) => {
-            const groupRowSpan = g.subs.reduce((n, s) => n + Math.max(1, s.items.length), 0) || 1;
-            const gTotal = g.subs.reduce((n, s) => n + s.items.reduce((m, i) => m + i.maxScore, 0), 0);
+            const groupRowSpan = g.subs.reduce((n, s) => n + Math.max(1, s.lines.length), 0) || 1;
+            const gTotal = g.subs.reduce((n, s) => n + s.maxScore, 0);
             let groupPlaced = false;
             return g.subs.map((sg) => {
-              const subRowSpan = Math.max(1, sg.items.length);
-              const subMax = sg.items.reduce((m, i) => m + i.maxScore, 0);
-              const subFilled = sg.items.length > 0 && sg.items.every((i) => i.value != null);
-              const subScore = sg.items.reduce((m, i) => m + (i.value ?? 0), 0);
-              return sg.items.map((c, cIdx) => {
+              const subRowSpan = Math.max(1, sg.lines.length);
+              return sg.lines.map((line, cIdx) => {
                 const cells: React.ReactNode[] = [];
                 if (!groupPlaced) {
                   cells.push(
@@ -121,25 +138,25 @@ export default function SheetDoc({ data, pageBreak = false }: { data: SheetDocDa
                   <td key="c" className={`${td} py-1 align-middle`}>
                     <div className="flex gap-1.5">
                       <span aria-hidden>○</span>
-                      <span>{c.name}</span>
+                      <span>{line}</span>
                     </div>
                   </td>,
                 );
                 if (cIdx === 0) {
                   cells.push(
                     <td key="m" rowSpan={subRowSpan} className={`${td} text-center align-middle tabular-nums`}>
-                      {fmt(subMax)}
+                      {fmt(sg.maxScore)}
                     </td>,
                     <td key="v" rowSpan={subRowSpan} className={`${td} text-center align-middle font-semibold tabular-nums`}>
-                      {subFilled ? fmt(subScore) : ""}
+                      {sg.filled && sg.lines.length > 0 ? fmt(sg.score) : ""}
                     </td>,
                   );
                 }
-                return <tr key={c.id}>{cells}</tr>;
+                return <tr key={`${sg.key}-${cIdx}`}>{cells}</tr>;
               });
             });
           })}
-          {criteria.length === 0 && (
+          {units.length === 0 && (
             <tr>
               <td colSpan={5} className={`${td} py-8 text-center text-slate-400`}>평가 항목이 없습니다.</td>
             </tr>
@@ -147,7 +164,7 @@ export default function SheetDoc({ data, pageBreak = false }: { data: SheetDocDa
           <tr className="font-bold">
             <td colSpan={3} className={`${td} text-center`}>합 계</td>
             <td className={`${td} text-center tabular-nums`}>{fmt(maxTotal)}</td>
-            <td className={`${td} text-center tabular-nums`}>{filled === criteria.length && criteria.length > 0 ? fmt(total) : ""}</td>
+            <td className={`${td} text-center tabular-nums`}>{filled === units.length && units.length > 0 ? fmt(total) : ""}</td>
           </tr>
         </tbody>
       </table>

@@ -1,6 +1,7 @@
 import { Suspense } from 'react'
 import { prisma } from '@/lib/db'
-import { criteriaScopeForSession } from '@/lib/criteria-scope'
+import { criteriaScopeForSession, scoringUnitsForScope } from '@/lib/criteria-scope'
+import { scoreUnitId } from '@/lib/criteria-units'
 import { computeWeightedScore } from '@/lib/scoring'
 import { SkeletonTable } from '@/components/Skeletons'
 
@@ -21,30 +22,22 @@ export default async function BreakdownPage({ params }: { params: Promise<{ id: 
 }
 
 async function BreakdownContent({ id }: { id: string }) {
-  const [session, subjects, criteria, assignments, scores] = await Promise.all([
+  const [session, subjects, units, assignments, scores] = await Promise.all([
     prisma.evaluationSession.findUnique({ where: { id }, select: { chairId: true } }),
     prisma.subject.findMany({ where: { sessionId: id }, orderBy: { order: 'asc' } }),
-    prisma.criterion.findMany({
-      where: await criteriaScopeForSession(id),
-      include: { subitem: { include: { group: true } } },
-      orderBy: [
-        { subitem: { group: { order: 'asc' } } },
-        { subitem: { order: 'asc' } },
-        { order: 'asc' },
-      ],
-    }),
+    scoringUnitsForScope(await criteriaScopeForSession(id)),
     prisma.assignment.findMany({ where: { sessionId: id }, include: { user: true } }),
     prisma.score.findMany({ where: { sessionId: id } }),
   ])
   const chairId = session?.chairId ?? null
 
-  const weightedCriteria = criteria.map((c) => ({ id: c.id, weight: c.weight }))
-  // (ev, sub) -> rows
+  const weightedCriteria = units.map((u) => ({ id: u.unitId, weight: u.weight }))
+  // (ev, sub) -> rows (채점 단위 기준)
   const rowsByEvSub = new Map<string, { criterionId: string; value: number }[]>()
   for (const s of scores) {
     const key = `${s.evaluatorId}:${s.subjectId}`
     if (!rowsByEvSub.has(key)) rowsByEvSub.set(key, [])
-    rowsByEvSub.get(key)!.push({ criterionId: s.criterionId, value: s.value })
+    rowsByEvSub.get(key)!.push({ criterionId: scoreUnitId(s), value: s.value })
   }
 
   const weightedFor = (evId: string, subId: string): number | null => {
@@ -107,14 +100,15 @@ async function BreakdownContent({ id }: { id: string }) {
         <h2 className="font-semibold text-slate-700">산출 근거 (대상별 항목 평균)</h2>
         <div className="grid gap-4 lg:grid-cols-2">
           {subjects.map((sub) => {
-            // 항목별 위원 평균 점수 (평가항목 · 세부항목 · 항목명 순으로 표시)
-            const rows = criteria.map((c) => {
-              const vs = scores.filter((s) => s.subjectId === sub.id && s.criterionId === c.id).map((s) => s.value)
+            // 단위별 위원 평균 점수 (평가항목 · 세부항목 · 지표명 순으로 표시, 통합 단위는 세부항목까지)
+            const rows = units.map((u) => {
+              const vs = scores.filter((s) => s.subjectId === sub.id && scoreUnitId(s) === u.unitId).map((s) => s.value)
               const avg = vs.length > 0 ? vs.reduce((a, b) => a + b, 0) / vs.length : 0
-              const groupName = c.subitem?.group.name
-              const subitemName = c.subitem?.name
-              const label = [groupName, subitemName, c.name].filter(Boolean).join(' · ')
-              return { name: label, maxScore: c.maxScore, weight: c.weight, avg, weighted: avg * c.weight }
+              const label =
+                u.kind === 'subitem'
+                  ? [u.groupName, u.subitemName].filter(Boolean).join(' · ')
+                  : [u.groupName, u.subitemName, u.label].filter(Boolean).join(' · ')
+              return { name: label, maxScore: u.maxScore, weight: u.weight, avg, weighted: avg * u.weight }
             })
             const total = rows.reduce((sum, r) => sum + r.weighted, 0)
             return (

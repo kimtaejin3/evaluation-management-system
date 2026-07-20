@@ -1,13 +1,18 @@
 import { prisma } from '@/lib/db'
 import { computeWeightedScore } from '@/lib/scoring'
-import { criteriaScopeForSession } from '@/lib/criteria-scope'
+import { criteriaScopeForSession, scoringUnitsForScope } from '@/lib/criteria-scope'
+import { scoreUnitId, buildScoringUnits, type ScoringUnit } from '@/lib/criteria-units'
 import { isAssignmentActive } from '@/lib/assignment'
 
+// 채점 화면의 행 = 채점 단위(unit). 지표별 모드: 지표 1개, 통합(퉁) 모드: 세부항목 1개(indicators=지표 설명).
 export interface CriterionView {
   id: string
+  groupId: string
   groupName: string
   subitemName: string
   name: string
+  // 통합 배점 세부항목이면 설명용 지표 목록(지표별 모드는 빈 배열)
+  indicators: string[]
   maxScore: number
   weight: number
   value: number | null
@@ -23,6 +28,8 @@ export interface SheetData {
   documents: { id: string; name: string; mimeType: string }[]
   criteria: CriterionView[]
   initialComment: string
+  // 평가항목(그룹)별 의견 — groupId → 텍스트
+  groupComments: Record<string, string>
   subjects: { id: string; name: string }[]
   otherScores: Record<string, { name: string; value: number }[]>
   otherPending: Record<string, string[]>
@@ -38,7 +45,7 @@ export async function getSheetData(
 ): Promise<SheetData | null> {
   // 평가항목은 과제(Project) 단위 공통 — 분과의 소속 과제 항목을 읽는다.
   const criteriaWhere = await criteriaScopeForSession(sessionId)
-  const [subject, session, criteria, existing, opinion, subjects, myScores, submission, assignment] = await Promise.all([
+  const [subject, session, units, existing, opinion, subjects, myScores, submission, assignment, myGroupComments] = await Promise.all([
     prisma.subject.findUnique({
       where: { id: subjectId },
       include: {
@@ -50,64 +57,51 @@ export async function getSheetData(
       },
     }),
     prisma.evaluationSession.findUnique({ where: { id: sessionId } }),
-    prisma.criterion.findMany({
-      where: criteriaWhere,
-      include: { subitem: { include: { group: true } } },
-    }),
+    scoringUnitsForScope(criteriaWhere),
     prisma.score.findMany({ where: { evaluatorId: userId, subjectId } }),
     prisma.opinion.findUnique({ where: { evaluatorId_subjectId: { evaluatorId: userId, subjectId } } }),
     prisma.subject.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } }),
-    prisma.score.findMany({ where: { evaluatorId: userId, sessionId }, select: { subjectId: true, criterionId: true, value: true } }),
+    prisma.score.findMany({
+      where: { evaluatorId: userId, sessionId },
+      select: { subjectId: true, criterionId: true, subitemId: true, value: true },
+    }),
     prisma.submission.findUnique({ where: { evaluatorId_subjectId: { evaluatorId: userId, subjectId } }, select: { status: true } }),
     prisma.assignment.findUnique({ where: { sessionId_userId: { sessionId, userId } }, select: { status: true } }),
+    prisma.groupComment.findMany({ where: { evaluatorId: userId, subjectId }, select: { groupId: true, text: true } }),
   ])
   if (!subject || !session) return null
   if (!assignment || !isAssignmentActive(assignment.status)) return null
 
-  // 평가항목(group) → 세부항목(subitem) → 평가지표(criterion) 순 정렬
-  criteria.sort((a, b) => {
-    const gA = a.subitem?.group.order ?? 0
-    const gB = b.subitem?.group.order ?? 0
-    if (gA !== gB) return gA - gB
-    const sA = a.subitem?.order ?? 0
-    const sB = b.subitem?.order ?? 0
-    if (sA !== sB) return sA - sB
-    return a.order - b.order
-  })
-
-  const byCriterion = new Map(existing.map((s) => [s.criterionId, s]))
-  const totalCriteria = criteria.length
+  const byUnit = new Map(existing.map((s) => [scoreUnitId(s), s]))
+  const totalUnits = units.length
   const doneCountBySubject = new Map<string, number>()
   for (const s of myScores) doneCountBySubject.set(s.subjectId, (doneCountBySubject.get(s.subjectId) ?? 0) + 1)
-  const doneSubjects = subjects.filter((s) => totalCriteria > 0 && (doneCountBySubject.get(s.id) ?? 0) >= totalCriteria).length
+  const doneSubjects = subjects.filter((s) => totalUnits > 0 && (doneCountBySubject.get(s.id) ?? 0) >= totalUnits).length
 
   const subjectName = new Map(subjects.map((s) => [s.id, s.name]))
   const otherSubjects = subjects.filter((s) => s.id !== subjectId)
   const otherScores: Record<string, { name: string; value: number }[]> = {}
   const otherPending: Record<string, string[]> = {}
-  for (const c of criteria) {
-    const scoredIds = new Set(
-      myScores.filter((s) => s.criterionId === c.id && s.subjectId !== subjectId).map((s) => s.subjectId),
-    )
-    otherScores[c.id] = myScores
-      .filter((s) => s.criterionId === c.id && s.subjectId !== subjectId)
+  for (const u of units) {
+    const mine = myScores.filter((s) => scoreUnitId(s) === u.unitId && s.subjectId !== subjectId)
+    const scoredIds = new Set(mine.map((s) => s.subjectId))
+    otherScores[u.unitId] = mine
       .map((s) => ({ name: subjectName.get(s.subjectId) ?? '', value: s.value }))
       .sort((a, b) => b.value - a.value)
-    otherPending[c.id] = otherSubjects.filter((s) => !scoredIds.has(s.id)).map((s) => s.name)
+    otherPending[u.unitId] = otherSubjects.filter((s) => !scoredIds.has(s.id)).map((s) => s.name)
   }
 
-  const criteriaView: CriterionView[] = criteria.map((c) => {
-    const cur = byCriterion.get(c.id)
-    return {
-      id: c.id,
-      groupName: c.subitem?.group.name ?? '미분류',
-      subitemName: c.subitem?.name ?? '',
-      name: c.name,
-      maxScore: c.maxScore,
-      weight: c.weight,
-      value: cur ? cur.value : null,
-    }
-  })
+  const criteriaView: CriterionView[] = units.map((u) => ({
+    id: u.unitId,
+    groupId: u.groupId,
+    groupName: u.groupName,
+    subitemName: u.subitemName,
+    name: u.label,
+    indicators: u.indicators,
+    maxScore: u.maxScore,
+    weight: u.weight,
+    value: byUnit.get(u.unitId)?.value ?? null,
+  }))
 
   return {
     subjectName: subject.name,
@@ -119,6 +113,7 @@ export async function getSheetData(
     documents: subject.company.documents.map((d) => ({ id: d.id, name: d.originalName, mimeType: d.mimeType })),
     criteria: criteriaView,
     initialComment: opinion?.text ?? '',
+    groupComments: Object.fromEntries(myGroupComments.map((c) => [c.groupId, c.text])),
     subjects,
     otherScores,
     otherPending,
@@ -132,6 +127,7 @@ export interface AccordionCriterion {
   groupName: string
   subitemName: string
   name: string
+  indicators: string[]
   maxScore: number
 }
 export interface HomeSubject {
@@ -175,37 +171,55 @@ export async function getHomeData(userId: string): Promise<HomeSession[]> {
         },
       },
     }),
-    prisma.score.findMany({ where: { evaluatorId: userId }, select: { subjectId: true, criterionId: true, value: true } }),
+    prisma.score.findMany({
+      where: { evaluatorId: userId },
+      select: { subjectId: true, criterionId: true, subitemId: true, value: true },
+    }),
   ])
 
   // 평가항목은 과제(Project) 단위 공통 — 배정 분과들의 소속 과제 항목을 한 번에 조회.
   // (과제 미소속 레거시 분과는 세션 단위 항목으로 폴백)
   const projectIds = [...new Set(assignments.map((a) => a.session.projectId).filter((v): v is string => !!v))]
   const legacySessionIds = assignments.filter((a) => !a.session.projectId).map((a) => a.session.id)
-  const allCriteria = await prisma.criterion.findMany({
+  const allGroups = await prisma.criterionGroup.findMany({
     where: {
       OR: [
         ...(projectIds.length ? [{ projectId: { in: projectIds } }] : []),
         ...(legacySessionIds.length ? [{ sessionId: { in: legacySessionIds } }] : []),
       ],
     },
-    include: { subitem: { include: { group: true } } },
+    orderBy: { order: 'asc' },
+    select: {
+      id: true,
+      name: true,
+      projectId: true,
+      sessionId: true,
+      subitems: {
+        orderBy: { order: 'asc' },
+        select: {
+          id: true,
+          name: true,
+          maxScore: true,
+          criteria: { orderBy: { order: 'asc' }, select: { id: true, name: true, maxScore: true, weight: true } },
+        },
+      },
+    },
   })
-  const criteriaOfSession = (s: { id: string; projectId: string | null }) =>
-    s.projectId
-      ? allCriteria.filter((c) => c.projectId === s.projectId)
-      : allCriteria.filter((c) => c.sessionId === s.id)
+  const unitsOfSession = (s: { id: string; projectId: string | null }): ScoringUnit[] =>
+    buildScoringUnits(
+      s.projectId ? allGroups.filter((g) => g.projectId === s.projectId) : allGroups.filter((g) => g.sessionId === s.id),
+    )
 
   const rowsBySubject = new Map<string, { criterionId: string; value: number }[]>()
   for (const s of myScores) {
     if (!rowsBySubject.has(s.subjectId)) rowsBySubject.set(s.subjectId, [])
-    rowsBySubject.get(s.subjectId)!.push({ criterionId: s.criterionId, value: s.value })
+    rowsBySubject.get(s.subjectId)!.push({ criterionId: scoreUnitId(s), value: s.value })
   }
 
   return assignments.map((a) => {
-    const sessionCriteria = criteriaOfSession(a.session)
-    const total = sessionCriteria.length
-    const weights = sessionCriteria.map((c) => ({ id: c.id, weight: c.weight }))
+    const units = unitsOfSession(a.session)
+    const total = units.length
+    const weights = units.map((u) => ({ id: u.unitId, weight: u.weight }))
     const subjects: HomeSubject[] = a.session.subjects.map((sub) => {
       const rows = rowsBySubject.get(sub.id) ?? []
       const complete = total > 0 && rows.length >= total
@@ -229,24 +243,14 @@ export async function getHomeData(userId: string): Promise<HomeSession[]> {
       eventDate: a.session.eventDate ? a.session.eventDate.toISOString() : null,
       doneSubjects: subjects.filter((s) => s.status === 'complete').length,
       totalSubjects: subjects.length,
-      criteria: sessionCriteria
-        .slice()
-        .sort((x, y) => {
-          const gX = x.subitem?.group.order ?? 0
-          const gY = y.subitem?.group.order ?? 0
-          if (gX !== gY) return gX - gY
-          const sX = x.subitem?.order ?? 0
-          const sY = y.subitem?.order ?? 0
-          if (sX !== sY) return sX - sY
-          return x.order - y.order
-        })
-        .map((c) => ({
-          id: c.id,
-          groupName: c.subitem?.group.name ?? '미분류',
-          subitemName: c.subitem?.name ?? '',
-          name: c.name,
-          maxScore: c.maxScore,
-        })),
+      criteria: units.map((u) => ({
+        id: u.unitId,
+        groupName: u.groupName,
+        subitemName: u.subitemName,
+        name: u.label,
+        indicators: u.indicators,
+        maxScore: u.maxScore,
+      })),
       subjects,
     }
   })
@@ -257,6 +261,8 @@ export interface ChairCell {
   state: 'done' | 'partial' | 'none'
   score: number | null
   items: { name: string; maxScore: number; value: number | null }[]
+  // 평가항목(그룹)별 의견 — 작성된 것만
+  groupComments: { groupName: string; text: string }[]
   opinion: string | null
 }
 export interface ChairRow {
@@ -279,38 +285,54 @@ export async function getChairData(userId: string, sessionId: string): Promise<C
   if (!session || session.chairId !== userId) return null
   const chairId = session.chairId
 
-  // 평가항목은 과제(Project) 단위 공통
+  // 평가항목은 과제(Project) 단위 공통 — 채점 단위(unit) 기준으로 집계
   const criteriaWhere = await criteriaScopeForSession(sessionId)
-  const [subjects, criteria, assignments, scores, opinions] = await Promise.all([
+  const [subjects, units, assignments, scores, opinions, groupComments] = await Promise.all([
     prisma.subject.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } }),
-    prisma.criterion.findMany({ where: criteriaWhere, orderBy: { order: 'asc' }, select: { id: true, name: true, maxScore: true, weight: true } }),
+    scoringUnitsForScope(criteriaWhere),
     prisma.assignment.findMany({ where: { sessionId }, include: { user: { select: { id: true, name: true } } } }),
-    prisma.score.findMany({ where: { sessionId }, select: { evaluatorId: true, subjectId: true, criterionId: true, value: true } }),
+    prisma.score.findMany({
+      where: { sessionId },
+      select: { evaluatorId: true, subjectId: true, criterionId: true, subitemId: true, value: true },
+    }),
     prisma.opinion.findMany({ where: { sessionId }, select: { evaluatorId: true, subjectId: true, text: true } }),
+    prisma.groupComment.findMany({
+      where: { sessionId },
+      select: { evaluatorId: true, subjectId: true, groupId: true, text: true },
+    }),
   ])
 
-  const weights = criteria.map((c) => ({ id: c.id, weight: c.weight }))
-  const totalCri = criteria.length
+  const weights = units.map((u) => ({ id: u.unitId, weight: u.weight }))
+  const totalUnits = units.length
   const orderedAssignments = [...assignments].sort((a, b) => (b.userId === chairId ? 1 : 0) - (a.userId === chairId ? 1 : 0))
 
   const byEvalSub = new Map<string, { criterionId: string; value: number }[]>()
   for (const s of scores) {
     const k = `${s.evaluatorId}:${s.subjectId}`
     if (!byEvalSub.has(k)) byEvalSub.set(k, [])
-    byEvalSub.get(k)!.push({ criterionId: s.criterionId, value: s.value })
+    byEvalSub.get(k)!.push({ criterionId: scoreUnitId(s), value: s.value })
   }
   const scoreMap = new Map<string, number>()
-  for (const s of scores) scoreMap.set(`${s.evaluatorId}:${s.subjectId}:${s.criterionId}`, s.value)
+  for (const s of scores) scoreMap.set(`${s.evaluatorId}:${s.subjectId}:${scoreUnitId(s)}`, s.value)
   const opinionMap = new Map<string, string>()
   for (const o of opinions) opinionMap.set(`${o.evaluatorId}:${o.subjectId}`, o.text)
+  // (위원:대상:그룹) → 평가항목별 의견 / 그룹 순서는 units에서 유도
+  const groupCommentMap = new Map<string, string>()
+  for (const gc of groupComments) groupCommentMap.set(`${gc.evaluatorId}:${gc.subjectId}:${gc.groupId}`, gc.text)
+  const orderedGroups: { id: string; name: string }[] = []
+  for (const u of units) if (!orderedGroups.some((g) => g.id === u.groupId)) orderedGroups.push({ id: u.groupId, name: u.groupName })
 
   const cellOf = (evId: string, subId: string): ChairCell => {
     const rows = byEvalSub.get(`${evId}:${subId}`) ?? []
-    const state: ChairCell['state'] = totalCri > 0 && rows.length >= totalCri ? 'done' : rows.length > 0 ? 'partial' : 'none'
+    const state: ChairCell['state'] = totalUnits > 0 && rows.length >= totalUnits ? 'done' : rows.length > 0 ? 'partial' : 'none'
     return {
       state,
       score: state === 'done' ? computeWeightedScore(rows, weights) : null,
-      items: criteria.map((c) => ({ name: c.name, maxScore: c.maxScore, value: scoreMap.get(`${evId}:${subId}:${c.id}`) ?? null })),
+      items: units.map((u) => ({ name: u.label, maxScore: u.maxScore, value: scoreMap.get(`${evId}:${subId}:${u.unitId}`) ?? null })),
+      groupComments: orderedGroups.flatMap((g) => {
+        const text = groupCommentMap.get(`${evId}:${subId}:${g.id}`)
+        return text ? [{ groupName: g.name, text }] : []
+      }),
       opinion: opinionMap.get(`${evId}:${subId}`) ?? null,
     }
   }

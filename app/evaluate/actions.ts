@@ -7,6 +7,27 @@ import { getCurrentUser } from '@/lib/session'
 import { isValidScoreValue } from '@/lib/scoring'
 import { canEvaluatorEdit } from '@/lib/submission'
 import { isAssignmentActive } from '@/lib/assignment'
+import { scoringUnitsForScope } from '@/lib/criteria-scope'
+
+// 채점 단위(unitId) 해석 — 지표별 모드면 Criterion.id, 통합(퉁) 모드면 CriterionSubitem.id.
+// 세션 소속(과제 공통/레거시 세션) 검증까지 수행하고, 저장에 쓸 컬럼과 만점을 돌려준다.
+async function resolveUnit(
+  session: { id: string; projectId: string | null },
+  unitId: string,
+): Promise<{ kind: 'criterion' | 'subitem'; maxScore: number } | null> {
+  const c = await prisma.criterion.findUnique({ where: { id: unitId }, select: { projectId: true, sessionId: true, maxScore: true } })
+  if (c) {
+    const belongs = session.projectId ? c.projectId === session.projectId : c.sessionId === session.id
+    return belongs ? { kind: 'criterion', maxScore: c.maxScore } : null
+  }
+  const s = await prisma.criterionSubitem.findUnique({
+    where: { id: unitId },
+    select: { maxScore: true, group: { select: { projectId: true, sessionId: true } } },
+  })
+  if (!s || s.maxScore == null) return null
+  const belongs = session.projectId ? s.group.projectId === session.projectId : s.group.sessionId === session.id
+  return belongs ? { kind: 'subitem', maxScore: s.maxScore } : null
+}
 
 // 평가위원장이 심사 전체 총평(1건)을 저장 — 위원장 본인만 가능.
 export async function saveChairSummary(sessionId: string, formData: FormData): Promise<{ ok: boolean; error?: string }> {
@@ -39,11 +60,12 @@ export async function clearEditing() {
 }
 
 // 단일 항목 자동 저장 — 입력/선택 즉시(디바운스) 저장하여 진행 상태가 실시간 반영되게 함.
+// unitId = 지표(Criterion.id) 또는 통합 배점 세부항목(CriterionSubitem.id).
 // 빈 값이면 해당 점수를 삭제(진행 상태 되돌림). evaluate 경로는 revalidate하지 않음(키 입력마다 리렌더 방지).
 export async function autoSaveScore(
   sessionId: string,
   subjectId: string,
-  criterionId: string,
+  unitId: string,
   raw: string,
 ): Promise<{ ok: boolean; cleared?: boolean; error?: string }> {
   const user = await getCurrentUser()
@@ -64,23 +86,73 @@ export async function autoSaveScore(
   })
   if (!canEvaluatorEdit(sub?.status ?? null)) return { ok: false, error: 'locked' }
 
-  // 평가항목은 과제(Project) 단위 공통 — 분과의 소속 과제 항목인지 확인(레거시: 세션 항목)
-  const c = await prisma.criterion.findUnique({ where: { id: criterionId } })
-  const belongs = !!c && (session.projectId ? c.projectId === session.projectId : c.sessionId === sessionId)
-  if (!c || !belongs) return { ok: false, error: 'bad-criterion' }
+  const unit = await resolveUnit(session, unitId)
+  if (!unit) return { ok: false, error: 'bad-criterion' }
+  const target = unit.kind === 'criterion' ? { criterionId: unitId } : { subitemId: unitId }
 
   if (raw === '' || raw == null) {
-    await prisma.score.deleteMany({ where: { evaluatorId: user.id, subjectId, criterionId } })
+    await prisma.score.deleteMany({ where: { evaluatorId: user.id, subjectId, ...target } })
     return { ok: true, cleared: true }
   }
 
   const value = Number(raw)
-  if (!isValidScoreValue(value, c.maxScore)) return { ok: false, error: 'range' }
+  if (!isValidScoreValue(value, unit.maxScore)) return { ok: false, error: 'range' }
 
-  await prisma.score.upsert({
-    where: { evaluatorId_subjectId_criterionId: { evaluatorId: user.id, subjectId, criterionId } },
-    update: { value, grade: null, sessionId },
-    create: { evaluatorId: user.id, subjectId, criterionId, sessionId, value, grade: null },
+  if (unit.kind === 'criterion') {
+    await prisma.score.upsert({
+      where: { evaluatorId_subjectId_criterionId: { evaluatorId: user.id, subjectId, criterionId: unitId } },
+      update: { value, grade: null, sessionId },
+      create: { evaluatorId: user.id, subjectId, criterionId: unitId, sessionId, value, grade: null },
+    })
+  } else {
+    await prisma.score.upsert({
+      where: { evaluatorId_subjectId_subitemId: { evaluatorId: user.id, subjectId, subitemId: unitId } },
+      update: { value, grade: null, sessionId },
+      create: { evaluatorId: user.id, subjectId, subitemId: unitId, sessionId, value, grade: null },
+    })
+  }
+  return { ok: true }
+}
+
+// 평가항목(그룹)별 의견 자동 저장 — 점수 자동 저장과 동일한 가드. 빈 값이면 삭제.
+export async function autoSaveGroupComment(
+  sessionId: string,
+  subjectId: string,
+  groupId: string,
+  raw: string,
+): Promise<{ ok: boolean; cleared?: boolean; error?: string }> {
+  const user = await getCurrentUser()
+  if (!user) return { ok: false, error: 'auth' }
+
+  const session = await prisma.evaluationSession.findUnique({ where: { id: sessionId } })
+  if (!session || session.status !== 'IN_PROGRESS') return { ok: false, error: 'not-active' }
+
+  const assigned = await prisma.assignment.findUnique({
+    where: { sessionId_userId: { sessionId, userId: user.id } },
+    select: { status: true },
+  })
+  if (!assigned || !isAssignmentActive(assigned.status)) return { ok: false, error: 'not-assigned' }
+
+  const sub = await prisma.submission.findUnique({
+    where: { evaluatorId_subjectId: { evaluatorId: user.id, subjectId } },
+    select: { status: true },
+  })
+  if (!canEvaluatorEdit(sub?.status ?? null)) return { ok: false, error: 'locked' }
+
+  // 평가항목은 과제(Project) 단위 공통 — 소속 검증(레거시: 세션 항목)
+  const g = await prisma.criterionGroup.findUnique({ where: { id: groupId }, select: { projectId: true, sessionId: true } })
+  const belongs = !!g && (session.projectId ? g.projectId === session.projectId : g.sessionId === sessionId)
+  if (!belongs) return { ok: false, error: 'bad-group' }
+
+  const text = raw.trim()
+  if (!text) {
+    await prisma.groupComment.deleteMany({ where: { evaluatorId: user.id, subjectId, groupId } })
+    return { ok: true, cleared: true }
+  }
+  await prisma.groupComment.upsert({
+    where: { evaluatorId_subjectId_groupId: { evaluatorId: user.id, subjectId, groupId } },
+    update: { text, sessionId },
+    create: { evaluatorId: user.id, subjectId, groupId, sessionId, text },
   })
   return { ok: true }
 }
@@ -116,28 +188,34 @@ export async function saveScores(
     return { error: '이미 제출/승인되어 수정할 수 없습니다.' }
   }
 
-  // 평가항목은 과제(Project) 단위 공통
-  const criteria = await prisma.criterion.findMany({
-    where: session.projectId ? { projectId: session.projectId } : { sessionId },
-  })
+  // 평가항목은 과제(Project) 단위 공통 — 채점 단위(지표별/통합) 기준으로 저장
+  const units = await scoringUnitsForScope(session.projectId ? { projectId: session.projectId } : { sessionId })
 
-  for (const c of criteria) {
-    const raw = formData.get(`c_${c.id}`)
+  for (const u of units) {
+    const raw = formData.get(`c_${u.unitId}`)
     if (raw === null || raw === '') {
-      if (intent === 'submit') return { error: `'${c.name}' 항목이 입력되지 않았습니다.` }
+      if (intent === 'submit') return { error: `'${u.label}' 항목이 입력되지 않았습니다.` }
       continue // 임시저장: 비어 있으면 건너뜀
     }
 
     const value = Number(raw)
-    if (!isValidScoreValue(value, c.maxScore)) {
-      return { error: `'${c.name}'은 0~${c.maxScore} 범위로 입력하세요.` }
+    if (!isValidScoreValue(value, u.maxScore)) {
+      return { error: `'${u.label}'은 0~${u.maxScore} 범위로 입력하세요.` }
     }
 
-    await prisma.score.upsert({
-      where: { evaluatorId_subjectId_criterionId: { evaluatorId: user.id, subjectId, criterionId: c.id } },
-      update: { value, grade: null, sessionId },
-      create: { evaluatorId: user.id, subjectId, criterionId: c.id, sessionId, value, grade: null },
-    })
+    if (u.kind === 'criterion') {
+      await prisma.score.upsert({
+        where: { evaluatorId_subjectId_criterionId: { evaluatorId: user.id, subjectId, criterionId: u.unitId } },
+        update: { value, grade: null, sessionId },
+        create: { evaluatorId: user.id, subjectId, criterionId: u.unitId, sessionId, value, grade: null },
+      })
+    } else {
+      await prisma.score.upsert({
+        where: { evaluatorId_subjectId_subitemId: { evaluatorId: user.id, subjectId, subitemId: u.unitId } },
+        update: { value, grade: null, sessionId },
+        create: { evaluatorId: user.id, subjectId, subitemId: u.unitId, sessionId, value, grade: null },
+      })
+    }
   }
 
   // 종합의견 저장

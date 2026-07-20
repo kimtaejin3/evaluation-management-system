@@ -2,21 +2,11 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { assertSessionAccess } from "@/lib/authz";
 import { prisma } from "@/lib/db";
-import { criteriaScopeForSession } from "@/lib/criteria-scope";
+import { criteriaScopeForSession, scoringUnitsForScope } from "@/lib/criteria-scope";
+import { scoreUnitId } from "@/lib/criteria-units";
 import PrintButton from "@/app/admin/sessions/[id]/results/PrintButton";
 import AutoPrint from "./AutoPrint";
-import SheetDoc, { type SheetCriterion, type SheetDocData } from "./SheetDoc";
-
-const sortCriteria = <T extends SheetCriterion & { subitem: { order: number; group: { order: number } } | null; order: number }>(arr: T[]) =>
-  arr.sort((a, b) => {
-    const ga = a.subitem?.group.order ?? 0;
-    const gb = b.subitem?.group.order ?? 0;
-    if (ga !== gb) return ga - gb;
-    const sa = a.subitem?.order ?? 0;
-    const sb = b.subitem?.order ?? 0;
-    if (sa !== sb) return sa - sb;
-    return a.order - b.order;
-  });
+import SheetDoc, { type SheetDocData } from "./SheetDoc";
 
 // 위원별 평가표 인쇄 — 관리자 레이아웃(사이드바) 없이 문서만 렌더해 iframe 로드가 빠르다.
 // subjectId=all 이면 해당 위원의 모든 대상 평가표를 페이지 나눔으로 이어서 인쇄. 자체 인증(assertSessionAccess).
@@ -33,13 +23,12 @@ export default async function SheetPrintPage({
   const printedDate = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
   const all = subjectId === "all";
 
-  const [session, evaluator, criteria] = await Promise.all([
+  const [session, evaluator, units] = await Promise.all([
     prisma.evaluationSession.findUnique({ where: { id: sessionId }, include: { project: { select: { name: true, taskType: true } } } }),
     prisma.user.findUnique({ where: { id: evaluatorId }, select: { name: true } }),
-    prisma.criterion.findMany({ where: await criteriaScopeForSession(sessionId), include: { subitem: { include: { group: true } } } }),
+    scoringUnitsForScope(await criteriaScopeForSession(sessionId)),
   ]);
   if (!session || !evaluator) notFound();
-  sortCriteria(criteria);
 
   const subjects = all
     ? await prisma.subject.findMany({ where: { sessionId }, include: { company: true }, orderBy: { name: "asc" } })
@@ -48,7 +37,10 @@ export default async function SheetPrintPage({
 
   const subjectIds = subjects.map((s) => s.id);
   const [scores, opinions] = await Promise.all([
-    prisma.score.findMany({ where: { sessionId, evaluatorId, subjectId: { in: subjectIds } }, select: { subjectId: true, criterionId: true, value: true } }),
+    prisma.score.findMany({
+      where: { sessionId, evaluatorId, subjectId: { in: subjectIds } },
+      select: { subjectId: true, criterionId: true, subitemId: true, value: true },
+    }),
     prisma.opinion.findMany({ where: { evaluatorId, subjectId: { in: subjectIds } }, select: { subjectId: true, text: true } }),
   ]);
   const opinionOf = new Map(opinions.map((o) => [o.subjectId, o.text]));
@@ -58,7 +50,7 @@ export default async function SheetPrintPage({
 
   const docs: SheetDocData[] = subjects.map((subject) => {
     const valueOf = new Map<string, number | null>();
-    for (const s of scores) if (s.subjectId === subject.id) valueOf.set(s.criterionId, s.value);
+    for (const s of scores) if (s.subjectId === subject.id) valueOf.set(scoreUnitId(s), s.value);
     return {
       sessionName: session.name,
       region: subject.company.region,
@@ -67,7 +59,7 @@ export default async function SheetPrintPage({
       companyName: subject.company.name,
       leadResearcher: subject.company.leadResearcher,
       evaluatorName: evaluator.name,
-      criteria,
+      units,
       valueOf,
       opinionText: opinionOf.get(subject.id) ?? "",
       printedDate,
@@ -93,9 +85,9 @@ export default async function SheetPrintPage({
               <span>전체 {subjects.length}건</span>
             ) : (
               <span>
-                평가지표 {singleFilled}/{criteria.length} 입력
-                {criteria.length > 0 && singleFilled < criteria.length && (
-                  <span className="ml-1 text-amber-600">· 미입력 {criteria.length - singleFilled}</span>
+                평가지표 {singleFilled}/{units.length} 입력
+                {units.length > 0 && singleFilled < units.length && (
+                  <span className="ml-1 text-amber-600">· 미입력 {units.length - singleFilled}</span>
                 )}
               </span>
             )}

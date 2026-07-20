@@ -3,6 +3,8 @@ import { prisma } from '@/lib/db'
 import { getCurrentToken } from '@/lib/session'
 import { canTokenAccessProject } from '@/lib/authz'
 import { computeWeightedScore } from '@/lib/scoring'
+import { scoringUnitsForScope } from '@/lib/criteria-scope'
+import { scoreUnitId } from '@/lib/criteria-units'
 
 // 평가대상 → xlsx (분과/기업/개별 검토 상태/채점 완료 위원/평균 점수)
 const SUBJECT_STATUS: Record<string, string> = { PENDING: '대기', APPROVED: '승인', REJECTED: '반려' }
@@ -19,8 +21,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     select: { id: true, name: true },
   })
   const sessionIds = sessions.map((s) => s.id)
-  const [criteria, subjects, assignments, scores] = await Promise.all([
-    prisma.criterion.findMany({ where: { projectId: id }, select: { id: true, weight: true } }),
+  const [units, subjects, assignments, scores] = await Promise.all([
+    scoringUnitsForScope({ projectId: id }),
     prisma.subject.findMany({
       where: { sessionId: { in: sessionIds } },
       orderBy: { order: 'asc' },
@@ -29,15 +31,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     prisma.assignment.findMany({ where: { sessionId: { in: sessionIds } }, select: { sessionId: true, userId: true } }),
     prisma.score.findMany({
       where: { sessionId: { in: sessionIds } },
-      select: { evaluatorId: true, subjectId: true, criterionId: true, value: true },
+      select: { evaluatorId: true, subjectId: true, criterionId: true, subitemId: true, value: true },
     }),
   ])
-  const totalCriteria = criteria.length
+  const totalCriteria = units.length
+  const weights = units.map((u) => ({ id: u.unitId, weight: u.weight }))
   const scoreRows = new Map<string, { criterionId: string; value: number }[]>()
   for (const sc of scores) {
     const k = `${sc.evaluatorId}:${sc.subjectId}`
     if (!scoreRows.has(k)) scoreRows.set(k, [])
-    scoreRows.get(k)!.push({ criterionId: sc.criterionId, value: sc.value })
+    scoreRows.get(k)!.push({ criterionId: scoreUnitId(sc), value: sc.value })
   }
   const sessionName = new Map(sessions.map((s) => [s.id, s.name]))
 
@@ -46,7 +49,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     const totals = evaluators
       .map((e) => {
         const r = scoreRows.get(`${e.userId}:${sub.id}`) ?? []
-        return totalCriteria > 0 && r.length >= totalCriteria ? computeWeightedScore(r, criteria) : null
+        return totalCriteria > 0 && r.length >= totalCriteria ? computeWeightedScore(r, weights) : null
       })
       .filter((v): v is number => v !== null)
     const avg = totals.length ? totals.reduce((a, b) => a + b, 0) / totals.length : null

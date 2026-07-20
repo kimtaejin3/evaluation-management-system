@@ -1,45 +1,49 @@
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
-type Leaf = { id: string; name: string; maxScore: number };
-type Sub = { name: string; items: Leaf[] };
+// 행 = 채점 단위(unit). 통합(퉁) 단위는 지표들을 한 칸에 글머리표로 표시하고 점수 1개.
+type Row = { id: string; label: string; indicators: string[]; maxScore: number };
+type Sub = { key: string; name: string; items: Row[] };
 type Grp = { name: string; subs: Sub[] };
 
-export type ScoreCriterion = {
-  id: string;
-  name: string;
+export type ScoreUnitRow = {
+  unitId: string;
+  kind: "criterion" | "subitem";
+  groupName: string;
+  subitemId: string;
+  subitemName: string;
+  label: string;
+  indicators: string[];
   maxScore: number;
-  subitem: { name: string | null; group: { name: string | null } } | null;
 };
 
 export type SubjectScoreData = {
   subjectName: string;
   sessionName: string;
   evaluators: { id: string; name: string }[];
-  criteria: ScoreCriterion[]; // 이미 정렬됨
-  scoreOf: Map<string, number>; // `${evaluatorId}:${criterionId}` → 점수
+  units: ScoreUnitRow[]; // 이미 정렬됨
+  scoreOf: Map<string, number>; // `${evaluatorId}:${unitId}` → 점수
   printedDate: string;
 };
 
 // 기업(대상) 1건에 대한 위원별 점수표 단일 문서.
 export default function SubjectScoreDoc({ data, pageBreak = false }: { data: SubjectScoreData; pageBreak?: boolean }) {
-  const { evaluators, criteria, scoreOf } = data;
+  const { evaluators, units, scoreOf } = data;
 
   const groups: Grp[] = [];
-  for (const c of criteria) {
-    const gName = c.subitem?.group.name ?? "미분류";
-    const sName = c.subitem?.name ?? "";
+  for (const u of units) {
+    const gName = u.groupName || "미분류";
     let g = groups.find((x) => x.name === gName);
     if (!g) { g = { name: gName, subs: [] }; groups.push(g); }
-    let sg = g.subs.find((x) => x.name === sName);
-    if (!sg) { sg = { name: sName, items: [] }; g.subs.push(sg); }
-    sg.items.push({ id: c.id, name: c.name, maxScore: c.maxScore });
+    let sg = g.subs.find((x) => x.key === u.subitemId);
+    if (!sg) { sg = { key: u.subitemId, name: u.subitemName, items: [] }; g.subs.push(sg); }
+    sg.items.push({ id: u.unitId, label: u.label, indicators: u.indicators, maxScore: u.maxScore });
   }
 
-  const maxTotal = criteria.reduce((s, c) => s + c.maxScore, 0);
+  const maxTotal = units.reduce((s, u) => s + u.maxScore, 0);
   const totals = evaluators.map((ev) => {
-    const entered = criteria.filter((c) => scoreOf.has(`${ev.id}:${c.id}`));
-    const sum = entered.reduce((s, c) => s + (scoreOf.get(`${ev.id}:${c.id}`) ?? 0), 0);
-    return { id: ev.id, sum, complete: entered.length === criteria.length && criteria.length > 0 };
+    const entered = units.filter((u) => scoreOf.has(`${ev.id}:${u.unitId}`));
+    const sum = entered.reduce((s, u) => s + (scoreOf.get(`${ev.id}:${u.unitId}`) ?? 0), 0);
+    return { id: ev.id, sum, complete: entered.length === units.length && units.length > 0 };
   });
   const completeSums = totals.filter((t) => t.complete).map((t) => t.sum);
   const avg = completeSums.length ? completeSums.reduce((a, b) => a + b, 0) / completeSums.length : null;
@@ -82,7 +86,20 @@ export default function SubjectScoreDoc({ data, pageBreak = false }: { data: Sub
                 }
                 if (cIdx === 0) cells.push(<td key="s" rowSpan={subRowSpan} className={`${td} text-center align-middle`}>{sg.name || "—"}</td>);
                 cells.push(
-                  <td key="c" className={`${td} align-middle`}>{c.name}</td>,
+                  <td key="c" className={`${td} align-middle`}>
+                    {c.indicators.length > 0 ? (
+                      <ul className="space-y-0.5">
+                        {c.indicators.map((t, i) => (
+                          <li key={i} className="flex gap-1.5">
+                            <span aria-hidden>○</span>
+                            <span>{t}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      c.label
+                    )}
+                  </td>,
                   <td key="m" className={`${td} text-center align-middle tabular-nums`}>{c.maxScore}</td>,
                 );
                 evaluators.forEach((ev) => {
@@ -93,7 +110,7 @@ export default function SubjectScoreDoc({ data, pageBreak = false }: { data: Sub
               });
             });
           })}
-          {criteria.length === 0 && (
+          {units.length === 0 && (
             <tr>
               <td colSpan={4 + evaluators.length} className={`${td} py-8 text-center text-slate-400`}>평가 항목이 없습니다.</td>
             </tr>

@@ -2,14 +2,20 @@
 
 import { useEffect, useState } from 'react'
 
-// 평가 의견서 상세의 지원기업별 점수 '자세히 보기' — 채점을 완료(전 항목 입력)한 위원만,
-// 이 지원기업에 준 총점과 함께 작성한 종합의견을 모달로 표시한다.
+// 지원기업(평가 대상)별 위원 점수·종합의견 모달 — 평가 의견서 상세·과제 집계 결과 공용.
+// 호출부가 evaluators를 어떤 기준(채점 완료/승인 제출)으로 거를지 정하고, 문구는 프롭으로 맞춘다.
 export default function SubjectScoresDetail({
   subjectName,
   evaluators,
+  buttonLabel = '자세히 보기',
+  note = '채점을 완료한 위원의 총점과 종합의견입니다.',
+  emptyMessage = '채점을 완료한 위원이 없습니다.',
 }: {
   subjectName: string
   evaluators: { name: string; isChair: boolean; score: number; opinion: string | null }[]
+  buttonLabel?: string
+  note?: string
+  emptyMessage?: string
 }) {
   const [open, setOpen] = useState(false)
 
@@ -27,7 +33,7 @@ export default function SubjectScoresDetail({
         onClick={() => setOpen(true)}
         className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium whitespace-nowrap text-slate-600 transition hover:bg-slate-50"
       >
-        자세히 보기
+        {buttonLabel}
       </button>
 
       {open && (
@@ -42,7 +48,7 @@ export default function SubjectScoresDetail({
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h3 className="text-base font-semibold text-slate-800">{subjectName} — 위원별 점수</h3>
-                <p className="mt-0.5 text-xs text-slate-400">채점을 완료한 위원의 총점과 종합의견입니다.</p>
+                <p className="mt-0.5 text-xs text-slate-400">{note}</p>
               </div>
               <button type="button" onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600" aria-label="닫기">
                 ✕
@@ -50,7 +56,7 @@ export default function SubjectScoresDetail({
             </div>
 
             {evaluators.length === 0 ? (
-              <p className="py-6 text-center text-sm text-slate-400">채점을 완료한 위원이 없습니다.</p>
+              <p className="py-6 text-center text-sm text-slate-400">{emptyMessage}</p>
             ) : (
               <table className="table-grid w-full text-sm">
                 <thead className="text-left text-slate-500">

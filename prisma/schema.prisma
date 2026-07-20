@@ -71,6 +71,7 @@ model User {
   role         Role
   assignments  Assignment[]
   scores       Score[]
+  groupComments GroupComment[]
   createdAt    DateTime     @default(now())
 
   assignedProjects    Project[]           @relation("ProjectSecretaries")
@@ -137,6 +138,7 @@ model EvaluationSession {
   scores          Score[]
   submissions     Submission[]
   documents       Document[]
+  groupComments   GroupComment[]
   createdAt       DateTime         @default(now())
 
   projectId   String?
@@ -174,9 +176,28 @@ model CriterionGroup {
   maxScore  Float              @default(0)
   order     Int                @default(0)
   subitems  CriterionSubitem[]
+  comments  GroupComment[]
 
   @@index([sessionId])
   @@index([projectId])
+}
+
+// 평가항목(그룹)별 위원 의견 — (위원 × 대상 × 평가항목)당 1건, 채점 화면에서 자동 저장
+model GroupComment {
+  id          String            @id @default(cuid())
+  sessionId   String
+  session     EvaluationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  evaluatorId String
+  evaluator   User              @relation(fields: [evaluatorId], references: [id], onDelete: Cascade)
+  subjectId   String
+  subject     Subject           @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  groupId     String
+  group       CriterionGroup    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  text        String
+  updatedAt   DateTime          @updatedAt
+
+  @@unique([evaluatorId, subjectId, groupId])
+  @@index([sessionId])
 }
 
 model CriterionSubitem {
@@ -184,8 +205,11 @@ model CriterionSubitem {
   groupId  String
   group    CriterionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
   name     String
+  // 통합 배점(퉁 채점) — null이면 지표별 배점 모드(기존), 값이 있으면 세부항목 단위로 점수 1개를 매긴다
+  maxScore Float?
   order    Int            @default(0)
   criteria Criterion[]
+  scores   Score[]
 
   @@index([groupId])
 }
@@ -220,6 +244,7 @@ model Subject {
   rejectionReason String?
   decidedAt      DateTime?
   scores      Score[]
+  groupComments GroupComment[]
 
   @@unique([sessionId, companyId])
 }
@@ -289,14 +314,18 @@ model Score {
   evaluator   User              @relation(fields: [evaluatorId], references: [id], onDelete: Cascade)
   subjectId   String
   subject     Subject           @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  criterionId String
-  criterion   Criterion         @relation(fields: [criterionId], references: [id], onDelete: Cascade)
+  // 채점 대상: 지표별 모드면 criterionId, 세부항목 통합 모드면 subitemId — 정확히 하나만 채운다(앱 레벨 보장)
+  criterionId String?
+  criterion   Criterion?        @relation(fields: [criterionId], references: [id], onDelete: Cascade)
+  subitemId   String?
+  subitem     CriterionSubitem? @relation(fields: [subitemId], references: [id], onDelete: Cascade)
   value       Float
   grade       String?
   comment     String?
   updatedAt   DateTime          @updatedAt
 
   @@unique([evaluatorId, subjectId, criterionId])
+  @@unique([evaluatorId, subjectId, subitemId])
 }
 
 // (위원 × 대상)별 제출/승인 상태
