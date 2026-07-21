@@ -38,8 +38,19 @@ export default function ReviewDecisionButtons({
   const [rejecting, setRejecting] = useState(false)
   const [reason, setReason] = useState('')
 
+  const approved = status === 'APPROVED'
+  const rejected = status === 'REJECTED'
+  // 승인은 제출(SUBMITTED)일 때만, 반려는 제출·승인일 때만 가능.
   const canApprove = status === 'SUBMITTED'
   const canReject = status === 'SUBMITTED' || status === 'APPROVED'
+
+  // 버튼 시각 상태 — 선택됨(primary) / 활성(중립 흰배경) / 비활성(흰배경).
+  const base = 'rounded px-2 py-1 text-xs font-medium whitespace-nowrap transition'
+  const primaryCls = `${base} bg-indigo-600 text-white cursor-default`
+  const activeCls = `${base} border border-slate-300 bg-white text-slate-700 hover:bg-slate-50`
+  const offCls = `${base} border border-slate-200 bg-white text-slate-300 cursor-not-allowed`
+  const approveCls = approved ? primaryCls : canApprove ? activeCls : offCls
+  const rejectCls = rejected ? primaryCls : canReject ? activeCls : offCls
 
   const run = (fn: () => Promise<void>) =>
     start(async () => {
@@ -85,7 +96,7 @@ export default function ReviewDecisionButtons({
         disabled={pending || !canApprove}
         onClick={() => run(() => ACTIONS[kind].approve(sessionId))}
         title={canApprove ? undefined : wording === 'review' ? '간사가 검토 완료해야 승인할 수 있습니다' : '간사가 제출 완료해야 승인할 수 있습니다'}
-        className="rounded bg-indigo-600 px-2 py-1 text-xs font-medium whitespace-nowrap text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
+        className={approveCls}
       >
         승인
       </button>
@@ -94,10 +105,16 @@ export default function ReviewDecisionButtons({
         disabled={pending || !canReject}
         onClick={() => setRejecting(true)}
         title={canReject ? undefined : wording === 'review' ? '검토 완료 또는 승인 상태에서만 반려할 수 있습니다' : '제출 완료 또는 승인 상태에서만 반려할 수 있습니다'}
-        className="rounded border border-slate-300 bg-slate-50 px-2 py-1 text-xs font-medium whitespace-nowrap text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+        className={rejectCls}
       >
         반려
       </button>
+      {/* 간사 제출(SUBMITTED) — 결정 대기 안내 */}
+      {status === 'SUBMITTED' && (
+        <span className="text-xs whitespace-nowrap text-slate-500">
+          간사가 {wording === 'review' ? '검토' : '제출'}하였습니다. 승인 혹은 반려하세요.
+        </span>
+      )}
     </span>
   )
 }

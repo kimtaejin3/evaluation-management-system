@@ -15,7 +15,7 @@ export default async function NewSecretaryPage({
   await assertMaster()
   const { projectId } = await searchParams
   const backHref = projectId ? `/admin/projects/${projectId}` : '/admin/secretaries'
-  const backLabel = projectId ? '← 분과 목록' : '← 간사 관리'
+  const backLabel = projectId ? '← 분과 간사 설정' : '← 간사 관리'
 
   return (
     <div className="max-w-2xl">

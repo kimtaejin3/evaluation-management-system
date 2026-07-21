@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import ReviewStatusBadge, { ApprovalBadge } from './ReviewStatusBadge'
+import ReviewStatusBadge from './ReviewStatusBadge'
 import ReviewDecisionButtons from './ReviewDecisionButtons'
 
 export interface ProjectSubjectRow {
@@ -39,7 +39,6 @@ function ScoresModal({ row, onClose }: { row: ProjectSubjectRow; onClose: () => 
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h3 className="text-base font-semibold text-slate-800">{row.name} — 평가 대상별 점수</h3>
-            <p className="mt-0.5 text-xs text-slate-400">전 항목을 입력한 위원들의 총점 평균입니다.</p>
           </div>
           <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600" aria-label="닫기">
             ✕
@@ -121,13 +120,8 @@ export default function ProjectSubjectsTable({
             {rows.map((r) => (
               <tr key={r.sessionId} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60">
                 <td className="px-5 py-3">
-                  {/* 간사가 보는 기업 자료 제출 조회 화면으로 이동 */}
-                  <Link
-                    href={`/admin/sessions/${r.sessionId}/subjects`}
-                    className="font-medium text-slate-800 hover:text-indigo-700 hover:underline"
-                  >
-                    {r.name}
-                  </Link>
+                  {/* 이동은 '자세히 보기'로 — 분과명은 일반 텍스트 */}
+                  <span className="font-medium text-slate-800">{r.name}</span>
                 </td>
                 <td className="px-5 py-3 text-slate-600">
                   {r.secretaryName ?? <span className="text-xs text-slate-400">미배정</span>}
@@ -140,7 +134,7 @@ export default function ProjectSubjectsTable({
                   <button
                     type="button"
                     onClick={() => setOpenId(r.sessionId)}
-                    className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium whitespace-nowrap text-slate-600 transition hover:bg-slate-50"
+                    className="text-xs font-medium whitespace-nowrap text-slate-600 transition hover:text-indigo-700 hover:underline"
                   >
                     점수 보기
                   </button>
@@ -149,14 +143,14 @@ export default function ProjectSubjectsTable({
                   {/* 분과 상세의 평가 대상 페이지로 이동 (실시간 모니터링의 자세히 보기와 동일 패턴) */}
                   <Link
                     href={`/admin/sessions/${r.sessionId}/subjects`}
-                    className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium whitespace-nowrap text-slate-600 transition hover:bg-slate-50"
+                    className="text-xs font-medium whitespace-nowrap text-slate-600 transition hover:text-indigo-700 hover:underline"
                   >
                     자세히 보기
                   </Link>
                 </td>
                 <td className="px-5 py-3">
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <ApprovalBadge status={r.reviewStatus} />
+                    {/* 상태 배지는 표시하지 않음 — 승인/반려 버튼으로만 판단 */}
                     {isMaster && (
                       <ReviewDecisionButtons sessionId={r.sessionId} status={r.reviewStatus} kind="subjects" />
                     )}

@@ -79,8 +79,8 @@ async function SessionInfo({ id }: { id: string }) {
   ];
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5">
-      <div className="mb-4 flex items-center justify-between">
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
         <h2 className="font-semibold">분과 정보</h2>
         <SessionStatusControl
           sessionId={session.id}
@@ -88,17 +88,30 @@ async function SessionInfo({ id }: { id: string }) {
           eventDate={session.eventDate ? session.eventDate.toISOString() : null}
         />
       </div>
-      {session.description && (
-        <p className="mb-4 text-sm text-slate-600">{session.description}</p>
-      )}
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3 lg:grid-cols-7">
-        {meta.map((m) => (
-          <div key={m.label}>
-            <dt className="text-slate-400">{m.label}</dt>
-            <dd className="mt-0.5 font-medium text-slate-800">{m.value}</dd>
-          </div>
-        ))}
-      </dl>
+      {session.description && <p className="text-sm text-slate-600">{session.description}</p>}
+      {/* 분과 정보 — 라벨을 헤더로, 값을 한 행으로 하는 테이블 */}
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+        <table className="table-grid w-full text-sm">
+          <thead className="text-left text-slate-500">
+            <tr className="border-b border-slate-100 bg-slate-50/60">
+              {meta.map((m) => (
+                <th key={m.label} className="px-5 py-2.5 font-medium whitespace-nowrap">
+                  {m.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              {meta.map((m) => (
+                <td key={m.label} className="px-5 py-3 font-medium whitespace-nowrap text-slate-800">
+                  {m.value}
+                </td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -108,37 +121,39 @@ async function MonitoringSection({ id }: { id: string }) {
   const p = await getSessionProgress(id);
 
   return (
-    <section className="space-y-5 rounded-xl border border-slate-200 bg-white p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+    <section className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-semibold">실시간 모니터링</h2>
         <LiveRefresher sessionId={id} />
       </div>
 
-      {/* KPI 스탯 스트립 */}
-      <div className="grid grid-cols-2 gap-y-5 sm:grid-cols-4 sm:gap-y-0 sm:divide-x sm:divide-slate-200">
-        {[
-          { label: "평가 위원", value: `${p.assignedCount}명` },
-          {
-            label: "입력 완료 위원",
-            value: `${p.completedEvaluators}/${p.assignedCount}`,
-          },
-          {
-            label: "진행률",
-            value: `${p.pct}%`,
-            accent: true,
-          },
-          { label: "평가 대상", value: `${p.subjects.length}개` },
-        ].map((k, i) => (
-          <div key={k.label} className={i === 0 ? "sm:pr-6" : "sm:px-6"}>
-            <div className="text-sm text-slate-500">{k.label}</div>
-            <div
-              className={`mt-1 text-2xl font-bold ${k.accent ? "text-indigo-600" : "text-slate-900"}`}
-            >
-              {k.value}
-            </div>
-            {k.label === "평가 위원" && <EvaluatorRoster evaluators={p.rows} subjects={p.subjects} />}
-          </div>
-        ))}
+      {/* KPI — 지표를 헤더로, 값을 한 행으로 하는 테이블 */}
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+        <table className="table-grid w-full text-sm">
+          <thead className="text-left text-slate-500">
+            <tr className="border-b border-slate-100 bg-slate-50/60">
+              <th className="px-5 py-2.5 font-medium whitespace-nowrap">평가 위원</th>
+              <th className="px-5 py-2.5 font-medium whitespace-nowrap">입력 완료 위원</th>
+              <th className="px-5 py-2.5 font-medium whitespace-nowrap">진행률</th>
+              <th className="px-5 py-2.5 font-medium whitespace-nowrap">평가 대상</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="px-5 py-3">
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-lg font-bold text-slate-900">{p.assignedCount}명</span>
+                  <EvaluatorRoster evaluators={p.rows} subjects={p.subjects} />
+                </div>
+              </td>
+              <td className="px-5 py-3 text-lg font-bold text-slate-900">
+                {p.completedEvaluators}/{p.assignedCount}
+              </td>
+              <td className="px-5 py-3 text-lg font-bold text-indigo-600">{p.pct}%</td>
+              <td className="px-5 py-3 text-lg font-bold text-slate-900">{p.subjects.length}개</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       <MonitoringList data={p} />

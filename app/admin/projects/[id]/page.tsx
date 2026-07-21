@@ -85,28 +85,24 @@ export default async function ProjectDetailPage({
         <Link href="/admin/projects" className="text-sm text-slate-400 hover:text-slate-600">
           ← 과제 목록
         </Link>
-        <div className="mt-1 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        {/* 제목 옆에 상태·설명·기간을 인라인 배치(아이콘 없이) */}
+        <div className="mt-1 flex items-start justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <h1 className="text-2xl font-bold">{project.name}</h1>
-            {(() => {
-              const st = STATUS[deriveProjectStatus(project.sessions.map((s) => s.status))];
-              return (
-                <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${st.cls}`}>
-                  {st.label}
-                </span>
-              );
-            })()}
+            <span className="text-sm text-slate-500">
+              {STATUS[deriveProjectStatus(project.sessions.map((s) => s.status))].label}
+            </span>
+            {project.description && <span className="text-sm text-slate-500">{project.description}</span>}
+            {(project.startDate || project.endDate) && (
+              <span className="text-sm text-slate-500">
+                기간 {fmtYmd(project.startDate)} ~ {fmtYmd(project.endDate)}
+              </span>
+            )}
           </div>
           {isMaster && (
             <DeleteProjectButton projectId={id} projectName={project.name} sessionCount={project.sessions.length} />
           )}
         </div>
-        {project.description && <p className="mt-1 text-sm text-slate-600">{project.description}</p>}
-        {(project.startDate || project.endDate) && (
-          <p className="mt-1 text-sm text-slate-500">
-            기간 {fmtYmd(project.startDate)} ~ {fmtYmd(project.endDate)}
-          </p>
-        )}
       </div>
 
       {/* 소속 분과 — 버튼은 카드 밖(배경), 표만 카드 안.
@@ -115,13 +111,13 @@ export default async function ProjectDetailPage({
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-slate-700">
-            분과 목록 <span className="ml-0.5 text-xs text-slate-400">{visibleSessions.length}개</span>
+            분과 간사 설정 <span className="ml-0.5 text-xs text-slate-400">{visibleSessions.length}개</span>
           </h2>
           <div className="flex items-center gap-2">
             <ExcelExportButton href={`/api/projects/${id}/export/sessions`} />
             <Link
               href={`/admin/sessions/new?projectId=${id}`}
-              className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium whitespace-nowrap text-white transition hover:bg-indigo-700"
+              className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium whitespace-nowrap text-slate-600 transition hover:bg-slate-50"
             >
               + 분과 추가
             </Link>

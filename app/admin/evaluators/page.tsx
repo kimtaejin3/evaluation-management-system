@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { prisma } from "@/lib/db";
 import PasswordCell from "@/components/PasswordCell";
+import InfoIcon from "@/components/InfoIcon";
 import Link from "next/link";
 import { deleteEvaluator, resetEvaluatorPassword } from "../actions";
 import { assertMaster } from "@/lib/authz";
@@ -11,15 +12,17 @@ export default async function EvaluatorsAdminPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div>
+        {/* 제목 옆에 설명을 정보 아이콘과 함께 인라인 배치 */}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
           <h1 className="text-2xl font-bold">평가위원 관리</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <span className="inline-flex items-center gap-1 text-sm text-slate-500">
+            <InfoIcon />
             평가위원 계정을 등록·관리합니다. 분과 배정은 분과별 화면에서, 간사 관리는 간사 관리 페이지에서 진행하세요.
-          </p>
+          </span>
         </div>
         <Link
           href="/admin/evaluators/new"
-          className="shrink-0 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium whitespace-nowrap text-white transition hover:bg-indigo-700"
+          className="shrink-0 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium whitespace-nowrap text-slate-600 transition hover:bg-slate-50"
         >
           + 평가위원 추가
         </Link>

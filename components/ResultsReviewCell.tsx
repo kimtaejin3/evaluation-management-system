@@ -4,8 +4,8 @@ import { useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { completeReview } from '@/app/admin/sessions/actions'
 
-// 과제 집계 결과 테이블의 '검토 상태' 컬럼 — 배지 + 관리자 검토 완료 버튼(컴팩트).
-// 간사가 제출 완료(submitted)해야 검토 완료할 수 있고, 완료(closed)되면 점수가 잠긴다.
+// 과제 집계 결과 테이블의 '검토 상태' 컬럼 — 다른 테이블 '승인 상태'처럼 배지 없이 버튼 상태로만 표시.
+// 미제출: 흰 배경·비활성 / 간사 제출: 활성 + 안내 / 검토 완료(closed): primary 채움(선택). 관리자 전용.
 export default function ResultsReviewCell({
   sessionId,
   submitted,
@@ -19,38 +19,34 @@ export default function ResultsReviewCell({
 }) {
   const router = useRouter()
   const [pending, start] = useTransition()
+  if (!isMaster) return null
 
-  const badge = closed ? (
-    <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium whitespace-nowrap text-emerald-800 ring-1 ring-inset ring-emerald-300">
-      검토 완료
-    </span>
-  ) : submitted ? (
-    <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium whitespace-nowrap text-amber-800 ring-1 ring-inset ring-amber-300">
-      대기
-    </span>
-  ) : (
-    <span className="text-slate-300">—</span>
-  )
+  const base = 'rounded px-2 py-1 text-xs font-medium whitespace-nowrap transition'
+  const cls = closed
+    ? `${base} bg-indigo-600 text-white cursor-default`
+    : submitted
+      ? `${base} border border-slate-300 bg-white text-slate-700 hover:bg-slate-50`
+      : `${base} border border-slate-200 bg-white text-slate-300 cursor-not-allowed`
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      {badge}
-      {isMaster && !closed && (
-        <button
-          type="button"
-          disabled={pending || !submitted}
-          title={submitted ? undefined : '간사가 제출 완료해야 검토할 수 있습니다'}
-          onClick={() => {
-            if (!confirm("이 분과의 검토를 완료하고 '완료' 상태로 전환할까요? 점수가 잠깁니다.")) return
-            start(async () => {
-              await completeReview(sessionId)
-              router.refresh()
-            })
-          }}
-          className="rounded bg-indigo-600 px-2 py-1 text-xs font-medium whitespace-nowrap text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {pending ? '처리 중…' : '검토 완료'}
-        </button>
+      <button
+        type="button"
+        disabled={pending || closed || !submitted}
+        title={submitted ? undefined : '간사가 제출 완료해야 검토할 수 있습니다'}
+        onClick={() => {
+          if (!confirm("이 분과의 검토를 완료하고 '완료' 상태로 전환할까요? 점수가 잠깁니다.")) return
+          start(async () => {
+            await completeReview(sessionId)
+            router.refresh()
+          })
+        }}
+        className={cls}
+      >
+        {pending ? '처리 중…' : '검토 완료'}
+      </button>
+      {submitted && !closed && (
+        <span className="text-xs whitespace-nowrap text-slate-500">간사가 제출하였습니다. 검토 완료하세요.</span>
       )}
     </div>
   )

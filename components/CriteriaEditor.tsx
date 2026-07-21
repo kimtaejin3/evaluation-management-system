@@ -272,7 +272,7 @@ export default function CriteriaEditor({
       </p>
 
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-        <table className="table-grid w-full text-sm">
+        <table className="table-grid criteria-left w-full text-sm">
           <thead className="bg-slate-50 text-left text-slate-500">
             <tr className="border-b border-slate-200">
               <th className="px-4 py-2.5 font-medium">평가항목</th>
@@ -495,7 +495,7 @@ function GroupNameCell({
   };
 
   return (
-    <td rowSpan={rowSpan} className="border-r border-slate-100 px-4 py-3 align-top">
+    <td rowSpan={rowSpan} className="criteria-group border-r border-slate-100 px-4 py-3 align-top">
       {editing ? (
         <form action={submit} className="flex flex-col gap-2">
           <input name="name" defaultValue={group.name} className={inputCls} autoFocus />
@@ -510,8 +510,9 @@ function GroupNameCell({
         </form>
       ) : (
         <div className="space-y-1.5">
-          <div className="flex items-center gap-1.5">
-            <span className="font-semibold text-slate-800">{group.name}</span>
+          {/* 이름은 한 단어로 유지(nowrap), 버튼들은 좁으면 아래 줄로(wrap) — 가운데 정렬 유지 */}
+          <div className="flex flex-wrap items-center justify-center gap-1.5">
+            <span className="font-semibold whitespace-nowrap text-slate-800">{group.name}</span>
             <button type="button" onClick={() => setEditing(true)} className="rounded p-1 text-slate-400 transition hover:bg-slate-100 hover:text-indigo-600" title="수정" aria-label="평가항목 수정">
               <PencilIcon className="h-3.5 w-3.5" />
             </button>

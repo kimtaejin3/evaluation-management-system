@@ -11,15 +11,9 @@ export default function ReviewStatusBadge({
   // 제출(SUBMITTED) 또는 승인(APPROVED)이면 제출된 것. 반려(REJECTED)는 재수정 상태라 미제출.
   const submitted = status === "SUBMITTED" || status === "APPROVED";
   const label = wording === "review" ? (submitted ? "검토 완료" : "미검토") : submitted ? "제출" : "미제출";
-  // 완료(제출·검토 완료)=초록, 미완료=주황 — 진행중(파랑)·준비(회색)와 한눈에 구별.
-  const cls = submitted
-    ? "bg-emerald-100 text-emerald-800 ring-emerald-300"
-    : "bg-amber-100 text-amber-800 ring-amber-300";
-  return (
-    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ring-1 ring-inset ${cls}`}>
-      {label}
-    </span>
-  );
+  // 배경·테두리 없이 텍스트만 — 완료(제출·검토 완료)=검정, 미완료(미제출·미검토)=빨강.
+  const cls = submitted ? "text-slate-900" : "text-rose-600";
+  return <span className={`text-xs whitespace-nowrap ${cls}`}>{label}</span>;
 }
 
 // 관리자 승인 상태 배지 — '승인 상태' 컬럼용. 제출 전(DRAFT)은 대시로 표시.

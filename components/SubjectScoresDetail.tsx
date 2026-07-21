@@ -10,14 +10,18 @@ export default function SubjectScoresDetail({
   buttonLabel = '자세히 보기',
   note = '채점을 완료한 위원의 총점과 종합의견입니다.',
   emptyMessage = '채점을 완료한 위원이 없습니다.',
+  chairOpinion = false,
 }: {
   subjectName: string
   evaluators: { name: string; isChair: boolean; score: number; opinion: string | null }[]
   buttonLabel?: string
   note?: string
   emptyMessage?: string
+  // true면 평가위원장 종합의견만 표시(위원별 점수 표 대신)
+  chairOpinion?: boolean
 }) {
   const [open, setOpen] = useState(false)
+  const chair = evaluators.find((e) => e.isChair)
 
   useEffect(() => {
     if (!open) return
@@ -31,7 +35,7 @@ export default function SubjectScoresDetail({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium whitespace-nowrap text-slate-600 transition hover:bg-slate-50"
+        className="text-xs font-medium whitespace-nowrap text-slate-600 transition hover:text-indigo-700 hover:underline"
       >
         {buttonLabel}
       </button>
@@ -47,7 +51,9 @@ export default function SubjectScoresDetail({
           >
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h3 className="text-base font-semibold text-slate-800">{subjectName} — 위원별 점수</h3>
+                <h3 className="text-base font-semibold text-slate-800">
+                  {subjectName} — {chairOpinion ? '평가위원장 종합의견' : '위원별 점수'}
+                </h3>
                 <p className="mt-0.5 text-xs text-slate-400">{note}</p>
               </div>
               <button type="button" onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600" aria-label="닫기">
@@ -55,7 +61,16 @@ export default function SubjectScoresDetail({
               </button>
             </div>
 
-            {evaluators.length === 0 ? (
+            {chairOpinion ? (
+              !chair || !chair.opinion ? (
+                <p className="py-6 text-center text-sm text-slate-400">{emptyMessage}</p>
+              ) : (
+                <div>
+                  <div className="mb-1.5 text-sm font-semibold text-slate-800">평가위원장({chair.name})</div>
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{chair.opinion}</p>
+                </div>
+              )
+            ) : evaluators.length === 0 ? (
               <p className="py-6 text-center text-sm text-slate-400">{emptyMessage}</p>
             ) : (
               <table className="table-grid w-full text-sm">

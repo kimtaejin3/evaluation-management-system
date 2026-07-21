@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { assertMaster } from "@/lib/authz";
 import PasswordCell from "@/components/PasswordCell";
+import InfoIcon from "@/components/InfoIcon";
 import { deleteEvaluator, resetEvaluatorPassword } from "../actions";
 import { SkeletonTable } from "@/components/Skeletons";
 
@@ -13,15 +14,17 @@ export default async function SecretariesAdminPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div>
+        {/* 제목 옆에 설명을 정보 아이콘과 함께 인라인 배치 */}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
           <h1 className="text-2xl font-bold">간사 관리</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            간사 계정 풀을 관리합니다. 과제 참여는 각 과제의 분과 목록에서 추가하세요.
-          </p>
+          <span className="inline-flex items-center gap-1 text-sm text-slate-500">
+            <InfoIcon />
+            간사 계정 풀을 관리합니다. 과제 참여는 각 과제의 분과 간사 설정에서 추가하세요.
+          </span>
         </div>
         <Link
           href="/admin/secretaries/new"
-          className="shrink-0 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium whitespace-nowrap text-white transition hover:bg-indigo-700"
+          className="shrink-0 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium whitespace-nowrap text-slate-600 transition hover:bg-slate-50"
         >
           + 간사 추가
         </Link>

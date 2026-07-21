@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { assertProjectAccess } from "@/lib/authz";
-import ReviewStatusBadge, { ApprovalBadge } from "@/components/ReviewStatusBadge";
+import ReviewStatusBadge from "@/components/ReviewStatusBadge";
 import ReviewDecisionButtons from "@/components/ReviewDecisionButtons";
 import ExcelExportButton from "@/components/ExcelExportButton";
 import { SkeletonTable } from "@/components/Skeletons";
@@ -20,19 +20,16 @@ export default async function ProjectOpinionsPage({
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-3">
         <div>
-          <Link href={`/admin/projects/${id}`} className="text-sm text-slate-400 hover:text-slate-600">
-            ← 분과 목록
-          </Link>
           <h1 className="mt-1 text-2xl font-bold">평가의견서</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            분과별 의견서 작성 현황입니다. 본문 열람은 분과 페이지에서 합니다.
-          </p>
         </div>
         <ExcelExportButton href={`/api/projects/${id}/export/opinions`} />
       </div>
       <Suspense fallback={<SkeletonTable rows={5} cols={6} />}>
         <Content id={id} />
       </Suspense>
+      <p className="text-right text-xs text-slate-400">
+        분과별 의견서 작성 현황입니다. 본문 열람은 분과 페이지에서 합니다.
+      </p>
     </div>
   );
 }
@@ -73,12 +70,8 @@ async function Content({ id }: { id: string }) {
                 return (
                   <tr key={s.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60">
                     <td className="px-5 py-3">
-                      <Link
-                        href={`/admin/sessions/${s.id}/opinions`}
-                        className="font-medium text-slate-800 hover:text-indigo-700 hover:underline"
-                      >
-                        {s.name}
-                      </Link>
+                      {/* 이동은 '자세히 보기'로 — 분과명은 일반 텍스트 */}
+                      <span className="font-medium text-slate-800">{s.name}</span>
                     </td>
                     <td className="px-5 py-3 text-slate-600">
                       {s.secretary?.name ?? <span className="text-xs text-slate-400">미배정</span>}
@@ -92,14 +85,14 @@ async function Content({ id }: { id: string }) {
                       {/* 분과 상세의 평가 의견서 페이지로 이동 */}
                       <Link
                         href={`/admin/sessions/${s.id}/opinions`}
-                        className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium whitespace-nowrap text-slate-600 transition hover:bg-slate-50"
+                        className="text-xs font-medium whitespace-nowrap text-slate-600 transition hover:text-indigo-700 hover:underline"
                       >
                         자세히 보기
                       </Link>
                     </td>
                     <td className="px-5 py-3">
+                      {/* 승인 상태 — 배지 없이 승인/반려 버튼으로만 판단 */}
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <ApprovalBadge status={s.opinionStatus} />
                         {isMaster && (
                           <ReviewDecisionButtons sessionId={s.id} status={s.opinionStatus} kind="opinions" wording="review" />
                         )}

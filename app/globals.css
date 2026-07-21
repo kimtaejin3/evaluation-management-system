@@ -97,11 +97,23 @@ body {
 .table-grid td {
   border: 1px solid var(--color-slate-300);
 }
-/* 헤더 — 사이드바 남색 배경 + 흰 글씨(구분선은 밝은 남색) */
+/* 헤더 — 사이드바 남색 배경 + 흰 글씨(구분선은 밝은 남색), 텍스트 가운데 정렬 */
 .table-grid thead th {
   background-color: var(--gov-navy);
   color: #fff;
   border-color: #2a4a78;
+  text-align: center;
+}
+/* 본문 셀도 가운데 정렬(평가항목 편집/미리보기 표는 .criteria-left로 옵트아웃) */
+.table-grid tbody td {
+  text-align: center;
+}
+.table-grid.criteria-left tbody td {
+  text-align: left;
+}
+/* 평가항목 표에서 첫 컬럼(평가항목/그룹) 셀만 가운데 정렬 */
+.table-grid.criteria-left tbody td.criteria-group {
+  text-align: center;
 }
 /* 둥근 컨테이너 테두리와 겹치는 바깥쪽 선은 제거 */
 .table-grid tr > *:first-child {

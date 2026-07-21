@@ -21,17 +21,14 @@ export default async function ProjectCriteriaPage({
   return (
     <div className="space-y-6">
       <div>
-        <Link href={`/admin/projects/${id}`} className="text-sm text-slate-400 hover:text-slate-600">
-          ← 분과 목록
-        </Link>
         <h1 className="mt-1 text-2xl font-bold">평가항목</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          과제 공통 평가항목입니다. 소속 분과 전체에 동일하게 적용됩니다.
-        </p>
       </div>
       <Suspense fallback={<SkeletonTable rows={6} cols={4} />}>
         <Content id={id} />
       </Suspense>
+      <p className="text-right text-xs text-slate-400">
+        과제 공통 평가항목입니다. 소속 분과 전체에 동일하게 적용됩니다.
+      </p>
     </div>
   );
 }
@@ -82,8 +79,8 @@ async function Content({ id }: { id: string }) {
           배점 합계 {totalAll}점 · 기준 만점 {project.maxScore}점
         </span>
         {isMaster && <ExcelImportButton scopeId={id} kind="criteria" />}
-        <CriteriaPrintButton projectId={id} />
         <ExcelExportButton href={`/api/projects/${id}/export/criteria`} />
+        <CriteriaPrintButton projectId={id} />
       </div>
 
       {/* 항목 편집(관리자) / 조회(간사) */}
@@ -134,13 +131,9 @@ async function Content({ id }: { id: string }) {
                     </td>
                     <td className="px-5 py-2.5">
                       {s.criteriaAckAt ? (
-                        <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800 ring-1 ring-inset ring-emerald-300">
-                          확인 완료
-                        </span>
+                        <span className="text-xs font-bold text-slate-900">확인 완료</span>
                       ) : (
-                        <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-inset ring-amber-300">
-                          미확인
-                        </span>
+                        <span className="text-xs text-slate-900">미확인</span>
                       )}
                     </td>
                     <td className="px-5 py-2.5 text-slate-600">

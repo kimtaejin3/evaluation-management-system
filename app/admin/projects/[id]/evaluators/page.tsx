@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { assertProjectAccess } from "@/lib/authz";
-import ReviewStatusBadge, { ApprovalBadge } from "@/components/ReviewStatusBadge";
+import ReviewStatusBadge from "@/components/ReviewStatusBadge";
 import ReviewDecisionButtons from "@/components/ReviewDecisionButtons";
 import PasswordCell from "@/components/PasswordCell";
 import ExcelExportButton from "@/components/ExcelExportButton";
@@ -21,19 +21,16 @@ export default async function ProjectEvaluatorsPage({
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-3">
         <div>
-          <Link href={`/admin/projects/${id}`} className="text-sm text-slate-400 hover:text-slate-600">
-            ← 분과 목록
-          </Link>
           <h1 className="mt-1 text-2xl font-bold">평가위원 선정현황</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            분과별 위원 배정 현황입니다. 배정·승인/반려는 분과 페이지에서 진행합니다.
-          </p>
         </div>
         <ExcelExportButton href={`/api/projects/${id}/export/evaluators`} />
       </div>
       <Suspense fallback={<SkeletonTable rows={6} cols={5} />}>
         <Content id={id} />
       </Suspense>
+      <p className="text-right text-xs text-slate-400">
+        분과별 위원 배정 현황입니다. 배정·승인/반려는 분과 페이지에서 진행합니다.
+      </p>
     </div>
   );
 }
@@ -90,11 +87,10 @@ async function Content({ id }: { id: string }) {
                   s.evaluatorStatus !== "SUBMITTED" &&
                   s.evaluatorStatus !== "APPROVED";
                 const rows = adminBlocked ? 1 : s.assignments.length || 1;
-                // 마지막 컬럼(분과 단위) — 승인 상태(배지·관리자 버튼)
+                // 마지막 컬럼(분과 단위) — 승인 상태(배지 없이 승인/반려 버튼으로만 판단)
                 const tail = (
                   <td rowSpan={rows} className="border-l border-slate-100 px-5 py-3 align-top">
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <ApprovalBadge status={s.evaluatorStatus} />
                       {isMaster && (
                         <ReviewDecisionButtons sessionId={s.id} status={s.evaluatorStatus} kind="evaluators" />
                       )}

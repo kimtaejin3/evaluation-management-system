@@ -167,33 +167,35 @@ async function ResultsContent({ id }: { id: string }) {
         </div>
       )}
 
-      {/* 합산 공식 + 위원 간 편차 정보 (화면 전용) */}
-      <div className="grid gap-4 print:hidden lg:grid-cols-2">
-        <div className="rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-500">
-          <div className="mb-1.5 font-semibold text-slate-600">합산 공식</div>
-          <ul className="space-y-1">
-            <li>· 위원 점수 = Σ(항목 점수) · 총배점 100점</li>
-            <li>· 최종 점수 = 배정 위원 점수의 평균 (만점 {fmt(maxTotal)}점)</li>
-            <li>· 등급 = 최종 90↑ S · 80↑ A · 70↑ B · 60↑ C · 그 외 D</li>
-          </ul>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-500">
-          <div className="mb-1.5 font-semibold text-slate-600">위원 간 편차 정보</div>
-          {divergent.length === 0 ? (
-            <p className="text-slate-400">편차가 큰(±10 이상) 대상이 없습니다.</p>
-          ) : (
+      {/* 합산 공식 + 위원 간 편차 정보 (화면 전용) — 간사에게는 숨김, 관리자만 표시 */}
+      {me.role === "MASTER" && (
+        <div className="grid gap-4 print:hidden lg:grid-cols-2">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-500">
+            <div className="mb-1.5 font-semibold text-slate-600">합산 공식</div>
             <ul className="space-y-1">
-              {divergent.map((r) => (
-                <li key={r.subjectId} className="flex items-center justify-between">
-                  <span className="text-slate-600">{r.name}</span>
-                  <span className="font-medium text-amber-700">편차 ±{fmt(r.spread!)} · 재검토 권장</span>
-                </li>
-              ))}
+              <li>· 위원 점수 = Σ(항목 점수) · 총배점 100점</li>
+              <li>· 최종 점수 = 배정 위원 점수의 평균 (만점 {fmt(maxTotal)}점)</li>
+              <li>· 등급 = 최종 90↑ S · 80↑ A · 70↑ B · 60↑ C · 그 외 D</li>
             </ul>
-          )}
-          <p className="mt-2 text-slate-400">완료 위원 2명 이상인 대상 기준 · 최고-최저 차이</p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-500">
+            <div className="mb-1.5 font-semibold text-slate-600">위원 간 편차 정보</div>
+            {divergent.length === 0 ? (
+              <p className="text-slate-400">편차가 큰(±10 이상) 대상이 없습니다.</p>
+            ) : (
+              <ul className="space-y-1">
+                {divergent.map((r) => (
+                  <li key={r.subjectId} className="flex items-center justify-between">
+                    <span className="text-slate-600">{r.name}</span>
+                    <span className="font-medium text-amber-700">편차 ±{fmt(r.spread!)} · 재검토 권장</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="mt-2 text-slate-400">완료 위원 2명 이상인 대상 기준 · 최고-최저 차이</p>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 분과 확정 (화면 전용, 최하단) — 간사: 제출 완료 / 관리자: 검토 완료 */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-5 print:hidden">

@@ -31,7 +31,7 @@ export default async function ProjectsPage() {
         </div>
         <Link
           href="/admin/projects/new"
-          className="shrink-0 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
+          className="shrink-0 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
         >
           + 새 과제
         </Link>

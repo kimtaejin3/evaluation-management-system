@@ -76,7 +76,7 @@ export default function MonitoringList({ data }: { data: ProgressData }) {
                 <button
                   type="button"
                   onClick={() => setOpenId(s.id)}
-                  className="shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-indigo-300 hover:text-indigo-700"
+                  className="text-sm font-medium text-slate-600 transition hover:text-indigo-700 hover:underline"
                 >
                   자세히 보기
                 </button>

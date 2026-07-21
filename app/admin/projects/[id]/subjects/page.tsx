@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { assertProjectAccess } from "@/lib/authz";
 import { computeWeightedScore } from "@/lib/scoring";
@@ -24,19 +23,16 @@ export default async function ProjectSubjectsPage({
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-3">
         <div>
-          <Link href={`/admin/projects/${id}`} className="text-sm text-slate-400 hover:text-slate-600">
-            ← 분과 목록
-          </Link>
           <h1 className="mt-1 text-2xl font-bold">평가대상</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            분과별 평가 대상 현황입니다. 분과명을 누르면 기업 자료 제출 현황을 조회할 수 있습니다.
-          </p>
         </div>
         <ExcelExportButton href={`/api/projects/${id}/export/subjects`} />
       </div>
       <Suspense fallback={<SkeletonTable rows={6} cols={5} />}>
         <Content id={id} />
       </Suspense>
+      <p className="text-right text-xs text-slate-400">
+        분과별 평가 대상 현황입니다. ‘자세히 보기’로 기업 자료 제출 현황을 조회합니다.
+      </p>
     </div>
   );
 }

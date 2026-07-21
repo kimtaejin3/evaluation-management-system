@@ -29,11 +29,7 @@ export default async function ProjectMonitoringPage({
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-3">
         <div>
-          <Link href={`/admin/projects/${id}`} className="text-sm text-slate-400 hover:text-slate-600">
-            ← 분과 목록
-          </Link>
           <h1 className="mt-1 text-2xl font-bold">평가 실시간 모니터링</h1>
-          <p className="mt-1 text-sm text-slate-500">분과별 채점 진행 현황입니다. 분과명을 누르면 상세 현황으로 이동합니다.</p>
         </div>
         <div className="flex flex-col items-end gap-1.5">
           <ExcelExportButton href={`/api/projects/${id}/export/monitoring`} />
@@ -44,6 +40,9 @@ export default async function ProjectMonitoringPage({
       <Suspense fallback={<SkeletonTable rows={5} cols={9} />}>
         <Content id={id} sort={sort} dir={dir} />
       </Suspense>
+      <p className="text-right text-xs text-slate-400">
+        분과별 채점 진행 현황입니다. ‘자세히 보기’로 상세 현황을 확인합니다.
+      </p>
     </div>
   );
 }
@@ -118,12 +117,8 @@ async function Content({
                 return (
                   <tr key={s.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60">
                     <td className="px-5 py-3">
-                      <Link
-                        href={`/admin/sessions/${s.id}`}
-                        className="font-medium text-slate-800 hover:text-indigo-700 hover:underline"
-                      >
-                        {s.name}
-                      </Link>
+                      {/* 이동은 '자세히 보기'로 — 분과명은 일반 텍스트 */}
+                      <span className="font-medium text-slate-800">{s.name}</span>
                     </td>
                     <td className="px-5 py-3">
                       <StatusBadge status={s.status} />
@@ -146,7 +141,7 @@ async function Content({
                     <td className="px-5 py-3">
                       <Link
                         href={`/admin/sessions/${s.id}`}
-                        className="inline-block rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium whitespace-nowrap text-slate-600 transition hover:bg-slate-50"
+                        className="text-xs font-medium whitespace-nowrap text-slate-600 transition hover:text-indigo-700 hover:underline"
                       >
                         자세히 보기
                       </Link>

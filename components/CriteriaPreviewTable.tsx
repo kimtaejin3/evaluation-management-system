@@ -11,7 +11,7 @@ export default function CriteriaPreviewTable({ groups }: { groups: GroupDTO[] })
 
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-      <table className="table-grid w-full text-sm">
+      <table className="table-grid criteria-left w-full text-sm">
         <thead className="bg-slate-50 text-left text-slate-500">
           <tr className="border-b border-slate-200">
             <th className="px-4 py-2.5 font-medium">평가항목</th>
@@ -28,7 +28,7 @@ export default function CriteriaPreviewTable({ groups }: { groups: GroupDTO[] })
             const groupCell = (
               <td
                 rowSpan={groupRowSpan}
-                className="border-r border-slate-100 px-4 py-3 align-top font-semibold text-slate-800"
+                className="criteria-group border-r border-slate-100 px-4 py-3 align-top font-semibold text-slate-800"
               >
                 {g.name}
                 <span className="mt-0.5 block text-xs font-normal text-slate-400">

@@ -17,7 +17,7 @@ export default async function NewSessionPage({
   const isMaster = user.role === 'MASTER'
   // 취소/뒤로가기는 소속 과제로(없으면 분과 목록)
   const backHref = projectId ? `/admin/projects/${projectId}` : '/admin/projects'
-  const backLabel = '← 분과 목록'
+  const backLabel = '← 분과 간사 설정'
   // 접근 가능한 과제: 마스터=전체, 간사=배정된 과제
   const [projects, secretaries] = await Promise.all([
     prisma.project.findMany({

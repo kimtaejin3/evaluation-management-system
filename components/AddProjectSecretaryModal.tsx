@@ -40,7 +40,7 @@ export default function AddProjectSecretaryModal({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium whitespace-nowrap text-white transition hover:bg-indigo-700"
+        className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium whitespace-nowrap text-slate-600 transition hover:bg-slate-50"
       >
         + 간사 추가
       </button>
