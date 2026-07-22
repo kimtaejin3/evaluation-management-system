@@ -1,7 +1,7 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { assertProjectAccess } from "@/lib/authz";
+import SessionOpinionsModal from "@/components/SessionOpinionsModal";
 import ReviewStatusBadge from "@/components/ReviewStatusBadge";
 import ReviewDecisionButtons from "@/components/ReviewDecisionButtons";
 import ExcelExportButton from "@/components/ExcelExportButton";
@@ -28,7 +28,7 @@ export default async function ProjectOpinionsPage({
         <Content id={id} />
       </Suspense>
       <p className="text-left text-xs text-slate-400">
-        분과별 의견서 작성 현황입니다. 본문 열람은 분과 페이지에서 합니다.
+        분과별 의견서 작성 현황입니다. ‘자세히 보기’로 평가위원장 종합의견을 확인합니다.
       </p>
     </div>
   );
@@ -44,10 +44,36 @@ async function Content({ id }: { id: string }) {
       id: true,
       name: true,
       opinionStatus: true,
+      chairId: true,
       secretary: { select: { name: true } },
       _count: { select: { subjects: true } },
+      subjects: { select: { id: true, name: true }, orderBy: { name: "asc" } },
+      assignments: { select: { userId: true, user: { select: { name: true } } } },
     },
   });
+
+  // 의견서 본문 — Opinion은 세션 관계가 없어 sessionId로 한 번에 조회한 뒤 분과별로 묶는다.
+  const opinions = await prisma.opinion.findMany({
+    where: { sessionId: { in: sessions.map((s) => s.id) } },
+    select: { sessionId: true, evaluatorId: true, subjectId: true, text: true },
+  });
+  const opinionsOfSession = new Map<string, typeof opinions>();
+  for (const o of opinions) {
+    if (!opinionsOfSession.has(o.sessionId)) opinionsOfSession.set(o.sessionId, []);
+    opinionsOfSession.get(o.sessionId)!.push(o);
+  }
+
+  // 분과별 (위원장 이름, 대상별 종합의견) — 모달에 넘길 데이터
+  const detailOf = (s: (typeof sessions)[number]) => {
+    const chairName = s.assignments.find((a) => a.userId === s.chairId)?.user.name ?? null;
+    const nameOfSubject = new Map(s.subjects.map((x) => [x.id, x.name]));
+    const items = (opinionsOfSession.get(s.id) ?? [])
+      .filter((o) => o.evaluatorId === s.chairId && o.text.trim())
+      .map((o) => ({ subjectName: nameOfSubject.get(o.subjectId) ?? "", text: o.text }))
+      .filter((it) => it.subjectName)
+      .sort((a, b) => a.subjectName.localeCompare(b.subjectName, "ko"));
+    return { chairName, items };
+  };
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
@@ -67,6 +93,7 @@ async function Content({ id }: { id: string }) {
             </thead>
             <tbody>
               {sessions.map((s) => {
+                const detail = detailOf(s);
                 return (
                   <tr key={s.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60">
                     <td className="px-5 py-3">
@@ -82,13 +109,12 @@ async function Content({ id }: { id: string }) {
                     </td>
                     <td className="px-5 py-3 text-slate-600">{s._count.subjects}</td>
                     <td className="px-5 py-3">
-                      {/* 분과 상세의 평가 의견서 페이지로 이동 */}
-                      <Link
-                        href={`/admin/sessions/${s.id}/opinions`}
-                        className="text-xs font-medium whitespace-nowrap text-slate-600 transition hover:text-indigo-700 hover:underline"
-                      >
-                        자세히 보기
-                      </Link>
+                      {/* 페이지 이동 없이 모달로 의견서 열람 */}
+                      <SessionOpinionsModal
+                        sessionName={s.name}
+                        chairName={detail.chairName}
+                        items={detail.items}
+                      />
                     </td>
                     <td className="px-5 py-3">
                       {/* 승인 상태 — 배지 없이 승인/반려 버튼으로만 판단 */}

@@ -31,15 +31,18 @@ export default async function ProjectMonitoringPage({
         <div>
           <h1 className="mt-1 text-2xl font-bold">평가 실시간 모니터링</h1>
         </div>
-        <div className="flex flex-col items-end gap-1.5">
-          <ExcelExportButton href={`/api/projects/${id}/export/monitoring`} />
+        <ExcelExportButton href={`/api/projects/${id}/export/monitoring`} />
+      </div>
+      {/* 조회 시각·새로고침은 제목 행과 분리해 테이블 바로 위에 붙인다 */}
+      <div className="space-y-2">
+        <div className="flex justify-end">
           {/* 테이블 데이터를 가져온 시각 — 5분마다 자동 새로고침, 버튼으로 즉시 갱신 */}
           <TableRefreshControl fetchedAt={fmtDateTimeKst(new Date())} />
         </div>
+        <Suspense fallback={<SkeletonTable rows={5} cols={9} />}>
+          <Content id={id} sort={sort} dir={dir} />
+        </Suspense>
       </div>
-      <Suspense fallback={<SkeletonTable rows={5} cols={9} />}>
-        <Content id={id} sort={sort} dir={dir} />
-      </Suspense>
       <p className="text-left text-xs text-slate-400">
         분과별 채점 진행 현황입니다. ‘자세히 보기’로 상세 현황을 확인합니다.
       </p>

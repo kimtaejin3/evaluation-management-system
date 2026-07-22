@@ -293,9 +293,9 @@ export default function ScoreForm({
         </div>
       )}
 
-      {/* 작업 영역 — 좌:자료 / 중:평가표 / 우:종합의견 (넓게) */}
+      {/* 작업 영역 — 좌:자료 / 우:평가표. 점수·제출은 아래 액션 바로 내려 평가표가 남은 폭을 모두 쓴다 */}
       <div className="mx-auto max-w-[1600px] px-6 py-4">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,0.4fr)_minmax(0,1.75fr)_320px]">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,0.4fr)_minmax(0,2.4fr)]">
           {/* 좌: 자료 */}
           <div className="lg:sticky lg:top-14 lg:h-[70vh]">
             <DocPreviewBoard documents={documents} docked />
@@ -488,48 +488,58 @@ export default function ScoreForm({
             </table>
           </div>
 
-          {/* 우: 종합의견 + 제출 */}
-          <div className="space-y-4 lg:sticky lg:top-14 lg:self-start">
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <div className="text-center">
-                <div className="text-xs text-slate-400">현재 점수</div>
-                <div className="text-3xl font-bold text-indigo-700 tabular-nums">
-                  {fmt(total)}
-                  <span className="text-base font-normal text-slate-400">
-                    {" "}
-                    / {fmt(maxTotal)}
-                  </span>
-                </div>
-                <div className="mt-1 text-xs text-slate-400">
-                  입력 {filledCount}/{criteria.length}
-                </div>
-              </div>
+        </div>
+
+        {/* 하단: 현재 점수 + 제출/임시 저장 (기존 우측 패널을 아래로 이동) */}
+        <div className="mt-4 space-y-3">
+          {state?.error && (
+            <p className="rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-inset ring-rose-200">
+              {state.error}
+            </p>
+          )}
+          {state?.saved && (
+            <p className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700 ring-1 ring-inset ring-emerald-200">
+              임시 저장되었습니다.
+            </p>
+          )}
+          {submissionStatus === "SUBMITTED" && (
+            <p className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-700 ring-1 ring-inset ring-amber-200">
+              제출됨 · 승인 대기
+            </p>
+          )}
+          {submissionStatus === "APPROVED" && (
+            <p className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700 ring-1 ring-inset ring-emerald-200">
+              승인 완료
+            </p>
+          )}
+
+          <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-5 py-4">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <span className="text-xs text-slate-400">현재 점수</span>
+              <span className="text-3xl font-bold text-indigo-700 tabular-nums">
+                {fmt(total)}
+                <span className="text-base font-normal text-slate-400"> / {fmt(maxTotal)}</span>
+              </span>
+              <span className="text-xs text-slate-400">
+                입력 {filledCount}/{criteria.length}
+              </span>
             </div>
 
-            {state?.error && (
-              <p className="rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-inset ring-rose-200">
-                {state.error}
-              </p>
-            )}
-            {state?.saved && (
-              <p className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700 ring-1 ring-inset ring-emerald-200">
-                임시 저장되었습니다.
-              </p>
-            )}
-
-            {submissionStatus === "SUBMITTED" && (
-              <p className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-700 ring-1 ring-inset ring-amber-200">
-                제출됨 · 승인 대기
-              </p>
-            )}
-            {submissionStatus === "APPROVED" && (
-              <p className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700 ring-1 ring-inset ring-emerald-200">
-                승인 완료
-              </p>
-            )}
-
             {!locked && (
-              <div className="space-y-2">
+              <div className="flex flex-wrap items-center justify-end gap-3">
+                {!allInRange ? (
+                  <p className="text-xs text-rose-500">배점을 초과하거나 0 미만인 항목이 있습니다.</p>
+                ) : (
+                  !allFilled && <p className="text-xs text-slate-400">모든 항목 입력 시 제출할 수 있습니다.</p>
+                )}
+                <button
+                  name="intent"
+                  value="save"
+                  disabled={!allInRange || isPending}
+                  className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+                >
+                  임시 저장
+                </button>
                 <button
                   type="button"
                   onClick={() => {
@@ -537,31 +547,10 @@ export default function ScoreForm({
                     setConfirm(true);
                   }}
                   disabled={!canSubmit || isPending}
-                  className="w-full rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-40"
+                  className="rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-40"
                 >
-                  {submissionStatus === "REJECTED"
-                    ? "재제출 확인 →"
-                    : "제출 전 확인 →"}
+                  {submissionStatus === "REJECTED" ? "재제출 확인 →" : "제출 전 확인 →"}
                 </button>
-                <button
-                  name="intent"
-                  value="save"
-                  disabled={!allInRange || isPending}
-                  className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
-                >
-                  임시 저장
-                </button>
-                {!allInRange ? (
-                  <p className="text-center text-xs text-rose-500">
-                    배점을 초과하거나 0 미만인 항목이 있습니다.
-                  </p>
-                ) : (
-                  !allFilled && (
-                    <p className="text-center text-xs text-slate-400">
-                      모든 항목 입력 시 제출할 수 있습니다.
-                    </p>
-                  )
-                )}
               </div>
             )}
           </div>

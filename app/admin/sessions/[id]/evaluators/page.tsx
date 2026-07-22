@@ -71,9 +71,8 @@ async function EvaluatorsContent({ id }: { id: string }) {
     (a, b) => (b.userId === chairId ? 1 : 0) - (a.userId === chairId ? 1 : 0),
   );
   const chairUser = assignments.find((a) => a.userId === chairId)?.user ?? null;
-  const chairCandidates = assignments.filter(
-    (a) => a.status === "APPROVED" && a.userId !== chairId,
-  );
+  // 위원장은 배정 승인 여부와 무관하게 배정된 위원 중에서 항시 지정할 수 있다.
+  const chairCandidates = assignments.filter((a) => a.userId !== chairId);
 
   return (
     <div className="space-y-6">
@@ -147,15 +146,15 @@ async function EvaluatorsContent({ id }: { id: string }) {
         </div>
       )}
 
-      {/* 위원장 지정 (승인 후, 간사 전용) — 승인된 위원 중 1인 */}
-      {!isMaster && es === "APPROVED" && assignments.length > 0 && (
+      {/* 위원장 지정 (간사 전용) — 배정된 위원 중 1인. 검토 상태와 무관하게 항시 지정 가능 */}
+      {!isMaster && assignments.length > 0 && (
         <div className="rounded-xl border border-slate-200 bg-white p-5">
           <div className="text-sm font-semibold text-slate-700">
             위원장 지정
           </div>
           <p className="mt-0.5 text-xs text-slate-400">
             위원장 1인 지정 시 총괄평가 작성 및 다른 위원의 점수 열람 권한이
-            부여됩니다. 승인된 위원만 지정할 수 있습니다.
+            부여됩니다. 배정된 위원 중에서 언제든 지정·변경할 수 있습니다.
           </p>
           <div className="mt-3 text-sm text-slate-600">
             현재 위원장:{" "}
@@ -192,7 +191,7 @@ async function EvaluatorsContent({ id }: { id: string }) {
                 className={`flex-1 ${inputCls}`}
               >
                 <option value="" disabled>
-                  위원장으로 지정할 위원 선택(승인된 위원만)
+                  위원장으로 지정할 위원 선택
                 </option>
                 {chairCandidates.map((a) => (
                   <option key={a.userId} value={a.userId}>
