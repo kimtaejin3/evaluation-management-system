@@ -41,6 +41,36 @@ export async function saveChairSummary(sessionId: string, formData: FormData): P
   return { ok: true }
 }
 
+// 위원장 대상별 종합의견 저장 — 위원장 본인만, 마감 분과는 거부.
+// Opinion 테이블에 쓰는 유일한 경로다(평가위원 채점 저장에서는 더 이상 쓰지 않는다).
+export async function saveChairOpinion(
+  sessionId: string,
+  subjectId: string,
+  formData: FormData,
+): Promise<{ ok: boolean; error?: string }> {
+  const user = await getCurrentUser()
+  if (!user) return { ok: false, error: 'auth' }
+  const session = await prisma.evaluationSession.findUnique({
+    where: { id: sessionId },
+    select: { chairId: true, status: true },
+  })
+  if (!session || session.chairId !== user.id) return { ok: false, error: '위원장만 작성할 수 있습니다.' }
+  if (session.status === 'CLOSED') return { ok: false, error: '마감된 분과입니다.' }
+
+  const text = String(formData.get('opinion') ?? '').trim()
+  if (text) {
+    await prisma.opinion.upsert({
+      where: { evaluatorId_subjectId: { evaluatorId: user.id, subjectId } },
+      update: { text, sessionId },
+      create: { evaluatorId: user.id, subjectId, sessionId, text },
+    })
+  } else {
+    await prisma.opinion.deleteMany({ where: { evaluatorId: user.id, subjectId } })
+  }
+  revalidatePath(`/evaluate/${sessionId}/chair/${subjectId}`)
+  return { ok: true }
+}
+
 // 평가위원이 현재 포커스(입력 중)한 항목을 기록 — 대시보드에서 '실제 입력 중' 항목만 애니메이션.
 export async function pingEditing(sessionId: string, subjectId: string, criterionId: string) {
   const user = await getCurrentUser()
