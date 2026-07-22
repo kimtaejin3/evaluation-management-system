@@ -103,11 +103,8 @@ async function OpinionsContent({ id }: { id: string }) {
 
   return (
     <div className="space-y-4">
-      {/* 상단: 안내 + 엑셀 내보내기(역할·상태 무관 고정) */}
-      <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-2">
-        <p className="text-sm text-slate-500">
-          평가위원이 각 지원기업에 대해 평가 화면에서 작성한 종합의견입니다.
-        </p>
+      {/* 상단: 엑셀 내보내기(안내 문구는 제목 옆으로 이동) */}
+      <div className="flex items-center justify-end gap-3 border-b border-slate-200 pb-2">
         <ExcelExportButton href={`/api/sessions/${id}/export/opinions`} />
       </div>
 
@@ -134,7 +131,13 @@ async function OpinionsContent({ id }: { id: string }) {
         </div>
       ) : (
         <div className="space-y-2">
-          <h2 className="text-sm font-semibold text-slate-700">평가위원장 종합의견</h2>
+          {/* 위원장이 지정됐으면 이름을 앞에 붙여 표시 */}
+          <h2 className="text-sm font-semibold text-slate-700">
+            {(() => {
+              const chairName = evaluators.find((ev) => ev.isChair)?.name;
+              return chairName ? `${chairName} 평가위원장 종합의견` : "평가위원장 종합의견";
+            })()}
+          </h2>
           <OpinionViewer items={items} />
         </div>
       )}

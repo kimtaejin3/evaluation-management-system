@@ -10,6 +10,7 @@ import ResultsView from "./ResultsView";
 import CompleteReviewButton from "./CompleteReviewButton";
 import SubmitReviewButton from "./SubmitReviewButton";
 import ExcelExportButton from "@/components/ExcelExportButton";
+import ResultsPrintButton from "@/components/ResultsPrintButton";
 import { requireAdminUser } from "@/lib/authz";
 import { SkeletonCard, SkeletonTable } from "@/components/Skeletons";
 
@@ -104,10 +105,16 @@ async function ResultsContent({ id }: { id: string }) {
 
   return (
     <div className="space-y-5">
-      {/* 화면 전용 컨트롤 — 엑셀 내보내기(역할·상태 무관 고정) */}
-      <div className="flex items-center justify-between gap-3 print:hidden">
-        <p className="text-sm text-slate-500">위원 평균 점수 기준 선정 결과입니다.</p>
+      {/* 화면 전용 컨트롤 — 엑셀 내보내기 + 인쇄(선정 결과 인쇄 도구) */}
+      <div className="flex items-center justify-end gap-2 print:hidden">
         <ExcelExportButton href={`/api/sessions/${id}/export/results`} />
+        {orderedCriteria.length > 0 && orderedSubjects.length > 0 && (
+          <ResultsPrintButton
+            sessionId={id}
+            subjects={orderedSubjects.map((s) => ({ id: s.id, name: s.name }))}
+            evaluators={assignments.map((a) => ({ id: a.userId, name: a.user.name }))}
+          />
+        )}
       </div>
 
       {/* 인쇄 문서 머리글 */}
@@ -146,7 +153,6 @@ async function ResultsContent({ id }: { id: string }) {
         </div>
       ) : (
         <ResultsView
-          sessionId={id}
           winners={winners.map((w) => ({ id: w.id, name: w.name, finalScore: w.finalScore }))}
           subjects={orderedSubjects}
           criteria={orderedCriteria.map((c) => ({ id: c.unitId, code: itemCode.get(c.unitId) ?? "", name: c.label, weight: c.weight }))}

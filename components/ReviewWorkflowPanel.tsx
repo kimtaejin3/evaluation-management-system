@@ -36,11 +36,13 @@ export default function ReviewWorkflowPanel({
   const [pending, start] = useTransition()
   const run = (fn: () => Promise<void>) => start(async () => { await fn(); router.refresh() })
 
-  const tone: Record<ReviewStatus, string> = {
-    DRAFT: 'border-indigo-200 bg-indigo-50/60 text-slate-700',
-    SUBMITTED: 'border-indigo-200 bg-indigo-50/60 text-slate-700',
-    APPROVED: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-    REJECTED: 'border-amber-200 bg-amber-50 text-amber-700',
+  // 배너 배경은 상태와 무관하게 중립(회색) 톤으로 통일 — 상태 단어에만 은은한 색을 준다.
+  const tone = 'border-slate-200 bg-slate-50/60 text-slate-700'
+  const labelCls: Record<ReviewStatus, string> = {
+    DRAFT: 'text-slate-700',
+    SUBMITTED: 'text-slate-700',
+    APPROVED: 'text-emerald-700',
+    REJECTED: 'text-rose-600',
   }
   const isReview = wording === 'review'
   const label: Record<ReviewStatus, string> = {
@@ -92,12 +94,12 @@ export default function ReviewWorkflowPanel({
   })()
 
   return (
-    <div className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm ${tone[status]}`}>
+    <div className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm ${tone}`}>
       <div className="min-w-0">
-        <span className="font-semibold">{label[status]}</span>
-        <span className="ml-2 opacity-90">{message}</span>
+        <span className={`font-semibold ${labelCls[status]}`}>{label[status]}</span>
+        <span className="ml-2 text-slate-500">{message}</span>
         {status === 'REJECTED' && rejectionReason && (
-          <p className="mt-1 text-xs">반려 사유: {rejectionReason}</p>
+          <p className="mt-1 text-xs text-rose-600">반려 사유: {rejectionReason}</p>
         )}
       </div>
 

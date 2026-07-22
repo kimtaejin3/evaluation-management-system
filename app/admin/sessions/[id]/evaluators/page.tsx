@@ -254,7 +254,7 @@ async function EvaluatorsContent({ id }: { id: string }) {
                   </td>
                   {canEdit && (
                     <td className="px-5 py-3 text-right">
-                      <div className="flex items-center justify-end gap-3">
+                      <div className="flex items-center justify-end gap-2">
                         <form
                           action={async () => {
                             "use server";
@@ -266,6 +266,7 @@ async function EvaluatorsContent({ id }: { id: string }) {
                             비번 재발급
                           </button>
                         </form>
+                        <span className="text-slate-300" aria-hidden>/</span>
                         <form
                           action={async () => {
                             "use server";
@@ -276,6 +277,7 @@ async function EvaluatorsContent({ id }: { id: string }) {
                             배정 해제
                           </button>
                         </form>
+                        <span className="text-slate-300" aria-hidden>/</span>
                         <form
                           action={async () => {
                             "use server";
