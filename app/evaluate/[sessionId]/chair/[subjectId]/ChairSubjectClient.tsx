@@ -108,7 +108,7 @@ export default function ChairSubjectClient({
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
           {/* 좌: 위원별 점수·의견·제출 유무 */}
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white lg:self-start">
             <table className="table-grid w-full text-sm">
               <thead className="text-left text-slate-500">
                 <tr className="border-b border-slate-100 bg-slate-50/60">
