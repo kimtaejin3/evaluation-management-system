@@ -245,10 +245,10 @@ export default function ScoreForm({
                 위원장
               </span>
               <Link
-                href={`/evaluate/${sessionId}/chair`}
+                href={`/evaluate/${sessionId}/chair/${subjectId}`}
                 className="rounded-md bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-200"
               >
-                다른 위원 평가 · 총평 →
+                이 대상 종합의견 →
               </Link>
             </>
           )}
