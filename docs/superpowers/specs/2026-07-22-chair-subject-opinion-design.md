@@ -90,7 +90,7 @@ export interface ChairSubjectData {
   chairOpinion: string
   /** 분과가 마감(CLOSED)되면 읽기 전용 */
   locked: boolean
-  /** 대상 간 이동 (이름 오름차순 기준 이웃) */
+  /** 대상 간 이동 (대상 정렬 순서 `Subject.order` 기준 이웃) */
   prevSubjectId: string | null
   nextSubjectId: string | null
 }
