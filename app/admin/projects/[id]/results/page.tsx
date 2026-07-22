@@ -141,6 +141,17 @@ async function Content({ id }: { id: string }) {
       ];
     });
 
+  // 위원장 종합의견 — 위원장 본인의 채점 제출/승인 여부와 무관하게 작성된다.
+  // (점수는 승인 제출만 반영하지만, 종합의견은 작성 즉시 보여야 한다)
+  const chairOpinionFor = (sessionId: string, subjectId: string) => {
+    const chairId = chairOf.get(sessionId);
+    if (!chairId) return null;
+    const text = opinionText.get(`${chairId}:${subjectId}`);
+    if (!text) return null;
+    const name = (evaluatorsOf.get(sessionId) ?? []).find((ev) => ev.id === chairId)?.name ?? "";
+    return { name, text };
+  };
+
   // 분과별 평가 대상 점수(페이지네이션용) — 분과 안에서 점수순 순위 + 미집계는 순번 이어서
   const divisions = sessions.map((s) => {
     const subs = subjectsOf.get(s.id) ?? [];
@@ -223,6 +234,7 @@ async function Content({ id }: { id: string }) {
                             chairOpinion
                             note="평가위원장이 작성한 종합의견입니다."
                             emptyMessage="평가위원장 종합의견이 없습니다."
+                            chairOpinionOf={chairOpinionFor(sessId, r.subjectId)}
                             evaluators={approvedEvaluatorsFor(sessId, r.subjectId)}
                           />
                         </td>
@@ -243,6 +255,7 @@ async function Content({ id }: { id: string }) {
                           chairOpinion
                           note="평가위원장이 작성한 종합의견입니다."
                           emptyMessage="평가위원장 종합의견이 없습니다."
+                          chairOpinionOf={chairOpinionFor(sub.sessionId, sub.id)}
                           evaluators={approvedEvaluatorsFor(sub.sessionId, sub.id)}
                         />
                       </td>

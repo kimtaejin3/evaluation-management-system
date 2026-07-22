@@ -3,6 +3,7 @@ import { computeWeightedScore } from '@/lib/scoring'
 import { criteriaScopeForSession, scoringUnitsForScope } from '@/lib/criteria-scope'
 import { scoreUnitId, buildScoringUnits, type ScoringUnit } from '@/lib/criteria-units'
 import { isAssignmentActive } from '@/lib/assignment'
+import { chairEvalState, isSubmitted, neighborSubjects, type ChairEvalState } from '@/lib/chair-subject'
 
 // 채점 화면의 행 = 채점 단위(unit). 지표별 모드: 지표 1개, 통합(퉁) 모드: 세부항목 1개(indicators=지표 설명).
 export interface CriterionView {
@@ -27,7 +28,6 @@ export interface SheetData {
   progress: { done: number; total: number }
   documents: { id: string; name: string; mimeType: string }[]
   criteria: CriterionView[]
-  initialComment: string
   // 평가항목(그룹)별 의견 — groupId → 텍스트
   groupComments: Record<string, string>
   subjects: { id: string; name: string }[]
@@ -45,7 +45,7 @@ export async function getSheetData(
 ): Promise<SheetData | null> {
   // 평가항목은 과제(Project) 단위 공통 — 분과의 소속 과제 항목을 읽는다.
   const criteriaWhere = await criteriaScopeForSession(sessionId)
-  const [subject, session, units, existing, opinion, subjects, myScores, submission, assignment, myGroupComments] = await Promise.all([
+  const [subject, session, units, existing, subjects, myScores, submission, assignment, myGroupComments] = await Promise.all([
     prisma.subject.findUnique({
       where: { id: subjectId },
       include: {
@@ -59,7 +59,6 @@ export async function getSheetData(
     prisma.evaluationSession.findUnique({ where: { id: sessionId } }),
     scoringUnitsForScope(criteriaWhere),
     prisma.score.findMany({ where: { evaluatorId: userId, subjectId } }),
-    prisma.opinion.findUnique({ where: { evaluatorId_subjectId: { evaluatorId: userId, subjectId } } }),
     prisma.subject.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } }),
     prisma.score.findMany({
       where: { evaluatorId: userId, sessionId },
@@ -112,7 +111,6 @@ export async function getSheetData(
     progress: { done: doneSubjects, total: subjects.length },
     documents: subject.company.documents.map((d) => ({ id: d.id, name: d.originalName, mimeType: d.mimeType })),
     criteria: criteriaView,
-    initialComment: opinion?.text ?? '',
     groupComments: Object.fromEntries(myGroupComments.map((c) => [c.groupId, c.text])),
     subjects,
     otherScores,
@@ -256,115 +254,118 @@ export async function getHomeData(userId: string): Promise<HomeSession[]> {
   })
 }
 
-// ── 위원장 총괄표 ──
-export interface ChairCell {
-  state: 'done' | 'partial' | 'none'
-  score: number | null
-  items: { name: string; maxScore: number; value: number | null }[]
-  // 평가항목(그룹)별 의견 — 작성된 것만
+// ── 위원장 대상별 상세 ──
+export interface ChairSubjectEvaluator {
+  id: string
+  name: string
+  isChair: boolean
+  /** 전 채점 단위 입력 완료 시 합계, 아니면 null */
+  total: number | null
+  state: ChairEvalState
+  /** 평가항목(그룹)별 의견 — 작성된 것만 */
   groupComments: { groupName: string; text: string }[]
-  opinion: string | null
-}
-export interface ChairRow {
-  subjectId: string
-  subjectName: string
-  avg: number | null
-  rank: number | null
-  cells: ChairCell[] // evaluators 순서와 정렬
-}
-export interface ChairData {
-  sessionName: string
-  chairSummary: string
-  evaluators: { id: string; name: string; isChair: boolean }[]
-  rows: ChairRow[]
+  submitted: boolean
 }
 
-// 위원장 본인만 접근 가능 — 아니면 null
-export async function getChairData(userId: string, sessionId: string): Promise<ChairData | null> {
+export interface ChairSubjectData {
+  sessionName: string
+  subjectId: string
+  subjectName: string
+  evaluators: ChairSubjectEvaluator[]
+  /** 위원장이 이 대상에 저장해 둔 종합의견 */
+  chairOpinion: string
+  /** 분과 마감 또는 의견서 제출/승인 시 읽기 전용 */
+  locked: boolean
+  /** 읽기 전용 사유 — 'closed'(분과 마감) | 'opinionReviewed'(의견서 제출/승인) */
+  lockReason: 'closed' | 'opinionReviewed' | null
+  prevSubjectId: string | null
+  nextSubjectId: string | null
+}
+
+// 위원장 본인만 접근 가능 — 아니면 null(라우트에서 403)
+export async function getChairSubjectData(
+  userId: string,
+  sessionId: string,
+  subjectId: string,
+): Promise<ChairSubjectData | null> {
   const session = await prisma.evaluationSession.findUnique({ where: { id: sessionId } })
   if (!session || session.chairId !== userId) return null
   const chairId = session.chairId
 
   // 평가항목은 과제(Project) 단위 공통 — 채점 단위(unit) 기준으로 집계
   const criteriaWhere = await criteriaScopeForSession(sessionId)
-  const [subjects, units, assignments, scores, opinions, groupComments] = await Promise.all([
+  const [subjects, units, assignments, scores, groupComments, submissions, chairOpinionRow] = await Promise.all([
     prisma.subject.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } }),
     scoringUnitsForScope(criteriaWhere),
-    prisma.assignment.findMany({ where: { sessionId }, include: { user: { select: { id: true, name: true } } } }),
+    // 배정은 상태로 거르지 않는다(관리자 평가의견서 화면과 동일). 쓰는 필드만 select.
+    prisma.assignment.findMany({ where: { sessionId }, select: { userId: true, user: { select: { name: true } } } }),
     prisma.score.findMany({
-      where: { sessionId },
-      select: { evaluatorId: true, subjectId: true, criterionId: true, subitemId: true, value: true },
+      where: { sessionId, subjectId },
+      select: { evaluatorId: true, criterionId: true, subitemId: true, value: true },
     }),
-    prisma.opinion.findMany({ where: { sessionId }, select: { evaluatorId: true, subjectId: true, text: true } }),
     prisma.groupComment.findMany({
-      where: { sessionId },
-      select: { evaluatorId: true, subjectId: true, groupId: true, text: true },
+      where: { sessionId, subjectId },
+      select: { evaluatorId: true, groupId: true, text: true },
+    }),
+    prisma.submission.findMany({ where: { sessionId, subjectId }, select: { evaluatorId: true, status: true } }),
+    prisma.opinion.findUnique({
+      where: { evaluatorId_subjectId: { evaluatorId: chairId, subjectId } },
+      select: { text: true },
     }),
   ])
 
+  const subject = subjects.find((s) => s.id === subjectId)
+  if (!subject) return null
+
   const weights = units.map((u) => ({ id: u.unitId, weight: u.weight }))
   const totalUnits = units.length
-  const orderedAssignments = [...assignments].sort((a, b) => (b.userId === chairId ? 1 : 0) - (a.userId === chairId ? 1 : 0))
 
-  const byEvalSub = new Map<string, { criterionId: string; value: number }[]>()
+  const rowsOf = new Map<string, { criterionId: string; value: number }[]>()
   for (const s of scores) {
-    const k = `${s.evaluatorId}:${s.subjectId}`
-    if (!byEvalSub.has(k)) byEvalSub.set(k, [])
-    byEvalSub.get(k)!.push({ criterionId: scoreUnitId(s), value: s.value })
+    if (!rowsOf.has(s.evaluatorId)) rowsOf.set(s.evaluatorId, [])
+    rowsOf.get(s.evaluatorId)!.push({ criterionId: scoreUnitId(s), value: s.value })
   }
-  const scoreMap = new Map<string, number>()
-  for (const s of scores) scoreMap.set(`${s.evaluatorId}:${s.subjectId}:${scoreUnitId(s)}`, s.value)
-  const opinionMap = new Map<string, string>()
-  for (const o of opinions) opinionMap.set(`${o.evaluatorId}:${o.subjectId}`, o.text)
-  // (위원:대상:그룹) → 평가항목별 의견 / 그룹 순서는 units에서 유도
-  const groupCommentMap = new Map<string, string>()
-  for (const gc of groupComments) groupCommentMap.set(`${gc.evaluatorId}:${gc.subjectId}:${gc.groupId}`, gc.text)
+  const commentOf = new Map<string, string>()
+  for (const gc of groupComments) commentOf.set(`${gc.evaluatorId}:${gc.groupId}`, gc.text)
+  const statusOf = new Map<string, string>()
+  for (const sub of submissions) statusOf.set(sub.evaluatorId, sub.status)
+
+  // 평가항목(그룹) 표시 순서는 채점 단위 순서에서 유도
   const orderedGroups: { id: string; name: string }[] = []
   for (const u of units) if (!orderedGroups.some((g) => g.id === u.groupId)) orderedGroups.push({ id: u.groupId, name: u.groupName })
 
-  const cellOf = (evId: string, subId: string): ChairCell => {
-    const rows = byEvalSub.get(`${evId}:${subId}`) ?? []
-    const state: ChairCell['state'] = totalUnits > 0 && rows.length >= totalUnits ? 'done' : rows.length > 0 ? 'partial' : 'none'
-    return {
-      state,
-      score: state === 'done' ? computeWeightedScore(rows, weights) : null,
-      items: units.map((u) => ({ name: u.label, maxScore: u.maxScore, value: scoreMap.get(`${evId}:${subId}:${u.unitId}`) ?? null })),
-      groupComments: orderedGroups.flatMap((g) => {
-        const text = groupCommentMap.get(`${evId}:${subId}:${g.id}`)
-        return text ? [{ groupName: g.name, text }] : []
-      }),
-      opinion: opinionMap.get(`${evId}:${subId}`) ?? null,
-    }
-  }
+  // 위원장을 맨 앞에
+  const ordered = [...assignments].sort((a, b) => (b.userId === chairId ? 1 : 0) - (a.userId === chairId ? 1 : 0))
 
-  // 평균 + 순위(완료 위원 기준)
-  const avgById = new Map<string, number | null>()
-  for (const sub of subjects) {
-    const totals: number[] = []
-    for (const a of assignments) {
-      const c = cellOf(a.userId, sub.id)
-      if (c.state === 'done' && c.score != null) totals.push(c.score)
-    }
-    avgById.set(sub.id, totals.length ? totals.reduce((x, y) => x + y, 0) / totals.length : null)
-  }
-  const sortedAvg = [...subjects].filter((s) => avgById.get(s.id) != null).sort((a, b) => (avgById.get(b.id) ?? 0) - (avgById.get(a.id) ?? 0))
-  const rankMap = new Map<string, number>()
-  sortedAvg.forEach((s, i) => {
-    const prev = sortedAvg[i - 1]
-    const rank = i > 0 && avgById.get(prev.id) === avgById.get(s.id) ? rankMap.get(prev.id)! : i + 1
-    rankMap.set(s.id, rank)
-  })
+  // 마감된 분과, 그리고 의견서가 간사 검토 제출/관리자 승인된 뒤에는 읽기 전용
+  // (서버의 saveChairOpinion 가드와 동일한 규칙)
+  const opinionReviewed = session.opinionStatus === 'SUBMITTED' || session.opinionStatus === 'APPROVED'
+  const lockReason: 'closed' | 'opinionReviewed' | null =
+    session.status === 'CLOSED' ? 'closed' : opinionReviewed ? 'opinionReviewed' : null
 
   return {
     sessionName: session.name,
-    chairSummary: session.chairSummary ?? '',
-    evaluators: orderedAssignments.map((a) => ({ id: a.userId, name: a.user.name, isChair: a.userId === chairId })),
-    rows: subjects.map((sub) => ({
-      subjectId: sub.id,
-      subjectName: sub.name,
-      avg: avgById.get(sub.id) ?? null,
-      rank: rankMap.get(sub.id) ?? null,
-      cells: orderedAssignments.map((a) => cellOf(a.userId, sub.id)),
-    })),
+    subjectId,
+    subjectName: subject.name,
+    locked: lockReason !== null,
+    lockReason,
+    chairOpinion: chairOpinionRow?.text ?? '',
+    ...neighborSubjects(subjects.map((s) => s.id), subjectId),
+    evaluators: ordered.map((a) => {
+      const rows = rowsOf.get(a.userId) ?? []
+      const state = chairEvalState(rows.length, totalUnits)
+      return {
+        id: a.userId,
+        name: a.user.name,
+        isChair: a.userId === chairId,
+        state,
+        total: state === 'complete' ? computeWeightedScore(rows, weights) : null,
+        groupComments: orderedGroups.flatMap((g) => {
+          const text = commentOf.get(`${a.userId}:${g.id}`)
+          return text ? [{ groupName: g.name, text }] : []
+        }),
+        submitted: isSubmitted(statusOf.get(a.userId)),
+      }
+    }),
   }
 }

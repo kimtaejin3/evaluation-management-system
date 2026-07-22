@@ -6,7 +6,7 @@ import type { SheetData } from '@/lib/evaluate-data'
 
 const bar = 'rounded bg-slate-200/70'
 
-// 실제 ScoreForm(3단) 레이아웃과 동일한 골격의 스켈레톤(로딩 시 덜컹임 방지)
+// 실제 ScoreForm(좌:자료 / 우:평가표 + 하단 액션 바) 레이아웃과 동일한 골격의 스켈레톤(로딩 시 덜컹임 방지)
 function SheetSkeleton() {
   return (
     <div className="animate-pulse">
@@ -25,9 +25,9 @@ function SheetSkeleton() {
         </div>
         <div className={`h-4 w-16 ${bar}`} />
       </div>
-      {/* 3단 */}
+      {/* 좌:자료 / 우:평가표 */}
       <div className="mx-auto max-w-[1600px] px-6 py-4">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,0.4fr)_minmax(0,1.75fr)_320px]">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,0.4fr)_minmax(0,2.4fr)]">
           <div className={`h-[70vh] ${bar}`} />
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
             <div className="border-b border-slate-100 px-5 py-3"><div className={`h-4 w-40 ${bar}`} /></div>
@@ -41,9 +41,13 @@ function SheetSkeleton() {
               ))}
             </div>
           </div>
-          <div className="space-y-4">
-            <div className={`h-24 ${bar}`} />
-            <div className={`h-56 ${bar}`} />
+        </div>
+        {/* 하단 액션 바(현재 점수 + 임시 저장/제출) */}
+        <div className="mt-4 flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-5 py-4">
+          <div className={`h-8 w-40 ${bar}`} />
+          <div className="flex gap-3">
+            <div className={`h-10 w-24 ${bar}`} />
+            <div className={`h-10 w-32 ${bar}`} />
           </div>
         </div>
       </div>
@@ -113,7 +117,6 @@ export default function ScoreSheetClient({
       progress={data.progress}
       documents={data.documents}
       criteria={data.criteria}
-      initialComment={data.initialComment}
       groupComments={data.groupComments}
       subjects={data.subjects}
       otherScores={data.otherScores}

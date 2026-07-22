@@ -76,7 +76,6 @@ async function ResultsContent({ id }: { id: string }) {
   const scoreVal = new Map<string, number>();
   for (const s of approvedScores) scoreVal.set(`${s.evaluatorId}:${s.subjectId}:${scoreUnitId(s)}`, s.value);
   const printedAt = new Date().toLocaleString("ko-KR", { dateStyle: "long", timeStyle: "short" });
-  const chair = session?.chairId ? await prisma.user.findUnique({ where: { id: session.chairId }, select: { name: true } }) : null;
 
   // 열=대상(순위순), 행=평가 항목. 순위에 없는(점수 없는) 대상은 뒤에 붙임.
   const rankInfo = new Map(ranked.map((r) => [r.subjectId, r]));
@@ -160,17 +159,6 @@ async function ResultsContent({ id }: { id: string }) {
           scores={Object.fromEntries(scoreVal)}
           maxTotal={maxTotal}
         />
-      )}
-
-      {/* 위원장 총괄평가 */}
-      {session?.chairSummary && (
-        <div className="rounded-xl border border-slate-200 bg-white p-5 print:border-black">
-          <div className="mb-2 flex items-center gap-2">
-            <span className="text-sm font-semibold text-slate-700">위원장 총괄평가</span>
-            {chair && <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 print:bg-transparent print:text-black">{chair.name} 위원장</span>}
-          </div>
-          <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{session.chairSummary}</p>
-        </div>
       )}
 
       {/* 합산 공식 + 위원 간 편차 정보 (화면 전용) — 간사에게는 숨김, 관리자만 표시 */}

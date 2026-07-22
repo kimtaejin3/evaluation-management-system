@@ -29,15 +29,49 @@ async function resolveUnit(
   return belongs ? { kind: 'subitem', maxScore: s.maxScore } : null
 }
 
-// 평가위원장이 심사 전체 총평(1건)을 저장 — 위원장 본인만 가능.
-export async function saveChairSummary(sessionId: string, formData: FormData): Promise<{ ok: boolean; error?: string }> {
+// 위원장 대상별 종합의견 저장 — 위원장 본인만, 진행 중·배정 유효한 분과에서만.
+// 의견서가 간사 검토 제출(SUBMITTED)되거나 관리자 승인(APPROVED)된 뒤에는 수정·삭제할 수 없다.
+// Opinion 테이블에 쓰는 유일한 경로다(평가위원 채점 저장에서는 더 이상 쓰지 않는다).
+export async function saveChairOpinion(
+  sessionId: string,
+  subjectId: string,
+  formData: FormData,
+): Promise<{ ok: boolean; error?: string }> {
   const user = await getCurrentUser()
   if (!user) return { ok: false, error: 'auth' }
-  const session = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { chairId: true } })
+  const session = await prisma.evaluationSession.findUnique({
+    where: { id: sessionId },
+    select: { chairId: true, status: true, opinionStatus: true },
+  })
   if (!session || session.chairId !== user.id) return { ok: false, error: '위원장만 작성할 수 있습니다.' }
-  const text = String(formData.get('summary') ?? '').trim()
-  await prisma.evaluationSession.update({ where: { id: sessionId }, data: { chairSummary: text || null } })
-  revalidatePath(`/evaluate/${sessionId}/chair`)
+  if (session.status === 'CLOSED') return { ok: false, error: '마감된 분과입니다.' }
+  // 형제 액션(autoSaveScore/saveScores)과 동일한 가드 — 진행 중 + 유효한 배정
+  if (session.status !== 'IN_PROGRESS') return { ok: false, error: '진행 중인 심사에서만 작성할 수 있습니다.' }
+
+  const assigned = await prisma.assignment.findUnique({
+    where: { sessionId_userId: { sessionId, userId: user.id } },
+    select: { status: true },
+  })
+  if (!assigned || !isAssignmentActive(assigned.status)) return { ok: false, error: '배정되지 않은 심사입니다.' }
+
+  if (session.opinionStatus === 'SUBMITTED' || session.opinionStatus === 'APPROVED') {
+    return { ok: false, error: '의견서가 제출/승인되어 수정할 수 없습니다.' }
+  }
+
+  const subject = await prisma.subject.findUnique({ where: { id: subjectId }, select: { sessionId: true } })
+  if (!subject || subject.sessionId !== sessionId) return { ok: false, error: '해당 분과의 평가 대상이 아닙니다.' }
+
+  const text = String(formData.get('opinion') ?? '').trim()
+  if (text) {
+    await prisma.opinion.upsert({
+      where: { evaluatorId_subjectId: { evaluatorId: user.id, subjectId } },
+      update: { text, sessionId },
+      create: { evaluatorId: user.id, subjectId, sessionId, text },
+    })
+  } else {
+    await prisma.opinion.deleteMany({ where: { evaluatorId: user.id, subjectId } })
+  }
+  revalidatePath(`/evaluate/${sessionId}/chair/${subjectId}`)
   return { ok: true }
 }
 
@@ -216,18 +250,6 @@ export async function saveScores(
         create: { evaluatorId: user.id, subjectId, subitemId: u.unitId, sessionId, value, grade: null },
       })
     }
-  }
-
-  // 종합의견 저장
-  const comment = String(formData.get('comment') ?? '').trim()
-  if (comment) {
-    await prisma.opinion.upsert({
-      where: { evaluatorId_subjectId: { evaluatorId: user.id, subjectId } },
-      update: { text: comment, sessionId },
-      create: { evaluatorId: user.id, subjectId, sessionId, text: comment },
-    })
-  } else {
-    await prisma.opinion.deleteMany({ where: { evaluatorId: user.id, subjectId } })
   }
 
   if (intent === 'save') {

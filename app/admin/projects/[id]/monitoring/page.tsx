@@ -85,10 +85,19 @@ async function Content({
 
   const progress = await Promise.all(sessions.map((s) => getSessionProgress(s.id)));
 
-  // 분과별 작성된 평가 의견서 수
+  // 분과별 작성된 평가 의견서 수 — 종합의견은 평가위원장이 대상마다 1건씩만 쓴다.
+  // 따라서 분모는 대상 수이고, 분자도 위원장이 쓴 것만 센다(레거시 위원 의견 제외).
+  const chairs = await prisma.evaluationSession.findMany({
+    where: { id: { in: sessions.map((s) => s.id) } },
+    select: { id: true, chairId: true },
+  });
   const opinionCounts = await prisma.opinion.groupBy({
     by: ["sessionId"],
-    where: { sessionId: { in: sessions.map((s) => s.id) } },
+    where: {
+      OR: chairs
+        .filter((c) => c.chairId !== null)
+        .map((c) => ({ sessionId: c.id, evaluatorId: c.chairId as string })),
+    },
     _count: { _all: true },
   });
   const opinionOf = new Map(opinionCounts.map((o) => [o.sessionId, o._count._all]));
@@ -116,7 +125,7 @@ async function Content({
               {sessions.map((s, i) => {
                 const p = progress[i];
                 const written = opinionOf.get(s.id) ?? 0;
-                const expected = p.assignedCount * p.subjects.length;
+                const expected = p.subjects.length;
                 return (
                   <tr key={s.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60">
                     <td className="px-5 py-3">
