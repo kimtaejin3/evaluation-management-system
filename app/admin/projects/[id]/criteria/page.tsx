@@ -26,7 +26,7 @@ export default async function ProjectCriteriaPage({
       <Suspense fallback={<SkeletonTable rows={6} cols={4} />}>
         <Content id={id} />
       </Suspense>
-      <p className="text-right text-xs text-slate-400">
+      <p className="text-left text-xs text-slate-400">
         과제 공통 평가항목입니다. 소속 분과 전체에 동일하게 적용됩니다.
       </p>
     </div>
@@ -127,7 +127,7 @@ async function Content({ id }: { id: string }) {
                       </Link>
                     </td>
                     <td className="px-5 py-2.5 text-slate-600">
-                      {s.secretary?.name ?? <span className="text-xs text-slate-400">미배정</span>}
+                      {s.secretary?.name ?? <span className="text-xs text-rose-600">미배정</span>}
                     </td>
                     <td className="px-5 py-2.5">
                       {s.criteriaAckAt ? (

@@ -40,7 +40,7 @@ export default async function ProjectMonitoringPage({
       <Suspense fallback={<SkeletonTable rows={5} cols={9} />}>
         <Content id={id} sort={sort} dir={dir} />
       </Suspense>
-      <p className="text-right text-xs text-slate-400">
+      <p className="text-left text-xs text-slate-400">
         분과별 채점 진행 현황입니다. ‘자세히 보기’로 상세 현황을 확인합니다.
       </p>
     </div>
@@ -125,7 +125,7 @@ async function Content({
                     </td>
                     <td className="px-5 py-3 text-slate-600">{fmtPeriod(s)}</td>
                     <td className="px-5 py-3 text-slate-600">
-                      {s.secretary?.name ?? <span className="text-xs text-slate-400">미배정</span>}
+                      {s.secretary?.name ?? <span className="text-xs text-rose-600">미배정</span>}
                     </td>
                     <td className="px-5 py-3 text-slate-600">{p.subjects.length}</td>
                     <td className="px-5 py-3 text-slate-600">{p.assignedCount}</td>

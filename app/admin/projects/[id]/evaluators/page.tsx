@@ -28,7 +28,7 @@ export default async function ProjectEvaluatorsPage({
       <Suspense fallback={<SkeletonTable rows={6} cols={5} />}>
         <Content id={id} />
       </Suspense>
-      <p className="text-right text-xs text-slate-400">
+      <p className="text-left text-xs text-slate-400">
         분과별 위원 배정 현황입니다. 배정·승인/반려는 분과 페이지에서 진행합니다.
       </p>
     </div>
@@ -47,7 +47,6 @@ async function Content({ id }: { id: string }) {
       status: true,
       chairId: true,
       evaluatorStatus: true,
-      secretary: { select: { name: true } },
       assignments: {
         orderBy: { createdAt: "asc" },
         select: {
@@ -106,7 +105,6 @@ async function Content({ id }: { id: string }) {
                       >
                         {s.name}
                       </Link>
-                      <div className="mt-0.5 text-xs text-slate-400">{s.secretary?.name ?? "간사 미배정"}</div>
                     </td>
                     <td rowSpan={rows} className="border-r border-slate-100 px-5 py-3 align-top">
                       <ReviewStatusBadge status={s.evaluatorStatus} />

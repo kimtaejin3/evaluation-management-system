@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { assertProjectAccess } from "@/lib/authz";
-import { deriveProjectStatus } from "@/lib/project-status";
 import { fmtYmd } from "@/lib/dates";
 import StatusBadge from "@/components/StatusBadge";
 import DeleteProjectButton from "@/components/DeleteProjectButton";
@@ -14,12 +13,6 @@ import { resetEvaluatorPassword } from "@/app/admin/actions";
 import { removeSecretaryFromProject } from "../actions";
 import AddProjectSecretaryModal from "@/components/AddProjectSecretaryModal";
 
-
-const STATUS: Record<string, { label: string; cls: string }> = {
-  DRAFT: { label: "준비중", cls: "bg-slate-200 text-slate-700 ring-slate-300" },
-  IN_PROGRESS: { label: "진행중", cls: "bg-blue-100 text-blue-800 ring-blue-300" },
-  CLOSED: { label: "마감", cls: "bg-emerald-100 text-emerald-800 ring-emerald-300" },
-};
 
 export default async function ProjectDetailPage({
   params,
@@ -85,14 +78,10 @@ export default async function ProjectDetailPage({
         <Link href="/admin/projects" className="text-sm text-slate-400 hover:text-slate-600">
           ← 과제 목록
         </Link>
-        {/* 제목 옆에 상태·설명·기간을 인라인 배치(아이콘 없이) */}
+        {/* 제목 옆에 기간만 인라인 배치 */}
         <div className="mt-1 flex items-start justify-between gap-3">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <h1 className="text-2xl font-bold">{project.name}</h1>
-            <span className="text-sm text-slate-500">
-              {STATUS[deriveProjectStatus(project.sessions.map((s) => s.status))].label}
-            </span>
-            {project.description && <span className="text-sm text-slate-500">{project.description}</span>}
             {(project.startDate || project.endDate) && (
               <span className="text-sm text-slate-500">
                 기간 {fmtYmd(project.startDate)} ~ {fmtYmd(project.endDate)}
@@ -172,7 +161,7 @@ export default async function ProjectDetailPage({
                     ) : s.secretary?.name ? (
                       <span className="text-slate-700">{s.secretary.name}</span>
                     ) : (
-                      <span className="text-xs text-slate-400">미배정</span>
+                      <span className="text-xs text-rose-600">미배정</span>
                     )}
                   </td>
                 </tr>

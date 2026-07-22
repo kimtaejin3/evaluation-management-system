@@ -124,7 +124,7 @@ export default function ProjectSubjectsTable({
                   <span className="font-medium text-slate-800">{r.name}</span>
                 </td>
                 <td className="px-5 py-3 text-slate-600">
-                  {r.secretaryName ?? <span className="text-xs text-slate-400">미배정</span>}
+                  {r.secretaryName ?? <span className="text-xs text-rose-600">미배정</span>}
                 </td>
                 <td className="px-5 py-3">
                   <ReviewStatusBadge status={r.reviewStatus} />

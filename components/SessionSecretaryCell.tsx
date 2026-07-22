@@ -67,7 +67,7 @@ export default function SessionSecretaryCell({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-medium whitespace-nowrap text-indigo-700 transition hover:bg-indigo-100"
+          className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-medium whitespace-nowrap text-rose-700 transition hover:bg-rose-100"
         >
           미배정
         </button>

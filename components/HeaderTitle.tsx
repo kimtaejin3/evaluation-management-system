@@ -37,11 +37,11 @@ export default function HeaderTitle({
   const pathname = usePathname();
 
   // 과제 하위 페이지: 과제 이름 + 상태 배지.
-  // 분과 관리(과제 홈, /admin/projects/[id] 정확 일치)는 본문에 과제명이 크게 있어 헤더에선 생략.
+  // 과제 홈(분과 간사 설정, /admin/projects/[id] 정확 일치)은 본문에 과제 제목이 크게 있어 헤더는 비운다.
   const pm = pathname.match(/^\/admin\/projects\/([^/]+)/);
   const project = pm && pm[1] !== "new" ? projects.find((p) => p.id === pm[1]) : undefined;
   if (project && pathname === `/admin/projects/${project.id}`) {
-    return <span className="text-base font-semibold text-slate-800">과제 관리</span>;
+    return null;
   }
   if (project) {
     return (

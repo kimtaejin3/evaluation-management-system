@@ -33,7 +33,7 @@ export default async function ProjectResultsPage({
       <Suspense fallback={<SkeletonTable rows={6} cols={6} />}>
         <Content id={id} />
       </Suspense>
-      <p className="text-right text-xs text-slate-400">
+      <p className="text-left text-xs text-slate-400">
         전 분과 통합 1위·전체 순위와 분과별 대상 점수·검토 현황입니다.
       </p>
     </div>
@@ -286,7 +286,7 @@ async function Content({ id }: { id: string }) {
                       <span className="font-medium text-slate-800">{s.name}</span>
                     </td>
                     <td className="px-5 py-3 text-slate-600">
-                      {s.secretary?.name ?? <span className="text-xs text-slate-400">미배정</span>}
+                      {s.secretary?.name ?? <span className="text-xs text-rose-600">미배정</span>}
                     </td>
                     <td className="px-5 py-3">
                       {/* 간사 제출 — 텍스트만(제출=검정, 미제출=빨강), 다른 테이블과 통일 */}

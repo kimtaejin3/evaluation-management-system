@@ -30,7 +30,7 @@ export default async function ProjectSubjectsPage({
       <Suspense fallback={<SkeletonTable rows={6} cols={5} />}>
         <Content id={id} />
       </Suspense>
-      <p className="text-right text-xs text-slate-400">
+      <p className="text-left text-xs text-slate-400">
         분과별 평가 대상 현황입니다. ‘자세히 보기’로 기업 자료 제출 현황을 조회합니다.
       </p>
     </div>

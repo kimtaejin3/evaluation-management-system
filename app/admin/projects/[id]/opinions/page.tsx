@@ -27,7 +27,7 @@ export default async function ProjectOpinionsPage({
       <Suspense fallback={<SkeletonTable rows={5} cols={6} />}>
         <Content id={id} />
       </Suspense>
-      <p className="text-right text-xs text-slate-400">
+      <p className="text-left text-xs text-slate-400">
         분과별 의견서 작성 현황입니다. 본문 열람은 분과 페이지에서 합니다.
       </p>
     </div>
@@ -74,7 +74,7 @@ async function Content({ id }: { id: string }) {
                       <span className="font-medium text-slate-800">{s.name}</span>
                     </td>
                     <td className="px-5 py-3 text-slate-600">
-                      {s.secretary?.name ?? <span className="text-xs text-slate-400">미배정</span>}
+                      {s.secretary?.name ?? <span className="text-xs text-rose-600">미배정</span>}
                     </td>
                     <td className="px-5 py-3">
                       {/* 간사 검토 상태 — 의견서는 간사가 '검토'하는 도메인 */}
