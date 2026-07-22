@@ -57,6 +57,9 @@ export async function saveChairOpinion(
   if (!session || session.chairId !== user.id) return { ok: false, error: '위원장만 작성할 수 있습니다.' }
   if (session.status === 'CLOSED') return { ok: false, error: '마감된 분과입니다.' }
 
+  const subject = await prisma.subject.findUnique({ where: { id: subjectId } })
+  if (!subject || subject.sessionId !== sessionId) return { ok: false, error: '해당 분과의 평가 대상이 아닙니다.' }
+
   const text = String(formData.get('opinion') ?? '').trim()
   if (text) {
     await prisma.opinion.upsert({
