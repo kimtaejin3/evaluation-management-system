@@ -29,18 +29,6 @@ async function resolveUnit(
   return belongs ? { kind: 'subitem', maxScore: s.maxScore } : null
 }
 
-// 평가위원장이 심사 전체 총평(1건)을 저장 — 위원장 본인만 가능.
-export async function saveChairSummary(sessionId: string, formData: FormData): Promise<{ ok: boolean; error?: string }> {
-  const user = await getCurrentUser()
-  if (!user) return { ok: false, error: 'auth' }
-  const session = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { chairId: true } })
-  if (!session || session.chairId !== user.id) return { ok: false, error: '위원장만 작성할 수 있습니다.' }
-  const text = String(formData.get('summary') ?? '').trim()
-  await prisma.evaluationSession.update({ where: { id: sessionId }, data: { chairSummary: text || null } })
-  revalidatePath(`/evaluate/${sessionId}/chair`)
-  return { ok: true }
-}
-
 // 위원장 대상별 종합의견 저장 — 위원장 본인만, 마감 분과는 거부.
 // Opinion 테이블에 쓰는 유일한 경로다(평가위원 채점 저장에서는 더 이상 쓰지 않는다).
 export async function saveChairOpinion(
