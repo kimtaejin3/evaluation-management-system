@@ -113,7 +113,6 @@ export default function ScoreSheetClient({
       progress={data.progress}
       documents={data.documents}
       criteria={data.criteria}
-      initialComment={data.initialComment}
       groupComments={data.groupComments}
       subjects={data.subjects}
       otherScores={data.otherScores}

@@ -28,7 +28,6 @@ export interface SheetData {
   progress: { done: number; total: number }
   documents: { id: string; name: string; mimeType: string }[]
   criteria: CriterionView[]
-  initialComment: string
   // 평가항목(그룹)별 의견 — groupId → 텍스트
   groupComments: Record<string, string>
   subjects: { id: string; name: string }[]
@@ -46,7 +45,7 @@ export async function getSheetData(
 ): Promise<SheetData | null> {
   // 평가항목은 과제(Project) 단위 공통 — 분과의 소속 과제 항목을 읽는다.
   const criteriaWhere = await criteriaScopeForSession(sessionId)
-  const [subject, session, units, existing, opinion, subjects, myScores, submission, assignment, myGroupComments] = await Promise.all([
+  const [subject, session, units, existing, subjects, myScores, submission, assignment, myGroupComments] = await Promise.all([
     prisma.subject.findUnique({
       where: { id: subjectId },
       include: {
@@ -60,7 +59,6 @@ export async function getSheetData(
     prisma.evaluationSession.findUnique({ where: { id: sessionId } }),
     scoringUnitsForScope(criteriaWhere),
     prisma.score.findMany({ where: { evaluatorId: userId, subjectId } }),
-    prisma.opinion.findUnique({ where: { evaluatorId_subjectId: { evaluatorId: userId, subjectId } } }),
     prisma.subject.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } }),
     prisma.score.findMany({
       where: { evaluatorId: userId, sessionId },
@@ -113,7 +111,6 @@ export async function getSheetData(
     progress: { done: doneSubjects, total: subjects.length },
     documents: subject.company.documents.map((d) => ({ id: d.id, name: d.originalName, mimeType: d.mimeType })),
     criteria: criteriaView,
-    initialComment: opinion?.text ?? '',
     groupComments: Object.fromEntries(myGroupComments.map((c) => [c.groupId, c.text])),
     subjects,
     otherScores,

@@ -251,18 +251,6 @@ export async function saveScores(
     }
   }
 
-  // 종합의견 저장
-  const comment = String(formData.get('comment') ?? '').trim()
-  if (comment) {
-    await prisma.opinion.upsert({
-      where: { evaluatorId_subjectId: { evaluatorId: user.id, subjectId } },
-      update: { text: comment, sessionId },
-      create: { evaluatorId: user.id, subjectId, sessionId, text: comment },
-    })
-  } else {
-    await prisma.opinion.deleteMany({ where: { evaluatorId: user.id, subjectId } })
-  }
-
   if (intent === 'save') {
     revalidatePath(`/evaluate/${sessionId}/${subjectId}`)
     return { saved: true }
