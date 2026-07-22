@@ -9,8 +9,32 @@ import { canCloseSession } from '../lib/session-rules'
 import { evaluatorLoginError, EVALUATOR_NO_ACTIVE_SESSION_MESSAGE } from '../lib/login-rules'
 import { hashPassword, verifyPassword, signToken, verifyToken } from '../lib/auth'
 import { getSessionProgress, getSessionInsights } from '../lib/progress'
+import { getChairSubjectData } from '../lib/evaluate-data'
 
 const prisma = new PrismaClient()
+
+// ── 서버 액션을 스크립트에서 그대로 호출하기 위한 최소 스텁 ──
+// saveChairOpinion은 로그인 쿠키(next/headers)와 revalidatePath(next/cache)에 의존한다.
+// 요청 컨텍스트가 없는 스크립트에서는 두 모듈만 갈아끼워 실제 가드 로직을 그대로 검증한다.
+let authToken = ''
+const nodeModule = require('module') as { _load: (...args: unknown[]) => unknown }
+const origLoad = nodeModule._load
+nodeModule._load = function (this: unknown, request: unknown, ...rest: unknown[]) {
+  if (request === 'next/headers') {
+    return { cookies: async () => ({ get: (n: string) => (n === 'auth_token' && authToken ? { value: authToken } : undefined) }) }
+  }
+  if (request === 'next/cache') return { revalidatePath: () => {}, revalidateTag: () => {} }
+  return origLoad.call(this, request, ...rest)
+} as typeof nodeModule._load
+
+// 위 스텁을 설치한 뒤에 로드해야 한다(정적 import는 스텁보다 먼저 실행됨)
+const { saveChairOpinion } = require('../app/evaluate/actions') as typeof import('../app/evaluate/actions')
+
+// 이후 서버 액션 호출의 로그인 사용자를 바꾼다
+async function asUser(userId: string) {
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { role: true } })
+  authToken = await signToken({ userId, role: user.role })
+}
 
 let passed = 0
 function assert(cond: boolean, msg: string) {
@@ -68,7 +92,7 @@ async function main() {
   const subA = await prisma.subject.create({ data: { sessionId: session.id, companyId: coA.id, name: coA.name, order: 0 } })
   const subB = await prisma.subject.create({ data: { sessionId: session.id, companyId: coB.id, name: coB.name, order: 1 } })
   const subC = await prisma.subject.create({ data: { sessionId: session.id, companyId: coC.id, name: coC.name, order: 2 } }) // 점수 0건(집계 전)
-  await prisma.subject.create({ data: { sessionId: session2.id, companyId: coA.id, name: coA.name, order: 0 } })
+  const subA2 = await prisma.subject.create({ data: { sessionId: session2.id, companyId: coA.id, name: coA.name, order: 0 } })
   const coADocsInS2 = await prisma.company.findUnique({ where: { id: coA.id }, include: { documents: true } })
   assert((coADocsInS2?.documents.length ?? 0) === 1, 'C2 자료는 기업 귀속 → 회차 간 공유')
 
@@ -89,10 +113,13 @@ async function main() {
   await prisma.evaluationSession.update({ where: { id: session.id }, data: { status: 'IN_PROGRESS' } })
   const e1 = await prisma.user.create({ data: { username: 'e2e_eval1', name: 'E2E위원1', role: 'EVALUATOR', passwordHash: hash } })
   const e2 = await prisma.user.create({ data: { username: 'e2e_eval2', name: 'E2E위원2', role: 'EVALUATOR', passwordHash: hash } })
+  // 배정은 승인(APPROVED) 상태여야 평가에 참여한다(진행 현황·저장 가드 모두 승인 배정 기준)
   await prisma.assignment.createMany({ data: [
-    { sessionId: session.id, userId: e1.id },
-    { sessionId: session.id, userId: e2.id },
+    { sessionId: session.id, userId: e1.id, status: 'APPROVED' },
+    { sessionId: session.id, userId: e2.id, status: 'APPROVED' },
   ] })
+  // e1을 평가위원장으로 — 종합의견은 위원장만 작성한다
+  await prisma.evaluationSession.update({ where: { id: session.id }, data: { chairId: e1.id } })
 
   console.log('\n[5] 점수 입력(항목1 + 항목2, 전부 숫자)')
   // 대상 A: e1 정량40 + 항목2=30 = 70 ; e2 정량30 + 항목2=24 = 54 → 평균 62
@@ -109,6 +136,12 @@ async function main() {
   for (const i of inserts) {
     await prisma.score.create({ data: { sessionId: session.id, evaluatorId: i.ev, subjectId: i.sub, criterionId: i.cr, value: i.value } })
   }
+  // 집계(잠정 순위·편차)는 승인(APPROVED)된 (위원×대상) 제출만 반영 → 전 항목 입력분을 승인 처리
+  await prisma.submission.createMany({ data: [
+    { sessionId: session.id, evaluatorId: e1.id, subjectId: subA.id, status: 'APPROVED', submittedAt: new Date() },
+    { sessionId: session.id, evaluatorId: e2.id, subjectId: subA.id, status: 'APPROVED', submittedAt: new Date() },
+    { sessionId: session.id, evaluatorId: e1.id, subjectId: subB.id, status: 'APPROVED', submittedAt: new Date() },
+  ] })
   const savedQual = await prisma.score.findFirst({ where: { evaluatorId: e1.id, subjectId: subA.id, criterionId: cQual.id } })
   assert(savedQual?.value === 30, 'G4 숫자 점수 저장 확인')
 
@@ -142,11 +175,50 @@ async function main() {
   assert(rowAi.spread === 16, `P4 대상A 편차 = 70-54 = 16 (실제 ${rowAi.spread})`)
   assert(rowBi.spread === null, 'P4 완료 1명 대상B는 편차 없음(null)')
 
-  console.log('\n[7] 종합의견(위원×대상 1건)')
-  await prisma.opinion.upsert({ where: { evaluatorId_subjectId: { evaluatorId: e1.id, subjectId: subA.id } }, update: { text: '수정됨', sessionId: session.id }, create: { evaluatorId: e1.id, subjectId: subA.id, sessionId: session.id, text: '최초' } })
-  await prisma.opinion.upsert({ where: { evaluatorId_subjectId: { evaluatorId: e1.id, subjectId: subA.id } }, update: { text: '수정됨2', sessionId: session.id }, create: { evaluatorId: e1.id, subjectId: subA.id, sessionId: session.id, text: 'x' } })
-  const ops = await prisma.opinion.findMany({ where: { evaluatorId: e1.id, subjectId: subA.id } })
-  assert(ops.length === 1 && ops[0].text === '수정됨2', 'O1 위원×대상 1건 upsert')
+  console.log('\n[7] 종합의견 — 평가위원장 전용(위원장×대상 1건)')
+  // 실제 서버 액션(saveChairOpinion)을 그대로 호출한다 — 로그인 쿠키는 스텁으로 주입.
+  const opinionFd = (text: string) => { const fd = new FormData(); fd.set('opinion', text); return fd }
+
+  await asUser(e1.id) // 위원장
+  assert((await saveChairOpinion(session.id, subA.id, opinionFd('최초'))).ok, 'O1 위원장은 종합의견을 저장할 수 있다')
+  assert((await saveChairOpinion(session.id, subA.id, opinionFd('수정됨2'))).ok, 'O1 재저장(upsert)도 허용')
+  const ops = await prisma.opinion.findMany({ where: { subjectId: subA.id } })
+  assert(ops.length === 1 && ops[0].evaluatorId === e1.id && ops[0].text === '수정됨2', 'O1 위원장×대상 1건 upsert')
+
+  // 다른 분과(session2)의 대상은 거부 — 분과 경계
+  const wrongSubject = await saveChairOpinion(session.id, subA2.id, opinionFd('남의 분과'))
+  assert(!wrongSubject.ok && wrongSubject.error === '해당 분과의 평가 대상이 아닙니다.', 'O2 다른 분과의 대상은 저장 거부')
+  assert((await prisma.opinion.count({ where: { subjectId: subA2.id } })) === 0, 'O2 거부 시 Opinion 미생성')
+
+  await asUser(e2.id) // 위원장 아님
+  const nonChair = await saveChairOpinion(session.id, subA.id, opinionFd('위원 의견'))
+  assert(!nonChair.ok && nonChair.error === '위원장만 작성할 수 있습니다.', 'O3 위원장이 아니면 저장 거부')
+  assert((await prisma.opinion.count({ where: { evaluatorId: e2.id } })) === 0, 'O3 거부 시 Opinion 미생성')
+
+  // 의견서가 검토 제출(SUBMITTED)되면 위원장도 수정·삭제할 수 없다
+  await asUser(e1.id)
+  await prisma.evaluationSession.update({ where: { id: session.id }, data: { opinionStatus: 'SUBMITTED' } })
+  const lockedSave = await saveChairOpinion(session.id, subA.id, opinionFd('제출 후 수정'))
+  assert(!lockedSave.ok && lockedSave.error === '의견서가 제출/승인되어 수정할 수 없습니다.', 'O4 의견서 제출 후 저장 거부')
+  const lockedDelete = await saveChairOpinion(session.id, subA.id, opinionFd(''))
+  assert(!lockedDelete.ok, 'O4 의견서 제출 후 삭제(빈 값)도 거부')
+  await prisma.evaluationSession.update({ where: { id: session.id }, data: { opinionStatus: 'APPROVED' } })
+  const approvedSave = await saveChairOpinion(session.id, subA.id, opinionFd('승인 후 수정'))
+  assert(!approvedSave.ok && approvedSave.error === '의견서가 제출/승인되어 수정할 수 없습니다.', 'O4 의견서 승인 후에도 저장 거부')
+  const afterLock = await prisma.opinion.findMany({ where: { subjectId: subA.id } })
+  assert(afterLock.length === 1 && afterLock[0].text === '수정됨2', 'O4 거부 시 DB 원본 그대로')
+
+  // 화면(위원장 대상별 상세)도 같은 규칙 — 읽기 전용 + 사유
+  const lockedView = await getChairSubjectData(e1.id, session.id, subA.id)
+  assert(lockedView?.locked === true && lockedView?.lockReason === 'opinionReviewed', 'O4 화면도 읽기 전용(사유=의견서 제출/승인)')
+  await prisma.evaluationSession.update({ where: { id: session.id }, data: { opinionStatus: 'DRAFT' } })
+
+  console.log('\n[7] 위원장 대상별 상세 조회 권한')
+  const chairView = await getChairSubjectData(e1.id, session.id, subA.id)
+  assert(chairView !== null && chairView.chairOpinion === '수정됨2', 'O5 위원장은 대상별 상세를 열람(저장한 종합의견 포함)')
+  assert(chairView!.locked === false && chairView!.lockReason === null, 'O5 진행중·검토 전이면 편집 가능')
+  assert((await getChairSubjectData(e2.id, session.id, subA.id)) === null, 'O6 위원장이 아니면 null(라우트에서 403)')
+  assert((await getChairSubjectData(e1.id, session.id, subA2.id)) === null, 'O7 다른 분과의 대상이면 null')
 
   console.log('\n[3] 기업 삭제 cascade')
   await prisma.company.delete({ where: { id: coB.id } })

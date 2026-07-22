@@ -17,6 +17,9 @@ describe('chairEvalState', () => {
   it('채점 단위가 0개면 입력이 없을 때 none', () => {
     expect(chairEvalState(0, 0)).toBe('none')
   })
+  it('채점 단위가 0개인데 입력이 있으면 partial(complete가 될 수 없음)', () => {
+    expect(chairEvalState(2, 0)).toBe('partial')
+  })
 })
 
 describe('isSubmitted', () => {

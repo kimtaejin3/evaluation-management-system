@@ -26,7 +26,6 @@ export type SheetDocData = {
   evaluatorName: string;
   units: SheetUnit[]; // 이미 정렬된 상태
   valueOf: Map<string, number | null>; // unitId → 점수
-  opinionText: string;
   // 제출 시 위원이 그린 핸드사인(PNG data URL) — '(인)' 자리에 도장처럼 표시
   signature: string | null;
   printedDate: string;
@@ -171,21 +170,7 @@ export default function SheetDoc({ data, pageBreak = false }: { data: SheetDocDa
         </tbody>
       </table>
 
-      {/* 평가의견 */}
-      <table className="-mt-px w-full border-collapse">
-        <tbody>
-          <tr>
-            <th className={`${th} w-14 px-1 text-center align-middle`}>
-              평가
-              <br />
-              의견
-            </th>
-            <td className={`${td} align-top`}>
-              <div className="min-h-28 whitespace-pre-wrap py-0.5">{data.opinionText || ""}</div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      {/* 종합의견은 평가위원장이 대상별로 따로 작성한다(평가의견서) — 위원 평가표에는 넣지 않는다. */}
 
       {/* 하단 — 날짜(좌) · 평가위원 서명(우). 제출 서명이 있으면 '(인)' 위에 도장처럼 겹쳐 표시 */}
       <div className="mt-6 flex items-end justify-between text-sm">

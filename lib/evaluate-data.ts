@@ -274,8 +274,10 @@ export interface ChairSubjectData {
   evaluators: ChairSubjectEvaluator[]
   /** 위원장이 이 대상에 저장해 둔 종합의견 */
   chairOpinion: string
-  /** 분과 마감 시 읽기 전용 */
+  /** 분과 마감 또는 의견서 제출/승인 시 읽기 전용 */
   locked: boolean
+  /** 읽기 전용 사유 — 'closed'(분과 마감) | 'opinionReviewed'(의견서 제출/승인) */
+  lockReason: 'closed' | 'opinionReviewed' | null
   prevSubjectId: string | null
   nextSubjectId: string | null
 }
@@ -295,7 +297,8 @@ export async function getChairSubjectData(
   const [subjects, units, assignments, scores, groupComments, submissions, chairOpinionRow] = await Promise.all([
     prisma.subject.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } }),
     scoringUnitsForScope(criteriaWhere),
-    prisma.assignment.findMany({ where: { sessionId }, include: { user: { select: { id: true, name: true } } } }),
+    // 배정은 상태로 거르지 않는다(관리자 평가의견서 화면과 동일). 쓰는 필드만 select.
+    prisma.assignment.findMany({ where: { sessionId }, select: { userId: true, user: { select: { name: true } } } }),
     prisma.score.findMany({
       where: { sessionId, subjectId },
       select: { evaluatorId: true, criterionId: true, subitemId: true, value: true },
@@ -334,11 +337,18 @@ export async function getChairSubjectData(
   // 위원장을 맨 앞에
   const ordered = [...assignments].sort((a, b) => (b.userId === chairId ? 1 : 0) - (a.userId === chairId ? 1 : 0))
 
+  // 마감된 분과, 그리고 의견서가 간사 검토 제출/관리자 승인된 뒤에는 읽기 전용
+  // (서버의 saveChairOpinion 가드와 동일한 규칙)
+  const opinionReviewed = session.opinionStatus === 'SUBMITTED' || session.opinionStatus === 'APPROVED'
+  const lockReason: 'closed' | 'opinionReviewed' | null =
+    session.status === 'CLOSED' ? 'closed' : opinionReviewed ? 'opinionReviewed' : null
+
   return {
     sessionName: session.name,
     subjectId,
     subjectName: subject.name,
-    locked: session.status === 'CLOSED',
+    locked: lockReason !== null,
+    lockReason,
     chairOpinion: chairOpinionRow?.text ?? '',
     ...neighborSubjects(subjects.map((s) => s.id), subjectId),
     evaluators: ordered.map((a) => {

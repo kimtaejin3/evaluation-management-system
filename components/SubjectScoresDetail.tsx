@@ -11,6 +11,7 @@ export default function SubjectScoresDetail({
   note = '채점을 완료한 위원의 총점과 종합의견입니다.',
   emptyMessage = '채점을 완료한 위원이 없습니다.',
   chairOpinion = false,
+  chairOpinionOf = null,
 }: {
   subjectName: string
   evaluators: { name: string; isChair: boolean; score: number; opinion: string | null }[]
@@ -19,9 +20,14 @@ export default function SubjectScoresDetail({
   emptyMessage?: string
   // true면 평가위원장 종합의견만 표시(위원별 점수 표 대신)
   chairOpinion?: boolean
+  // 위원장 종합의견 — 위원장 본인의 채점 제출/승인 여부와 무관하게 작성되므로
+  // evaluators(승인 제출만) 목록과 별개로 넘겨받는다. 없으면 evaluators에서 폴백.
+  chairOpinionOf?: { name: string; text: string } | null
 }) {
   const [open, setOpen] = useState(false)
-  const chair = evaluators.find((e) => e.isChair)
+  const chairFromList = evaluators.find((e) => e.isChair)
+  const chair =
+    chairOpinionOf ?? (chairFromList?.opinion ? { name: chairFromList.name, text: chairFromList.opinion } : null)
 
   useEffect(() => {
     if (!open) return
@@ -62,12 +68,12 @@ export default function SubjectScoresDetail({
             </div>
 
             {chairOpinion ? (
-              !chair || !chair.opinion ? (
+              !chair ? (
                 <p className="py-6 text-center text-sm text-slate-400">{emptyMessage}</p>
               ) : (
                 <div>
                   <div className="mb-1.5 text-sm font-semibold text-slate-800">평가위원장({chair.name})</div>
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{chair.opinion}</p>
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{chair.text}</p>
                 </div>
               )
             ) : evaluators.length === 0 ? (

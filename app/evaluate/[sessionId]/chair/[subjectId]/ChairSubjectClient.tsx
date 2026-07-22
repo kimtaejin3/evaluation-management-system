@@ -32,7 +32,7 @@ export default function ChairSubjectClient({
       { cache: 'no-store' },
     )
       .then((r) => {
-        if (r.status === 403) { router.replace('/evaluate'); return null } // 위원장 아님
+        if (r.status === 403) { if (!ignore) router.replace('/evaluate'); return null } // 위원장 아님
         return r.ok ? r.json() : Promise.reject(r.status)
       })
       .then((d: ChairSubjectData | null) => {
@@ -173,6 +173,7 @@ export default function ChairSubjectClient({
               <span className="text-xs text-slate-400">{opinion.length}자</span>
             </div>
             <textarea
+              aria-label="종합의견"
               value={opinion}
               onChange={(e) => { setOpinion(e.target.value); setStatus('idle') }}
               disabled={data.locked}
@@ -181,7 +182,11 @@ export default function ChairSubjectClient({
               className="w-full resize-y rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-50"
             />
             {data.locked ? (
-              <p className="mt-3 text-xs text-slate-400">마감된 분과입니다. 수정할 수 없습니다.</p>
+              <p className="mt-3 text-xs text-slate-400">
+                {data.lockReason === 'opinionReviewed'
+                  ? '평가의견서가 제출/승인되었습니다. 수정할 수 없습니다.'
+                  : '마감된 분과입니다. 수정할 수 없습니다.'}
+              </p>
             ) : (
               <div className="mt-3 flex items-center justify-end gap-3">
                 {status === 'saved' && <span className="text-xs text-emerald-600">저장되었습니다.</span>}
