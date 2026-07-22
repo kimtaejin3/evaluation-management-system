@@ -24,7 +24,7 @@ export default function TableRefreshControl({ fetchedAt }: { fetchedAt: string }
         onClick={() => start(() => router.refresh())}
         disabled={pending}
         title="지금 새로고침"
-        className="rounded border border-slate-300 px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 disabled:opacity-50"
+        className="rounded border border-slate-300 px-1.5 py-0.5 text-xs font-medium whitespace-nowrap text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 disabled:opacity-50"
       >
         {pending ? '갱신 중…' : '새로고침'}
       </button>

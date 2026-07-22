@@ -222,7 +222,7 @@ export default function DocPreviewBoard({
                   }`}
                 >
                   <span className="line-clamp-2 flex-1 break-all leading-tight">{d.name}</span>
-                  {on && <span className="shrink-0 text-[10px] font-medium text-indigo-400">열림</span>}
+                  {on && <span className="shrink-0 text-xs font-medium text-indigo-400">열림</span>}
                 </button>
               );
             })}
@@ -270,7 +270,7 @@ export default function DocPreviewBoard({
                   >
                     <span className="shrink-0">{on ? "📂" : "📄"}</span>
                     <span className="line-clamp-2 flex-1 break-all leading-tight">{d.name}</span>
-                    {on && <span className="shrink-0 text-[10px] font-medium text-indigo-400">열림</span>}
+                    {on && <span className="shrink-0 text-xs font-medium text-indigo-400">열림</span>}
                   </button>
                 );
               })}

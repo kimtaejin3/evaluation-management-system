@@ -76,7 +76,7 @@ export default function CriteriaPreviewTable({ groups }: { groups: GroupDTO[] })
                       {s.name}
                       {lump && (
                         <span className="mt-1 block">
-                          <span className="inline-flex items-center rounded bg-indigo-50 px-1.5 py-0.5 text-[11px] font-medium text-indigo-600">
+                          <span className="inline-flex items-center rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-600">
                             통합 배점
                           </span>
                         </span>

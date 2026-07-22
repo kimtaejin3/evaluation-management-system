@@ -98,7 +98,7 @@ export default function SessionStatusControl({
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-1.5">
                         <span className={`text-sm font-medium ${isSel ? 'text-indigo-700' : 'text-slate-700'}`}>{f.label}</span>
-                        {isCur && <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-500">현재</span>}
+                        {isCur && <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-500">현재</span>}
                       </span>
                       <span className="mt-0.5 block text-xs text-slate-400">{f.desc}</span>
                     </span>

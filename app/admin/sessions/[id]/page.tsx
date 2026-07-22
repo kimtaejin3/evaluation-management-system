@@ -80,15 +80,13 @@ async function SessionInfo({ id }: { id: string }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="font-semibold">분과 정보</h2>
+      <div className="flex items-center justify-end">
         <SessionStatusControl
           sessionId={session.id}
           status={session.status}
           eventDate={session.eventDate ? session.eventDate.toISOString() : null}
         />
       </div>
-      {session.description && <p className="text-sm text-slate-600">{session.description}</p>}
       {/* 분과 정보 — 라벨을 헤더로, 값을 한 행으로 하는 테이블 */}
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="table-grid w-full text-sm">
@@ -104,7 +102,7 @@ async function SessionInfo({ id }: { id: string }) {
           <tbody>
             <tr>
               {meta.map((m) => (
-                <td key={m.label} className="px-5 py-3 font-medium whitespace-nowrap text-slate-800">
+                <td key={m.label} className="px-5 py-3 text-lg font-bold whitespace-nowrap text-slate-900">
                   {m.value}
                 </td>
               ))}

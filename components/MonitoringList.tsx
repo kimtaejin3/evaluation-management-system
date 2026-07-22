@@ -64,13 +64,13 @@ export default function MonitoringList({ data }: { data: ProgressData }) {
                 </div>
                 <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
                   {inputCount > 0 && (
-                    <span className="whitespace-nowrap rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700">입력 {inputCount}</span>
+                    <span className="whitespace-nowrap rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">입력 {inputCount}</span>
                   )}
                   {notInput > 0 && (
-                    <span className="whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">미입력 {notInput}</span>
+                    <span className="whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">미입력 {notInput}</span>
                   )}
                   {submittedCount > 0 && (
-                    <span className="whitespace-nowrap rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700">미승인 {submittedCount}</span>
+                    <span className="whitespace-nowrap rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700">미승인 {submittedCount}</span>
                   )}
                 </div>
                 <button
@@ -151,7 +151,7 @@ function SubjectDetailModal({
                       <td className="px-3 py-2.5 align-middle">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className="font-medium text-slate-800">{r.name}</span>
-                          {r.isChair && <span className="rounded-full bg-indigo-50 px-1.5 py-0.5 text-[11px] font-medium text-indigo-700">위원장</span>}
+                          {r.isChair && <span className="rounded-full bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-700">위원장</span>}
                           {c.total > 0 && (
                             <button
                               type="button"
@@ -173,7 +173,7 @@ function SubjectDetailModal({
                             {c.items.length === 0 && <li className="px-1 text-xs text-slate-400">평가 항목이 없습니다.</li>}
                             {c.items.map((it) => (
                               <li key={it.id} className="flex items-center gap-2 px-1 py-0.5 text-sm">
-                                <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${it.done ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-400'}`}>{it.done ? '✓' : '·'}</span>
+                                <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-xs font-bold ${it.done ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-400'}`}>{it.done ? '✓' : '·'}</span>
                                 <span className={`truncate ${it.done ? 'text-slate-700' : 'text-slate-400'}`}>{it.name}</span>
                                 <span className={`ml-auto shrink-0 text-xs ${it.done ? 'text-emerald-600' : 'text-slate-400'}`}>{it.done ? '입력완료' : '미입력'}</span>
                               </li>

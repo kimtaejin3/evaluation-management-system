@@ -65,7 +65,7 @@ export default function SubjectPicker({
       </button>
       {open && (
         <div className="absolute left-0 top-full z-30 mt-1 max-h-80 w-64 overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg" role="listbox">
-          <div className="px-3 pb-1 pt-1.5 text-[11px] font-medium uppercase tracking-wide text-slate-400">평가 대상 전환</div>
+          <div className="px-3 pb-1 pt-1.5 text-xs font-medium uppercase tracking-wide text-slate-400">평가 대상 전환</div>
           {subjects.map((s, i) => {
             const active = s.id === currentId
             return (

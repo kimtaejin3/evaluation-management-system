@@ -10,7 +10,7 @@ export type SessionStatus = keyof typeof MAP
 export default function StatusBadge({ status }: { status: SessionStatus }) {
   const s = MAP[status]
   return (
-    <span className={`text-xs whitespace-nowrap text-slate-900 ${s.bold ? 'font-bold' : 'font-normal'}`}>
+    <span className={`text-sm whitespace-nowrap text-slate-900 ${s.bold ? 'font-bold' : 'font-normal'}`}>
       {s.label}
     </span>
   )

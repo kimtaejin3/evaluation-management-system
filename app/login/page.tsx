@@ -48,7 +48,7 @@ export default function LoginPage() {
           <div className="text-lg font-extrabold leading-none text-slate-900">
             심사·평가 <span className="font-semibold text-[var(--gov-navy)]">종합관리시스템</span>
           </div>
-          <div className="mt-0.5 text-[10px] font-medium leading-none tracking-[0.15em] text-slate-400 uppercase">
+          <div className="mt-0.5 text-xs font-medium leading-none tracking-[0.15em] text-slate-400 uppercase">
             Evaluation Management System
           </div>
         </header>
@@ -173,14 +173,14 @@ export default function LoginPage() {
                       }`}
                     >
                       <span className="font-medium">{a.role}</span>
-                      <span className={`mt-0.5 block text-[11px] ${a.disabled ? 'text-slate-300' : 'text-slate-400'}`}>
+                      <span className={`mt-0.5 block text-xs ${a.disabled ? 'text-slate-300' : 'text-slate-400'}`}>
                         {a.disabled ? a.note : a.username}
                       </span>
                     </button>
                   )
                 })}
               </div>
-              <p className="mt-2 text-[11px] text-slate-400">계정을 누르면 아이디·비밀번호가 채워집니다.</p>
+              <p className="mt-2 text-xs text-slate-400">계정을 누르면 아이디·비밀번호가 채워집니다.</p>
             </div>
           </div>
         </div>

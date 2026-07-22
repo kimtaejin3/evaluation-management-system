@@ -13,7 +13,7 @@ export default function ReviewStatusBadge({
   const label = wording === "review" ? (submitted ? "검토 완료" : "미검토") : submitted ? "제출" : "미제출";
   // 배경·테두리 없이 텍스트만 — 완료(제출·검토 완료)=검정, 미완료(미제출·미검토)=빨강.
   const cls = submitted ? "text-slate-900" : "text-rose-600";
-  return <span className={`text-xs whitespace-nowrap ${cls}`}>{label}</span>;
+  return <span className={`text-sm whitespace-nowrap ${cls}`}>{label}</span>;
 }
 
 // 관리자 승인 상태 배지 — '승인 상태' 컬럼용. 제출 전(DRAFT)은 대시로 표시.

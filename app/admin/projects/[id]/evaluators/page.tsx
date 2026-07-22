@@ -140,7 +140,7 @@ async function Content({ id }: { id: string }) {
                       <td className="px-5 py-3 text-slate-800">
                         {a.user.name}
                         {a.userId === s.chairId && (
-                          <span className="ml-1.5 rounded bg-indigo-50 px-1.5 py-0.5 text-[11px] font-medium text-indigo-700 ring-1 ring-inset ring-indigo-200">
+                          <span className="ml-1.5 rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-200">
                             위원장
                           </span>
                         )}

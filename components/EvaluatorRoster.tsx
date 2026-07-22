@@ -48,7 +48,7 @@ export default function EvaluatorRoster({
                 <li key={ev.userId} className="px-5 py-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-semibold text-slate-800">{ev.name}</span>
-                    {ev.isChair && <span className="rounded-full bg-indigo-50 px-1.5 py-0.5 text-[11px] font-medium text-indigo-700">위원장</span>}
+                    {ev.isChair && <span className="rounded-full bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-700">위원장</span>}
                     <span className="text-xs text-slate-400">아이디 <span className="font-medium text-slate-600">{ev.username}</span></span>
                     <span className="text-xs text-slate-400">연락처 <span className="font-medium text-slate-600">{ev.phone ?? '미등록'}</span></span>
                     <span className="ml-auto text-xs text-slate-400">전체 입력 <span className="font-semibold text-slate-700">{ev.doneItems}/{ev.totalItems}</span></span>
@@ -58,7 +58,7 @@ export default function EvaluatorRoster({
                       {subjects.map((s, i) => {
                         const c = ev.cells[i]
                         return (
-                          <span key={s.id} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${PILL[c.status]}`}>
+                          <span key={s.id} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${PILL[c.status]}`}>
                             <span className="max-w-[9rem] truncate">{s.name}</span>
                             <span className="opacity-70">{statusLabel(c.status)}</span>
                           </span>

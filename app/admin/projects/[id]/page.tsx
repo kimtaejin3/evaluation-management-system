@@ -5,11 +5,10 @@ import { fmtYmd } from "@/lib/dates";
 import StatusBadge from "@/components/StatusBadge";
 import DeleteProjectButton from "@/components/DeleteProjectButton";
 import SessionSecretaryCell from "@/components/SessionSecretaryCell";
-import PasswordCell from "@/components/PasswordCell";
+import UserPasswordManager from "@/components/UserPasswordManager";
 import ExcelExportButton from "@/components/ExcelExportButton";
 import SortableTh from "@/components/SortableTh";
 import { parseSessionSort, sortSessions } from "@/lib/session-sort";
-import { resetEvaluatorPassword } from "@/app/admin/actions";
 import { removeSecretaryFromProject } from "../actions";
 import AddProjectSecretaryModal from "@/components/AddProjectSecretaryModal";
 
@@ -192,7 +191,6 @@ export default async function ProjectDetailPage({
                   <th className="px-5 py-2.5 font-medium">아이디</th>
                   <th className="px-5 py-2.5 font-medium">연락처</th>
                   <th className="px-5 py-2.5 font-medium">사번</th>
-                  <th className="px-5 py-2.5 font-medium">비밀번호</th>
                   <th className="px-5 py-2.5 font-medium">담당 분과</th>
                   <th className="px-5 py-2.5 text-right"></th>
                 </tr>
@@ -200,7 +198,7 @@ export default async function ProjectDetailPage({
               <tbody>
                 {secretaries.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-5 py-8 text-center text-sm text-slate-400">
+                    <td colSpan={6} className="px-5 py-8 text-center text-sm text-slate-400">
                       참여 간사가 없습니다. 위의 '간사 추가'로 간사 풀에서 추가하세요.
                     </td>
                   </tr>
@@ -216,11 +214,8 @@ export default async function ProjectDetailPage({
                       {u.employeeNo ?? <span className="text-slate-300">—</span>}
                     </td>
                     <td className="px-5 py-2.5">
-                      <PasswordCell value={u.tempPassword} />
-                    </td>
-                    <td className="px-5 py-2.5">
                       {sessionsOfSecretary.has(u.id) ? (
-                        <span className="flex flex-wrap gap-1">
+                        <span className="flex flex-wrap justify-center gap-1">
                           {sessionsOfSecretary.get(u.id)!.map((name) => (
                             <span key={name} className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
                               {name}
@@ -232,33 +227,32 @@ export default async function ProjectDetailPage({
                       )}
                     </td>
                     <td className="px-5 py-2.5 text-right">
-                      <div className="flex items-center justify-end gap-3">
-                        <form
-                          action={async () => {
-                            "use server";
-                            await resetEvaluatorPassword(u.id);
-                          }}
-                        >
-                          <button className="text-sm whitespace-nowrap text-slate-500 hover:text-indigo-600 hover:underline">
-                            비번 재발급
-                          </button>
-                        </form>
-                        <form
-                          action={async () => {
-                            "use server";
-                            await removeSecretaryFromProject(id, u.id);
-                          }}
-                        >
-                          <button className="text-sm whitespace-nowrap text-slate-500 hover:text-slate-700 hover:underline">제외</button>
-                        </form>
-                      </div>
+                      <form
+                        action={async () => {
+                          "use server";
+                          await removeSecretaryFromProject(id, u.id);
+                        }}
+                      >
+                        <button className="text-sm whitespace-nowrap text-slate-500 hover:text-slate-700 hover:underline">제외</button>
+                      </form>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-
+          {/* 표 밑: 간사 비밀번호 조회·재발급 모달 */}
+          <div className="flex justify-end">
+            <UserPasswordManager
+              roleLabel="간사"
+              users={secretaries.map((u) => ({
+                id: u.id,
+                name: u.name,
+                username: u.username,
+                tempPassword: u.tempPassword,
+              }))}
+            />
+          </div>
         </div>
       )}
     </div>

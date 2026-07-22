@@ -25,7 +25,7 @@ export default function SortableTh({
         title={`${label} 정렬`}
       >
         {label}
-        <span className="text-[10px] opacity-80" aria-hidden>
+        <span className="text-xs opacity-80" aria-hidden>
           {active ? (dir === "asc" ? "▲" : "▼") : "↕"}
         </span>
       </Link>

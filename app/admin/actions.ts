@@ -7,7 +7,7 @@ import { prisma } from '@/lib/db'
 import { hashPassword } from '@/lib/auth'
 import { passwordFromPhone } from '@/lib/phone'
 import { saveUpload, deleteUpload, isPdf } from '@/lib/storage'
-import { requireAdminUser } from '@/lib/authz'
+import { requireAdminUser, assertMaster } from '@/lib/authz'
 
 // ---- 평가위원·간사 계정 관리(전역) ----
 
@@ -38,6 +38,28 @@ export async function createEvaluator(formData: FormData) {
 export async function deleteEvaluator(userId: string) {
   await requireAdminUser()
   await prisma.user.delete({ where: { id: userId } })
+  revalidatePath('/admin', 'layout')
+  revalidatePath('/admin/evaluators')
+}
+
+// 간사(계정) 일괄 삭제 — 간사 관리에서 체크박스로 여러 명 선택 후 한 번에 삭제(마스터 전용)
+export async function deleteSecretaries(ids: string[]) {
+  await assertMaster()
+  const clean = ids.filter(Boolean)
+  if (clean.length === 0) return
+  // role 가드 — 간사만 삭제 대상
+  await prisma.user.deleteMany({ where: { id: { in: clean }, role: 'SECRETARY' } })
+  revalidatePath('/admin', 'layout')
+  revalidatePath('/admin/secretaries')
+}
+
+// 평가위원(계정) 일괄 삭제 — 평가위원 관리에서 선택 후 한 번에 삭제(마스터 전용)
+export async function deleteEvaluators(ids: string[]) {
+  await assertMaster()
+  const clean = ids.filter(Boolean)
+  if (clean.length === 0) return
+  // role 가드 — 평가위원만 삭제 대상
+  await prisma.user.deleteMany({ where: { id: { in: clean }, role: 'EVALUATOR' } })
   revalidatePath('/admin', 'layout')
   revalidatePath('/admin/evaluators')
 }

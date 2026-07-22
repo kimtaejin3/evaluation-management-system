@@ -93,7 +93,7 @@ async function CompanyList() {
                       return (
                         <span key={s.id} className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-sm text-slate-700">
                           {s.name}
-                          <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${st.cls}`}>{st.label}</span>
+                          <span className={`rounded-full px-1.5 py-0.5 text-xs font-medium ${st.cls}`}>{st.label}</span>
                         </span>
                       );
                     })}

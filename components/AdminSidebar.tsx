@@ -177,12 +177,13 @@ function ProjectNode({
   pathname: string;
 }) {
   const base = `/admin/projects/${project.id}`;
-  const projActive = pathname === base;
+  // 과제명은 그룹 헤더 — 선택 표시는 하위 탭(분과 간사 설정 등)에만 준다.
+  // '분과 간사 설정'(suffix "")이 과제 홈(base)과 같은 URL이므로 과제명 노드는 선택 표시하지 않는다.
   const tabActive = (suffix: string) =>
     suffix === "" ? pathname === base : pathname.startsWith(`${base}${suffix}`);
   return (
     <div>
-      <Link href={base} className={sessionCls(projActive)} title={project.name}>
+      <Link href={base} className={sessionCls(false)} title={project.name}>
         <span className="truncate">{project.name}</span>
       </Link>
       <div className="ml-3 space-y-0.5 border-l border-white/10 pl-2">
@@ -217,7 +218,9 @@ export default function AdminSidebar({
   const current = sid ? sessions.find((s) => s.id === sid) : null;
 
   const isExact = (p: string) => pathname === p;
-  const projectsActive = pathname.startsWith("/admin/projects");
+  // '과제 관리'(과제 목록)는 정확히 그 페이지에서만 선택 표시 — 과제 하위 페이지에서는
+  // 해당 탭(분과 간사 설정 등)만 선택되도록 한다.
+  const projectsActive = pathname === "/admin/projects";
   const leafActive = (suffix: string) =>
     suffix === ""
       ? isExact(`/admin/sessions/${sid}`)

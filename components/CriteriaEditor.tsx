@@ -37,7 +37,7 @@ const addBtn =
 // 리스트 마지막 아이템의 아이콘 줄에 붙는 작은 추가(+) 버튼 — 무엇을 추가하는지 라벨로 구분
 // (세부항목/평가지표 추가 버튼이 나란히 놓일 수 있어 아이콘만으로는 구분이 안 됨)
 const plusBtn =
-  "inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[11px] font-medium whitespace-nowrap text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600";
+  "inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-xs font-medium whitespace-nowrap text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600";
 
 type RunFn = (fn: () => Promise<void>) => void;
 type AddFn = (id: string, fd: FormData) => void;
@@ -626,7 +626,7 @@ function SubitemNameCell({
             )}
           </div>
           {lump && (
-            <span className="inline-flex items-center rounded bg-indigo-50 px-1.5 py-0.5 text-[11px] font-medium text-indigo-600">
+            <span className="inline-flex items-center rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-600">
               통합 배점
             </span>
           )}

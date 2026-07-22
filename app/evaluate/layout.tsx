@@ -12,7 +12,7 @@ export default async function EvaluateLayout({ children }: { children: React.Rea
           <BrandMark variant="solid" className="h-7 w-7" />
           <div className="leading-tight">
             <div className="text-sm font-bold text-slate-800">심사·평가</div>
-            <div className="text-[11px] text-slate-400">평가위원</div>
+            <div className="text-xs text-slate-400">평가위원</div>
           </div>
         </div>
         <div className="flex items-center gap-3 text-sm text-slate-500">
