@@ -24,20 +24,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       startDate: true,
       endDate: true,
       eventDate: true,
-      chairId: true,
       secretary: { select: { name: true } },
     },
   })
   const progress = await Promise.all(sessions.map((s) => getSessionProgress(s.id)))
-  // 종합의견은 평가위원장이 대상마다 1건씩만 쓴다 — 분모는 대상 수,
-  // 분자도 위원장이 쓴 것만 센다(위원장 일원화 이전의 레거시 Opinion 행 제외).
   const opinionCounts = await prisma.opinion.groupBy({
     by: ['sessionId'],
-    where: {
-      OR: sessions
-        .filter((s) => s.chairId !== null)
-        .map((s) => ({ sessionId: s.id, evaluatorId: s.chairId as string })),
-    },
+    where: { sessionId: { in: sessions.map((s) => s.id) } },
     _count: { _all: true },
   })
   const opinionOf = new Map(opinionCounts.map((o) => [o.sessionId, o._count._all]))
@@ -53,7 +46,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       '평가 대상 수': p.subjects.length,
       '평가위원 수': p.assignedCount,
       '완료 위원': `${p.completedEvaluators}/${p.assignedCount}`,
-      '평가 의견서': `${opinionOf.get(s.id) ?? 0}/${p.subjects.length}`,
+      '평가 의견서': `${opinionOf.get(s.id) ?? 0}/${p.assignedCount * p.subjects.length}`,
     }
   })
 

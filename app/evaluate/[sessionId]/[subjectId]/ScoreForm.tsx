@@ -39,6 +39,7 @@ export default function ScoreForm({
   eventDate,
   documents,
   criteria,
+  initialComment,
   groupComments = {},
   subjects = [],
   submissionStatus = null,
@@ -55,6 +56,7 @@ export default function ScoreForm({
   progress: { done: number; total: number };
   documents: { id: string; name: string; mimeType: string }[];
   criteria: CriterionView[];
+  initialComment: string;
   // 평가항목(그룹)별 의견 초기값 — groupId → 텍스트
   groupComments?: Record<string, string>;
   subjects?: { id: string; name: string }[];
@@ -73,6 +75,7 @@ export default function ScoreForm({
     null,
   );
   const [confirm, setConfirm] = useState(false);
+  const [comment, setComment] = useState(initialComment);
   // 제출 서명(핸드사인) — 제출 확인 모달에서 매번 새로 그린다
   const [signature, setSignature] = useState<string | null>(null);
   const [vals, setVals] = useState<Record<string, string>>(() => {
@@ -462,6 +465,25 @@ export default function ScoreForm({
                     </td>
                   </tr>
                 )}
+                {/* 종합의견 — 평가항목별 의견과 같은 결로 표 맨 아래 전체 폭(제출 시 comment로 저장) */}
+                <tr className="border-t border-slate-200 bg-slate-50/60">
+                  <td colSpan={5} className="px-3 py-3">
+                    <div className="mb-1.5 flex items-center justify-between">
+                      <span className="text-sm font-semibold text-slate-700">종합의견</span>
+                      <span className="text-xs text-slate-400">{comment.length} / 1000</span>
+                    </div>
+                    <textarea
+                      name="comment"
+                      value={comment}
+                      maxLength={1000}
+                      onChange={(e) => setComment(e.target.value)}
+                      disabled={locked}
+                      rows={4}
+                      placeholder="대상에 대한 종합적인 평가 의견을 입력하세요. (선택)"
+                      className="w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-50"
+                    />
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>

@@ -30,8 +30,8 @@ async function resolveUnit(
 }
 
 // 위원장 대상별 종합의견 저장 — 위원장 본인만, 진행 중·배정 유효한 분과에서만.
+// 위원장 통합의견 — 위원별 종합의견(Opinion)과는 별개로 대상(Subject)당 1건 저장한다.
 // 의견서가 간사 검토 제출(SUBMITTED)되거나 관리자 승인(APPROVED)된 뒤에는 수정·삭제할 수 없다.
-// Opinion 테이블에 쓰는 유일한 경로다(평가위원 채점 저장에서는 더 이상 쓰지 않는다).
 export async function saveChairOpinion(
   sessionId: string,
   subjectId: string,
@@ -61,16 +61,9 @@ export async function saveChairOpinion(
   const subject = await prisma.subject.findUnique({ where: { id: subjectId }, select: { sessionId: true } })
   if (!subject || subject.sessionId !== sessionId) return { ok: false, error: '해당 분과의 평가 대상이 아닙니다.' }
 
+  // 통합의견은 대상(Subject)당 1건 — 위원별 종합의견(Opinion)과 저장 위치가 다르다.
   const text = String(formData.get('opinion') ?? '').trim()
-  if (text) {
-    await prisma.opinion.upsert({
-      where: { evaluatorId_subjectId: { evaluatorId: user.id, subjectId } },
-      update: { text, sessionId },
-      create: { evaluatorId: user.id, subjectId, sessionId, text },
-    })
-  } else {
-    await prisma.opinion.deleteMany({ where: { evaluatorId: user.id, subjectId } })
-  }
+  await prisma.subject.update({ where: { id: subjectId }, data: { chairOpinion: text || null } })
   revalidatePath(`/evaluate/${sessionId}/chair/${subjectId}`)
   return { ok: true }
 }
@@ -250,6 +243,18 @@ export async function saveScores(
         create: { evaluatorId: user.id, subjectId, subitemId: u.unitId, sessionId, value, grade: null },
       })
     }
+  }
+
+  // 종합의견 저장
+  const comment = String(formData.get('comment') ?? '').trim()
+  if (comment) {
+    await prisma.opinion.upsert({
+      where: { evaluatorId_subjectId: { evaluatorId: user.id, subjectId } },
+      update: { text: comment, sessionId },
+      create: { evaluatorId: user.id, subjectId, sessionId, text: comment },
+    })
+  } else {
+    await prisma.opinion.deleteMany({ where: { evaluatorId: user.id, subjectId } })
   }
 
   if (intent === 'save') {

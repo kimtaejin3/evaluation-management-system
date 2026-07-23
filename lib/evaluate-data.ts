@@ -28,6 +28,7 @@ export interface SheetData {
   progress: { done: number; total: number }
   documents: { id: string; name: string; mimeType: string }[]
   criteria: CriterionView[]
+  initialComment: string
   // 평가항목(그룹)별 의견 — groupId → 텍스트
   groupComments: Record<string, string>
   subjects: { id: string; name: string }[]
@@ -45,7 +46,7 @@ export async function getSheetData(
 ): Promise<SheetData | null> {
   // 평가항목은 과제(Project) 단위 공통 — 분과의 소속 과제 항목을 읽는다.
   const criteriaWhere = await criteriaScopeForSession(sessionId)
-  const [subject, session, units, existing, subjects, myScores, submission, assignment, myGroupComments] = await Promise.all([
+  const [subject, session, units, existing, opinion, subjects, myScores, submission, assignment, myGroupComments] = await Promise.all([
     prisma.subject.findUnique({
       where: { id: subjectId },
       include: {
@@ -59,6 +60,7 @@ export async function getSheetData(
     prisma.evaluationSession.findUnique({ where: { id: sessionId } }),
     scoringUnitsForScope(criteriaWhere),
     prisma.score.findMany({ where: { evaluatorId: userId, subjectId } }),
+    prisma.opinion.findUnique({ where: { evaluatorId_subjectId: { evaluatorId: userId, subjectId } } }),
     prisma.subject.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } }),
     prisma.score.findMany({
       where: { evaluatorId: userId, sessionId },
@@ -111,6 +113,7 @@ export async function getSheetData(
     progress: { done: doneSubjects, total: subjects.length },
     documents: subject.company.documents.map((d) => ({ id: d.id, name: d.originalName, mimeType: d.mimeType })),
     criteria: criteriaView,
+    initialComment: opinion?.text ?? '',
     groupComments: Object.fromEntries(myGroupComments.map((c) => [c.groupId, c.text])),
     subjects,
     otherScores,
@@ -272,7 +275,7 @@ export interface ChairSubjectData {
   subjectId: string
   subjectName: string
   evaluators: ChairSubjectEvaluator[]
-  /** 위원장이 이 대상에 저장해 둔 종합의견 */
+  /** 위원장이 이 대상에 저장해 둔 통합의견(위원별 종합의견과 별개) */
   chairOpinion: string
   /** 분과 마감 또는 의견서 제출/승인 시 읽기 전용 */
   locked: boolean
@@ -294,8 +297,13 @@ export async function getChairSubjectData(
 
   // 평가항목은 과제(Project) 단위 공통 — 채점 단위(unit) 기준으로 집계
   const criteriaWhere = await criteriaScopeForSession(sessionId)
-  const [subjects, units, assignments, scores, groupComments, submissions, chairOpinionRow] = await Promise.all([
-    prisma.subject.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } }),
+  const [subjects, units, assignments, scores, groupComments, submissions] = await Promise.all([
+    // chairOpinion(통합의견)은 대상 자체에 저장되므로 함께 읽는다
+    prisma.subject.findMany({
+      where: { sessionId },
+      orderBy: { order: 'asc' },
+      select: { id: true, name: true, chairOpinion: true },
+    }),
     scoringUnitsForScope(criteriaWhere),
     // 배정은 상태로 거르지 않는다(관리자 평가의견서 화면과 동일). 쓰는 필드만 select.
     prisma.assignment.findMany({ where: { sessionId }, select: { userId: true, user: { select: { name: true } } } }),
@@ -308,10 +316,6 @@ export async function getChairSubjectData(
       select: { evaluatorId: true, groupId: true, text: true },
     }),
     prisma.submission.findMany({ where: { sessionId, subjectId }, select: { evaluatorId: true, status: true } }),
-    prisma.opinion.findUnique({
-      where: { evaluatorId_subjectId: { evaluatorId: chairId, subjectId } },
-      select: { text: true },
-    }),
   ])
 
   const subject = subjects.find((s) => s.id === subjectId)
@@ -349,7 +353,7 @@ export async function getChairSubjectData(
     subjectName: subject.name,
     locked: lockReason !== null,
     lockReason,
-    chairOpinion: chairOpinionRow?.text ?? '',
+    chairOpinion: subject.chairOpinion ?? '',
     ...neighborSubjects(subjects.map((s) => s.id), subjectId),
     evaluators: ordered.map((a) => {
       const rows = rowsOf.get(a.userId) ?? []

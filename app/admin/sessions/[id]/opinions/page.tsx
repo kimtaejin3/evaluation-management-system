@@ -44,6 +44,7 @@ async function OpinionsContent({ id }: { id: string }) {
   const [session, assignments, subjects, opinions, units, scores] = await Promise.all([
     prisma.evaluationSession.findUnique({ where: { id } }),
     prisma.assignment.findMany({ where: { sessionId: id }, include: { user: { select: { id: true, name: true } } } }),
+    // chairOpinion(위원장 통합의견)은 대상 자체에 저장된다
     prisma.subject.findMany({ where: { sessionId: id }, orderBy: { name: "asc" } }),
     prisma.opinion.findMany({ where: { sessionId: id }, select: { evaluatorId: true, subjectId: true, text: true } }),
     scoringUnitsForScope(criteriaWhere),
@@ -79,20 +80,17 @@ async function OpinionsContent({ id }: { id: string }) {
 
   const subjectNameOf = new Map(subjects.map((s) => [s.id, s.name]));
 
-  // 평가위원장이 작성한 종합의견만 표시 — '평가위원장 종합의견' 섹션(지원기업별 점수 위)
-  const items = evaluators
-    .filter((ev) => ev.isChair)
-    .flatMap((ev) =>
-      subjects
-        .filter((s) => opinionOf.has(`${ev.id}:${s.id}`))
-        .map((s) => ({
-          evaluatorId: ev.id,
-          evaluatorName: ev.name,
-          subjectId: s.id,
-          subjectName: subjectNameOf.get(s.id) ?? "",
-          text: opinionOf.get(`${ev.id}:${s.id}`) ?? "",
-        })),
-    )
+  // 위원장 통합의견 — 대상(Subject.chairOpinion)마다 1건. 위원별 종합의견(Opinion)과는 별개다.
+  const chairName = evaluators.find((ev) => ev.isChair)?.name ?? "";
+  const items = subjects
+    .filter((s) => (s.chairOpinion ?? "").trim())
+    .map((s) => ({
+      evaluatorId: chairId ?? s.id,
+      evaluatorName: chairName,
+      subjectId: s.id,
+      subjectName: subjectNameOf.get(s.id) ?? "",
+      text: s.chairOpinion ?? "",
+    }))
     .filter((item) => item.subjectName);
 
   const locked = session?.status === "CLOSED";
@@ -133,10 +131,7 @@ async function OpinionsContent({ id }: { id: string }) {
         <div className="space-y-2">
           {/* 위원장이 지정됐으면 이름을 앞에 붙여 표시 */}
           <h2 className="text-sm font-semibold text-slate-700">
-            {(() => {
-              const chairName = evaluators.find((ev) => ev.isChair)?.name;
-              return chairName ? `${chairName} 평가위원장 종합의견` : "평가위원장 종합의견";
-            })()}
+            {chairName ? `${chairName} 평가위원장 통합의견` : "평가위원장 통합의견"}
           </h2>
           <OpinionViewer items={items} />
         </div>

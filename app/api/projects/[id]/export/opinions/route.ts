@@ -6,8 +6,6 @@ import { canTokenAccessProject } from '@/lib/authz'
 // 평가의견서 → xlsx (분과/위원/지원기업/종합의견).
 // 화면과 동일 규칙: 마스터는 간사 검토 완료(SUBMITTED/APPROVED, 마감 포함) 후의 분과만,
 // 간사는 본인 담당 분과만 포함한다.
-// 종합의견은 평가위원장만 작성한다 — 분과 위원장이 쓴 것만 내보낸다
-// (위원장 일원화 이전의 레거시 Opinion 행은 제외).
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const token = await getCurrentToken()
   if (!token) return new Response('Unauthorized', { status: 401 })
@@ -45,7 +43,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const rows = visible.flatMap((s) =>
     opinions
-      .filter((o) => o.sessionId === s.id && s.chairId !== null && o.evaluatorId === s.chairId && o.text.trim())
+      .filter((o) => o.sessionId === s.id && o.text.trim())
       .map((o) => ({
         분과명: s.name,
         위원: (nameOfEvaluator.get(`${s.id}:${o.evaluatorId}`) ?? '') + (o.evaluatorId === s.chairId ? ' (위원장)' : ''),
