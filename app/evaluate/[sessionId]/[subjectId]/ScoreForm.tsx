@@ -178,6 +178,8 @@ export default function ScoreForm({
     return Number.isFinite(Number(raw));
   };
   const locked = !canEvaluatorEdit(submissionStatus);
+  // 제출 완료 여부 — 위원장의 '위원별 평가 · 종합의견' 진입 조건(반려는 재작성 중이라 제외)
+  const submitted = submissionStatus === "SUBMITTED" || submissionStatus === "APPROVED";
   const total = criteria.reduce((s, c) => s + (contrib(c) ?? 0), 0);
   const maxTotal = criteria.reduce((s, c) => s + c.maxScore * c.weight, 0);
   const filledCount = criteria.filter((c) => isFilled(c)).length;
@@ -240,17 +242,9 @@ export default function ScoreForm({
             <span className="font-semibold text-slate-800">{subjectName}</span>
           )}
           {isChair && (
-            <>
-              <span className="rounded-full bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700">
-                위원장
-              </span>
-              <Link
-                href={`/evaluate/${sessionId}/chair/${subjectId}`}
-                className="rounded-md bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-200"
-              >
-                위원별 평가 · 종합의견 →
-              </Link>
-            </>
+            <span className="rounded-full bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700">
+              위원장
+            </span>
           )}
           {deadline && (
             <span className="ml-auto text-xs text-slate-400">
@@ -556,6 +550,25 @@ export default function ScoreForm({
                 </button>
               </div>
             )}
+
+            {/* 위원장 전용 — 본인 평가를 제출한 뒤에 위원별 평가를 보고 종합의견을 쓴다.
+                제출 전에는 다른 위원의 평가를 볼 수 없도록 비활성. */}
+            {isChair &&
+              (submitted ? (
+                <Link
+                  href={`/evaluate/${sessionId}/chair/${subjectId}`}
+                  className="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700"
+                >
+                  위원별 평가 · 종합의견 →
+                </Link>
+              ) : (
+                <span
+                  title="본인 평가를 제출하면 열립니다"
+                  className="cursor-not-allowed rounded-lg border border-slate-200 bg-slate-50 px-5 py-2.5 text-sm font-semibold text-slate-300"
+                >
+                  위원별 평가 · 종합의견 →
+                </span>
+              ))}
           </div>
         </div>
       </div>
