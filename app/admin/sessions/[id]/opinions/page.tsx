@@ -41,7 +41,7 @@ async function OpinionsContent({ id }: { id: string }) {
   const isMaster = me.role === "MASTER";
   // 평가항목은 과제(Project) 단위 공통 — 채점 단위(지표별/통합) 기준으로 점수 계산
   const criteriaWhere = await criteriaScopeForSession(id);
-  const [session, assignments, subjects, opinions, units, scores] = await Promise.all([
+  const [session, assignments, subjects, opinions, units, scores, groupComments] = await Promise.all([
     prisma.evaluationSession.findUnique({ where: { id } }),
     prisma.assignment.findMany({ where: { sessionId: id }, include: { user: { select: { id: true, name: true } } } }),
     prisma.subject.findMany({ where: { sessionId: id }, orderBy: { name: "asc" } }),
@@ -50,6 +50,10 @@ async function OpinionsContent({ id }: { id: string }) {
     prisma.score.findMany({
       where: { sessionId: id },
       select: { evaluatorId: true, subjectId: true, criterionId: true, subitemId: true, value: true },
+    }),
+    prisma.groupComment.findMany({
+      where: { sessionId: id },
+      select: { evaluatorId: true, subjectId: true, groupId: true, text: true },
     }),
   ]);
 
@@ -70,6 +74,17 @@ async function OpinionsContent({ id }: { id: string }) {
   // (위원:대상) → 종합의견 텍스트
   const opinionOf = new Map<string, string>();
   for (const o of opinions) if (o.text.trim()) opinionOf.set(`${o.evaluatorId}:${o.subjectId}`, o.text);
+
+  // (위원:대상) → 평가항목별 의견. 표시 순서는 채점 단위(units)에서 유도한 평가항목 순서를 따른다.
+  const orderedGroups: { id: string; name: string }[] = [];
+  for (const u of units) if (!orderedGroups.some((g) => g.id === u.groupId)) orderedGroups.push({ id: u.groupId, name: u.groupName });
+  const groupCommentOf = new Map<string, string>();
+  for (const gc of groupComments) if (gc.text.trim()) groupCommentOf.set(`${gc.evaluatorId}:${gc.subjectId}:${gc.groupId}`, gc.text);
+  const groupCommentsFor = (evaluatorId: string, subjectId: string) =>
+    orderedGroups.flatMap((g) => {
+      const text = groupCommentOf.get(`${evaluatorId}:${subjectId}:${g.id}`);
+      return text ? [{ groupName: g.name, text }] : [];
+    });
 
   // 위원장을 맨 앞에
   const chairId = session?.chairId ?? null;
@@ -183,6 +198,7 @@ async function OpinionsContent({ id }: { id: string }) {
                               isChair: ev.isChair,
                               score,
                               opinion: opinionOf.get(`${ev.id}:${s.id}`) ?? null,
+                              groupComments: groupCommentsFor(ev.id, s.id),
                             }];
                           })}
                         />

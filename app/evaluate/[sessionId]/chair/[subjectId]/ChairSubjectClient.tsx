@@ -28,17 +28,21 @@ export default function ChairSubjectClient({
   >(null)
   const [confirmTarget, setConfirmTarget] = useState<{ id: string; name: string } | null>(null)
   const [confirming, setConfirming] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState(false)
 
   useEffect(() => {
     let ignore = false
     setData(null)
     setStatus('idle')
+    setLoadError(false)
     fetch(
       `/api/evaluate/chair/subject?sessionId=${encodeURIComponent(sessionId)}&subjectId=${encodeURIComponent(subjectId)}`,
       { cache: 'no-store' },
     )
       .then((r) => {
-        if (r.status === 403) { if (!ignore) router.replace('/evaluate'); return null } // 위원장 아님
+        // 403(위원장 아님)만 목록으로 돌려보낸다. 서버 오류까지 리다이렉트하면
+        // 화면이 이유 없이 튕기는 것처럼 보여 원인을 찾기 어렵다.
+        if (r.status === 403) { if (!ignore) router.replace('/evaluate'); return null }
         return r.ok ? r.json() : Promise.reject(r.status)
       })
       .then((d: ChairSubjectData | null) => {
@@ -46,7 +50,7 @@ export default function ChairSubjectClient({
         setData(d)
         setOpinion(d.chairOpinion)
       })
-      .catch(() => { if (!ignore) router.replace('/evaluate') })
+      .catch(() => { if (!ignore) setLoadError(true) })
     return () => { ignore = true }
   }, [sessionId, subjectId, router])
 
@@ -129,7 +133,11 @@ export default function ChairSubjectClient({
         )}
       </div>
 
-      {!data ? (
+      {loadError ? (
+        <div className="rounded-xl border border-slate-200 bg-white px-5 py-12 text-center text-sm text-slate-400">
+          평가 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
+        </div>
+      ) : !data ? (
         <SkeletonTable rows={4} cols={5} />
       ) : (
         <div className="space-y-4">

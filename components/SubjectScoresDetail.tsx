@@ -14,7 +14,14 @@ export default function SubjectScoresDetail({
   chairOpinionOf = null,
 }: {
   subjectName: string
-  evaluators: { name: string; isChair: boolean; score: number; opinion: string | null }[]
+  // groupComments가 있으면 '항목별 의견' 열을 함께 보여준다
+  evaluators: {
+    name: string
+    isChair: boolean
+    score: number
+    opinion: string | null
+    groupComments?: { groupName: string; text: string }[]
+  }[]
   buttonLabel?: string
   note?: string
   emptyMessage?: string
@@ -25,6 +32,8 @@ export default function SubjectScoresDetail({
   chairOpinionOf?: { name: string; text: string } | null
 }) {
   const [open, setOpen] = useState(false)
+  // 호출부가 groupComments를 넘겼을 때만 '항목별 의견' 열을 만든다
+  const showGroupComments = evaluators.some((e) => e.groupComments !== undefined)
   const chairFromList = evaluators.find((e) => e.isChair)
   const chair =
     chairOpinionOf ?? (chairFromList?.opinion ? { name: chairFromList.name, text: chairFromList.opinion } : null)
@@ -85,6 +94,7 @@ export default function SubjectScoresDetail({
                     <th className="w-32 py-2 pr-4 font-medium">평가위원</th>
                     <th className="w-20 px-3 py-2 text-right font-medium">점수</th>
                     <th className="px-3 py-2 font-medium">종합의견</th>
+                    {showGroupComments && <th className="px-3 py-2 font-medium">항목별 의견</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -95,13 +105,29 @@ export default function SubjectScoresDetail({
                         {ev.isChair && <span className="ml-1 text-xs text-indigo-500">(위원장)</span>}
                       </td>
                       <td className="px-3 py-2 text-right font-medium tabular-nums text-slate-800">{ev.score.toFixed(2)}</td>
-                      <td className="px-3 py-2 text-slate-600">
+                      <td className="px-3 py-2 text-left text-slate-600">
                         {ev.opinion ? (
                           <p className="whitespace-pre-wrap leading-relaxed">{ev.opinion}</p>
                         ) : (
                           <span className="text-slate-300">—</span>
                         )}
                       </td>
+                      {showGroupComments && (
+                        <td className="px-3 py-2 text-left text-slate-600">
+                          {ev.groupComments && ev.groupComments.length > 0 ? (
+                            <ul className="space-y-1.5">
+                              {ev.groupComments.map((gc, j) => (
+                                <li key={j}>
+                                  <div className="text-xs font-semibold text-slate-500">{gc.groupName}</div>
+                                  <p className="whitespace-pre-wrap leading-relaxed">{gc.text}</p>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <span className="text-slate-300">—</span>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
