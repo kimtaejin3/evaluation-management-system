@@ -465,7 +465,7 @@ export default function ScoreForm({
                 <tr className="border-t border-slate-200 bg-slate-50/60">
                   <td colSpan={5} className="px-3 py-3">
                     <div className="mb-1.5 flex items-center justify-between">
-                      <span className="text-sm font-semibold text-slate-700">종합의견</span>
+                      <span className="text-sm font-semibold text-slate-700">평가위원 종합의견</span>
                       <span className="text-xs text-slate-400">{comment.length} / 1000</span>
                     </div>
                     <textarea
