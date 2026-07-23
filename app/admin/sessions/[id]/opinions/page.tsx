@@ -14,7 +14,7 @@ import {
   rejectOpinions,
 } from "../../actions";
 import OpinionViewer from "./OpinionViewer";
-import SubjectScoresDetail from "@/components/SubjectScoresDetail";
+import OpinionDetailButton from "@/components/OpinionDetailButton";
 
 export default async function OpinionsPage({
   params,
@@ -168,7 +168,8 @@ async function OpinionsContent({ id }: { id: string }) {
                   <th className="px-5 py-2.5 font-medium">지원기업</th>
                   <th className="px-5 py-2.5 text-right font-medium">채점 완료 위원</th>
                   <th className="px-5 py-2.5 text-right font-medium">점수</th>
-                  <th className="px-5 py-2.5 font-medium">자세히 보기</th>
+                  <th className="px-5 py-2.5 font-medium">종합의견</th>
+                  <th className="px-5 py-2.5 font-medium">항목별의견</th>
                 </tr>
               </thead>
               <tbody>
@@ -177,6 +178,18 @@ async function OpinionsContent({ id }: { id: string }) {
                     .map((ev) => totalOf(ev.id, s.id))
                     .filter((v): v is number => v !== null);
                   const avg = totals.length ? totals.reduce((a, b) => a + b, 0) / totals.length : null;
+                  // 채점 완료 위원의 총점·종합의견·항목별의견(미완료 위원은 제외)
+                  const detail = evaluators.flatMap((ev) => {
+                    const score = totalOf(ev.id, s.id);
+                    if (score === null) return [];
+                    return [{
+                      name: ev.name,
+                      isChair: ev.isChair,
+                      score,
+                      text: opinionOf.get(`${ev.id}:${s.id}`) ?? null,
+                      groupComments: groupCommentsFor(ev.id, s.id),
+                    }];
+                  });
                   return (
                     <tr key={s.id} className="border-b border-slate-50 last:border-0">
                       <td className="px-5 py-2.5 text-slate-800">{s.name}</td>
@@ -187,21 +200,10 @@ async function OpinionsContent({ id }: { id: string }) {
                         {avg !== null ? avg.toFixed(2) : <span className="text-slate-300">—</span>}
                       </td>
                       <td className="px-5 py-2.5">
-                        {/* 채점 완료 위원의 총점·종합의견을 모달로 확인(미완료 위원은 제외) */}
-                        <SubjectScoresDetail
-                          subjectName={s.name}
-                          evaluators={evaluators.flatMap((ev) => {
-                            const score = totalOf(ev.id, s.id);
-                            if (score === null) return [];
-                            return [{
-                              name: ev.name,
-                              isChair: ev.isChair,
-                              score,
-                              opinion: opinionOf.get(`${ev.id}:${s.id}`) ?? null,
-                              groupComments: groupCommentsFor(ev.id, s.id),
-                            }];
-                          })}
-                        />
+                        <OpinionDetailButton subjectName={s.name} mode="overall" evaluators={detail} />
+                      </td>
+                      <td className="px-5 py-2.5">
+                        <OpinionDetailButton subjectName={s.name} mode="group" evaluators={detail} />
                       </td>
                     </tr>
                   );

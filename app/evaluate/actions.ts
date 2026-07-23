@@ -288,7 +288,14 @@ export async function saveScores(
     create: { sessionId, evaluatorId: user.id, subjectId, status: 'SUBMITTED', submittedAt: new Date(), signature },
   })
 
-  // 제출 후: 다음 대상으로 자동 이동하지 않고 목록으로 돌아간다(제출 안내).
+  // 위원장은 목록으로 튕기지 않고 이 평가표에 남는다 — 제출로 '위원별 평가·종합의견' 버튼이
+  // 그 자리에서 활성화되도록 revalidate만 한다(제출 상태가 갱신되며 링크가 열림).
+  if (session.chairId === user.id) {
+    revalidatePath(`/evaluate/${sessionId}/${subjectId}`)
+    return { submitted: true }
+  }
+
+  // 일반 위원: 제출 후 다음 대상으로 자동 이동하지 않고 목록으로 돌아간다(제출 안내).
   // 다음 대상은 위원이 목록에서 직접 고른다.
   const subject = await prisma.subject.findUnique({ where: { id: subjectId }, select: { name: true } })
   redirect(`/evaluate?submitted=${encodeURIComponent(subject?.name ?? '')}`)

@@ -148,6 +148,7 @@ export default function ChairSubjectClient({
                 <tr className="border-b border-slate-100 bg-slate-50/60">
                   <th className="px-4 py-2.5 font-medium">평가위원명</th>
                   <th className="px-4 py-2.5 font-medium">점수</th>
+                  <th className="px-4 py-2.5 font-medium">제출 여부</th>
                   <th className="px-4 py-2.5 font-medium">종합의견</th>
                   <th className="px-4 py-2.5 font-medium">항목별 의견</th>
                   <th className="px-4 py-2.5 font-medium">위원장 확인</th>
@@ -156,7 +157,7 @@ export default function ChairSubjectClient({
               <tbody>
                 {data.evaluators.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-10 text-center text-slate-400">
+                    <td colSpan={6} className="px-4 py-10 text-center text-slate-400">
                       배정된 평가위원이 없습니다.
                     </td>
                   </tr>
@@ -174,6 +175,13 @@ export default function ChairSubjectClient({
                         <span className="text-xs text-amber-600">입력중</span>
                       ) : (
                         <span className="text-xs text-slate-400">입력전</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {e.submitted ? (
+                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">제출</span>
+                      ) : (
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">미제출</span>
                       )}
                     </td>
                     {/* 위원장 본인 행에는 자기 의견을 보여주지 않는다(아래에서 직접 작성) */}
