@@ -31,7 +31,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     prisma.subject.findMany({
       where: { sessionId: { in: sessionIds } },
       orderBy: { order: 'asc' },
-      select: { id: true, name: true, sessionId: true },
+      // 통합의견은 대상마다 1건 — 위원별 종합의견과 별도 시트로 낸다
+      select: { id: true, name: true, sessionId: true, chairOpinion: true },
     }),
     prisma.opinion.findMany({
       where: { sessionId: { in: sessionIds } },
@@ -52,11 +53,26 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       })),
   )
 
+  // 위원장 통합의견 — 분과×대상마다 1건
+  const nameOfSession = new Map(visible.map((s) => [s.id, s.name]))
+  const chairRows = subjects
+    .filter((s) => nameOfSession.has(s.sessionId) && (s.chairOpinion ?? '').trim())
+    .map((s) => ({
+      분과명: nameOfSession.get(s.sessionId) ?? '',
+      지원기업: s.name,
+      통합의견: s.chairOpinion as string,
+    }))
+
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(
     wb,
     XLSX.utils.json_to_sheet(rows.length ? rows : [{ 분과명: '', 위원: '', 지원기업: '', 종합의견: '' }]),
     '평가의견서',
+  )
+  XLSX.utils.book_append_sheet(
+    wb,
+    XLSX.utils.json_to_sheet(chairRows.length ? chairRows : [{ 분과명: '', 지원기업: '', 통합의견: '' }]),
+    '위원장 통합의견',
   )
   const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })
   return new Response(buf, {

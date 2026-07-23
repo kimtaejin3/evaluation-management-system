@@ -7,7 +7,7 @@ import { SESSION_TAB_LABEL as TAB_LABEL } from "@/lib/session-nav";
 
 // 탭별 안내 문구 — 제목 옆에 정보 아이콘과 함께 인라인 표시.
 const SUBTEXT: Record<string, string> = {
-  "/opinions": "평가위원장이 각 지원기업에 대해 평가 화면에서 작성한 종합의견입니다.",
+  "/opinions": "평가위원별 종합의견과, 평가위원장이 대상마다 작성한 통합의견입니다.",
   "/results": "위원 평균 점수 기준 선정 결과입니다.",
 };
 

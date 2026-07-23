@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 type OpinionItem = { subjectName: string; text: string }
 
 // 과제 평가의견서 표의 '자세히 보기' — 분과 페이지로 이동하지 않고 모달로 의견서를 보여준다.
-// 내용은 분과 페이지와 동일하게 평가위원장이 작성한 종합의견만 표시한다.
+// 내용은 분과 페이지와 동일하게 평가위원장이 대상마다 작성한 통합의견을 표시한다.
 export default function SessionOpinionsModal({
   sessionName,
   chairName,
@@ -47,7 +47,7 @@ export default function SessionOpinionsModal({
               <div className="min-w-0">
                 <h3 className="text-base font-semibold text-slate-900">{sessionName}</h3>
                 <p className="mt-0.5 text-xs text-slate-400">
-                  {chairName ? `${chairName} 평가위원장 종합의견` : '평가위원장 종합의견'}
+                  {chairName ? `${chairName} 평가위원장 통합의견` : '평가위원장 통합의견'}
                 </p>
               </div>
               <button
@@ -63,7 +63,7 @@ export default function SessionOpinionsModal({
             <div className="overflow-auto px-6 py-4">
               {items.length === 0 ? (
                 <p className="py-10 text-center text-sm text-slate-400">
-                  {chairName ? '작성된 종합의견이 없습니다.' : '평가위원장이 지정되지 않았습니다.'}
+                  {chairName ? '작성된 통합의견이 없습니다.' : '평가위원장이 지정되지 않았습니다.'}
                 </p>
               ) : (
                 <ul className="space-y-3">

@@ -28,7 +28,7 @@ export default async function ProjectOpinionsPage({
         <Content id={id} />
       </Suspense>
       <p className="text-left text-xs text-slate-400">
-        분과별 의견서 작성 현황입니다. ‘자세히 보기’로 평가위원장 종합의견을 확인합니다.
+        분과별 의견서 작성 현황입니다. ‘자세히 보기’로 평가위원장 통합의견을 확인합니다.
       </p>
     </div>
   );
@@ -47,31 +47,18 @@ async function Content({ id }: { id: string }) {
       chairId: true,
       secretary: { select: { name: true } },
       _count: { select: { subjects: true } },
-      subjects: { select: { id: true, name: true }, orderBy: { name: "asc" } },
+      // 통합의견은 대상(Subject.chairOpinion)마다 1건 — 위원별 종합의견(Opinion)과 별개다
+      subjects: { select: { id: true, name: true, chairOpinion: true }, orderBy: { name: "asc" } },
       assignments: { select: { userId: true, user: { select: { name: true } } } },
     },
   });
 
-  // 의견서 본문 — Opinion은 세션 관계가 없어 sessionId로 한 번에 조회한 뒤 분과별로 묶는다.
-  const opinions = await prisma.opinion.findMany({
-    where: { sessionId: { in: sessions.map((s) => s.id) } },
-    select: { sessionId: true, evaluatorId: true, subjectId: true, text: true },
-  });
-  const opinionsOfSession = new Map<string, typeof opinions>();
-  for (const o of opinions) {
-    if (!opinionsOfSession.has(o.sessionId)) opinionsOfSession.set(o.sessionId, []);
-    opinionsOfSession.get(o.sessionId)!.push(o);
-  }
-
-  // 분과별 (위원장 이름, 대상별 종합의견) — 모달에 넘길 데이터
+  // 분과별 (위원장 이름, 대상별 통합의견) — 모달에 넘길 데이터. 대상 수만큼 여러 건이다.
   const detailOf = (s: (typeof sessions)[number]) => {
     const chairName = s.assignments.find((a) => a.userId === s.chairId)?.user.name ?? null;
-    const nameOfSubject = new Map(s.subjects.map((x) => [x.id, x.name]));
-    const items = (opinionsOfSession.get(s.id) ?? [])
-      .filter((o) => o.evaluatorId === s.chairId && o.text.trim())
-      .map((o) => ({ subjectName: nameOfSubject.get(o.subjectId) ?? "", text: o.text }))
-      .filter((it) => it.subjectName)
-      .sort((a, b) => a.subjectName.localeCompare(b.subjectName, "ko"));
+    const items = s.subjects
+      .filter((sub) => (sub.chairOpinion ?? "").trim())
+      .map((sub) => ({ subjectName: sub.name, text: sub.chairOpinion as string }));
     return { chairName, items };
   };
 

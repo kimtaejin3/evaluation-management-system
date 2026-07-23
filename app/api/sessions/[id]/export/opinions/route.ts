@@ -3,7 +3,9 @@ import { prisma } from '@/lib/db'
 import { getCurrentToken } from '@/lib/session'
 import { canTokenAccessSession } from '@/lib/authz'
 
-// 평가 의견서 → xlsx 다운로드(위원 / 지원기업 / 종합의견). 위원장을 앞에.
+// 평가 의견서 → xlsx 다운로드. 시트 2개:
+//  ① 평가의견서 — 위원별 종합의견(위원 / 지원기업 / 종합의견), 위원장을 앞에
+//  ② 위원장 통합의견 — 대상마다 1건(지원기업 / 통합의견). 위원 축이 없어 시트를 분리한다.
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const token = await getCurrentToken()
   if (!token) return new Response('Unauthorized', { status: 401 })
@@ -39,9 +41,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     }
   }
 
+  // 위원장 통합의견 — 대상당 1건
+  const chairRows = subjects
+    .filter((s) => (s.chairOpinion ?? '').trim())
+    .map((s) => ({ 지원기업: s.name, 통합의견: s.chairOpinion as string }))
+
   const wb = XLSX.utils.book_new()
   const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [{ 위원: '', 지원기업: '', 종합의견: '' }])
   XLSX.utils.book_append_sheet(wb, ws, '평가의견서')
+  const wsChair = XLSX.utils.json_to_sheet(chairRows.length ? chairRows : [{ 지원기업: '', 통합의견: '' }])
+  XLSX.utils.book_append_sheet(wb, wsChair, '위원장 통합의견')
   const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })
 
   return new Response(buf, {
