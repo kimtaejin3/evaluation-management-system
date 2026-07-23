@@ -175,29 +175,28 @@ async function main() {
   assert(rowAi.spread === 16, `P4 대상A 편차 = 70-54 = 16 (실제 ${rowAi.spread})`)
   assert(rowBi.spread === null, 'P4 완료 1명 대상B는 편차 없음(null)')
 
-  console.log('\n[7] 통합의견 — 평가위원장 전용(대상당 1건, Subject.chairOpinion)')
+  console.log('\n[7] 위원장 종합의견 — 대상별 화면(통합의견)에서만 작성(위원장×대상 1건)')
   // 실제 서버 액션(saveChairOpinion)을 그대로 호출한다 — 로그인 쿠키는 스텁으로 주입.
-  // 통합의견은 위원별 종합의견(Opinion)과 저장 위치가 다르다.
+  // 저장 위치는 다른 위원과 같은 Opinion(위원×대상) 한 행이다.
   const opinionFd = (text: string) => { const fd = new FormData(); fd.set('opinion', text); return fd }
   const chairOpinionOf = async (subjectId: string) =>
-    (await prisma.subject.findUnique({ where: { id: subjectId }, select: { chairOpinion: true } }))?.chairOpinion ?? null
+    (await prisma.opinion.findUnique({ where: { evaluatorId_subjectId: { evaluatorId: e1.id, subjectId } }, select: { text: true } }))?.text ?? null
 
   await asUser(e1.id) // 위원장
-  assert((await saveChairOpinion(session.id, subA.id, opinionFd('최초'))).ok, 'O1 위원장은 통합의견을 저장할 수 있다')
-  assert((await saveChairOpinion(session.id, subA.id, opinionFd('수정됨2'))).ok, 'O1 재저장도 허용')
-  assert((await chairOpinionOf(subA.id)) === '수정됨2', 'O1 대상당 1건으로 덮어쓴다')
-  // 통합의견은 위원별 종합의견(Opinion)을 건드리지 않는다
-  assert((await prisma.opinion.count({ where: { subjectId: subA.id } })) === 0, 'O1 Opinion 테이블은 그대로')
+  assert((await saveChairOpinion(session.id, subA.id, opinionFd('최초'))).ok, 'O1 위원장은 종합의견을 저장할 수 있다')
+  assert((await saveChairOpinion(session.id, subA.id, opinionFd('수정됨2'))).ok, 'O1 재저장(upsert)도 허용')
+  const ops = await prisma.opinion.findMany({ where: { subjectId: subA.id } })
+  assert(ops.length === 1 && ops[0].evaluatorId === e1.id && ops[0].text === '수정됨2', 'O1 위원장×대상 1건 upsert')
 
   // 다른 분과(session2)의 대상은 거부 — 분과 경계
   const wrongSubject = await saveChairOpinion(session.id, subA2.id, opinionFd('남의 분과'))
   assert(!wrongSubject.ok && wrongSubject.error === '해당 분과의 평가 대상이 아닙니다.', 'O2 다른 분과의 대상은 저장 거부')
-  assert((await chairOpinionOf(subA2.id)) === null, 'O2 거부 시 통합의견 미생성')
+  assert((await prisma.opinion.count({ where: { subjectId: subA2.id } })) === 0, 'O2 거부 시 Opinion 미생성')
 
   await asUser(e2.id) // 위원장 아님
   const nonChair = await saveChairOpinion(session.id, subA.id, opinionFd('위원 의견'))
   assert(!nonChair.ok && nonChair.error === '위원장만 작성할 수 있습니다.', 'O3 위원장이 아니면 저장 거부')
-  assert((await chairOpinionOf(subA.id)) === '수정됨2', 'O3 거부 시 통합의견 불변')
+  assert((await chairOpinionOf(subA.id)) === '수정됨2', 'O3 거부 시 원본 불변')
 
   // 의견서가 검토 제출(SUBMITTED)되면 위원장도 수정·삭제할 수 없다
   await asUser(e1.id)

@@ -160,7 +160,7 @@ export default function EvaluateHomeClient({
                       </div>
                     )}
                     {/* 최소 너비만 잡아 행 오른쪽 끝을 맞추고, 내용이 늘어나면 넘치지 않게 확장 */}
-                    <div className="flex min-w-52 shrink-0 items-center justify-end gap-2.5">
+                    <div className="flex min-w-36 shrink-0 items-center justify-end gap-2.5">
                       {sub.status === "complete" ? (
                         <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
                           ✓ 완료
@@ -184,14 +184,6 @@ export default function EvaluateHomeClient({
                             ? "이어하기 →"
                             : "평가 시작 →"}
                       </Link>
-                      {s.isChair && (
-                        <Link
-                          href={`/evaluate/${s.sessionId}/chair/${sub.id}`}
-                          className="shrink-0 whitespace-nowrap text-sm text-slate-500 hover:text-indigo-600"
-                        >
-                          종합의견
-                        </Link>
-                      )}
                     </div>
                   </div>
                   {sub.docs.length > 0 && (

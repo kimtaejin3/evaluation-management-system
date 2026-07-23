@@ -275,7 +275,7 @@ export interface ChairSubjectData {
   subjectId: string
   subjectName: string
   evaluators: ChairSubjectEvaluator[]
-  /** 위원장이 이 대상에 저장해 둔 통합의견(위원별 종합의견과 별개) */
+  /** 위원장이 이 대상에 쓴 종합의견 — 화면에는 '통합의견'으로 표시한다 */
   chairOpinion: string
   /** 분과 마감 또는 의견서 제출/승인 시 읽기 전용 */
   locked: boolean
@@ -297,13 +297,8 @@ export async function getChairSubjectData(
 
   // 평가항목은 과제(Project) 단위 공통 — 채점 단위(unit) 기준으로 집계
   const criteriaWhere = await criteriaScopeForSession(sessionId)
-  const [subjects, units, assignments, scores, groupComments, submissions] = await Promise.all([
-    // chairOpinion(통합의견)은 대상 자체에 저장되므로 함께 읽는다
-    prisma.subject.findMany({
-      where: { sessionId },
-      orderBy: { order: 'asc' },
-      select: { id: true, name: true, chairOpinion: true },
-    }),
+  const [subjects, units, assignments, scores, groupComments, submissions, chairOpinionRow] = await Promise.all([
+    prisma.subject.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } }),
     scoringUnitsForScope(criteriaWhere),
     // 배정은 상태로 거르지 않는다(관리자 평가의견서 화면과 동일). 쓰는 필드만 select.
     prisma.assignment.findMany({ where: { sessionId }, select: { userId: true, user: { select: { name: true } } } }),
@@ -316,6 +311,11 @@ export async function getChairSubjectData(
       select: { evaluatorId: true, groupId: true, text: true },
     }),
     prisma.submission.findMany({ where: { sessionId, subjectId }, select: { evaluatorId: true, status: true } }),
+    // 위원장의 종합의견 — 위원장은 평가표 대신 이 화면('통합의견')에서 작성한다
+    prisma.opinion.findUnique({
+      where: { evaluatorId_subjectId: { evaluatorId: chairId, subjectId } },
+      select: { text: true },
+    }),
   ])
 
   const subject = subjects.find((s) => s.id === subjectId)
@@ -353,7 +353,7 @@ export async function getChairSubjectData(
     subjectName: subject.name,
     locked: lockReason !== null,
     lockReason,
-    chairOpinion: subject.chairOpinion ?? '',
+    chairOpinion: chairOpinionRow?.text ?? '',
     ...neighborSubjects(subjects.map((s) => s.id), subjectId),
     evaluators: ordered.map((a) => {
       const rows = rowsOf.get(a.userId) ?? []

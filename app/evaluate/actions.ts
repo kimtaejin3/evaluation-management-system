@@ -30,7 +30,8 @@ async function resolveUnit(
 }
 
 // 위원장 대상별 종합의견 저장 — 위원장 본인만, 진행 중·배정 유효한 분과에서만.
-// 위원장 통합의견 — 위원별 종합의견(Opinion)과는 별개로 대상(Subject)당 1건 저장한다.
+// 위원장의 종합의견 저장 — 위원장은 평가표 하단이 아니라 대상별 화면('통합의견')에서 쓴다.
+// 저장 위치는 다른 위원과 같은 Opinion(위원×대상) 한 행이다.
 // 의견서가 간사 검토 제출(SUBMITTED)되거나 관리자 승인(APPROVED)된 뒤에는 수정·삭제할 수 없다.
 export async function saveChairOpinion(
   sessionId: string,
@@ -61,9 +62,17 @@ export async function saveChairOpinion(
   const subject = await prisma.subject.findUnique({ where: { id: subjectId }, select: { sessionId: true } })
   if (!subject || subject.sessionId !== sessionId) return { ok: false, error: '해당 분과의 평가 대상이 아닙니다.' }
 
-  // 통합의견은 대상(Subject)당 1건 — 위원별 종합의견(Opinion)과 저장 위치가 다르다.
+  // 위원장의 종합의견 — 위원장은 평가표 대신 이 화면('통합의견')에서만 작성한다.
   const text = String(formData.get('opinion') ?? '').trim()
-  await prisma.subject.update({ where: { id: subjectId }, data: { chairOpinion: text || null } })
+  if (text) {
+    await prisma.opinion.upsert({
+      where: { evaluatorId_subjectId: { evaluatorId: user.id, subjectId } },
+      update: { text, sessionId },
+      create: { evaluatorId: user.id, subjectId, sessionId, text },
+    })
+  } else {
+    await prisma.opinion.deleteMany({ where: { evaluatorId: user.id, subjectId } })
+  }
   revalidatePath(`/evaluate/${sessionId}/chair/${subjectId}`)
   return { ok: true }
 }
@@ -245,16 +254,20 @@ export async function saveScores(
     }
   }
 
-  // 종합의견 저장
-  const comment = String(formData.get('comment') ?? '').trim()
-  if (comment) {
-    await prisma.opinion.upsert({
-      where: { evaluatorId_subjectId: { evaluatorId: user.id, subjectId } },
-      update: { text: comment, sessionId },
-      create: { evaluatorId: user.id, subjectId, sessionId, text: comment },
-    })
-  } else {
-    await prisma.opinion.deleteMany({ where: { evaluatorId: user.id, subjectId } })
+  // 종합의견 저장 — 위원장의 평가표에는 이 칸이 없다(대상별 화면에서 '통합의견'으로 작성).
+  // 폼에 필드 자체가 없으면 건드리지 않는다. 그러지 않으면 위원장이 점수를 저장할 때마다
+  // 빈 값으로 간주돼 이미 써 둔 의견이 지워진다.
+  if (formData.has('comment')) {
+    const comment = String(formData.get('comment') ?? '').trim()
+    if (comment) {
+      await prisma.opinion.upsert({
+        where: { evaluatorId_subjectId: { evaluatorId: user.id, subjectId } },
+        update: { text: comment, sessionId },
+        create: { evaluatorId: user.id, subjectId, sessionId, text: comment },
+      })
+    } else {
+      await prisma.opinion.deleteMany({ where: { evaluatorId: user.id, subjectId } })
+    }
   }
 
   if (intent === 'save') {

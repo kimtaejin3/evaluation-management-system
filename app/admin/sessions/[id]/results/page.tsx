@@ -102,12 +102,6 @@ async function ResultsContent({ id }: { id: string }) {
   // 선정(1위) 대상 — 동점이면 복수
   const winners = orderedSubjects.filter((s) => s.rank === 1);
 
-  // 위원장 통합의견 — 대상(Subject.chairOpinion)마다 1건. 위원별 종합의견(Opinion)과 별개다.
-  const chairName = assignments.find((a) => a.userId === session?.chairId)?.user.name ?? "";
-  const chairOpinionRows = subjects
-    .filter((s) => (s.chairOpinion ?? "").trim())
-    .map((s) => ({ id: s.id, name: s.name, text: s.chairOpinion as string }));
-
   return (
     <div className="space-y-5">
       {/* 화면 전용 컨트롤 — 엑셀 내보내기 + 인쇄(선정 결과 인쇄 도구) */}
@@ -165,34 +159,6 @@ async function ResultsContent({ id }: { id: string }) {
           scores={Object.fromEntries(scoreVal)}
           maxTotal={maxTotal}
         />
-      )}
-
-      {/* 위원장 통합의견 — 대상마다 1건이므로 카드가 아닌 표로 나열한다 */}
-      {chairOpinionRows.length > 0 && (
-        <div className="space-y-2">
-          <h2 className="text-sm font-semibold text-slate-700">
-            {chairName ? `${chairName} 평가위원장 통합의견` : "평가위원장 통합의견"}
-            <span className="ml-1.5 text-xs font-normal text-slate-400">총 {chairOpinionRows.length}건</span>
-          </h2>
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white print:border-black">
-            <table className="table-grid w-full text-sm">
-              <thead className="text-left text-slate-500">
-                <tr className="border-b border-slate-100 bg-slate-50/60">
-                  <th className="w-48 px-5 py-2.5 font-medium">평가 대상</th>
-                  <th className="px-5 py-2.5 font-medium">통합의견</th>
-                </tr>
-              </thead>
-              <tbody>
-                {chairOpinionRows.map((r) => (
-                  <tr key={r.id} className="border-b border-slate-50 last:border-0">
-                    <td className="px-5 py-3 font-medium text-slate-800">{r.name}</td>
-                    <td className="px-5 py-3 text-left whitespace-pre-wrap text-slate-700">{r.text}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
       )}
 
       {/* 합산 공식 + 위원 간 편차 정보 (화면 전용) — 간사에게는 숨김, 관리자만 표시 */}
