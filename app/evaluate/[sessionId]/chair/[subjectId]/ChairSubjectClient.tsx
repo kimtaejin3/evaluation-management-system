@@ -73,7 +73,7 @@ export default function ChairSubjectClient({
           <div>
             <h1 className="text-2xl font-bold text-slate-900">{data?.subjectName ?? ' '}</h1>
             <p className="mt-0.5 text-sm text-slate-500">
-              {data?.sessionName ?? ''} · 위원장 종합의견
+              {data?.sessionName ?? ''} · 위원장 통합의견
             </p>
           </div>
         </div>
@@ -166,19 +166,19 @@ export default function ChairSubjectClient({
             </table>
           </div>
 
-          {/* 우: 종합의견 작성 */}
+          {/* 우: 통합의견 작성 */}
           <div className="rounded-xl border border-slate-200 bg-white p-5 lg:sticky lg:top-6 lg:self-start">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm font-semibold text-slate-700">종합의견 (위원장)</span>
+              <span className="text-sm font-semibold text-slate-700">통합의견 (위원장)</span>
               <span className="text-xs text-slate-400">{opinion.length}자</span>
             </div>
             <textarea
-              aria-label="종합의견"
+              aria-label="통합의견"
               value={opinion}
               onChange={(e) => { setOpinion(e.target.value); setStatus('idle') }}
               disabled={data.locked}
               rows={14}
-              placeholder="이 대상에 대한 위원장 종합의견을 작성하세요."
+              placeholder="여러 위원의 평가를 종합한 위원장 통합의견을 작성하세요."
               className="w-full resize-y rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-50"
             />
             {data.locked ? (
@@ -197,7 +197,7 @@ export default function ChairSubjectClient({
                   disabled={pending}
                   className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
                 >
-                  {pending ? '저장 중…' : '종합의견 저장'}
+                  {pending ? '저장 중…' : '통합의견 저장'}
                 </button>
               </div>
             )}

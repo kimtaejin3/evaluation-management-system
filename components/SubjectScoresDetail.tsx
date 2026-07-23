@@ -18,7 +18,7 @@ export default function SubjectScoresDetail({
   buttonLabel?: string
   note?: string
   emptyMessage?: string
-  // true면 평가위원장 종합의견만 표시(위원별 점수 표 대신)
+  // true면 평가위원장 통합의견만 표시(위원별 점수 표 대신)
   chairOpinion?: boolean
   // 위원장 종합의견 — 위원장 본인의 채점 제출/승인 여부와 무관하게 작성되므로
   // evaluators(승인 제출만) 목록과 별개로 넘겨받는다. 없으면 evaluators에서 폴백.
@@ -58,7 +58,7 @@ export default function SubjectScoresDetail({
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h3 className="text-base font-semibold text-slate-800">
-                  {subjectName} — {chairOpinion ? '평가위원장 종합의견' : '위원별 점수'}
+                  {subjectName} — {chairOpinion ? '평가위원장 통합의견' : '위원별 점수'}
                 </h3>
                 <p className="mt-0.5 text-xs text-slate-400">{note}</p>
               </div>

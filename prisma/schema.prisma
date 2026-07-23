@@ -243,6 +243,8 @@ model Subject {
   status         SubjectStatus  @default(PENDING)
   rejectionReason String?
   decidedAt      DateTime?
+  // 평가위원장 통합의견 — 위원별 종합의견(Opinion)과 별개로, 위원장이 대상마다 1건 작성한다.
+  chairOpinion   String?
   scores      Score[]
   groupComments GroupComment[]
 

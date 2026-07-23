@@ -72,7 +72,7 @@ async function Content({ id }: { id: string }) {
     prisma.subject.findMany({
       where: { sessionId: { in: sessionIds } },
       orderBy: { name: "asc" },
-      select: { id: true, name: true, sessionId: true },
+      select: { id: true, name: true, sessionId: true, chairOpinion: true },
     }),
     prisma.assignment.findMany({
       where: { sessionId: { in: sessionIds } },
@@ -141,13 +141,13 @@ async function Content({ id }: { id: string }) {
       ];
     });
 
-  // 위원장 종합의견 — 위원장 본인의 채점 제출/승인 여부와 무관하게 작성된다.
-  // (점수는 승인 제출만 반영하지만, 종합의견은 작성 즉시 보여야 한다)
+  // 위원장 통합의견 — 대상(Subject.chairOpinion)에 저장되며, 위원별 종합의견(Opinion)과 별개다.
+  // 위원장 본인의 채점 제출/승인 여부와 무관하게 작성 즉시 보여야 한다.
+  const chairOpinionText = new Map(subjects.map((s) => [s.id, (s.chairOpinion ?? "").trim()]));
   const chairOpinionFor = (sessionId: string, subjectId: string) => {
-    const chairId = chairOf.get(sessionId);
-    if (!chairId) return null;
-    const text = opinionText.get(`${chairId}:${subjectId}`);
+    const text = chairOpinionText.get(subjectId);
     if (!text) return null;
+    const chairId = chairOf.get(sessionId);
     const name = (evaluatorsOf.get(sessionId) ?? []).find((ev) => ev.id === chairId)?.name ?? "";
     return { name, text };
   };
