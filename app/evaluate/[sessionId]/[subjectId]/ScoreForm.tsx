@@ -460,7 +460,7 @@ export default function ScoreForm({
                   </tr>
                 )}
                 {/* 종합의견 — 평가항목별 의견과 같은 결로 표 맨 아래 전체 폭(제출 시 comment로 저장).
-                    위원장은 여기가 아니라 대상별 화면의 '통합의견'에서 쓰므로 칸을 숨긴다. */}
+                    위원장은 여기가 아니라 대상별 화면의 '위원장 종합의견'에서 쓰므로 칸을 숨긴다. */}
                 {!isChair && (
                 <tr className="border-t border-slate-200 bg-slate-50/60">
                   <td colSpan={5} className="px-3 py-3">

@@ -267,7 +267,11 @@ export interface ChairSubjectEvaluator {
   state: ChairEvalState
   /** 평가항목(그룹)별 의견 — 작성된 것만 */
   groupComments: { groupName: string; text: string }[]
+  /** 이 위원이 쓴 종합의견 */
+  opinion: string | null
   submitted: boolean
+  /** 위원장이 이 위원의 평가를 확인했는지 — 간사·마스터 승인과는 별개 */
+  chairConfirmed: boolean
 }
 
 export interface ChairSubjectData {
@@ -275,7 +279,7 @@ export interface ChairSubjectData {
   subjectId: string
   subjectName: string
   evaluators: ChairSubjectEvaluator[]
-  /** 위원장이 이 대상에 쓴 종합의견 — 화면에는 '통합의견'으로 표시한다 */
+  /** 위원장이 이 대상에 쓴 종합의견 — 화면에는 '위원장 종합의견'으로 표시한다 */
   chairOpinion: string
   /** 분과 마감 또는 의견서 제출/승인 시 읽기 전용 */
   locked: boolean
@@ -297,7 +301,7 @@ export async function getChairSubjectData(
 
   // 평가항목은 과제(Project) 단위 공통 — 채점 단위(unit) 기준으로 집계
   const criteriaWhere = await criteriaScopeForSession(sessionId)
-  const [subjects, units, assignments, scores, groupComments, submissions, chairOpinionRow] = await Promise.all([
+  const [subjects, units, assignments, scores, groupComments, submissions, chairOpinionRow, opinions] = await Promise.all([
     prisma.subject.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } }),
     scoringUnitsForScope(criteriaWhere),
     // 배정은 상태로 거르지 않는다(관리자 평가의견서 화면과 동일). 쓰는 필드만 select.
@@ -310,12 +314,17 @@ export async function getChairSubjectData(
       where: { sessionId, subjectId },
       select: { evaluatorId: true, groupId: true, text: true },
     }),
-    prisma.submission.findMany({ where: { sessionId, subjectId }, select: { evaluatorId: true, status: true } }),
-    // 위원장의 종합의견 — 위원장은 평가표 대신 이 화면('통합의견')에서 작성한다
+    prisma.submission.findMany({
+      where: { sessionId, subjectId },
+      select: { evaluatorId: true, status: true, chairConfirmedAt: true },
+    }),
+    // 위원장의 종합의견 — 위원장은 평가표 대신 이 화면에서 작성한다
     prisma.opinion.findUnique({
       where: { evaluatorId_subjectId: { evaluatorId: chairId, subjectId } },
       select: { text: true },
     }),
+    // 이 대상에 대한 위원별 종합의견
+    prisma.opinion.findMany({ where: { sessionId, subjectId }, select: { evaluatorId: true, text: true } }),
   ])
 
   const subject = subjects.find((s) => s.id === subjectId)
@@ -332,7 +341,13 @@ export async function getChairSubjectData(
   const commentOf = new Map<string, string>()
   for (const gc of groupComments) commentOf.set(`${gc.evaluatorId}:${gc.groupId}`, gc.text)
   const statusOf = new Map<string, string>()
-  for (const sub of submissions) statusOf.set(sub.evaluatorId, sub.status)
+  const chairConfirmedOf = new Map<string, boolean>()
+  for (const sub of submissions) {
+    statusOf.set(sub.evaluatorId, sub.status)
+    chairConfirmedOf.set(sub.evaluatorId, sub.chairConfirmedAt != null)
+  }
+  const opinionOf = new Map<string, string>()
+  for (const o of opinions) if (o.text.trim()) opinionOf.set(o.evaluatorId, o.text)
 
   // 평가항목(그룹) 표시 순서는 채점 단위 순서에서 유도
   const orderedGroups: { id: string; name: string }[] = []
@@ -368,7 +383,9 @@ export async function getChairSubjectData(
           const text = commentOf.get(`${a.userId}:${g.id}`)
           return text ? [{ groupName: g.name, text }] : []
         }),
+        opinion: opinionOf.get(a.userId) ?? null,
         submitted: isSubmitted(statusOf.get(a.userId)),
+        chairConfirmed: chairConfirmedOf.get(a.userId) ?? false,
       }
     }),
   }

@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { saveChairOpinion } from '@/app/evaluate/actions'
+import { saveChairOpinion, confirmEvaluation } from '@/app/evaluate/actions'
 import { SkeletonTable } from '@/components/Skeletons'
 import type { ChairSubjectData } from '@/lib/evaluate-data'
 
@@ -22,6 +22,12 @@ export default function ChairSubjectClient({
   const [status, setStatus] = useState<'idle' | 'saved' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
   const [pending, start] = useTransition()
+  // 의견 상세 모달 / 검토완료 확인 대상 / 확인 처리 중인 위원
+  const [detail, setDetail] = useState<
+    { name: string; kind: 'opinion' | 'group'; opinion: string | null; groupComments: { groupName: string; text: string }[] } | null
+  >(null)
+  const [confirmTarget, setConfirmTarget] = useState<{ id: string; name: string } | null>(null)
+  const [confirming, setConfirming] = useState<string | null>(null)
 
   useEffect(() => {
     let ignore = false
@@ -43,6 +49,26 @@ export default function ChairSubjectClient({
       .catch(() => { if (!ignore) router.replace('/evaluate') })
     return () => { ignore = true }
   }, [sessionId, subjectId, router])
+
+  // '예'를 눌러야 실제로 확인이 기록된다
+  const onConfirm = () => {
+    if (!confirmTarget) return
+    const target = confirmTarget
+    setConfirming(target.id)
+    start(async () => {
+      const res = await confirmEvaluation(sessionId, subjectId, target.id)
+      setConfirming(null)
+      setConfirmTarget(null)
+      if (res?.ok) {
+        setData((d) =>
+          d ? { ...d, evaluators: d.evaluators.map((e) => (e.id === target.id ? { ...e, chairConfirmed: true } : e)) } : d,
+        )
+      } else {
+        setStatus('error')
+        setErrorMsg(res?.error ?? '확인에 실패했습니다.')
+      }
+    })
+  }
 
   const onSave = () => {
     setStatus('idle')
@@ -73,7 +99,7 @@ export default function ChairSubjectClient({
           <div>
             <h1 className="text-2xl font-bold text-slate-900">{data?.subjectName ?? ' '}</h1>
             <p className="mt-0.5 text-sm text-slate-500">
-              {data?.sessionName ?? ''} · 위원장 통합의견
+              {data?.sessionName ?? ''} · 위원장 종합의견
             </p>
           </div>
         </div>
@@ -104,24 +130,25 @@ export default function ChairSubjectClient({
       </div>
 
       {!data ? (
-        <SkeletonTable rows={4} cols={4} />
+        <SkeletonTable rows={4} cols={5} />
       ) : (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-          {/* 좌: 위원별 점수·의견·제출 유무 */}
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white lg:self-start">
+        <div className="space-y-4">
+          {/* 위원별 평가 — 본문은 '자세히 보기' 모달로 본다(표가 길어지지 않도록) */}
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
             <table className="table-grid w-full text-sm">
               <thead className="text-left text-slate-500">
                 <tr className="border-b border-slate-100 bg-slate-50/60">
                   <th className="px-4 py-2.5 font-medium">평가위원명</th>
-                  <th className="px-4 py-2.5 font-medium">종합점수</th>
-                  <th className="px-4 py-2.5 font-medium">항목당 의견</th>
-                  <th className="px-4 py-2.5 font-medium">제출 유무</th>
+                  <th className="px-4 py-2.5 font-medium">점수</th>
+                  <th className="px-4 py-2.5 font-medium">종합의견</th>
+                  <th className="px-4 py-2.5 font-medium">항목별 의견</th>
+                  <th className="px-4 py-2.5 font-medium">위원장 확인</th>
                 </tr>
               </thead>
               <tbody>
                 {data.evaluators.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-4 py-10 text-center text-slate-400">
+                    <td colSpan={5} className="px-4 py-10 text-center text-slate-400">
                       배정된 평가위원이 없습니다.
                     </td>
                   </tr>
@@ -141,24 +168,53 @@ export default function ChairSubjectClient({
                         <span className="text-xs text-slate-400">입력전</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-left">
-                      {e.groupComments.length === 0 ? (
-                        <span className="text-xs text-slate-400">의견 없음</span>
+                    {/* 위원장 본인 행에는 자기 의견을 보여주지 않는다(아래에서 직접 작성) */}
+                    <td className="px-4 py-3">
+                      {e.isChair ? (
+                        <span className="text-slate-300">—</span>
+                      ) : e.opinion ? (
+                        <button
+                          type="button"
+                          onClick={() => setDetail({ name: e.name, kind: 'opinion', opinion: e.opinion, groupComments: e.groupComments })}
+                          className="text-xs font-medium whitespace-nowrap text-slate-600 transition hover:text-indigo-700 hover:underline"
+                        >
+                          자세히 보기
+                        </button>
                       ) : (
-                        <ul className="space-y-1.5">
-                          {e.groupComments.map((gc, i) => (
-                            <li key={i}>
-                              <div className="text-xs font-semibold text-slate-500">{gc.groupName}</div>
-                              <p className="whitespace-pre-wrap text-sm text-slate-700">{gc.text}</p>
-                            </li>
-                          ))}
-                        </ul>
+                        <span className="text-xs text-slate-400">없음</span>
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <span className={e.submitted ? 'text-slate-900' : 'text-rose-600'}>
-                        {e.submitted ? '제출' : '미제출'}
-                      </span>
+                      {e.isChair ? (
+                        <span className="text-slate-300">—</span>
+                      ) : e.groupComments.length > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => setDetail({ name: e.name, kind: 'group', opinion: e.opinion, groupComments: e.groupComments })}
+                          className="text-xs font-medium whitespace-nowrap text-slate-600 transition hover:text-indigo-700 hover:underline"
+                        >
+                          자세히 보기
+                        </button>
+                      ) : (
+                        <span className="text-xs text-slate-400">없음</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {e.isChair ? (
+                        <span className="text-slate-300">—</span>
+                      ) : e.chairConfirmed ? (
+                        <span className="text-sm font-medium text-slate-900">확인 완료</span>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={!e.submitted || confirming === e.id}
+                          title={e.submitted ? undefined : '위원이 제출해야 확인할 수 있습니다'}
+                          onClick={() => setConfirmTarget({ id: e.id, name: e.name })}
+                          className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium whitespace-nowrap text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-300"
+                        >
+                          {confirming === e.id ? '처리 중…' : '검토완료'}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -166,19 +222,19 @@ export default function ChairSubjectClient({
             </table>
           </div>
 
-          {/* 우: 통합의견 작성 */}
-          <div className="rounded-xl border border-slate-200 bg-white p-5 lg:sticky lg:top-6 lg:self-start">
+          {/* 아래: 위원장 종합의견 */}
+          <div className="rounded-xl border border-slate-200 bg-white p-5">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm font-semibold text-slate-700">통합의견 (위원장)</span>
+              <span className="text-sm font-semibold text-slate-700">위원장 종합의견</span>
               <span className="text-xs text-slate-400">{opinion.length}자</span>
             </div>
             <textarea
-              aria-label="통합의견"
+              aria-label="위원장 종합의견"
               value={opinion}
               onChange={(e) => { setOpinion(e.target.value); setStatus('idle') }}
               disabled={data.locked}
-              rows={14}
-              placeholder="여러 위원의 평가를 종합한 위원장 통합의견을 작성하세요."
+              rows={8}
+              placeholder="여러 위원의 평가를 종합한 위원장 종합의견을 작성하세요."
               className="w-full resize-y rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-50"
             />
             {data.locked ? (
@@ -197,10 +253,65 @@ export default function ChairSubjectClient({
                   disabled={pending}
                   className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
                 >
-                  {pending ? '저장 중…' : '통합의견 저장'}
+                  {pending ? '저장 중…' : '종합의견 저장'}
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 의견 상세 모달 */}
+      {detail && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-auto bg-black/30 p-4" onClick={() => setDetail(null)}>
+          <div className="my-8 max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <h3 className="text-base font-semibold text-slate-800">
+                {detail.name} — {detail.kind === 'opinion' ? '종합의견' : '항목별 의견'}
+              </h3>
+              <button type="button" onClick={() => setDetail(null)} className="shrink-0 text-slate-400 hover:text-slate-600" aria-label="닫기">✕</button>
+            </div>
+            {detail.kind === 'opinion' ? (
+              <p className="text-sm leading-relaxed whitespace-pre-wrap text-slate-700">{detail.opinion}</p>
+            ) : (
+              <ul className="space-y-3">
+                {detail.groupComments.map((gc, i) => (
+                  <li key={i} className="rounded-lg border border-slate-200 px-4 py-3">
+                    <div className="text-xs font-semibold text-slate-500">{gc.groupName}</div>
+                    <p className="mt-1 text-sm leading-relaxed whitespace-pre-wrap text-slate-700">{gc.text}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 검토완료 확인 */}
+      {confirmTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setConfirmTarget(null)}>
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-semibold text-slate-900">검토완료</h3>
+            <p className="mt-2 text-sm leading-relaxed text-slate-600">
+              {confirmTarget.name} 평가위원의 종합 점수와 종합의견을 확인하셨습니까?
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmTarget(null)}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+              >
+                아니오
+              </button>
+              <button
+                type="button"
+                onClick={onConfirm}
+                disabled={confirming !== null}
+                className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {confirming ? '처리 중…' : '예'}
+              </button>
+            </div>
           </div>
         </div>
       )}

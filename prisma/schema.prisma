@@ -341,6 +341,9 @@ model Submission {
   signature   String?
   decidedAt   DateTime?
   decidedById String?
+  // 위원장이 이 위원의 평가(점수·종합의견)를 확인했는지 — 간사·마스터의 승인(status)과는 별개다
+  chairConfirmedAt   DateTime?
+  chairConfirmedById String?
   updatedAt   DateTime          @updatedAt
 
   @@unique([evaluatorId, subjectId])

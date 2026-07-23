@@ -30,7 +30,7 @@ async function resolveUnit(
 }
 
 // 위원장 대상별 종합의견 저장 — 위원장 본인만, 진행 중·배정 유효한 분과에서만.
-// 위원장의 종합의견 저장 — 위원장은 평가표 하단이 아니라 대상별 화면('통합의견')에서 쓴다.
+// 위원장의 종합의견 저장 — 위원장은 평가표 하단이 아니라 대상별 화면('위원장 종합의견')에서 쓴다.
 // 저장 위치는 다른 위원과 같은 Opinion(위원×대상) 한 행이다.
 // 의견서가 간사 검토 제출(SUBMITTED)되거나 관리자 승인(APPROVED)된 뒤에는 수정·삭제할 수 없다.
 export async function saveChairOpinion(
@@ -62,7 +62,7 @@ export async function saveChairOpinion(
   const subject = await prisma.subject.findUnique({ where: { id: subjectId }, select: { sessionId: true } })
   if (!subject || subject.sessionId !== sessionId) return { ok: false, error: '해당 분과의 평가 대상이 아닙니다.' }
 
-  // 위원장의 종합의견 — 위원장은 평가표 대신 이 화면('통합의견')에서만 작성한다.
+  // 위원장의 종합의견 — 위원장은 평가표 대신 이 화면('위원장 종합의견')에서만 작성한다.
   const text = String(formData.get('opinion') ?? '').trim()
   if (text) {
     await prisma.opinion.upsert({
@@ -254,7 +254,7 @@ export async function saveScores(
     }
   }
 
-  // 종합의견 저장 — 위원장의 평가표에는 이 칸이 없다(대상별 화면에서 '통합의견'으로 작성).
+  // 종합의견 저장 — 위원장의 평가표에는 이 칸이 없다(대상별 화면에서 '위원장 종합의견'으로 작성).
   // 폼에 필드 자체가 없으면 건드리지 않는다. 그러지 않으면 위원장이 점수를 저장할 때마다
   // 빈 값으로 간주돼 이미 써 둔 의견이 지워진다.
   if (formData.has('comment')) {
@@ -292,4 +292,40 @@ export async function saveScores(
   // 다음 대상은 위원이 목록에서 직접 고른다.
   const subject = await prisma.subject.findUnique({ where: { id: subjectId }, select: { name: true } })
   redirect(`/evaluate?submitted=${encodeURIComponent(subject?.name ?? '')}`)
+}
+
+// 위원장 확인 — 위원장이 특정 위원의 평가(점수·종합의견)를 확인했음을 기록한다.
+// 간사·마스터의 승인(Submission.status)과는 별개이며 집계에는 영향을 주지 않는다.
+export async function confirmEvaluation(
+  sessionId: string,
+  subjectId: string,
+  evaluatorId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const user = await getCurrentUser()
+  if (!user) return { ok: false, error: 'auth' }
+  const session = await prisma.evaluationSession.findUnique({
+    where: { id: sessionId },
+    select: { chairId: true, status: true },
+  })
+  if (!session || session.chairId !== user.id) return { ok: false, error: '위원장만 확인할 수 있습니다.' }
+  if (session.status !== 'IN_PROGRESS') return { ok: false, error: '진행 중인 심사에서만 확인할 수 있습니다.' }
+  if (evaluatorId === user.id) return { ok: false, error: '본인 평가는 확인 대상이 아닙니다.' }
+
+  // 제출한 평가만 확인 대상 — 대상이 이 분과 소속인지도 함께 검증된다
+  const sub = await prisma.submission.findUnique({
+    where: { evaluatorId_subjectId: { evaluatorId, subjectId } },
+    select: { sessionId: true, status: true, chairConfirmedAt: true },
+  })
+  if (!sub || sub.sessionId !== sessionId) return { ok: false, error: '해당 분과의 평가가 아닙니다.' }
+  if (!(sub.status === 'SUBMITTED' || sub.status === 'APPROVED')) {
+    return { ok: false, error: '아직 제출되지 않은 평가입니다.' }
+  }
+  if (sub.chairConfirmedAt) return { ok: true } // 이미 확인 — 멱등
+
+  await prisma.submission.update({
+    where: { evaluatorId_subjectId: { evaluatorId, subjectId } },
+    data: { chairConfirmedAt: new Date(), chairConfirmedById: user.id },
+  })
+  revalidatePath(`/evaluate/${sessionId}/chair/${subjectId}`)
+  return { ok: true }
 }

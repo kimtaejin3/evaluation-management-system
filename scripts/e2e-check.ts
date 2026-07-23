@@ -175,7 +175,7 @@ async function main() {
   assert(rowAi.spread === 16, `P4 대상A 편차 = 70-54 = 16 (실제 ${rowAi.spread})`)
   assert(rowBi.spread === null, 'P4 완료 1명 대상B는 편차 없음(null)')
 
-  console.log('\n[7] 위원장 종합의견 — 대상별 화면(통합의견)에서만 작성(위원장×대상 1건)')
+  console.log('\n[7] 위원장 종합의견 — 대상별 화면(위원장 종합의견)에서만 작성(위원장×대상 1건)')
   // 실제 서버 액션(saveChairOpinion)을 그대로 호출한다 — 로그인 쿠키는 스텁으로 주입.
   // 저장 위치는 다른 위원과 같은 Opinion(위원×대상) 한 행이다.
   const opinionFd = (text: string) => { const fd = new FormData(); fd.set('opinion', text); return fd }
