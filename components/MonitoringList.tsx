@@ -1,7 +1,9 @@
 'use client'
 
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useEffect, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import type { ProgressData, Cell } from '@/lib/progress'
+import { approveEvaluation, rejectEvaluation } from '@/app/admin/sessions/actions'
 import { cellStatusLabel, type CellStatus } from '@/lib/submission'
 
 // 기업(대상) 중심 리스트 — 각 대상의 입력/제출 진행 현황 조회.
@@ -21,7 +23,7 @@ export const statusLabel = (st: CellStatus) => (st === 'submitted' ? '미승인'
 
 type EvRow = { userId: string; name: string; isChair: boolean; cell: Cell }
 
-export default function MonitoringList({ data }: { data: ProgressData }) {
+export default function MonitoringList({ data, sessionId }: { data: ProgressData; sessionId: string }) {
   const { subjects, rows: evaluators } = data
   const [openId, setOpenId] = useState<string | null>(null)
 
@@ -88,6 +90,8 @@ export default function MonitoringList({ data }: { data: ProgressData }) {
 
       {openIdx >= 0 && (
         <SubjectDetailModal
+          sessionId={sessionId}
+          subjectId={subjects[openIdx].id}
           subjectName={subjects[openIdx].name}
           rows={evRowsAt(openIdx)}
           summary={{ done: evRowsAt(openIdx).filter((r) => isSubmitted(r.cell.status)).length, total: evaluators.length }}
@@ -98,19 +102,36 @@ export default function MonitoringList({ data }: { data: ProgressData }) {
   )
 }
 
-// ── 기업 상세(모달, 조회 전용): 위원 · 상태 · 진행 + 항목 펼침 ──
+// ── 기업 상세(모달): 위원 · 상태 · 진행 + 항목 펼침 + 제출완료(미승인) 승인/반려 ──
 function SubjectDetailModal({
+  sessionId,
+  subjectId,
   subjectName,
   rows,
   summary,
   onClose,
 }: {
+  sessionId: string
+  subjectId: string
   subjectName: string
   rows: EvRow[]
   summary: { done: number; total: number }
   onClose: () => void
 }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+  const [pending, start] = useTransition()
+  const [busyId, setBusyId] = useState<string | null>(null)
+  const router = useRouter()
+
+  const decide = (userId: string, approve: boolean) => {
+    setBusyId(userId)
+    start(async () => {
+      if (approve) await approveEvaluation(sessionId, subjectId, userId)
+      else await rejectEvaluation(sessionId, subjectId, userId)
+      setBusyId(null)
+      router.refresh()
+    })
+  }
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -139,6 +160,7 @@ function SubjectDetailModal({
               <tr className="text-left text-xs text-slate-400">
                 <th className="px-3 py-2 font-medium">위원</th>
                 <th className="px-3 py-2 font-medium">진행</th>
+                <th className="px-3 py-2 text-right font-medium">상태 · 승인</th>
               </tr>
             </thead>
             <tbody>
@@ -164,11 +186,38 @@ function SubjectDetailModal({
                         </div>
                       </td>
                       <td className="px-3 py-2.5 align-middle text-xs tabular-nums text-slate-400">{c.done}/{c.total}</td>
+                      <td className="px-3 py-2.5 align-middle">
+                        <div className="flex items-center justify-end gap-2">
+                          <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${PILL[c.status]}`}>
+                            {statusLabel(c.status)}
+                          </span>
+                          {c.status === 'submitted' && (
+                            <>
+                              <button
+                                type="button"
+                                disabled={pending && busyId === r.userId}
+                                onClick={() => decide(r.userId, true)}
+                                className="rounded-md bg-[var(--gov-navy)] px-2.5 py-1 text-xs font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+                              >
+                                {pending && busyId === r.userId ? '처리 중…' : '승인'}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={pending && busyId === r.userId}
+                                onClick={() => decide(r.userId, false)}
+                                className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+                              >
+                                반려
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
                     </tr>
 
                     {isOpen && (
                       <tr>
-                        <td colSpan={2} className="px-3 pb-2.5">
+                        <td colSpan={3} className="px-3 pb-2.5">
                           <ul className="space-y-0.5 rounded-lg bg-slate-50 p-2">
                             {c.items.length === 0 && <li className="px-1 text-xs text-slate-400">평가 항목이 없습니다.</li>}
                             {c.items.map((it) => (

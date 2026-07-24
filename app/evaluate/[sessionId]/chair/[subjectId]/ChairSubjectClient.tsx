@@ -3,9 +3,25 @@
 import { useEffect, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { saveChairOpinion, confirmEvaluation } from '@/app/evaluate/actions'
+import { saveChairOpinion, confirmEvaluation, submitChairEvaluation } from '@/app/evaluate/actions'
 import { SkeletonTable } from '@/components/Skeletons'
+import SignaturePad from '@/components/SignaturePad'
+import ReviewStepper, { stepsFromFlags } from '@/components/ReviewStepper'
+import { CHAIR_REVIEW_STAGE_LABELS, chairReviewFlags } from '@/lib/submission'
 import type { ChairSubjectData } from '@/lib/evaluate-data'
+
+// 위원장 진행 스텝 — 평가의견 작성 → 종합의견 작성(현 페이지) → 제출 → 간사 검토 → 관리자 검토.
+// 종합의견은 실시간(입력 즉시) 반영되도록 opinion 상태로 판정한다.
+function buildChairSteps(data: ChairSubjectData, opinion: string) {
+  const chair = data.evaluators.find((e) => e.isChair)
+  const flags = chairReviewFlags({
+    status: data.chairSubmissionStatus,
+    scored: chair?.state === 'complete',
+    opinionWritten: opinion.trim().length > 0,
+    sessionClosed: data.lockReason === 'closed',
+  })
+  return stepsFromFlags(CHAIR_REVIEW_STAGE_LABELS, flags)
+}
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1))
 
@@ -29,6 +45,10 @@ export default function ChairSubjectClient({
   const [confirmTarget, setConfirmTarget] = useState<{ id: string; name: string } | null>(null)
   const [confirming, setConfirming] = useState<string | null>(null)
   const [loadError, setLoadError] = useState(false)
+  // 제출(종합의견 페이지에서 서명과 함께 확정)
+  const [submitOpen, setSubmitOpen] = useState(false)
+  const [submitSig, setSubmitSig] = useState<string | null>(null)
+  const [submitErr, setSubmitErr] = useState('')
 
   useEffect(() => {
     let ignore = false
@@ -89,6 +109,27 @@ export default function ChairSubjectClient({
     })
   }
 
+  const onSubmit = () => {
+    setSubmitErr('')
+    const fd = new FormData()
+    fd.set('opinion', opinion)
+    if (submitSig) fd.set('signature', submitSig)
+    start(async () => {
+      const res = await submitChairEvaluation(sessionId, subjectId, fd)
+      if (res?.ok) {
+        setSubmitOpen(false)
+        setData((d) => (d ? { ...d, chairSubmissionStatus: 'SUBMITTED', chairOpinion: opinion } : d))
+      } else {
+        setSubmitErr(res?.error ?? '제출에 실패했습니다.')
+      }
+    })
+  }
+
+  // 위원장 본인 제출/점수 상태
+  const chairSubmitted = data?.chairSubmissionStatus === 'SUBMITTED' || data?.chairSubmissionStatus === 'APPROVED'
+  const chairScored = data?.evaluators.find((e) => e.isChair)?.state === 'complete'
+  const chairEditable = !!data && !data.locked && !chairSubmitted
+
   return (
     <div className="mx-auto max-w-[1400px] space-y-6 px-6 py-6">
       {/* 헤더 — 목록 복귀 + 대상명 + 이전/다음 대상 */}
@@ -103,7 +144,7 @@ export default function ChairSubjectClient({
           <div>
             <h1 className="text-2xl font-bold text-slate-900">{data?.subjectName ?? ' '}</h1>
             <p className="mt-0.5 text-sm text-slate-500">
-              {data?.sessionName ?? ''} · 위원장 종합의견
+              {data?.projectName ? `${data.projectName} · ` : ''}{data?.sessionName ?? ''} · 위원장 종합의견
             </p>
           </div>
         </div>
@@ -141,6 +182,11 @@ export default function ChairSubjectClient({
         <SkeletonTable rows={4} cols={5} />
       ) : (
         <div className="space-y-4">
+          {/* 진행 단계 — 종합의견을 작성하면 '종합의견 작성' 단계가 표시된다 */}
+          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white px-5 py-3">
+            <ReviewStepper steps={buildChairSteps(data, opinion)} />
+          </div>
+
           {/* 위원별 평가 — 본문은 '자세히 보기' 모달로 본다(표가 길어지지 않도록) */}
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
             <table className="table-grid w-full text-sm">
@@ -248,31 +294,80 @@ export default function ChairSubjectClient({
               aria-label="위원장 종합의견"
               value={opinion}
               onChange={(e) => { setOpinion(e.target.value); setStatus('idle') }}
-              disabled={data.locked}
+              disabled={!chairEditable}
               rows={8}
               placeholder="여러 위원의 평가를 종합한 위원장 종합의견을 작성하세요."
               className="w-full resize-y rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-50"
             />
-            {data.locked ? (
-              <p className="mt-3 text-xs text-slate-400">
-                {data.lockReason === 'opinionReviewed'
-                  ? '평가의견서가 제출/승인되었습니다. 수정할 수 없습니다.'
-                  : '마감된 분과입니다. 수정할 수 없습니다.'}
-              </p>
-            ) : (
-              <div className="mt-3 flex items-center justify-end gap-3">
-                {status === 'saved' && <span className="text-xs text-emerald-600">저장되었습니다.</span>}
-                {status === 'error' && <span className="text-xs text-rose-600">{errorMsg}</span>}
-                <button
-                  type="button"
-                  onClick={onSave}
-                  disabled={pending}
-                  className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {pending ? '저장 중…' : '종합의견 저장'}
-                </button>
+            <div className="mt-3 flex flex-wrap items-center justify-end gap-3">
+              {!chairEditable && (
+                <span className="mr-auto text-xs text-slate-400">
+                  {chairSubmitted
+                    ? '제출되었습니다. 관리자만 재오픈할 수 있습니다.'
+                    : data.lockReason === 'opinionReviewed'
+                      ? '평가의견서가 제출/승인되었습니다. 수정할 수 없습니다.'
+                      : '마감된 분과입니다. 수정할 수 없습니다.'}
+                </span>
+              )}
+              {chairEditable && status === 'saved' && <span className="text-xs text-emerald-600">저장되었습니다.</span>}
+              {chairEditable && status === 'error' && <span className="text-xs text-rose-600">{errorMsg}</span>}
+              {chairEditable && !chairScored && (
+                <span className="text-xs text-slate-400">평가표에서 모든 항목을 입력해야 제출할 수 있습니다.</span>
+              )}
+              <button
+                type="button"
+                onClick={onSave}
+                disabled={!chairEditable || pending}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                {pending ? '저장 중…' : '종합의견 저장'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setSubmitSig(null); setSubmitErr(''); setSubmitOpen(true); }}
+                disabled={!chairEditable || pending || !opinion.trim() || !chairScored}
+                className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-40"
+                title={!opinion.trim() ? '종합의견을 작성하세요' : !chairScored ? '평가표에서 모든 항목을 입력하세요' : undefined}
+              >
+                {chairSubmitted ? '제출됨' : '제출 →'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 제출 확인 모달 — 서명 필수 */}
+      {submitOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" onClick={() => setSubmitOpen(false)}>
+          <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="text-xs text-slate-400">제출 확인 · 제출 후에는 관리자만 재오픈할 수 있습니다</div>
+            <h3 className="mt-1 text-lg font-bold text-slate-900">{data?.subjectName} 종합의견을 제출할까요?</h3>
+            <p className="mt-2 text-sm text-slate-500">본인 평가 점수와 종합의견이 함께 제출됩니다.</p>
+            <div className="mt-4">
+              <div className="mb-1.5 text-sm font-medium text-slate-700">
+                제출 서명 <span className="text-xs font-normal text-slate-400">— 평가표의 (인) 자리에 들어갑니다</span>
               </div>
-            )}
+              <SignaturePad onChange={setSubmitSig} width={352} height={110} />
+            </div>
+            {submitErr && <p className="mt-2 text-xs text-rose-600">{submitErr}</p>}
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setSubmitOpen(false)}
+                disabled={pending}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={onSubmit}
+                disabled={pending || !submitSig}
+                className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {pending ? '제출 중…' : '제출'}
+              </button>
+            </div>
           </div>
         </div>
       )}

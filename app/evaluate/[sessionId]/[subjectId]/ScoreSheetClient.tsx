@@ -111,6 +111,8 @@ export default function ScoreSheetClient({
       subjectId={cur}
       subjectName={data.subjectName}
       sessionName={data.sessionName}
+      projectName={data.projectName}
+      reviewFlags={data.reviewFlags}
       evaluatorName={data.evaluatorName}
       isChair={data.isChair}
       eventDate={data.eventDate}

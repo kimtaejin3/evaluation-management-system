@@ -2,6 +2,8 @@
 
 import { Fragment, useActionState, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import ReviewStepper, { stepsFromFlags } from "@/components/ReviewStepper";
+import { REVIEW_STAGE_LABELS, CHAIR_REVIEW_STAGE_LABELS, chairReviewFlags } from "@/lib/submission";
 import {
   saveScores,
   autoSaveScore,
@@ -34,6 +36,8 @@ export default function ScoreForm({
   subjectId,
   subjectName,
   sessionName,
+  projectName,
+  reviewFlags,
   evaluatorName,
   isChair = false,
   eventDate,
@@ -50,6 +54,8 @@ export default function ScoreForm({
   subjectId: string;
   subjectName: string;
   sessionName: string;
+  projectName: string | null;
+  reviewFlags: boolean[];
   evaluatorName: string;
   isChair?: boolean;
   eventDate: string | null;
@@ -180,12 +186,25 @@ export default function ScoreForm({
   const locked = !canEvaluatorEdit(submissionStatus);
   // 제출 완료 여부 — 위원장의 '위원별 평가 · 종합의견' 진입 조건(반려는 재작성 중이라 제외)
   const submitted = submissionStatus === "SUBMITTED" || submissionStatus === "APPROVED";
+  const rejected = submissionStatus === "REJECTED";
+  // 위원장은 종합의견을 작성해야 제출 가능(항목표에서 종합의견 전 미리 제출하는 것 방지)
+  const chairOpinionWritten = initialComment.trim().length > 0;
   const total = criteria.reduce((s, c) => s + (contrib(c) ?? 0), 0);
   const maxTotal = criteria.reduce((s, c) => s + c.maxScore * c.weight, 0);
   const filledCount = criteria.filter((c) => isFilled(c)).length;
   const allFilled = filledCount === criteria.length && criteria.length > 0;
   const allInRange = criteria.every((c) => isInRange(c));
-  const canSubmit = allFilled && allInRange;
+  // 위원장은 전 항목 입력 + 종합의견 작성까지 돼야 제출 가능
+  const canSubmit = allFilled && allInRange && (!isChair || chairOpinionWritten);
+  // 상단 진행 스텝 — 위원장은 전용 5단계(평가의견→종합의견→제출→간사→관리자), 일반 위원은 위원장 검토 독립 판정
+  const evalSteps = stepsFromFlags(REVIEW_STAGE_LABELS, reviewFlags);
+  if (rejected) evalSteps[0] = { ...evalSteps[0], state: "rejected" };
+  const reviewSteps = isChair
+    ? stepsFromFlags(
+        CHAIR_REVIEW_STAGE_LABELS,
+        chairReviewFlags({ status: submissionStatus, scored: allFilled, opinionWritten: chairOpinionWritten, sessionClosed: false }),
+      )
+    : evalSteps;
 
   // 평가항목(group) → 세부항목(subitem) → 평가지표(criterion). criteria는 이미 group.order→subitem.order→criterion.order로 정렬되어 옴.
   type Grp = {
@@ -263,7 +282,10 @@ export default function ScoreForm({
           >
             ← 목록
           </Link>
-          <span className="text-slate-500">{sessionName}</span>
+          <span className="text-slate-500">
+            {projectName && <span className="text-slate-400">{projectName} · </span>}
+            {sessionName}
+          </span>
         </div>
         <span className="flex items-center gap-1.5 text-xs">
           <span
@@ -279,13 +301,17 @@ export default function ScoreForm({
         </span>
       </div>
 
-      {submissionStatus === "REJECTED" && (
-        <div className="mx-auto mt-3 max-w-[1600px] px-6">
-          <p className="rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-inset ring-rose-200">
+      {/* 진행 단계 스텝퍼 — 작성 → 제출 → 위원장 → 간사 → 관리자(최종) */}
+      <div className="mx-auto mt-3 max-w-[1600px] px-6">
+        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white px-5 py-3">
+          <ReviewStepper steps={reviewSteps} />
+        </div>
+        {submissionStatus === "REJECTED" && (
+          <p className="mt-2 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-inset ring-rose-200">
             반려됨 · 점수·의견을 수정한 뒤 다시 제출하세요.
           </p>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* 작업 영역 — 좌:자료 / 우:평가표. 점수·제출은 아래 액션 바로 내려 평가표가 남은 폭을 모두 쓴다 */}
       <div className="mx-auto max-w-[1600px] px-6 py-4">
@@ -301,10 +327,10 @@ export default function ScoreForm({
               <h2 className="text-sm font-semibold text-slate-700">
                 평가표 · {evaluatorName} 위원
               </h2>
-              <span className="text-sm">
-                합계{" "}
-                <b className="text-indigo-700 tabular-nums">{fmt(total)}</b>{" "}
-                <span className="text-slate-400">/ {fmt(maxTotal)}</span>
+              <span className="flex items-baseline gap-1.5">
+                <span className="text-sm font-medium text-slate-500">합계</span>
+                <b className="text-2xl text-indigo-700 tabular-nums">{fmt(total)}</b>
+                <span className="text-base text-slate-400">/ {fmt(maxTotal)}</span>
               </span>
             </div>
             <table className="w-full text-sm">
@@ -499,16 +525,7 @@ export default function ScoreForm({
               임시 저장되었습니다.
             </p>
           )}
-          {submissionStatus === "SUBMITTED" && (
-            <p className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-700 ring-1 ring-inset ring-amber-200">
-              제출됨 · 승인 대기
-            </p>
-          )}
-          {submissionStatus === "APPROVED" && (
-            <p className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700 ring-1 ring-inset ring-emerald-200">
-              승인 완료
-            </p>
-          )}
+          {/* 제출됨/승인 상태는 상단 진행 스텝퍼로 표시(하단 배너 제거) */}
 
           <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-5 py-4">
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -524,10 +541,14 @@ export default function ScoreForm({
 
             {!locked && (
               <div className="flex flex-wrap items-center justify-end gap-3">
-                {!allInRange ? (
-                  <p className="text-xs text-rose-500">배점을 초과하거나 0 미만인 항목이 있습니다.</p>
-                ) : (
-                  !allFilled && <p className="text-xs text-slate-400">모든 항목 입력 시 제출할 수 있습니다.</p>
+                {!isChair &&
+                  (!allInRange ? (
+                    <p className="text-xs text-rose-500">배점을 초과하거나 0 미만인 항목이 있습니다.</p>
+                  ) : !allFilled ? (
+                    <p className="text-xs text-slate-400">모든 항목 입력 시 제출할 수 있습니다.</p>
+                  ) : null)}
+                {isChair && (
+                  <p className="text-xs text-slate-400">제출은 ‘위원별 평가 · 종합의견’ 화면에서 종합의견 작성 후 진행합니다.</p>
                 )}
                 <button
                   name="intent"
@@ -537,38 +558,32 @@ export default function ScoreForm({
                 >
                   임시 저장
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSignature(null); // 제출할 때마다 새로 서명
-                    setConfirm(true);
-                  }}
-                  disabled={!canSubmit || isPending}
-                  className="rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-40"
-                >
-                  {submissionStatus === "REJECTED" ? "재제출 확인 →" : "제출 전 확인 →"}
-                </button>
+                {!isChair && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSignature(null); // 제출할 때마다 새로 서명
+                      setConfirm(true);
+                    }}
+                    disabled={!canSubmit || isPending}
+                    className="rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-40"
+                  >
+                    {submissionStatus === "REJECTED" ? "재제출 확인 →" : "제출 전 확인 →"}
+                  </button>
+                )}
               </div>
             )}
 
-            {/* 위원장 전용 — 본인 평가를 제출한 뒤에 위원별 평가를 보고 종합의견을 쓴다.
-                제출 전에는 다른 위원의 평가를 볼 수 없도록 비활성. */}
-            {isChair &&
-              (submitted ? (
-                <Link
-                  href={`/evaluate/${sessionId}/chair/${subjectId}`}
-                  className="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700"
-                >
-                  위원별 평가 · 종합의견 →
-                </Link>
-              ) : (
-                <span
-                  title="본인 평가를 제출하면 열립니다"
-                  className="cursor-not-allowed rounded-lg border border-slate-200 bg-slate-50 px-5 py-2.5 text-sm font-semibold text-slate-300"
-                >
-                  위원별 평가 · 종합의견 →
-                </span>
-              ))}
+            {/* 위원장 전용 — 위원별 평가를 보고 종합의견을 쓴 뒤 제출한다.
+                (종합의견 작성 전에도 열어 위원별 평가를 확인·작성할 수 있게 항상 활성) */}
+            {isChair && (
+              <Link
+                href={`/evaluate/${sessionId}/chair/${subjectId}`}
+                className="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700"
+              >
+                위원별 평가 · 종합의견 →
+              </Link>
+            )}
           </div>
         </div>
       </div>
