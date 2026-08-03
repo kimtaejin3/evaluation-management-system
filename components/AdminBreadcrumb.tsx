@@ -5,8 +5,8 @@ import { SESSION_TAB_LABEL } from "@/lib/session-nav";
 
 type Sess = { id: string; name: string; projectName?: string | null };
 
-// 헤더 UI 바로 아래에 표시되는 현재 위치(PWD) 경로 — 어느 과제 / 어느 분과 / 무슨 화면.
-// 관리자(MASTER) 전용: 간사에게는 렌더하지 않는다. 분과 상세 경로에서만 표시.
+// 헤더 UI 바로 아래에 표시되는 현재 위치(PWD) 경로 — 어느 사업 / 어느 분과 / 무슨 화면.
+// 관리자(MASTER) 전용: 담당자에게는 렌더하지 않는다. 분과 상세 경로에서만 표시.
 export default function AdminBreadcrumb({
   sessions = [],
   role = "SECRETARY",

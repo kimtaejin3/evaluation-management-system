@@ -29,7 +29,7 @@ export default async function AdminLayout({
         project: { select: { name: true } },
       },
     }),
-    // 마스터=전체 과제, 간사=참여중인 과제(project.secretaries) — 사이드바에 과제가 뜨는 기준
+    // 마스터=전체 사업, 담당자=참여중인 사업(project.secretaries) — 사이드바에 사업이 뜨는 기준
     prisma.project.findMany({
       where: isMaster ? {} : { secretaries: { some: { id: user.id } } },
       orderBy: { createdAt: "desc" },
@@ -56,7 +56,7 @@ export default async function AdminLayout({
     status: deriveProjectStatus(p.sessions.map((s) => s.status)),
     sessions: p.sessions.map((s) => ({ id: s.id, name: s.name, status: s.status })),
   }));
-  // 헤더 타이틀용 과제 목록 — 마스터는 전체, 간사는 참여중인 과제
+  // 헤더 타이틀용 사업 목록 — 마스터는 전체, 담당자는 참여중인 사업
   const headerProjects = projectItems.map((p) => ({ id: p.id, name: p.name, status: p.status }));
   return (
     <div className="flex min-h-screen bg-slate-100 text-slate-900">
@@ -70,7 +70,7 @@ export default async function AdminLayout({
               <span className="font-medium text-slate-700">
                 {user.name}
               </span>{" "}
-              님 · {isMaster ? "마스터" : "간사"}
+              님 · {isMaster ? "마스터" : "담당자"}
             </span>
             <form action={logout}>
               <button className="rounded-md border border-slate-300 px-3 py-1.5 text-slate-600 transition hover:bg-slate-50">
@@ -81,11 +81,11 @@ export default async function AdminLayout({
         </header>
         {/* 헤더 바로 아래 현재 위치(PWD) 경로 — 관리자 전용, 분과 상세에서만 */}
         <AdminBreadcrumb sessions={sessionItems} role={user.role as "MASTER" | "SECRETARY"} />
-        {/* 브레드크럼 바로 아래, 같은 좌측 라인에 '돌아가기'(분과 상세, 관리자·간사 공통) */}
+        {/* 브레드크럼 바로 아래, 같은 좌측 라인에 '돌아가기'(분과 상세, 관리자·담당자 공통) */}
         <SessionBackBar sessions={sessionItems} />
-        {/* 과제 하위 페이지의 이전/다음 탭 이동 — 콘텐츠 밖 우상단 */}
+        {/* 사업 하위 페이지의 이전/다음 탭 이동 — 콘텐츠 밖 우상단 */}
         <ProjectTabNav />
-        {/* 본문 최대 폭은 페이지별로 결정 — 대부분 max-w-7xl, 분과 간사 설정은 풀 너비 */}
+        {/* 본문 최대 폭은 페이지별로 결정 — 대부분 max-w-7xl, 사업 담당자 설정은 풀 너비 */}
         <main className="w-full flex-1 px-6 py-6">
           <AdminContentWidth>{children}</AdminContentWidth>
         </main>

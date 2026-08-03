@@ -38,7 +38,7 @@ function StatusText({ status }: { status: SubjectRow["status"] }) {
   return <span className={`text-xs whitespace-nowrap ${s.cls}`}>{s.label}</span>;
 }
 
-// 간사의 평가 대상 목록 — 테이블 UI + 수정/서류 모달. 편집은 canEdit(작성/반려)일 때만.
+// 담당자의 평가 대상 목록 — 테이블 UI + 수정/서류 모달. 편집은 canEdit(작성/반려)일 때만.
 export default function SubjectsTable({
   sessionId,
   subjects,

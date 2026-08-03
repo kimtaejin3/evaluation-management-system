@@ -4,8 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { PROJECT_TABS } from "@/lib/project-nav";
 
-// 과제 하위 페이지(분과 간사 설정 · 평가 실시간 모니터링 · 평가항목 …)의 이전/다음 탭 이동.
-// 좌상단 '← 분과 간사 설정'(콘텐츠 내부)에 더해, 콘텐츠 바깥(레이아웃 레벨) 우상단에 배치한다.
+// 사업 하위 페이지(사업 담당자 설정 · 평가 실시간 모니터링 · 평가항목 …)의 이전/다음 탭 이동.
+// 좌상단 '← 사업 담당자 설정'(콘텐츠 내부)에 더해, 콘텐츠 바깥(레이아웃 레벨) 우상단에 배치한다.
 export default function ProjectTabNav() {
   const pathname = usePathname();
   const m = pathname.match(/^\/admin\/projects\/([^/]+)(\/[^/]+)?$/);

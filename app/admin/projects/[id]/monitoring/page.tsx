@@ -13,7 +13,7 @@ import { SkeletonTable } from "@/components/Skeletons";
 
 export const dynamic = "force-dynamic";
 
-// 과제 실시간 모니터링 — 분과별 채점 진행 현황을 테이블 뷰로 한눈에.
+// 사업 실시간 모니터링 — 분과별 채점 진행 현황을 테이블 뷰로 한눈에.
 // 분과명을 클릭하면 해당 분과의 상세 모니터링(위원×대상 그리드)으로 이동한다.
 export default async function ProjectMonitoringPage({
   params,
@@ -104,7 +104,7 @@ async function Content({
                 <SortableTh label="분과명" field="name" sort={sort} dir={dir} basePath={`/admin/projects/${id}/monitoring`} />
                 <th className="px-5 py-3 font-medium">평가 상태</th>
                 <SortableTh label="평가 기간" field="period" sort={sort} dir={dir} basePath={`/admin/projects/${id}/monitoring`} />
-                <th className="px-5 py-3 font-medium">담당 간사</th>
+                <th className="px-5 py-3 font-medium">담당자</th>
                 <th className="px-5 py-3 font-medium">평가 대상 수</th>
                 <th className="px-5 py-3 font-medium">평가위원 수</th>
                 <th className="px-5 py-3 font-medium">완료 위원</th>

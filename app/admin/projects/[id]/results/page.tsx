@@ -13,7 +13,7 @@ import { SkeletonTable } from "@/components/Skeletons";
 
 export const dynamic = "force-dynamic";
 
-// 과제 집계 결과 — ① 전체 1위(전 분과 통합) ② 분과별 평가 대상 점수(기업명/점수/평가의견)
+// 사업 집계 결과 — ① 전체 1위(전 분과 통합) ② 분과별 평가 대상 점수(기업명/점수/평가의견)
 // ③ 분과별 집계·검토 현황. 점수는 승인(APPROVED)된 (위원×대상) 제출만 집계한다.
 export default async function ProjectResultsPage({
   params,
@@ -282,8 +282,8 @@ async function Content({ id }: { id: string }) {
             <thead className="text-left text-slate-500">
               <tr className="border-b border-slate-100 bg-slate-50/60">
                 <th className="px-5 py-3 font-medium">분과명</th>
-                <th className="px-5 py-3 font-medium">담당 간사</th>
-                <th className="px-5 py-3 font-medium">간사 제출</th>
+                <th className="px-5 py-3 font-medium">담당자</th>
+                <th className="px-5 py-3 font-medium">담당자 제출</th>
                 <th className="px-5 py-3 font-medium">검토 상태</th>
                 <th className="px-5 py-3 font-medium">자세히 보기</th>
               </tr>
@@ -302,7 +302,7 @@ async function Content({ id }: { id: string }) {
                       {s.secretary?.name ?? <span className="text-xs text-rose-600">미배정</span>}
                     </td>
                     <td className="px-5 py-3">
-                      {/* 간사 제출 — 텍스트만(제출=검정, 미제출=빨강), 다른 테이블과 통일 */}
+                      {/* 담당자 제출 — 텍스트만(제출=검정, 미제출=빨강), 다른 테이블과 통일 */}
                       {submitted ? (
                         <span className="text-xs whitespace-nowrap text-slate-900">제출</span>
                       ) : (

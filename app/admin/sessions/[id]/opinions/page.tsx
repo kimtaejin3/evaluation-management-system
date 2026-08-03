@@ -39,7 +39,7 @@ export default async function OpinionsPage({
 async function OpinionsContent({ id }: { id: string }) {
   const me = await requireAdminUser();
   const isMaster = me.role === "MASTER";
-  // 평가항목은 과제(Project) 단위 공통 — 채점 단위(지표별/통합) 기준으로 점수 계산
+  // 평가항목은 사업(Project) 단위 공통 — 채점 단위(지표별/통합) 기준으로 점수 계산
   const criteriaWhere = await criteriaScopeForSession(id);
   const [session, assignments, subjects, opinions, units, scores, groupComments] = await Promise.all([
     prisma.evaluationSession.findUnique({ where: { id } }),
@@ -112,7 +112,7 @@ async function OpinionsContent({ id }: { id: string }) {
 
   const locked = session?.status === "CLOSED";
   const os = (session?.opinionStatus ?? "DRAFT") as ReviewStatus;
-  // 간사 제출(SUBMITTED) 이후에만 관리자가 의견서를 볼 수 있다.
+  // 담당자 제출(SUBMITTED) 이후에만 관리자가 의견서를 볼 수 있다.
   const adminCanView = os === "SUBMITTED" || os === "APPROVED";
   const adminBlocked = isMaster && !locked && !adminCanView;
 
@@ -123,8 +123,8 @@ async function OpinionsContent({ id }: { id: string }) {
         <ExcelExportButton href={`/api/sessions/${id}/export/opinions`} />
       </div>
 
-      {/* 간사 검토 상태 배너 — 간사: 검토 완료/취소, 관리자: 승인/반려. 의견서는 위원이 작성하고
-          간사는 내용을 '검토'만 하므로 제출 대신 검토 표현을 쓴다(wording="review"). */}
+      {/* 담당자 검토 상태 배너 — 담당자: 검토 완료/취소, 관리자: 승인/반려. 의견서는 위원이 작성하고
+          담당자는 내용을 '검토'만 하므로 제출 대신 검토 표현을 쓴다(wording="review"). */}
       {!locked && (
         <ReviewWorkflowPanel
           sessionId={id}

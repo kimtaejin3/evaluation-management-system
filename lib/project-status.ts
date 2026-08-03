@@ -1,4 +1,4 @@
-// 과제 상태는 소속 분과(EvaluationSession) 상태에서 파생(별도 필드 없음).
+// 사업 상태는 소속 분과(EvaluationSession) 상태에서 파생(별도 필드 없음).
 export type DerivedProjectStatus = 'DRAFT' | 'IN_PROGRESS' | 'CLOSED'
 
 export const PROJECT_STATUS_LABEL: Record<DerivedProjectStatus, string> = {
@@ -8,7 +8,7 @@ export const PROJECT_STATUS_LABEL: Record<DerivedProjectStatus, string> = {
 }
 
 /**
- * 분과 상태 목록 → 과제 상태.
+ * 분과 상태 목록 → 사업 상태.
  * - 하나라도 진행중이면 진행중
  * - 분과가 있고 전부 마감이면 마감
  * - 그 외(분과 없음/초안 섞임)는 준비중

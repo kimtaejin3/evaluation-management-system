@@ -15,7 +15,7 @@ export interface ProjectSubjectRow {
   subjects: { id: string; name: string }[]
   // `${evaluatorId}:${subjectId}` → 총점(전 항목 입력 시에만 산출, 아니면 null)
   totals: Record<string, number | null>
-  // 간사가 평가위원 배정을 제출하기 전 — 관리자에게 위원 명단(점수 매트릭스)을 숨긴다
+  // 담당자가 평가위원 배정을 제출하기 전 — 관리자에게 위원 명단(점수 매트릭스)을 숨긴다
   evaluatorsHidden?: boolean
 }
 
@@ -47,7 +47,7 @@ function ScoresModal({ row, onClose }: { row: ProjectSubjectRow; onClose: () => 
 
         {row.evaluatorsHidden ? (
           <p className="py-6 text-center text-sm text-slate-400">
-            간사가 평가위원 배정을 제출하기 전에는 점수가 표시되지 않습니다.
+            담당자가 평가위원 배정을 제출하기 전에는 점수가 표시되지 않습니다.
           </p>
         ) : row.subjects.length === 0 || row.evaluators.length === 0 ? (
           <p className="py-6 text-center text-sm text-slate-400">
@@ -87,7 +87,7 @@ function ScoresModal({ row, onClose }: { row: ProjectSubjectRow; onClose: () => 
   )
 }
 
-// 과제 평가대상 — 분과 단위 행. 분과명 클릭 → 분과 평가 대상 페이지(기업 자료 제출 조회),
+// 사업 평가대상 — 분과 단위 행. 분과명 클릭 → 분과 평가 대상 페이지(기업 자료 제출 조회),
 // '점수 보기' → 대상×위원 점수 매트릭스 모달, '자세히 보기' → 분과 상세의 평가 대상 페이지.
 export default function ProjectSubjectsTable({
   rows,
@@ -108,8 +108,8 @@ export default function ProjectSubjectsTable({
           <thead className="text-left text-slate-500">
             <tr className="border-b border-slate-100 bg-slate-50/60">
               <th className="px-5 py-3 font-medium">분과명</th>
-              <th className="px-5 py-3 font-medium">담당 간사</th>
-              <th className="px-5 py-3 font-medium">간사 제출</th>
+              <th className="px-5 py-3 font-medium">담당자</th>
+              <th className="px-5 py-3 font-medium">담당자 제출</th>
               <th className="px-5 py-3 font-medium">평가 대상 수</th>
               <th className="px-5 py-3 font-medium">점수</th>
               <th className="px-5 py-3 font-medium">자세히 보기</th>

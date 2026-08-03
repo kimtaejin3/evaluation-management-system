@@ -11,8 +11,8 @@ import {
 
 export type EvaluatorStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED'
 
-// 평가위원 배정 검토 워크플로 배너 — 간사: 제출/제출취소, 관리자: 승인/반려(사유).
-// 간사가 제출(SUBMITTED)해야 관리자가 배정을 보고 검토할 수 있다.
+// 평가위원 배정 검토 워크플로 배너 — 담당자: 제출/제출취소, 관리자: 승인/반려(사유).
+// 담당자가 제출(SUBMITTED)해야 관리자가 배정을 보고 검토할 수 있다.
 export default function EvaluatorReviewPanel({
   sessionId,
   isMaster,
@@ -39,10 +39,10 @@ export default function EvaluatorReviewPanel({
 
   const message = (() => {
     if (isMaster) {
-      if (status === 'DRAFT') return '간사가 평가위원을 배정 중입니다. 제출 후 검토할 수 있습니다.'
-      if (status === 'REJECTED') return '반려됨 · 간사가 재배정 중입니다. 다시 제출하면 검토할 수 있습니다.'
-      if (status === 'SUBMITTED') return '간사가 제출한 배정 위원입니다. 검토 후 승인 또는 반려하세요.'
-      return '승인 완료 — 필요 시 다시 반려하면 간사가 재배정합니다.'
+      if (status === 'DRAFT') return '담당자가 평가위원을 배정 중입니다. 제출 후 검토할 수 있습니다.'
+      if (status === 'REJECTED') return '반려됨 · 담당자가 재배정 중입니다. 다시 제출하면 검토할 수 있습니다.'
+      if (status === 'SUBMITTED') return '담당자가 제출한 배정 위원입니다. 검토 후 승인 또는 반려하세요.'
+      return '승인 완료 — 필요 시 다시 반려하면 담당자가 재배정합니다.'
     }
     if (status === 'DRAFT') return '평가위원을 배정한 뒤 제출하면 관리자가 검토합니다.'
     if (status === 'REJECTED') return '관리자가 배정을 반려했습니다. 위원을 조정한 뒤 다시 제출하세요.'
@@ -61,7 +61,7 @@ export default function EvaluatorReviewPanel({
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
-        {/* 간사 액션 */}
+        {/* 담당자 액션 */}
         {!isMaster && (status === 'DRAFT' || status === 'REJECTED') && (
           <button
             type="button"
@@ -167,7 +167,7 @@ function RejectButton({
               <h3 className="text-base font-semibold text-slate-900">평가위원 배정 반려</h3>
               <button type="button" onClick={() => setOpen(false)} className="text-slate-400 transition hover:text-slate-600">✕</button>
             </div>
-            <p className="mt-2 text-xs text-slate-400">반려하면 담당 간사에게 사유가 표시되며, 간사가 위원을 조정한 뒤 다시 제출합니다.</p>
+            <p className="mt-2 text-xs text-slate-400">반려하면 담당자에게 사유가 표시되며, 담당자가 위원을 조정한 뒤 다시 제출합니다.</p>
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}

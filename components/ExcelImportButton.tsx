@@ -9,7 +9,7 @@ type Kind = 'criteria' | 'evaluators' | 'subjects'
 const TITLE: Record<Kind, string> = { criteria: '평가항목', evaluators: '평가위원', subjects: '평가 대상' }
 
 // 엑셀·한글 가져오기 트리거 — 버튼 + 모달(대화형 매핑 폼). 노출 게이팅은 호출부에서.
-// scopeId: criteria = 과제(projectId, 관리자 전용), evaluators/subjects = 분과(sessionId, 담당 간사)
+// scopeId: criteria = 사업(projectId, 관리자 전용), evaluators/subjects = 분과(sessionId, 담당자)
 export default function ExcelImportButton({ scopeId, kind }: { scopeId: string; kind: Kind }) {
   const [open, setOpen] = useState(false)
 

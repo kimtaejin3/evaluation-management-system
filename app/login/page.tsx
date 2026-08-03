@@ -56,7 +56,7 @@ async function getDemoAccounts(): Promise<DemoAccount[]> {
 
   return [
     { role: '관리자', username: 'admin', password: 'admin1234' },
-    { role: '간사', username: 'gansa', password: 'gansa1234' },
+    { role: '담당자', username: 'gansa', password: 'gansa1234' },
     entry('평가위원', evaluator, '배정된 위원 없음'),
     entry('평가위원장', chair, '지정된 위원장 없음'),
   ]

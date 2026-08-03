@@ -21,9 +21,9 @@ export async function createSession(formData: FormData) {
   const name = String(formData.get('name') ?? '').trim()
   const projectId = String(formData.get('projectId') ?? '').trim()
   if (!name || !projectId) return
-  // 과제 접근 권한 검증(간사는 배정된 과제만)
+  // 사업 접근 권한 검증(담당자는 배정된 사업만)
   await assertProjectAccess(projectId)
-  // 분과 평가 기간(시작일/종료일) — 소속 과제 기간 안에 있어야 한다.
+  // 분과 평가 기간(시작일/종료일) — 소속 사업 기간 안에 있어야 한다.
   const startRaw = String(formData.get('startDate') ?? '').trim()
   const endRaw = String(formData.get('endDate') ?? '').trim()
   if (!startRaw || !endRaw) return
@@ -42,11 +42,11 @@ export async function createSession(formData: FormData) {
       // eventDate는 마감 판정·평가화면 안내용 — 종료일과 동기화 유지
       eventDate: endDate,
       projectId,
-      // 간사가 만들면 본인이 담당, 마스터가 만들면 폼의 secretaryId(선택)
+      // 담당자가 만들면 본인이 담당, 마스터가 만들면 폼의 secretaryId(선택)
       secretaryId: user.role === 'SECRETARY' ? user.id : (String(formData.get('secretaryId') ?? '') || null),
     },
   })
-  // 사이드바(간사 분과 트리·과제 화면)까지 즉시 반영
+  // 사이드바(담당자 분과 트리·사업 화면)까지 즉시 반영
   revalidatePath('/admin', 'layout')
   redirect(`/admin/sessions/${session.id}`)
 }
@@ -65,9 +65,9 @@ export async function deleteSession(sessionId: string) {
   await prisma.opinion.deleteMany({ where: { sessionId } })
   await prisma.editingPresence.deleteMany({ where: { sessionId } })
   await prisma.evaluationSession.delete({ where: { id: sessionId } })
-  // 사이드바(admin 레이아웃)의 분과·과제 목록까지 갱신
+  // 사이드바(admin 레이아웃)의 분과·사업 목록까지 갱신
   revalidatePath('/admin', 'layout')
-  // 삭제된 분과 페이지에 머물면 404가 되므로 소속 과제(또는 분과 목록)로 이동
+  // 삭제된 분과 페이지에 머물면 404가 되므로 소속 사업(또는 분과 목록)로 이동
   redirect(session?.projectId ? `/admin/projects/${session.projectId}` : '/admin/sessions')
 }
 
@@ -83,9 +83,9 @@ export async function setSessionStatus(sessionId: string, status: 'DRAFT' | 'IN_
   revalidatePath(`/admin/sessions/${sessionId}`)
 }
 
-// ── 평가항목(그룹) — 과제(Project) 단위, 관리자(MASTER) 전용 편집 ──
-// 평가항목은 과제의 모든 분과가 공유하므로 관리자가 과제당 1벌을 작성하고, 각 분과 간사는 '확인'만 한다.
-// 평가항목 변경은 과제 페이지 + 소속 분과들의 확인/채점 화면에 두루 영향 → 레이아웃 단위로 갱신.
+// ── 평가항목(그룹) — 사업(Project) 단위, 관리자(MASTER) 전용 편집 ──
+// 평가항목은 사업의 모든 분과가 공유하므로 관리자가 사업당 1벌을 작성하고, 각 분과 담당자는 '확인'만 한다.
+// 평가항목 변경은 사업 페이지 + 소속 분과들의 확인/채점 화면에 두루 영향 → 레이아웃 단위로 갱신.
 function revalidateCriteria(projectId: string) {
   revalidatePath('/admin', 'layout')
   revalidatePath(`/admin/projects/${projectId}/criteria`)
@@ -102,7 +102,7 @@ export async function addGroup(projectId: string, formData: FormData) {
   revalidateCriteria(projectId)
 }
 
-// 과제 기준 만점 수정(집계 환산 분모). 평가항목 배점 합계가 이 값과 일치해야 함.
+// 사업 기준 만점 수정(집계 환산 분모). 평가항목 배점 합계가 이 값과 일치해야 함.
 // 분과 집계는 session.maxScore를 쓰므로 소속 분과들에도 동기화한다.
 export async function updateProjectMaxScore(projectId: string, maxScore: number) {
   const { user } = await assertProjectAccess(projectId)
@@ -256,8 +256,8 @@ export async function deleteCriterion(criterionId: string) {
   revalidateCriteria(c.projectId)
 }
 
-// ── 평가항목 확인: 관리자가 작성한 과제 공통 항목을 담당 간사가 '확인' ──
-// 관리자는 과제 평가항목 페이지에서 분과별 확인 여부(간사·시각)를 본다.
+// ── 평가항목 확인: 관리자가 작성한 사업 공통 항목을 담당자가 '확인' ──
+// 관리자는 사업 평가항목 페이지에서 분과별 확인 여부(담당자·시각)를 본다.
 export async function ackCriteria(sessionId: string) {
   const { user, session } = await assertSessionAccess(sessionId)
   if (user.role === 'MASTER') return
@@ -303,7 +303,7 @@ export async function parseSheetUpload(formData: FormData): Promise<{ grid: stri
 }
 
 export async function commitKpassImport(projectId: string, payload: KpassImportPayload): Promise<KpassImportResult> {
-  // 평가항목은 과제 단위 — 관리자만 가져올 수 있다.
+  // 평가항목은 사업 단위 — 관리자만 가져올 수 있다.
   const { user } = await assertProjectAccess(projectId)
   if (user.role !== 'MASTER') return { ok: false, error: '가져오기는 관리자만 가능합니다.' }
   const grid = payload.grid ?? []
@@ -320,11 +320,11 @@ export async function commitKpassImport(projectId: string, payload: KpassImportP
     return { ok: false, error: warnings[0] ?? '가져올 항목이 없습니다.', warnings }
   }
 
-  // 이 과제 항목으로 점수가 이미 입력됐다면 기존 항목 대체 금지(데이터 보호)
+  // 이 사업 항목으로 점수가 이미 입력됐다면 기존 항목 대체 금지(데이터 보호)
   if (payload.replaceCriteria) {
     const scoreCount = await prisma.score.count({ where: { criterion: { projectId } } })
     if (scoreCount > 0) {
-      return { ok: false, error: '이미 채점이 시작된 과제라 기존 평가항목을 대체할 수 없습니다. "기존 항목 대체"를 해제하고 추가하세요.' }
+      return { ok: false, error: '이미 채점이 시작된 사업라 기존 평가항목을 대체할 수 없습니다. "기존 항목 대체"를 해제하고 추가하세요.' }
     }
   }
 
@@ -437,7 +437,7 @@ export async function commitEvaluatorImport(
   payload: EvaluatorImportPayload,
 ): Promise<EvaluatorImportResult> {
   const { user } = await assertSessionAccess(sessionId)
-  if (user.role === 'MASTER') return { ok: false, error: '가져오기는 담당 간사만 가능합니다.' }
+  if (user.role === 'MASTER') return { ok: false, error: '가져오기는 담당자만 가능합니다.' }
   // 제출 완료(SUBMITTED)/승인(APPROVED) 상태에서는 배정을 변경할 수 없다.
   const es = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { evaluatorStatus: true } })
   if (!es || (es.evaluatorStatus !== 'DRAFT' && es.evaluatorStatus !== 'REJECTED'))
@@ -517,7 +517,7 @@ export async function commitSubjectImport(
   payload: SubjectImportPayload,
 ): Promise<SubjectImportResult> {
   const { user } = await assertSessionAccess(sessionId)
-  if (user.role === 'MASTER') return { ok: false, error: '가져오기는 담당 간사만 가능합니다.' }
+  if (user.role === 'MASTER') return { ok: false, error: '가져오기는 담당자만 가능합니다.' }
   if (!(await subjectsEditable(sessionId)))
     return { ok: false, error: '제출 완료 상태에서는 가져올 수 없습니다. 제출을 취소한 뒤 다시 시도하세요.' }
   const grid = payload.grid ?? []
@@ -558,8 +558,8 @@ export async function commitSubjectImport(
   return { ok: true, created, skipped, warnings }
 }
 
-// 심사에 평가 대상(기업) 편입 — 신규 기업 정보(newName)를 직접 입력해 등록. 간사 전용(관리자는 조회만).
-// 평가 대상은 검토 제출 전(DRAFT/REJECTED)에만 간사가 수정할 수 있다(SUBMITTED/APPROVED는 잠금).
+// 심사에 평가 대상(기업) 편입 — 신규 기업 정보(newName)를 직접 입력해 등록. 담당자 전용(관리자는 조회만).
+// 평가 대상은 검토 제출 전(DRAFT/REJECTED)에만 담당자가 수정할 수 있다(SUBMITTED/APPROVED는 잠금).
 async function subjectsEditable(sessionId: string): Promise<boolean> {
   const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { subjectReviewStatus: true } })
   return !!s && (s.subjectReviewStatus === 'DRAFT' || s.subjectReviewStatus === 'REJECTED')
@@ -610,7 +610,7 @@ export async function addSubject(sessionId: string, formData: FormData) {
   revalidatePath(`/admin/sessions/${sessionId}/subjects`)
 }
 
-// 반려된(또는 기존) 평가 대상의 기업 정보 수정 — 간사 전용. 수정 시 재검토를 위해 PENDING으로 되돌림.
+// 반려된(또는 기존) 평가 대상의 기업 정보 수정 — 담당자 전용. 수정 시 재검토를 위해 PENDING으로 되돌림.
 export async function editSubject(sessionId: string, subjectId: string, formData: FormData) {
   const { user } = await assertSessionAccess(sessionId)
   if (user.role === 'MASTER') return
@@ -642,7 +642,7 @@ export async function deleteSubject(sessionId: string, subjectId: string) {
   revalidatePath(`/admin/sessions/${sessionId}/subjects`)
 }
 
-// 평가 대상(기업) 자료 업로드 — 이 심사 전용(sessionId)으로 저장. 사업계획/현장실태조사서/사전검토표 등. 간사 전용.
+// 평가 대상(기업) 자료 업로드 — 이 심사 전용(sessionId)으로 저장. 사업계획/현장실태조사서/사전검토표 등. 담당자 전용.
 export async function uploadSubjectDocument(sessionId: string, companyId: string, formData: FormData) {
   const { user } = await assertSessionAccess(sessionId)
   if (user.role === 'MASTER') return
@@ -683,7 +683,7 @@ export async function presignSubjectUpload(
   fileType: string,
 ): Promise<PresignResult> {
   const { user } = await assertSessionAccess(sessionId)
-  if (user.role === 'MASTER') return { error: '간사만 업로드할 수 있습니다.' }
+  if (user.role === 'MASTER') return { error: '담당자만 업로드할 수 있습니다.' }
   if (!(await subjectsEditable(sessionId))) return { error: '제출/승인 상태에서는 자료를 수정할 수 없습니다.' }
   if (!fileName.toLowerCase().endsWith('.pdf') && fileType !== 'application/pdf')
     return { error: 'PDF만 업로드할 수 있습니다.' }
@@ -699,7 +699,7 @@ export async function registerSubjectDocument(
   meta: { storedName: string; url: string; originalName: string; mimeType: string },
 ): Promise<{ ok: true } | { error: string }> {
   const { user } = await assertSessionAccess(sessionId)
-  if (user.role === 'MASTER') return { error: '간사만 업로드할 수 있습니다.' }
+  if (user.role === 'MASTER') return { error: '담당자만 업로드할 수 있습니다.' }
   if (!(await subjectsEditable(sessionId))) return { error: '제출/승인 상태에서는 자료를 수정할 수 없습니다.' }
   // presign에서 발급한 키 형식만 허용(임의 키 등록 방지)
   if (meta.url !== `r2:documents/${meta.storedName}` || !/^[0-9a-f-]{36}\.[a-z0-9]+$/i.test(meta.storedName))
@@ -763,7 +763,7 @@ export async function setChair(sessionId: string, formData: FormData) {
   revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
 }
 
-// 전역 풀의 기존 위원을 이 분과에 배정(폼: userId). 간사 전용, 배정중(DRAFT/REJECTED)에만. 배정은 PENDING.
+// 전역 풀의 기존 위원을 이 분과에 배정(폼: userId). 담당자 전용, 배정중(DRAFT/REJECTED)에만. 배정은 PENDING.
 export async function assignEvaluator(sessionId: string, formData: FormData) {
   const { user } = await assertSessionAccess(sessionId)
   if (user.role === 'MASTER') return // 관리자는 배정하지 않음(승인만)
@@ -782,7 +782,7 @@ export async function assignEvaluator(sessionId: string, formData: FormData) {
 }
 
 
-// 담당 간사(+마스터)가 제출완료 평가를 승인
+// 담당자(+마스터)가 제출완료 평가를 승인
 export async function approveEvaluation(sessionId: string, subjectId: string, evaluatorId: string) {
   const { user } = await assertSessionAccess(sessionId)
   const sub = await prisma.submission.findUnique({
@@ -798,7 +798,7 @@ export async function approveEvaluation(sessionId: string, subjectId: string, ev
   revalidatePath(`/admin/sessions/${sessionId}/results`)
 }
 
-// 담당 간사(+마스터)가 제출완료 평가를 반려(위원 편집 재개)
+// 담당자(+마스터)가 제출완료 평가를 반려(위원 편집 재개)
 export async function rejectEvaluation(sessionId: string, subjectId: string, evaluatorId: string) {
   const { user } = await assertSessionAccess(sessionId)
   const sub = await prisma.submission.findUnique({
@@ -867,8 +867,8 @@ export async function rejectAllAssignments(sessionId: string, reason: string) {
   revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
 }
 
-// ── 평가위원 배정 검토 워크플로: 간사 제출 → 관리자 승인/반려 ──
-// 간사 제출 → 관리자 검토 대기(SUBMITTED). 관리자는 조회만이므로 MASTER는 차단. 배정이 없으면 제출 불가.
+// ── 평가위원 배정 검토 워크플로: 담당자 제출 → 관리자 승인/반려 ──
+// 담당자 제출 → 관리자 검토 대기(SUBMITTED). 관리자는 조회만이므로 MASTER는 차단. 배정이 없으면 제출 불가.
 export async function submitEvaluators(sessionId: string) {
   const { user } = await assertSessionAccess(sessionId)
   if (user.role === 'MASTER') return
@@ -882,7 +882,7 @@ export async function submitEvaluators(sessionId: string) {
   revalidatePath(`/admin/sessions/${sessionId}`)
 }
 
-// 간사 제출 취소 → 다시 배정중(DRAFT). 관리자 승인/반려 전(SUBMITTED)에만 가능.
+// 담당자 제출 취소 → 다시 배정중(DRAFT). 관리자 승인/반려 전(SUBMITTED)에만 가능.
 export async function cancelSubmitEvaluators(sessionId: string) {
   const { user } = await assertSessionAccess(sessionId)
   if (user.role === 'MASTER') return
@@ -912,7 +912,7 @@ export async function approveEvaluators(sessionId: string) {
   revalidatePath(`/admin/sessions/${sessionId}`)
 }
 
-// 관리자 배정 반려(SUBMITTED → REJECTED) + 사유. 간사가 위원을 조정 후 재제출. 마스터 전용.
+// 관리자 배정 반려(SUBMITTED → REJECTED) + 사유. 담당자가 위원을 조정 후 재제출. 마스터 전용.
 export async function rejectEvaluators(sessionId: string, reason: string) {
   await assertMaster()
   const trimmed = (reason ?? '').trim()
@@ -931,7 +931,7 @@ export async function rejectEvaluators(sessionId: string, reason: string) {
   revalidatePath(`/admin/sessions/${sessionId}`)
 }
 
-// 간사(담당) 집계결과 '제출 완료' → 관리자 검토 대기. 관리자는 조회만이므로 MASTER는 차단.
+// 담당자(담당) 집계결과 '제출 완료' → 관리자 검토 대기. 관리자는 조회만이므로 MASTER는 차단.
 export async function submitSessionForReview(sessionId: string) {
   const { user } = await assertSessionAccess(sessionId)
   if (user.role === 'MASTER') return
@@ -943,7 +943,7 @@ export async function submitSessionForReview(sessionId: string) {
   revalidatePath(`/admin/sessions/${sessionId}/results`)
 }
 
-// 간사 제출 취소(관리자 검토 완료 전까지). 마감(CLOSED)된 분과는 되돌릴 수 없다.
+// 담당자 제출 취소(관리자 검토 완료 전까지). 마감(CLOSED)된 분과는 되돌릴 수 없다.
 export async function cancelSubmitSessionForReview(sessionId: string) {
   const { user } = await assertSessionAccess(sessionId)
   if (user.role === 'MASTER') return
@@ -957,12 +957,12 @@ export async function cancelSubmitSessionForReview(sessionId: string) {
   revalidatePath(`/admin/sessions/${sessionId}/results`)
 }
 
-// 관리자 검토 완료 → 분과 완료(CLOSED). 사전 조건: 간사가 '제출 완료'했어야 함(submittedForReviewAt).
+// 관리자 검토 완료 → 분과 완료(CLOSED). 사전 조건: 담당자가 '제출 완료'했어야 함(submittedForReviewAt).
 // eventDate 마감 가드(canCloseSession)는 의도적으로 건너뛴다(스펙상 검토 완료엔 사전 마감조건 없음).
 export async function completeReview(sessionId: string) {
   await assertMaster()
   const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { submittedForReviewAt: true } })
-  if (!s || s.submittedForReviewAt == null) return // 간사 제출 전에는 검토 완료 불가
+  if (!s || s.submittedForReviewAt == null) return // 담당자 제출 전에는 검토 완료 불가
   await prisma.evaluationSession.update({ where: { id: sessionId }, data: { status: 'CLOSED' } })
   revalidatePath(`/admin/sessions/${sessionId}`)
   revalidatePath(`/admin/sessions/${sessionId}/results`)
@@ -990,7 +990,7 @@ export async function rejectSubjects(sessionId: string, reason: string) {
   revalidatePath(`/admin/sessions/${sessionId}/subjects`)
 }
 
-// ── 평가 대상 검토 워크플로: 간사 제출 → 관리자 승인/반려 (세션 단위) ──
+// ── 평가 대상 검토 워크플로: 담당자 제출 → 관리자 승인/반려 (세션 단위) ──
 export async function submitSubjectReview(sessionId: string) {
   const { user } = await assertSessionAccess(sessionId)
   if (user.role === 'MASTER') return
@@ -1044,7 +1044,7 @@ export async function rejectSubjectReview(sessionId: string, reason: string) {
   revalidatePath(`/admin/sessions/${sessionId}`)
 }
 
-// ── 평가 의견서 검토 워크플로: 간사 제출 → 관리자 승인/반려 (세션 단위) ──
+// ── 평가 의견서 검토 워크플로: 담당자 제출 → 관리자 승인/반려 (세션 단위) ──
 export async function submitOpinions(sessionId: string) {
   const { user } = await assertSessionAccess(sessionId)
   if (user.role === 'MASTER') return

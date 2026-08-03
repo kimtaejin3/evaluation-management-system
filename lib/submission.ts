@@ -7,7 +7,7 @@ export function canEvaluatorEdit(status: SubmissionStatus | null): boolean {
   return status == null || status === 'DRAFT' || status === 'REJECTED'
 }
 
-// 간사가 승인/반려할 수 있는가(제출완료만)
+// 담당자가 승인/반려할 수 있는가(제출완료만)
 export function canDecide(status: SubmissionStatus | null): boolean {
   return status === 'SUBMITTED'
 }

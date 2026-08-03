@@ -7,7 +7,7 @@ import ReviewDecisionButtons from "@/components/ReviewDecisionButtons";
 import ExcelExportButton from "@/components/ExcelExportButton";
 import { SkeletonTable } from "@/components/Skeletons";
 
-// 과제 평가의견서 — 분과별 의견서 작성 현황을 테이블 뷰로 한눈에.
+// 사업 평가의견서 — 분과별 의견서 작성 현황을 테이블 뷰로 한눈에.
 // 의견서 본문 열람·승인/반려는 분과의 평가 의견서 페이지에서 한다.
 export default async function ProjectOpinionsPage({
   params,
@@ -84,8 +84,8 @@ async function Content({ id }: { id: string }) {
             <thead className="text-left text-slate-500">
               <tr className="border-b border-slate-100 bg-slate-50/60">
                 <th className="px-5 py-3 font-medium">분과명</th>
-                <th className="px-5 py-3 font-medium">담당 간사</th>
-                <th className="px-5 py-3 font-medium">간사 검토</th>
+                <th className="px-5 py-3 font-medium">담당자</th>
+                <th className="px-5 py-3 font-medium">담당자 검토</th>
                 <th className="px-5 py-3 font-medium">평가 대상 수</th>
                 <th className="px-5 py-3 font-medium">자세히 보기</th>
                 <th className="px-5 py-3 font-medium">승인 상태</th>
@@ -104,7 +104,7 @@ async function Content({ id }: { id: string }) {
                       {s.secretary?.name ?? <span className="text-xs text-rose-600">미배정</span>}
                     </td>
                     <td className="px-5 py-3">
-                      {/* 간사 검토 상태 — 의견서는 간사가 '검토'하는 도메인 */}
+                      {/* 담당자 검토 상태 — 의견서는 담당자가 '검토'하는 도메인 */}
                       <ReviewStatusBadge status={s.opinionStatus} wording="review" />
                     </td>
                     <td className="px-5 py-3 text-slate-600">{s._count.subjects}</td>

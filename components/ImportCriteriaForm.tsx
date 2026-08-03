@@ -24,7 +24,7 @@ const inputCls =
 
 const SAMPLE = `평가항목\t세부항목\t평가지표\t배점\n사업계획\t사업 타당성\t시장 진입 가능성\t10\n사업계획\t사업 타당성\t수익 모델의 우수성\t10\n기대효과\t파급 효과\t고용 창출\t10`;
 
-// 평가항목은 과제(Project) 단위 — 관리자가 과제 평가항목 페이지에서 가져온다.
+// 평가항목은 사업(Project) 단위 — 관리자가 사업 평가항목 페이지에서 가져온다.
 export default function ImportCriteriaForm({
   projectId,
   onDone,

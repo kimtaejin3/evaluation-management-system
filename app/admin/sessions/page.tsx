@@ -57,7 +57,7 @@ async function SessionList({
   const { year, status } = await searchParams;
   const user = await requireAdminUser();
   const where: Prisma.EvaluationSessionWhereInput = {};
-  // 간사는 자기 분과만(마스터 전부)
+  // 담당자는 자기 분과만(마스터 전부)
   if (user.role !== "MASTER") where.secretaryId = user.id;
   if (status === "DRAFT" || status === "IN_PROGRESS" || status === "CLOSED")
     where.status = status;
@@ -70,7 +70,7 @@ async function SessionList({
     },
   });
 
-  // 평가항목은 과제(Project) 단위 공통 — 과제별 항목 수를 한 번에 집계
+  // 평가항목은 사업(Project) 단위 공통 — 사업별 항목 수를 한 번에 집계
   const projectIds = [...new Set(all.map((s) => s.projectId).filter((v): v is string => !!v))];
   const critByProject = new Map(
     (

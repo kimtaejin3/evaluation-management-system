@@ -15,7 +15,7 @@ export type ManagedUser = {
   chips: { label: string; href?: string }[]
 }
 
-// 간사·평가위원 관리 공통 표 — 평소엔 깔끔하게 보이다가 '{roleLabel} 삭제'를 누르면 선택 모드로 전환된다.
+// 담당자·평가위원 관리 공통 표 — 평소엔 깔끔하게 보이다가 '{roleLabel} 삭제'를 누르면 선택 모드로 전환된다.
 // 선택 모드에서는 각 행에 체크박스가 나타나고(행 클릭으로도 토글), '선택 삭제'로 한 번에 삭제한다.
 // 비밀번호 조회·재발급은 옆의 모달 버튼(UserPasswordManager)에서. 삭제 액션은 페이지가 주입한다.
 export default function UserManagerTable({

@@ -6,7 +6,7 @@ import { cellStatus, type CellStatus, type SubmissionStatus } from './submission
 
 export type CellState = 'done' | 'partial' | 'none'
 
-// 간사 제출 검토 표의 한 행 (대상 × 위원)
+// 담당자 제출 검토 표의 한 행 (대상 × 위원)
 export interface ReviewRow {
   subjectId: string
   subjectName: string
@@ -56,7 +56,7 @@ export interface ProgressData {
 }
 
 export async function getSessionProgress(sessionId: string): Promise<ProgressData> {
-  // 평가항목은 과제(Project) 단위 공통 — 분과의 소속 과제 항목을 읽는다.
+  // 평가항목은 사업(Project) 단위 공통 — 분과의 소속 사업 항목을 읽는다.
   const criteriaWhere = await criteriaScopeForSession(sessionId)
   const [session, subjects, units, assignments, scores, editing, submissions] = await Promise.all([
     prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { chairId: true } }),
@@ -131,7 +131,7 @@ export async function getSessionProgress(sessionId: string): Promise<ProgressDat
     total: assignments.length,
   }))
 
-  // 간사 제출 검토 표 데이터 (대상 × 위원). 총점은 전 항목 입력 시에만 산출.
+  // 담당자 제출 검토 표 데이터 (대상 × 위원). 총점은 전 항목 입력 시에만 산출.
   const review: ReviewRow[] = []
   for (const s of subjects) {
     for (const a of orderedAssignments) {

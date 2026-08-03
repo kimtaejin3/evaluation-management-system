@@ -59,9 +59,9 @@ async function EvaluatorsContent({ id }: { id: string }) {
   });
   const locked = session?.status === "CLOSED";
   const es = (session?.evaluatorStatus ?? "DRAFT") as EvaluatorStatus;
-  // 간사 제출(SUBMITTED) 이후에만 관리자가 배정을 볼 수 있다. 제출 전(DRAFT/REJECTED)은 '배정중'.
+  // 담당자 제출(SUBMITTED) 이후에만 관리자가 배정을 볼 수 있다. 제출 전(DRAFT/REJECTED)은 '배정중'.
   const adminCanView = es === "SUBMITTED" || es === "APPROVED";
-  // 배정 추가·해제·계정관리는 담당 간사만, 제출 전(DRAFT/REJECTED)에만. 관리자는 조회·승인만.
+  // 배정 추가·해제·계정관리는 담당자만, 제출 전(DRAFT/REJECTED)에만. 관리자는 조회·승인만.
   const canEdit = !locked && !isMaster && (es === "DRAFT" || es === "REJECTED");
   // 관리자가 아직 배정을 볼 수 없는 상태(배정중/반려·미마감)
   const adminBlocked = isMaster && !locked && !adminCanView;
@@ -84,7 +84,7 @@ async function EvaluatorsContent({ id }: { id: string }) {
         <ExcelExportButton href={`/api/sessions/${id}/export/evaluators`} />
       </div>
 
-      {/* 배정 검토 워크플로 배너 — 간사: 제출/제출취소, 관리자: 승인/반려 */}
+      {/* 배정 검토 워크플로 배너 — 담당자: 제출/제출취소, 관리자: 승인/반려 */}
       {!locked && (
         <EvaluatorReviewPanel
           sessionId={id}
@@ -94,7 +94,7 @@ async function EvaluatorsContent({ id }: { id: string }) {
         />
       )}
 
-      {/* 위원 배정 (상단) — 전역 등록된 위원을 드롭다운으로 선택해 배정만. 간사·배정중에만 */}
+      {/* 위원 배정 (상단) — 전역 등록된 위원을 드롭다운으로 선택해 배정만. 담당자·배정중에만 */}
       {locked ? (
         <p className="text-sm text-slate-400">
           마감된 분과는 평가위원을 수정할 수 없습니다.
@@ -146,7 +146,7 @@ async function EvaluatorsContent({ id }: { id: string }) {
         </div>
       )}
 
-      {/* 위원장 지정 (간사 전용) — 배정된 위원 중 1인. 검토 상태와 무관하게 항시 지정 가능 */}
+      {/* 위원장 지정 (담당자 전용) — 배정된 위원 중 1인. 검토 상태와 무관하게 항시 지정 가능 */}
       {!isMaster && assignments.length > 0 && (
         <div className="rounded-xl border border-slate-200 bg-white p-5">
           <div className="text-sm font-semibold text-slate-700">
@@ -210,7 +210,7 @@ async function EvaluatorsContent({ id }: { id: string }) {
         </div>
       )}
 
-      {/* 배정된 평가위원 — 관리자는 간사 제출 후에만 조회 가능(배정중이면 숨김) */}
+      {/* 배정된 평가위원 — 관리자는 담당자 제출 후에만 조회 가능(배정중이면 숨김) */}
       {adminBlocked ? null : (
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 font-semibold">

@@ -6,7 +6,7 @@ const labelCls = 'block text-sm font-medium text-slate-700'
 const inputCls =
   'mt-1.5 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500'
 
-// 새 간사 등록 — 분과 추가처럼 전용 페이지. 생성 후 원래 과제 화면으로 복귀.
+// 새 담당자 등록 — 분과 추가처럼 전용 페이지. 생성 후 원래 사업 화면으로 복귀.
 export default async function NewSecretaryPage({
   searchParams,
 }: {
@@ -15,16 +15,16 @@ export default async function NewSecretaryPage({
   await assertMaster()
   const { projectId } = await searchParams
   const backHref = projectId ? `/admin/projects/${projectId}` : '/admin/secretaries'
-  const backLabel = projectId ? '← 분과 간사 설정' : '← 간사 관리'
+  const backLabel = projectId ? '← 사업 담당자 설정' : '← 담당자 관리'
 
   return (
     <div className="max-w-2xl">
       <Link href={backHref} className="text-sm text-slate-400 hover:text-slate-600">
         {backLabel}
       </Link>
-      <h1 className="mt-1 text-2xl font-bold">새 간사 등록</h1>
+      <h1 className="mt-1 text-2xl font-bold">새 담당자 등록</h1>
       <p className="mt-1 text-sm text-slate-500">
-        간사 계정을 만듭니다{projectId ? ' (이 과제의 참여 간사로 함께 등록됩니다)' : ''}. 비밀번호는 연락처 끝
+        담당자 계정을 만듭니다{projectId ? ' (이 사업의 참여 담당자로 함께 등록됩니다)' : ''}. 비밀번호는 연락처 끝
         4자리로 발급되며, 기존 아이디면 정보를 갱신합니다.
       </p>
 
@@ -35,7 +35,7 @@ export default async function NewSecretaryPage({
             <label className={labelCls}>
               이름 <span className="text-rose-500">*</span>
             </label>
-            <input name="name" required className={inputCls} placeholder="예) 김간사" />
+            <input name="name" required className={inputCls} placeholder="예) 김담당자" />
           </div>
           <div>
             <label className={labelCls}>

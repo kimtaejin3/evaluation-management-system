@@ -8,7 +8,7 @@ import type { ReviewRow } from '@/lib/progress'
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1))
 
-// 간사 제출 검토 표 — 제출완료 건만 승인/반려. 클릭 시 확인 모달에서 [승인]/[반려] 선택 확정.
+// 담당자 제출 검토 표 — 제출완료 건만 승인/반려. 클릭 시 확인 모달에서 [승인]/[반려] 선택 확정.
 export default function ReviewTable({ sessionId, rows }: { sessionId: string; rows: ReviewRow[] }) {
   const [target, setTarget] = useState<ReviewRow | null>(null)
   const [busy, setBusy] = useState(false)

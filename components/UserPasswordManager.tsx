@@ -11,12 +11,12 @@ type ManagedUser = {
   tempPassword: string | null
 }
 
-// 사용자(간사·위원) 비밀번호 관리 — 표 밑 버튼으로 열리는 모달에서 임시 비밀번호를
+// 사용자(담당자·위원) 비밀번호 관리 — 표 밑 버튼으로 열리는 모달에서 임시 비밀번호를
 // 조회(보기 토글)하고 재발급한다. 재발급은 resetEvaluatorPassword 서버 액션 + router.refresh.
-// roleLabel로 '간사'/'위원' 문구만 달라진다.
+// roleLabel로 '담당자'/'위원' 문구만 달라진다.
 export default function UserPasswordManager({
   users,
-  roleLabel = '간사',
+  roleLabel = '담당자',
 }: {
   users: ManagedUser[]
   roleLabel?: string

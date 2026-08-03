@@ -4,7 +4,7 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { submitSessionForReview, cancelSubmitSessionForReview } from "@/app/admin/sessions/actions";
 
-// 간사 제출 완료 버튼.
+// 담당자 제출 완료 버튼.
 // - closed: 관리자 검토까지 끝남(잠김) → '검토 완료됨'
 // - submitted: 제출 완료 상태 → '제출 완료됨' + 제출 취소(검토 완료 전까지)
 // - 그 외: '제출 완료' 가능

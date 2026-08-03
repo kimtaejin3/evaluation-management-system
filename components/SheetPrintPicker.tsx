@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { usePrintPreview } from './usePrintPreview'
 
-// 위원별 평가표 인쇄 — 위원을 드롭다운으로 고른 뒤, 각 기업(과제)별 버튼으로 해당 위원의 평가표를 인쇄.
+// 위원별 평가표 인쇄 — 위원을 드롭다운으로 고른 뒤, 각 기업(사업)별 버튼으로 해당 위원의 평가표를 인쇄.
 export default function SheetPrintPicker({
   sessionId,
   evaluators,

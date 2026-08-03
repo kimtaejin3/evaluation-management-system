@@ -166,8 +166,8 @@ type ProjectItem = {
   sessions: Session[];
 };
 
-// 마스터 사이드바: 과제 노드 + 과제 단위 페이지 메뉴(항상 펼침, 접기 없음).
-// 관리자는 분과를 개별로 오가지 않고, 과제의 모니터링/평가항목/평가대상/평가위원/의견서
+// 마스터 사이드바: 사업 노드 + 사업 단위 페이지 메뉴(항상 펼침, 접기 없음).
+// 관리자는 분과를 개별로 오가지 않고, 사업의 모니터링/평가항목/평가대상/평가위원/의견서
 // 페이지에서 분과들을 테이블 뷰로 한눈에 본다. (분과 상세는 각 페이지의 분과명 링크로 진입)
 function ProjectNode({
   project,
@@ -177,8 +177,8 @@ function ProjectNode({
   pathname: string;
 }) {
   const base = `/admin/projects/${project.id}`;
-  // 과제명은 그룹 헤더 — 선택 표시는 하위 탭(분과 간사 설정 등)에만 준다.
-  // '분과 간사 설정'(suffix "")이 과제 홈(base)과 같은 URL이므로 과제명 노드는 선택 표시하지 않는다.
+  // 사업명은 그룹 헤더 — 선택 표시는 하위 탭(사업 담당자 설정 등)에만 준다.
+  // '사업 담당자 설정'(suffix "")이 사업 홈(base)과 같은 URL이므로 사업명 노드는 선택 표시하지 않는다.
   const tabActive = (suffix: string) =>
     suffix === "" ? pathname === base : pathname.startsWith(`${base}${suffix}`);
   return (
@@ -218,8 +218,8 @@ export default function AdminSidebar({
   const current = sid ? sessions.find((s) => s.id === sid) : null;
 
   const isExact = (p: string) => pathname === p;
-  // '과제 관리'(과제 목록)는 정확히 그 페이지에서만 선택 표시 — 과제 하위 페이지에서는
-  // 해당 탭(분과 간사 설정 등)만 선택되도록 한다.
+  // '사업 관리'(사업 목록)는 정확히 그 페이지에서만 선택 표시 — 사업 하위 페이지에서는
+  // 해당 탭(사업 담당자 설정 등)만 선택되도록 한다.
   const projectsActive = pathname === "/admin/projects";
   const leafActive = (suffix: string) =>
     suffix === ""
@@ -236,11 +236,11 @@ export default function AdminSidebar({
       </div>
 
       {sid && !isMaster ? (
-        /* ── 세션 모드(간사 전용): 이 분과의 메뉴만. 마스터는 분과 상세에서도 과제 사이드바 유지 ── */
+        /* ── 세션 모드(담당자 전용): 이 분과의 메뉴만. 마스터는 분과 상세에서도 사업 사이드바 유지 ── */
         <>
           <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
             {(() => {
-              // 분과의 소속 과제로 복귀(역할 무관). 미분류 분과만 분과 목록으로.
+              // 분과의 소속 사업으로 복귀(역할 무관). 미분류 분과만 분과 목록으로.
               const backHref = current?.projectId
                 ? `/admin/projects/${current.projectId}`
                 : "/admin/sessions";
@@ -297,16 +297,16 @@ export default function AdminSidebar({
         /* ── 글로벌 모드: 관리 메뉴 ── */
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
           {isMaster ? (
-            /* 마스터: 과제 관리 + 과제 목록(클릭 시 그 과제의 분과 목록) */
+            /* 마스터: 사업 관리 + 사업 목록(클릭 시 그 사업의 분과 목록) */
             <div>
               <Link href="/admin/projects" className={topCls(projectsActive)}>
                 <SessionsIcon />
-                과제 관리
+                사업 관리
               </Link>
               <div className="mt-1 ml-1 space-y-0.5">
                 {projects.length === 0 && (
                   <div className="px-3 py-1.5 text-xs text-slate-500">
-                    등록된 과제 없음
+                    등록된 사업 없음
                   </div>
                 )}
                 {projects.map((p) => (
@@ -315,12 +315,12 @@ export default function AdminSidebar({
               </div>
             </div>
           ) : (
-            /* 간사: 참여중인 과제가 최상위(아이콘) → 그 아래 내가 담당하는 분과.
-               담당 분과가 아직 없어도 참여 과제는 항상 보인다. */
+            /* 담당자: 참여중인 사업이 최상위(아이콘) → 그 아래 내가 담당하는 분과.
+               담당 분과가 아직 없어도 참여 사업은 항상 보인다. */
             <div className="space-y-2">
               {projects.length === 0 && sessions.length === 0 && (
                 <div className="px-3 py-1.5 text-xs text-slate-500">
-                  참여중인 과제가 없습니다
+                  참여중인 사업이 없습니다
                 </div>
               )}
               {projects.map((p) => {
@@ -360,7 +360,7 @@ export default function AdminSidebar({
                   </div>
                 );
               })}
-              {/* 참여 과제에 속하지 않는 담당 분과(미분류 등) */}
+              {/* 참여 사업에 속하지 않는 담당 분과(미분류 등) */}
               {(() => {
                 const orphan = sessions.filter((s) => !projects.some((p) => p.id === s.projectId));
                 if (orphan.length === 0) return null;
@@ -402,7 +402,7 @@ export default function AdminSidebar({
                 className={topCls(pathname.startsWith("/admin/secretaries"))}
               >
                 <UsersIcon />
-                간사 관리
+                담당자 관리
               </Link>
               <Link
                 href="/admin/evaluators"

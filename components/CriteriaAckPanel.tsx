@@ -4,8 +4,8 @@ import { useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { ackCriteria } from '@/app/admin/sessions/actions'
 
-// 간사용 — 관리자가 작성한 과제 공통 평가항목을 '확인'하는 패널.
-// 확인하면 criteriaAckAt이 기록되고, 관리자는 과제 평가항목 페이지에서 분과별 확인 현황을 본다.
+// 담당자용 — 관리자가 작성한 사업 공통 평가항목을 '확인'하는 패널.
+// 확인하면 criteriaAckAt이 기록되고, 관리자는 사업 평가항목 페이지에서 분과별 확인 현황을 본다.
 export default function CriteriaAckPanel({
   sessionId,
   ackAt,
@@ -33,7 +33,7 @@ export default function CriteriaAckPanel({
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-200 bg-indigo-50/60 px-4 py-3">
       <p className="text-sm text-slate-700">
-        관리자가 작성한 과제 공통 평가항목입니다. 내용을 검토한 뒤 <b>확인</b>을 눌러주세요.
+        관리자가 작성한 사업 공통 평가항목입니다. 내용을 검토한 뒤 <b>확인</b>을 눌러주세요.
       </p>
       <button
         type="button"

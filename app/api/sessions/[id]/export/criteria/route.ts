@@ -5,7 +5,7 @@ import { canTokenAccessSession } from '@/lib/authz'
 import { criteriaScopeForSession } from '@/lib/criteria-scope'
 
 // 평가 항목 → xlsx 다운로드(평가항목/세부항목/평가지표/배점, group→subitem→criterion order 정렬)
-// 평가항목은 과제(Project) 단위 공통 — 분과의 소속 과제 항목을 내려준다.
+// 평가항목은 사업(Project) 단위 공통 — 분과의 소속 사업 항목을 내려준다.
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const token = await getCurrentToken()
   if (!token) return new Response('Unauthorized', { status: 401 })

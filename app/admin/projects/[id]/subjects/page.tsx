@@ -10,7 +10,7 @@ import { SkeletonTable } from "@/components/Skeletons";
 
 export const dynamic = "force-dynamic";
 
-// 과제 평가대상 — 분과 단위 행으로 한눈에.
+// 사업 평가대상 — 분과 단위 행으로 한눈에.
 // 분과명 클릭 → 분과 평가 대상 페이지(기업 자료 제출 조회), 점수 '자세히 보기' → 위원별 점수 매트릭스.
 export default async function ProjectSubjectsPage({
   params,
@@ -55,7 +55,7 @@ async function Content({ id }: { id: string }) {
   const sessionIds = sessions.map((s) => s.id);
 
   // 위원별 점수 매트릭스 — 배정 상태와 무관하게, 전 항목을 입력한 (위원×대상)만 총점 산출.
-  // 평가항목은 과제 단위 공통이므로 한 번만 읽는다.
+  // 평가항목은 사업 단위 공통이므로 한 번만 읽는다.
   const [units, subjects, assignments, scores] = await Promise.all([
     scoringUnitsForScope({ projectId: id }),
     prisma.subject.findMany({
@@ -86,7 +86,7 @@ async function Content({ id }: { id: string }) {
 
   const rows: ProjectSubjectRow[] = sessions.map((s) => {
     const sessionSubjects = subjects.filter((sub) => sub.sessionId === s.id).map(({ id: sid, name }) => ({ id: sid, name }));
-    // 간사가 평가위원 배정을 제출(SUBMITTED/APPROVED)하기 전에는 관리자에게 위원 명단을 숨긴다(마감 분과 예외)
+    // 담당자가 평가위원 배정을 제출(SUBMITTED/APPROVED)하기 전에는 관리자에게 위원 명단을 숨긴다(마감 분과 예외)
     const evaluatorsHidden =
       isMaster &&
       s.status !== "CLOSED" &&

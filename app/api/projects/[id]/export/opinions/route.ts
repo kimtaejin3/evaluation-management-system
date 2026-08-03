@@ -4,8 +4,8 @@ import { getCurrentToken } from '@/lib/session'
 import { canTokenAccessProject } from '@/lib/authz'
 
 // 평가의견서 → xlsx (분과/위원/지원기업/종합의견).
-// 화면과 동일 규칙: 마스터는 간사 검토 완료(SUBMITTED/APPROVED, 마감 포함) 후의 분과만,
-// 간사는 본인 담당 분과만 포함한다.
+// 화면과 동일 규칙: 마스터는 담당자 검토 완료(SUBMITTED/APPROVED, 마감 포함) 후의 분과만,
+// 담당자는 본인 담당 분과만 포함한다.
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const token = await getCurrentToken()
   if (!token) return new Response('Unauthorized', { status: 401 })

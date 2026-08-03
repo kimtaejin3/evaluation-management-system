@@ -152,7 +152,7 @@ function CriteriaBatchFields({ lockedMode }: { lockedMode: "per" | "lump" | null
   );
 }
 
-// 평가항목은 과제(Project) 단위 — 관리자가 과제 평가항목 페이지에서 편집한다.
+// 평가항목은 사업(Project) 단위 — 관리자가 사업 평가항목 페이지에서 편집한다.
 export default function CriteriaEditor({
   projectId,
   groups,

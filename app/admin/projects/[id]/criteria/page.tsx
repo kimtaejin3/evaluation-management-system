@@ -9,8 +9,8 @@ import CriteriaEditor from "@/components/CriteriaEditor";
 import CriteriaPreviewTable from "@/components/CriteriaPreviewTable";
 import { SkeletonTable } from "@/components/Skeletons";
 
-// 과제 공통 평가항목 — 과제의 모든 분과가 같은 항목을 쓴다.
-// 관리자가 여기서 작성·수정하고, 각 분과 간사는 분과 화면에서 조회 후 '확인'한다.
+// 사업 공통 평가항목 — 사업의 모든 분과가 같은 항목을 쓴다.
+// 관리자가 여기서 작성·수정하고, 각 분과 담당자는 분과 화면에서 조회 후 '확인'한다.
 export default async function ProjectCriteriaPage({
   params,
 }: {
@@ -27,7 +27,7 @@ export default async function ProjectCriteriaPage({
         <Content id={id} />
       </Suspense>
       <p className="text-left text-xs text-slate-400">
-        과제 공통 평가항목입니다. 소속 분과 전체에 동일하게 적용됩니다.
+        사업 공통 평가항목입니다. 소속 분과 전체에 동일하게 적용됩니다.
       </p>
     </div>
   );
@@ -83,7 +83,7 @@ async function Content({ id }: { id: string }) {
         <CriteriaPrintButton projectId={id} />
       </div>
 
-      {/* 항목 편집(관리자) / 조회(간사) */}
+      {/* 항목 편집(관리자) / 조회(담당자) */}
       {isMaster ? (
         <CriteriaEditor projectId={id} groups={groups} maxScore={project.maxScore} />
       ) : groups.length === 0 ? (
@@ -94,10 +94,10 @@ async function Content({ id }: { id: string }) {
         <CriteriaPreviewTable groups={groups} />
       )}
 
-      {/* 분과별 간사 확인 현황 — 평가표 아래에서 누가 확인했는지 한눈에 본다 */}
+      {/* 분과별 담당자 확인 현황 — 평가표 아래에서 누가 확인했는지 한눈에 본다 */}
       <div className="space-y-2">
         <h2 className="text-sm font-semibold text-slate-700">
-          분과별 간사 확인 현황{" "}
+          분과별 담당자 확인 현황{" "}
           <span className="ml-0.5 text-xs text-slate-400">
             {ackedCount}/{sessions.length} 확인
           </span>
@@ -110,7 +110,7 @@ async function Content({ id }: { id: string }) {
               <thead className="text-left text-slate-500">
                 <tr className="border-b border-slate-100 bg-slate-50/60">
                   <th className="px-5 py-2.5 font-medium">분과명</th>
-                  <th className="px-5 py-2.5 font-medium">담당 간사</th>
+                  <th className="px-5 py-2.5 font-medium">담당자</th>
                   <th className="px-5 py-2.5 font-medium">확인 여부</th>
                   <th className="px-5 py-2.5 font-medium">확인 시각</th>
                 </tr>

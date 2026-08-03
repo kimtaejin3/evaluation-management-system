@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db'
 import { getCurrentToken } from '@/lib/session'
 import { canTokenAccessProject } from '@/lib/authz'
 
-// 참여 간사 → xlsx (이름/아이디/연락처/사번/담당 분과). 비밀번호는 내보내지 않는다.
+// 참여 담당자 → xlsx (이름/아이디/연락처/사번/담당 분과). 비밀번호는 내보내지 않는다.
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const token = await getCurrentToken()
   if (!token) return new Response('Unauthorized', { status: 401 })
@@ -41,13 +41,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   XLSX.utils.book_append_sheet(
     wb,
     XLSX.utils.json_to_sheet(rows.length ? rows : [{ 이름: '', 아이디: '', 연락처: '', 사번: '', '담당 분과': '' }]),
-    '참여 간사',
+    '참여 담당자',
   )
   const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })
   return new Response(buf, {
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent('참여 간사.xlsx')}`,
+      'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent('참여 담당자.xlsx')}`,
     },
   })
 }

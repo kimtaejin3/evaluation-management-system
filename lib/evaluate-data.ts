@@ -44,7 +44,7 @@ export async function getSheetData(
   sessionId: string,
   subjectId: string,
 ): Promise<SheetData | null> {
-  // 평가항목은 과제(Project) 단위 공통 — 분과의 소속 과제 항목을 읽는다.
+  // 평가항목은 사업(Project) 단위 공통 — 분과의 소속 사업 항목을 읽는다.
   const criteriaWhere = await criteriaScopeForSession(sessionId)
   const [subject, session, units, existing, opinion, subjects, myScores, submission, assignment, myGroupComments] = await Promise.all([
     prisma.subject.findUnique({
@@ -178,8 +178,8 @@ export async function getHomeData(userId: string): Promise<HomeSession[]> {
     }),
   ])
 
-  // 평가항목은 과제(Project) 단위 공통 — 배정 분과들의 소속 과제 항목을 한 번에 조회.
-  // (과제 미소속 레거시 분과는 세션 단위 항목으로 폴백)
+  // 평가항목은 사업(Project) 단위 공통 — 배정 분과들의 소속 사업 항목을 한 번에 조회.
+  // (사업 미소속 레거시 분과는 세션 단위 항목으로 폴백)
   const projectIds = [...new Set(assignments.map((a) => a.session.projectId).filter((v): v is string => !!v))]
   const legacySessionIds = assignments.filter((a) => !a.session.projectId).map((a) => a.session.id)
   const allGroups = await prisma.criterionGroup.findMany({
@@ -270,7 +270,7 @@ export interface ChairSubjectEvaluator {
   /** 이 위원이 쓴 종합의견 */
   opinion: string | null
   submitted: boolean
-  /** 위원장이 이 위원의 평가를 확인했는지 — 간사·마스터 승인과는 별개 */
+  /** 위원장이 이 위원의 평가를 확인했는지 — 담당자·마스터 승인과는 별개 */
   chairConfirmed: boolean
 }
 
@@ -299,7 +299,7 @@ export async function getChairSubjectData(
   if (!session || session.chairId !== userId) return null
   const chairId = session.chairId
 
-  // 평가항목은 과제(Project) 단위 공통 — 채점 단위(unit) 기준으로 집계
+  // 평가항목은 사업(Project) 단위 공통 — 채점 단위(unit) 기준으로 집계
   const criteriaWhere = await criteriaScopeForSession(sessionId)
   const [subjects, units, assignments, scores, groupComments, submissions, chairOpinionRow, opinions] = await Promise.all([
     prisma.subject.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } }),
@@ -356,7 +356,7 @@ export async function getChairSubjectData(
   // 위원장을 맨 앞에
   const ordered = [...assignments].sort((a, b) => (b.userId === chairId ? 1 : 0) - (a.userId === chairId ? 1 : 0))
 
-  // 마감된 분과, 그리고 의견서가 간사 검토 제출/관리자 승인된 뒤에는 읽기 전용
+  // 마감된 분과, 그리고 의견서가 담당자 검토 제출/관리자 승인된 뒤에는 읽기 전용
   // (서버의 saveChairOpinion 가드와 동일한 규칙)
   const opinionReviewed = session.opinionStatus === 'SUBMITTED' || session.opinionStatus === 'APPROVED'
   const lockReason: 'closed' | 'opinionReviewed' | null =
