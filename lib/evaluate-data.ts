@@ -4,6 +4,7 @@ import { criteriaScopeForSession, scoringUnitsForScope } from '@/lib/criteria-sc
 import { scoreUnitId, buildScoringUnits, type ScoringUnit } from '@/lib/criteria-units'
 import { isAssignmentActive } from '@/lib/assignment'
 import { chairEvalState, isSubmitted, neighborSubjects, type ChairEvalState } from '@/lib/chair-subject'
+import { reviewFlags } from '@/lib/submission'
 
 // 채점 화면의 행 = 채점 단위(unit). 지표별 모드: 지표 1개, 통합(퉁) 모드: 세부항목 1개(indicators=지표 설명).
 export interface CriterionView {
@@ -22,6 +23,8 @@ export interface CriterionView {
 export interface SheetData {
   subjectName: string
   sessionName: string
+  // 소속 과제명(분과명 앞에 표기). 과제 미소속 레거시 분과는 null.
+  projectName: string | null
   evaluatorName: string
   isChair: boolean
   eventDate: string | null
@@ -35,6 +38,8 @@ export interface SheetData {
   otherScores: Record<string, { name: string; value: number }[]>
   otherPending: Record<string, string[]>
   submissionStatus: import('./submission').SubmissionStatus | null
+  // 상단 진행 스텝 완료 플래그(5): 평가의견 작성·제출·위원장 검토·간사 검토·관리자 검토(최종)
+  reviewFlags: boolean[]
 }
 
 // 점수 입력 화면(ScoreForm)에 필요한 전체 데이터 — 서버 페이지/ API 라우트 공용
@@ -57,7 +62,7 @@ export async function getSheetData(
         },
       },
     }),
-    prisma.evaluationSession.findUnique({ where: { id: sessionId } }),
+    prisma.evaluationSession.findUnique({ where: { id: sessionId }, include: { project: { select: { name: true } } } }),
     scoringUnitsForScope(criteriaWhere),
     prisma.score.findMany({ where: { evaluatorId: userId, subjectId } }),
     prisma.opinion.findUnique({ where: { evaluatorId_subjectId: { evaluatorId: userId, subjectId } } }),
@@ -66,7 +71,7 @@ export async function getSheetData(
       where: { evaluatorId: userId, sessionId },
       select: { subjectId: true, criterionId: true, subitemId: true, value: true },
     }),
-    prisma.submission.findUnique({ where: { evaluatorId_subjectId: { evaluatorId: userId, subjectId } }, select: { status: true } }),
+    prisma.submission.findUnique({ where: { evaluatorId_subjectId: { evaluatorId: userId, subjectId } }, select: { status: true, chairConfirmedAt: true } }),
     prisma.assignment.findUnique({ where: { sessionId_userId: { sessionId, userId } }, select: { status: true } }),
     prisma.groupComment.findMany({ where: { evaluatorId: userId, subjectId }, select: { groupId: true, text: true } }),
   ])
@@ -107,6 +112,7 @@ export async function getSheetData(
   return {
     subjectName: subject.name,
     sessionName: session.name,
+    projectName: session.project?.name ?? null,
     evaluatorName: userName,
     isChair: session.chairId === userId,
     eventDate: session.eventDate ? session.eventDate.toISOString() : null,
@@ -119,6 +125,12 @@ export async function getSheetData(
     otherScores,
     otherPending,
     submissionStatus: submission?.status ?? null,
+    reviewFlags: reviewFlags({
+      status: submission?.status ?? null,
+      scored: totalUnits > 0 && byUnit.size >= totalUnits,
+      chairConfirmed: submission?.chairConfirmedAt != null,
+      sessionClosed: session.status === 'CLOSED',
+    }),
   }
 }
 
@@ -143,6 +155,8 @@ export interface HomeSession {
   assignmentId: string
   sessionId: string
   sessionName: string
+  // 소속 과제명(분과명 앞에 표기). 과제 미소속 레거시 분과는 null.
+  projectName: string | null
   isChair: boolean
   eventDate: string | null
   doneSubjects: number
@@ -158,6 +172,7 @@ export async function getHomeData(userId: string): Promise<HomeSession[]> {
       include: {
         session: {
           include: {
+            project: { select: { name: true } },
             subjects: {
               orderBy: { order: 'asc' },
               include: {
@@ -240,6 +255,7 @@ export async function getHomeData(userId: string): Promise<HomeSession[]> {
       assignmentId: a.id,
       sessionId: a.session.id,
       sessionName: a.session.name,
+      projectName: a.session.project?.name ?? null,
       isChair: a.session.chairId === userId,
       eventDate: a.session.eventDate ? a.session.eventDate.toISOString() : null,
       doneSubjects: subjects.filter((s) => s.status === 'complete').length,
@@ -276,6 +292,10 @@ export interface ChairSubjectEvaluator {
 
 export interface ChairSubjectData {
   sessionName: string
+  // 소속 과제명(분과명 앞에 표기). 과제 미소속 레거시 분과는 null.
+  projectName: string | null
+  // 위원장 본인의 이 대상 제출 상태(상단 진행 스텝 계산용)
+  chairSubmissionStatus: import('./submission').SubmissionStatus | null
   subjectId: string
   subjectName: string
   evaluators: ChairSubjectEvaluator[]
@@ -295,7 +315,7 @@ export async function getChairSubjectData(
   sessionId: string,
   subjectId: string,
 ): Promise<ChairSubjectData | null> {
-  const session = await prisma.evaluationSession.findUnique({ where: { id: sessionId } })
+  const session = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, include: { project: { select: { name: true } } } })
   if (!session || session.chairId !== userId) return null
   const chairId = session.chairId
 
@@ -364,6 +384,8 @@ export async function getChairSubjectData(
 
   return {
     sessionName: session.name,
+    projectName: session.project?.name ?? null,
+    chairSubmissionStatus: (statusOf.get(chairId) ?? null) as import('./submission').SubmissionStatus | null,
     subjectId,
     subjectName: subject.name,
     locked: lockReason !== null,

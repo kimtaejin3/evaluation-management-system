@@ -154,7 +154,7 @@ async function MonitoringSection({ id }: { id: string }) {
         </table>
       </div>
 
-      <MonitoringList data={p} />
+      <MonitoringList data={p} sessionId={id} />
     </section>
   );
 }

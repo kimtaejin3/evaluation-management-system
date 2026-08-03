@@ -8,6 +8,7 @@ import { isValidScoreValue } from '@/lib/scoring'
 import { canEvaluatorEdit } from '@/lib/submission'
 import { isAssignmentActive } from '@/lib/assignment'
 import { scoringUnitsForScope } from '@/lib/criteria-scope'
+import { scoreUnitId } from '@/lib/criteria-units'
 
 // 채점 단위(unitId) 해석 — 지표별 모드면 Criterion.id, 통합(퉁) 모드면 CriterionSubitem.id.
 // 세션 소속(사업 공통/레거시 세션) 검증까지 수행하고, 저장에 쓸 컬럼과 만점을 돌려준다.
@@ -73,6 +74,71 @@ export async function saveChairOpinion(
   } else {
     await prisma.opinion.deleteMany({ where: { evaluatorId: user.id, subjectId } })
   }
+  revalidatePath(`/evaluate/${sessionId}/chair/${subjectId}`)
+  return { ok: true }
+}
+
+// 위원장 대상별 제출 — 종합의견 저장 + 본인 평가 제출(SUBMITTED). 종합의견 페이지에서 서명과 함께 확정.
+// 전 항목 입력 + 종합의견 작성 + 서명이 있어야 하며, 이미 제출/승인이면 잠금.
+export async function submitChairEvaluation(
+  sessionId: string,
+  subjectId: string,
+  formData: FormData,
+): Promise<{ ok: boolean; error?: string }> {
+  const user = await getCurrentUser()
+  if (!user) return { ok: false, error: 'auth' }
+  const session = await prisma.evaluationSession.findUnique({
+    where: { id: sessionId },
+    select: { chairId: true, status: true, projectId: true },
+  })
+  if (!session || session.chairId !== user.id) return { ok: false, error: '위원장만 제출할 수 있습니다.' }
+  if (session.status !== 'IN_PROGRESS') return { ok: false, error: '진행 중인 심사에서만 제출할 수 있습니다.' }
+
+  const assigned = await prisma.assignment.findUnique({
+    where: { sessionId_userId: { sessionId, userId: user.id } },
+    select: { status: true },
+  })
+  if (!assigned || !isAssignmentActive(assigned.status)) return { ok: false, error: '배정되지 않은 심사입니다.' }
+
+  const subject = await prisma.subject.findUnique({ where: { id: subjectId }, select: { sessionId: true } })
+  if (!subject || subject.sessionId !== sessionId) return { ok: false, error: '해당 분과의 평가 대상이 아닙니다.' }
+
+  const existing = await prisma.submission.findUnique({
+    where: { evaluatorId_subjectId: { evaluatorId: user.id, subjectId } },
+    select: { status: true },
+  })
+  if (!canEvaluatorEdit(existing?.status ?? null)) return { ok: false, error: '이미 제출/승인되어 수정할 수 없습니다.' }
+
+  const opinion = String(formData.get('opinion') ?? '').trim()
+  if (!opinion) return { ok: false, error: '종합의견을 작성한 뒤 제출할 수 있습니다.' }
+  const signature = String(formData.get('signature') ?? '')
+  if (!signature.startsWith('data:image/png;base64,') || signature.length > 300_000) {
+    return { ok: false, error: '제출 서명이 필요합니다. 서명란에 서명해주세요.' }
+  }
+
+  // 전 항목 입력 확인 — 위원장 본인 점수가 모든 채점 단위에 있어야 한다.
+  const units = await scoringUnitsForScope(session.projectId ? { projectId: session.projectId } : { sessionId })
+  const unitIds = new Set(units.map((u) => u.unitId))
+  const scores = await prisma.score.findMany({
+    where: { sessionId, evaluatorId: user.id, subjectId },
+    select: { criterionId: true, subitemId: true },
+  })
+  const filled = new Set(scores.map((s) => scoreUnitId(s)).filter((id) => unitIds.has(id)))
+  if (units.length === 0 || filled.size < units.length) {
+    return { ok: false, error: '평가표에서 모든 항목을 입력한 뒤 제출할 수 있습니다.' }
+  }
+
+  // 종합의견 저장 + 제출(SUBMITTED, 서명)
+  await prisma.opinion.upsert({
+    where: { evaluatorId_subjectId: { evaluatorId: user.id, subjectId } },
+    update: { text: opinion, sessionId },
+    create: { evaluatorId: user.id, subjectId, sessionId, text: opinion },
+  })
+  await prisma.submission.upsert({
+    where: { evaluatorId_subjectId: { evaluatorId: user.id, subjectId } },
+    update: { status: 'SUBMITTED', submittedAt: new Date(), signature },
+    create: { sessionId, evaluatorId: user.id, subjectId, status: 'SUBMITTED', submittedAt: new Date(), signature },
+  })
   revalidatePath(`/evaluate/${sessionId}/chair/${subjectId}`)
   return { ok: true }
 }
@@ -281,6 +347,15 @@ export async function saveScores(
     return { error: '제출 서명이 필요합니다. 제출 확인 창에서 서명해주세요.' }
   }
 
+  // 위원장은 종합의견을 작성한 뒤에만 제출할 수 있다(항목표에서 종합의견 전 제출 방지).
+  if (session.chairId === user.id) {
+    const op = await prisma.opinion.findUnique({
+      where: { evaluatorId_subjectId: { evaluatorId: user.id, subjectId } },
+      select: { text: true },
+    })
+    if (!op || !op.text.trim()) return { error: '종합의견을 작성한 뒤 제출할 수 있습니다.' }
+  }
+
   // 제출: 제출완료 상태로 기록(재제출 시에도 SUBMITTED로 갱신, 서명도 갱신)
   await prisma.submission.upsert({
     where: { evaluatorId_subjectId: { evaluatorId: user.id, subjectId } },
@@ -288,7 +363,14 @@ export async function saveScores(
     create: { sessionId, evaluatorId: user.id, subjectId, status: 'SUBMITTED', submittedAt: new Date(), signature },
   })
 
-  // 제출 후: 다음 대상으로 자동 이동하지 않고 목록으로 돌아간다(제출 안내).
+  // 위원장은 목록으로 튕기지 않고 이 평가표에 남는다 — 제출로 '위원별 평가·종합의견' 버튼이
+  // 그 자리에서 활성화되도록 revalidate만 한다(제출 상태가 갱신되며 링크가 열림).
+  if (session.chairId === user.id) {
+    revalidatePath(`/evaluate/${sessionId}/${subjectId}`)
+    return { submitted: true }
+  }
+
+  // 일반 위원: 제출 후 다음 대상으로 자동 이동하지 않고 목록으로 돌아간다(제출 안내).
   // 다음 대상은 위원이 목록에서 직접 고른다.
   const subject = await prisma.subject.findUnique({ where: { id: subjectId }, select: { name: true } })
   redirect(`/evaluate?submitted=${encodeURIComponent(subject?.name ?? '')}`)

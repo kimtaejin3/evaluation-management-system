@@ -97,7 +97,10 @@ export default function EvaluateHomeClient({
             {/* 상태바 */}
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-[var(--gov-navy)] px-5 py-3 text-white">
               <div className="flex items-center gap-3">
-                <span className="font-semibold">{s.sessionName}</span>
+                <span className="font-semibold">
+                  {s.projectName && <span className="font-normal text-white/70">{s.projectName} · </span>}
+                  {s.sessionName}
+                </span>
                 <span className="text-xs text-slate-300">{name} 위원</span>
                 {s.isChair && (
                   <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs font-medium text-white">
