@@ -196,7 +196,7 @@ export default function ScoreForm({
   const allInRange = criteria.every((c) => isInRange(c));
   // 위원장은 전 항목 입력 + 종합의견 작성까지 돼야 제출 가능
   const canSubmit = allFilled && allInRange && (!isChair || chairOpinionWritten);
-  // 상단 진행 스텝 — 위원장은 전용 5단계(평가의견→종합의견→제출→간사→관리자), 일반 위원은 위원장 검토 독립 판정
+  // 상단 진행 스텝 — 위원장은 전용 5단계(평가의견→종합의견→제출→담당자→관리자), 일반 위원은 위원장 검토 독립 판정
   const evalSteps = stepsFromFlags(REVIEW_STAGE_LABELS, reviewFlags);
   if (rejected) evalSteps[0] = { ...evalSteps[0], state: "rejected" };
   const reviewSteps = isChair
@@ -301,7 +301,7 @@ export default function ScoreForm({
         </span>
       </div>
 
-      {/* 진행 단계 스텝퍼 — 작성 → 제출 → 위원장 → 간사 → 관리자(최종) */}
+      {/* 진행 단계 스텝퍼 — 작성 → 제출 → 위원장 → 담당자 → 관리자(최종) */}
       <div className="mx-auto mt-3 max-w-[1600px] px-6">
         <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white px-5 py-3">
           <ReviewStepper steps={reviewSteps} />

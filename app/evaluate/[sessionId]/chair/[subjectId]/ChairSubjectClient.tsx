@@ -10,7 +10,7 @@ import ReviewStepper, { stepsFromFlags } from '@/components/ReviewStepper'
 import { CHAIR_REVIEW_STAGE_LABELS, chairReviewFlags } from '@/lib/submission'
 import type { ChairSubjectData } from '@/lib/evaluate-data'
 
-// 위원장 진행 스텝 — 평가의견 작성 → 종합의견 작성(현 페이지) → 제출 → 간사 검토 → 관리자 검토.
+// 위원장 진행 스텝 — 평가의견 작성 → 종합의견 작성(현 페이지) → 제출 → 담당자 검토 → 관리자 검토.
 // 종합의견은 실시간(입력 즉시) 반영되도록 opinion 상태로 판정한다.
 function buildChairSteps(data: ChairSubjectData, opinion: string) {
   const chair = data.evaluators.find((e) => e.isChair)

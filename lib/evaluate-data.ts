@@ -38,7 +38,7 @@ export interface SheetData {
   otherScores: Record<string, { name: string; value: number }[]>
   otherPending: Record<string, string[]>
   submissionStatus: import('./submission').SubmissionStatus | null
-  // 상단 진행 스텝 완료 플래그(5): 평가의견 작성·제출·위원장 검토·간사 검토·관리자 검토(최종)
+  // 상단 진행 스텝 완료 플래그(5): 평가의견 작성·제출·위원장 검토·담당자 검토·관리자 검토(최종)
   reviewFlags: boolean[]
 }
 

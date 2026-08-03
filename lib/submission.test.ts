@@ -48,7 +48,7 @@ describe('canDecide', () => {
 })
 
 describe('reviewFlags', () => {
-  it('평가의견→제출→위원장→간사→관리자, 위원장 검토는 독립 판정', () => {
+  it('평가의견→제출→위원장→담당자→관리자, 위원장 검토는 독립 판정', () => {
     // 미제출
     expect(reviewFlags({ status: null, scored: false, chairConfirmed: false, sessionClosed: false }))
       .toEqual([false, false, false, false, false])
@@ -61,10 +61,10 @@ describe('reviewFlags', () => {
     // 제출 + 위원장 검토
     expect(reviewFlags({ status: 'SUBMITTED', scored: true, chairConfirmed: true, sessionClosed: false }))
       .toEqual([true, true, true, false, false])
-    // 간사 승인이지만 위원장 검토 안 함 → 위원장 검토는 false로 유지(자동 완료 아님)
+    // 담당자 승인이지만 위원장 검토 안 함 → 위원장 검토는 false로 유지(자동 완료 아님)
     expect(reviewFlags({ status: 'APPROVED', scored: true, chairConfirmed: false, sessionClosed: false }))
       .toEqual([true, true, false, true, false])
-    // 위원장 검토 + 간사 승인
+    // 위원장 검토 + 담당자 승인
     expect(reviewFlags({ status: 'APPROVED', scored: true, chairConfirmed: true, sessionClosed: false }))
       .toEqual([true, true, true, true, false])
     // 관리자 검토 완료(세션 마감)
@@ -74,7 +74,7 @@ describe('reviewFlags', () => {
 })
 
 describe('chairReviewFlags', () => {
-  it('평가의견→종합의견→제출→간사→관리자 순으로 단계 완료', () => {
+  it('평가의견→종합의견→제출→담당자→관리자 순으로 단계 완료', () => {
     // 아무것도 안 함
     expect(chairReviewFlags({ status: null, scored: false, opinionWritten: false, sessionClosed: false }))
       .toEqual([false, false, false, false, false])
@@ -87,7 +87,7 @@ describe('chairReviewFlags', () => {
     // 제출완료
     expect(chairReviewFlags({ status: 'SUBMITTED', scored: true, opinionWritten: true, sessionClosed: false }))
       .toEqual([true, true, true, false, false])
-    // 간사 승인
+    // 담당자 승인
     expect(chairReviewFlags({ status: 'APPROVED', scored: true, opinionWritten: true, sessionClosed: false }))
       .toEqual([true, true, true, true, false])
     // 관리자 검토 완료(세션 마감)
