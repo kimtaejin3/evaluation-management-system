@@ -190,7 +190,6 @@ export default async function ProjectDetailPage({
                   <th className="px-5 py-2.5 font-medium">이름</th>
                   <th className="px-5 py-2.5 font-medium">아이디</th>
                   <th className="px-5 py-2.5 font-medium">연락처</th>
-                  <th className="px-5 py-2.5 font-medium">사번</th>
                   <th className="px-5 py-2.5 font-medium">담당 분과</th>
                   <th className="px-5 py-2.5 text-right"></th>
                 </tr>
@@ -198,7 +197,7 @@ export default async function ProjectDetailPage({
               <tbody>
                 {secretaries.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-5 py-8 text-center text-sm text-slate-400">
+                    <td colSpan={5} className="px-5 py-8 text-center text-sm text-slate-400">
                       참여 담당자가 없습니다. 위의 '담당자 추가'로 담당자 풀에서 추가하세요.
                     </td>
                   </tr>
@@ -209,9 +208,6 @@ export default async function ProjectDetailPage({
                     <td className="px-5 py-2.5 text-slate-600">{u.username}</td>
                     <td className="px-5 py-2.5 text-slate-600">
                       {u.phone ?? <span className="text-slate-300">—</span>}
-                    </td>
-                    <td className="px-5 py-2.5 text-slate-600">
-                      {u.employeeNo ?? <span className="text-slate-300">—</span>}
                     </td>
                     <td className="px-5 py-2.5">
                       {sessionsOfSecretary.has(u.id) ? (

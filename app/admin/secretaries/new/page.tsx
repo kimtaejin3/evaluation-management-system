@@ -49,10 +49,6 @@ export default async function NewSecretaryPage({
             </label>
             <input name="phone" required className={inputCls} placeholder="예) 010-1234-5678" />
           </div>
-          <div>
-            <label className={labelCls}>사번</label>
-            <input name="employeeNo" className={inputCls} placeholder="예) 2026-0142" />
-          </div>
         </div>
         <div className="flex justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-5 py-3">
           <Link

@@ -68,7 +68,6 @@ async function SecretaryTable() {
       roleLabel="담당자"
       chipsHeader="참여 사업"
       chipsEmptyLabel="참여 없음"
-      showEmployeeNo
       emptyLabel="등록된 담당자가 없습니다. 위의 ‘담당자 추가’로 시작하세요."
       deleteAction={deleteSecretaries}
     />
