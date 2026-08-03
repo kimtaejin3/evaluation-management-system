@@ -31,7 +31,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (!token) return new Response('Unauthorized', { status: 401 })
 
   const { id } = await params
-  // 간사는 자기 분과만(마스터 전부, 평가위원 불가)
+  // 담당자는 자기 분과만(마스터 전부, 평가위원 불가)
   if (!(await canTokenAccessSession(token, id))) return new Response('Unauthorized', { status: 401 })
   const encoder = new TextEncoder()
   const signal = req.signal

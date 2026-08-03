@@ -31,7 +31,7 @@ export async function login(_prev: unknown, formData: FormData) {
 
   if (user.role === 'MASTER') redirect('/admin/projects')
   if (user.role === 'SECRETARY') {
-    // 간사는 첫 참여 과제의 분과 목록으로 — 참여 과제가 없으면 분과 목록(안내)으로
+    // 담당자는 첫 참여 사업의 분과 목록으로 — 참여 사업이 없으면 분과 목록(안내)으로
     const first = await prisma.project.findFirst({
       where: { secretaries: { some: { id: user.id } } },
       orderBy: { createdAt: 'asc' },

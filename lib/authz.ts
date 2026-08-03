@@ -6,7 +6,7 @@ import { canManageSession, canAccessProject, type Role } from './authz-rules'
 export { canManageSession, canAccessProject }
 export type { Role }
 
-// 로그인 + 관리영역(마스터/간사) 강제
+// 로그인 + 관리영역(마스터/담당자) 강제
 export async function requireAdminUser() {
   const user = await getCurrentUser()
   if (!user) redirect('/login')
@@ -29,7 +29,7 @@ export async function assertSessionAccess(sessionId: string) {
   return { user, session }
 }
 
-// API 라우트용 — 토큰(payload)으로 분과 접근 가능 여부(마스터 전부, 간사=자기 분과, 평가위원 불가)
+// API 라우트용 — 토큰(payload)으로 분과 접근 가능 여부(마스터 전부, 담당자=자기 분과, 평가위원 불가)
 export async function canTokenAccessSession(
   token: { userId: string; role: string },
   sessionId: string,
@@ -41,7 +41,7 @@ export async function canTokenAccessSession(
   return !!s && canManageSession('SECRETARY', token.userId, s)
 }
 
-// API 라우트용 — 토큰(payload)으로 과제 접근 가능 여부(마스터 전부, 간사=배정 과제, 평가위원 불가)
+// API 라우트용 — 토큰(payload)으로 사업 접근 가능 여부(마스터 전부, 담당자=배정 사업, 평가위원 불가)
 export async function canTokenAccessProject(
   token: { userId: string; role: string },
   projectId: string,
@@ -56,7 +56,7 @@ export async function canTokenAccessProject(
   return !!project && canAccessProject('SECRETARY', token.userId, project)
 }
 
-// 과제 접근 — 권한 없으면 notFound
+// 사업 접근 — 권한 없으면 notFound
 export async function assertProjectAccess(projectId: string) {
   const user = await requireAdminUser()
   const project = await prisma.project.findUnique({

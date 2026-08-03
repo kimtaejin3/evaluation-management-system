@@ -9,7 +9,7 @@ export default async function SessionLayout({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  // 로그인·소유(간사=자기 분과)·마스터 권한 검증. 권한 없으면 notFound.
+  // 로그인·소유(담당자=자기 분과)·마스터 권한 검증. 권한 없으면 notFound.
   const { session } = await assertSessionAccess(id)
 
   return (

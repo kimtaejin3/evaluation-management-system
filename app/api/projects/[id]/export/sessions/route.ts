@@ -4,7 +4,7 @@ import { getCurrentToken } from '@/lib/session'
 import { canTokenAccessProject } from '@/lib/authz'
 import { fmtYmd } from '@/lib/dates'
 
-// 분과 목록 → xlsx (분과명/평가 상태/평가 기간/대상 수/위원 수/담당 간사)
+// 분과 목록 → xlsx (분과명/평가 상태/평가 기간/대상 수/위원 수/담당자)
 const STATUS_LABEL: Record<string, string> = { DRAFT: '준비중', IN_PROGRESS: '진행중', CLOSED: '마감' }
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -29,7 +29,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       s.startDate || s.endDate ? `${fmtYmd(s.startDate)} ~ ${fmtYmd(s.endDate)}` : s.eventDate ? fmtYmd(s.eventDate) : '미정',
     '평가 대상 수': s._count.subjects,
     '평가위원 수': s._count.assignments,
-    '담당 간사': s.secretary?.name ?? '미배정',
+    '담당자': s.secretary?.name ?? '미배정',
   }))
 
   const wb = XLSX.utils.book_new()

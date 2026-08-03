@@ -15,7 +15,7 @@ export function assignmentStatusLabel(status: AssignmentStatus): string {
   return LABELS[status]
 }
 
-// 등록 주체 역할에 따른 초기 상태: 관리자=즉시 승인, 간사=관리자 승인 대기
+// 등록 주체 역할에 따른 초기 상태: 관리자=즉시 승인, 담당자=관리자 승인 대기
 export function initialAssignmentStatus(actorRole: 'MASTER' | 'SECRETARY'): AssignmentStatus {
   return actorRole === 'MASTER' ? 'APPROVED' : 'PENDING'
 }

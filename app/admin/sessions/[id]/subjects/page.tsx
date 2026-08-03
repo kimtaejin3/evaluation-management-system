@@ -60,9 +60,9 @@ async function SubjectsContent({ id }: { id: string }) {
   ]);
   const locked = session?.status === "CLOSED";
   const sr = (session?.subjectReviewStatus ?? "DRAFT") as ReviewStatus;
-  // 간사 제출(SUBMITTED) 이후에만 관리자가 평가 대상을 볼 수 있다.
+  // 담당자 제출(SUBMITTED) 이후에만 관리자가 평가 대상을 볼 수 있다.
   const adminCanView = sr === "SUBMITTED" || sr === "APPROVED";
-  // 추가·수정·삭제·업로드는 담당 간사만, 제출 전(DRAFT/REJECTED)에만.
+  // 추가·수정·삭제·업로드는 담당자만, 제출 전(DRAFT/REJECTED)에만.
   const canEdit = !locked && !isMaster && (sr === "DRAFT" || sr === "REJECTED");
   const adminBlocked = isMaster && !locked && !adminCanView;
 
@@ -76,7 +76,7 @@ async function SubjectsContent({ id }: { id: string }) {
         <ExcelExportButton href={`/api/sessions/${id}/export/subjects`} />
       </div>
 
-      {/* 검토 워크플로 배너 — 간사: 제출/취소, 관리자: 승인/반려 */}
+      {/* 검토 워크플로 배너 — 담당자: 제출/취소, 관리자: 승인/반려 */}
       {!locked && (
         <ReviewWorkflowPanel
           sessionId={id}
@@ -91,7 +91,7 @@ async function SubjectsContent({ id }: { id: string }) {
         />
       )}
 
-      {/* 대상 추가 (상단, 간사 전용, 제출 전) */}
+      {/* 대상 추가 (상단, 담당자 전용, 제출 전) */}
       {locked ? (
         <p className="text-sm text-slate-400">
           마감된 분과는 평가 대상을 수정할 수 없습니다.
@@ -129,7 +129,7 @@ async function SubjectsContent({ id }: { id: string }) {
         </div>
       )}
 
-      {/* 평가 대상 목록 — 테이블 UI(수정/서류 관리는 모달). 관리자는 간사 제출 후에만 조회. */}
+      {/* 평가 대상 목록 — 테이블 UI(수정/서류 관리는 모달). 관리자는 담당자 제출 후에만 조회. */}
       {!adminBlocked && (
         <SubjectsTable
           sessionId={id}

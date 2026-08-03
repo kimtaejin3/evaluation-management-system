@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db'
 import { getCurrentToken } from '@/lib/session'
 import { canTokenAccessProject } from '@/lib/authz'
 
-// 과제 공통 평가항목 → xlsx 다운로드(평가항목/세부항목/평가지표/배점, group→subitem→criterion order 정렬)
+// 사업 공통 평가항목 → xlsx 다운로드(평가항목/세부항목/평가지표/배점, group→subitem→criterion order 정렬)
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const token = await getCurrentToken()
   if (!token) return new Response('Unauthorized', { status: 401 })

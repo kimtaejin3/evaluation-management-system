@@ -85,11 +85,11 @@ export default function SheetDoc({ data, pageBreak = false }: { data: SheetDocDa
           <tr>
             <th className={`${th} w-32`}>지역</th>
             <td className={td}>{data.region ?? ""}</td>
-            <th className={`${th} w-32`}>과제유형</th>
+            <th className={`${th} w-32`}>사업유형</th>
             <td className={td}>{data.taskType ?? ""}</td>
           </tr>
           <tr>
-            <th className={th}>과제명</th>
+            <th className={th}>사업명</th>
             <td className={td} colSpan={3}>{data.taskName ?? ""}</td>
           </tr>
           <tr>

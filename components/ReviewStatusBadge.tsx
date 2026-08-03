@@ -1,6 +1,6 @@
-// 간사 제출 여부 배지 — 제출/미제출 이진 표시.
+// 담당자 제출 여부 배지 — 제출/미제출 이진 표시.
 // 승인/반려 등 관리자 판단 상태는 별도의 '승인 상태' 컬럼(ApprovalBadge)에서 보여준다.
-// wording: 'submit'(기본) | 'review' — 의견서처럼 간사가 '검토'하는 도메인은 검토 표현을 쓴다.
+// wording: 'submit'(기본) | 'review' — 의견서처럼 담당자가 '검토'하는 도메인은 검토 표현을 쓴다.
 export default function ReviewStatusBadge({
   status,
   wording = "submit",

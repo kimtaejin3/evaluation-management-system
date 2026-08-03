@@ -7,7 +7,7 @@ import PrintButton from "@/app/admin/sessions/[id]/results/PrintButton";
 import CriteriaPreviewTable from "@/components/CriteriaPreviewTable";
 
 // 평가항목(평가지) 인쇄 — 관리자 레이아웃(사이드바) 없이 문서만 렌더. 자체 인증.
-// 평가항목은 과제(Project) 단위 공통 — projectId(과제 페이지) 또는 sessionId(분과 페이지)로 진입.
+// 평가항목은 사업(Project) 단위 공통 — projectId(사업 페이지) 또는 sessionId(분과 페이지)로 진입.
 // embed=1 이면 미리보기 iframe 임베드용으로 화면 툴바를 숨긴다.
 export default async function CriteriaPrintPage({
   searchParams,
@@ -96,8 +96,8 @@ export default async function CriteriaPrintPage({
         <header className="mb-5 border-b border-slate-200 pb-4">
           <h1 className="text-xl font-bold text-slate-900">{title}</h1>
           <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 text-sm text-slate-500">
-            {projectName && <span>과제 {projectName}</span>}
-            {taskType && <span>과제유형 {taskType}</span>}
+            {projectName && <span>사업 {projectName}</span>}
+            {taskType && <span>사업유형 {taskType}</span>}
             <span>기준 만점 {maxScore}점</span>
             <span className="ml-auto">출력일 {printedDate}</span>
           </div>

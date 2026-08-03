@@ -2,8 +2,8 @@
 
 import { usePrintPreview } from './usePrintPreview'
 
-// 평가항목(평가지)을 새 탭에서 인쇄. 관리자·간사 공통.
-// projectId(과제 페이지) 또는 sessionId(분과 페이지) 중 하나로 호출한다.
+// 평가항목(평가지)을 새 탭에서 인쇄. 관리자·담당자 공통.
+// projectId(사업 페이지) 또는 sessionId(분과 페이지) 중 하나로 호출한다.
 export default function CriteriaPrintButton({
   sessionId,
   projectId,

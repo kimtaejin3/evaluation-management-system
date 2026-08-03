@@ -6,7 +6,7 @@ import { assignSecretaryToSession, unassignSessionSecretary } from '@/app/admin/
 
 type SecretaryOpt = { id: string; name: string; username: string }
 
-// 분과 목록의 '담당 간사' 셀(관리자 전용) — 해제하면 곧바로 새 간사 배정 모달이 열리고,
+// 분과 목록의 '담당자' 셀(관리자 전용) — 해제하면 곧바로 새 담당자 배정 모달이 열리고,
 // 미배정 분과는 '배정' 버튼으로 같은 모달을 연다.
 export default function SessionSecretaryCell({
   projectId,
@@ -32,7 +32,7 @@ export default function SessionSecretaryCell({
     return () => document.removeEventListener('keydown', onKey)
   }, [open])
 
-  // 해제 → 즉시 새 간사 배정 모달 열기
+  // 해제 → 즉시 새 담당자 배정 모달 열기
   const unassign = () => {
     start(async () => {
       await unassignSessionSecretary(projectId, sessionId)
@@ -85,8 +85,8 @@ export default function SessionSecretaryCell({
           >
             <div className="flex items-start justify-between">
               <div>
-                <h3 className="text-base font-semibold text-slate-800">간사 배정</h3>
-                <p className="mt-0.5 text-xs text-slate-400">{sessionName}의 담당 간사를 선택하세요.</p>
+                <h3 className="text-base font-semibold text-slate-800">담당자 배정</h3>
+                <p className="mt-0.5 text-xs text-slate-400">{sessionName}의 담당자를 선택하세요.</p>
               </div>
               <button type="button" onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600" aria-label="닫기">
                 ✕
@@ -96,7 +96,7 @@ export default function SessionSecretaryCell({
             <input type="hidden" name="sessionId" value={sessionId} />
             {secretaries.length === 0 ? (
               <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                등록된 간사가 없습니다. 분과 목록 아래 &lsquo;간사 추가&rsquo;로 먼저 만들어 주세요.
+                등록된 담당자가 없습니다. 분과 목록 아래 &lsquo;담당자 추가&rsquo;로 먼저 만들어 주세요.
               </p>
             ) : (
               <select
@@ -106,7 +106,7 @@ export default function SessionSecretaryCell({
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               >
                 <option value="" disabled>
-                  간사 선택
+                  담당자 선택
                 </option>
                 {secretaries.map((s) => (
                   <option key={s.id} value={s.id}>

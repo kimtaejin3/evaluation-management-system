@@ -9,7 +9,7 @@ import { passwordFromPhone } from '@/lib/phone'
 import { saveUpload, deleteUpload, isPdf } from '@/lib/storage'
 import { requireAdminUser, assertMaster } from '@/lib/authz'
 
-// ---- 평가위원·간사 계정 관리(전역) ----
+// ---- 평가위원·담당자 계정 관리(전역) ----
 
 export async function createEvaluator(formData: FormData) {
   const actor = await requireAdminUser()
@@ -18,7 +18,7 @@ export async function createEvaluator(formData: FormData) {
   const phone = String(formData.get('phone') ?? '').trim()
   // 임시 비밀번호 = 연락처 끝 4자리(연락처 필수)
   const password = passwordFromPhone(phone)
-  // 역할: 간사(SECRETARY) 생성은 마스터만. 그 외/간사 아닌 요청은 평가위원.
+  // 역할: 담당자(SECRETARY) 생성은 마스터만. 그 외/담당자 아닌 요청은 평가위원.
   let role: 'SECRETARY' | 'EVALUATOR' =
     String(formData.get('role') ?? 'EVALUATOR') === 'SECRETARY' ? 'SECRETARY' : 'EVALUATOR'
   if (role === 'SECRETARY' && actor.role !== 'MASTER') role = 'EVALUATOR'
@@ -42,12 +42,12 @@ export async function deleteEvaluator(userId: string) {
   revalidatePath('/admin/evaluators')
 }
 
-// 간사(계정) 일괄 삭제 — 간사 관리에서 체크박스로 여러 명 선택 후 한 번에 삭제(마스터 전용)
+// 담당자(계정) 일괄 삭제 — 담당자 관리에서 체크박스로 여러 명 선택 후 한 번에 삭제(마스터 전용)
 export async function deleteSecretaries(ids: string[]) {
   await assertMaster()
   const clean = ids.filter(Boolean)
   if (clean.length === 0) return
-  // role 가드 — 간사만 삭제 대상
+  // role 가드 — 담당자만 삭제 대상
   await prisma.user.deleteMany({ where: { id: { in: clean }, role: 'SECRETARY' } })
   revalidatePath('/admin', 'layout')
   revalidatePath('/admin/secretaries')

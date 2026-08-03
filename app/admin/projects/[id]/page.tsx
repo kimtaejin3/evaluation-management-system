@@ -35,7 +35,7 @@ export default async function ProjectDetailPage({
           _count: { select: { subjects: true, assignments: true } },
         },
       },
-      // 참여 간사(간사 풀에서 이 과제에 추가된 사람들)
+      // 참여 담당자(담당자 풀에서 이 사업에 추가된 사람들)
       secretaries: {
         orderBy: { name: "asc" },
         select: { id: true, name: true, username: true, phone: true, employeeNo: true, tempPassword: true },
@@ -44,7 +44,7 @@ export default async function ProjectDetailPage({
   });
   if (!project) return null;
 
-  // 간사에게는 본인이 담당(secretaryId)인 분과만 노출(미배정·타 간사 분과 숨김). 마스터는 전체.
+  // 담당자에게는 본인이 담당(secretaryId)인 분과만 노출(미배정·타 담당자 분과 숨김). 마스터는 전체.
   // 분과명·평가 기간 헤더 클릭 정렬(?sort=&dir=) 적용.
   const visibleSessions = sortSessions(
     isMaster ? project.sessions : project.sessions.filter((s) => s.secretaryId === user.id),
@@ -52,8 +52,8 @@ export default async function ProjectDetailPage({
     dir,
   );
 
-  // 참여 간사(이 과제) — 담당 배정 모달 + 하단 간사 테이블 공용.
-  // 추가 후보 = 간사 풀(간사 관리)에서 아직 이 과제에 참여하지 않은 간사.
+  // 참여 담당자(이 사업) — 담당 배정 모달 + 하단 담당자 테이블 공용.
+  // 추가 후보 = 담당자 풀(담당자 관리)에서 아직 이 사업에 참여하지 않은 담당자.
   const secretaries = project.secretaries;
   const candidates = isMaster
     ? await prisma.user.findMany({
@@ -62,7 +62,7 @@ export default async function ProjectDetailPage({
         select: { id: true, name: true, username: true },
       })
     : [];
-  // 간사별 이 과제 내 담당 분과
+  // 담당자별 이 사업 내 담당 분과
   const sessionsOfSecretary = new Map<string, string[]>();
   for (const s of project.sessions) {
     if (!s.secretaryId) continue;
@@ -75,7 +75,7 @@ export default async function ProjectDetailPage({
     <div className="space-y-6">
       <div>
         <Link href="/admin/projects" className="text-sm text-slate-400 hover:text-slate-600">
-          ← 과제 목록
+          ← 사업 목록
         </Link>
         {/* 제목 옆에 기간만 인라인 배치 */}
         <div className="mt-1 flex items-start justify-between gap-3">
@@ -94,12 +94,12 @@ export default async function ProjectDetailPage({
       </div>
 
       {/* 소속 분과 — 버튼은 카드 밖(배경), 표만 카드 안.
-          분과 추가는 간사·관리자 모두 가능(관리자는 생성 시 담당 간사 선택).
-          간사 배정/해제는 표의 '담당 간사' 셀에서 행 단위로 한다. */}
+          분과 추가는 담당자·관리자 모두 가능(관리자는 생성 시 담당자 선택).
+          담당자 배정/해제는 표의 '담당자' 셀에서 행 단위로 한다. */}
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-slate-700">
-            분과 간사 설정 <span className="ml-0.5 text-xs text-slate-400">{visibleSessions.length}개</span>
+            사업 담당자 설정 <span className="ml-0.5 text-xs text-slate-400">{visibleSessions.length}개</span>
           </h2>
           <div className="flex items-center gap-2">
             <ExcelExportButton href={`/api/projects/${id}/export/sessions`} />
@@ -125,7 +125,7 @@ export default async function ProjectDetailPage({
                 <SortableTh label="평가 기간" field="period" sort={sort} dir={dir} basePath={`/admin/projects/${id}`} />
                 <th className="px-5 py-3 font-medium">평가 대상 수</th>
                 <th className="px-5 py-3 font-medium">평가위원 수</th>
-                <th className="px-5 py-3 font-medium">담당 간사</th>
+                <th className="px-5 py-3 font-medium">담당자</th>
               </tr>
             </thead>
             <tbody>
@@ -171,12 +171,12 @@ export default async function ProjectDetailPage({
         </div>
       </div>
 
-      {/* 간사 관리 — 분과 목록 아래(관리자 전용): 간사 목록 + 생성 */}
+      {/* 담당자 관리 — 분과 목록 아래(관리자 전용): 담당자 목록 + 생성 */}
       {isMaster && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-slate-700">
-              참여 간사 <span className="ml-0.5 text-xs text-slate-400">{secretaries.length}명</span>
+              참여 담당자 <span className="ml-0.5 text-xs text-slate-400">{secretaries.length}명</span>
             </h2>
             <div className="flex items-center gap-2">
               <ExcelExportButton href={`/api/projects/${id}/export/secretaries`} />
@@ -190,7 +190,6 @@ export default async function ProjectDetailPage({
                   <th className="px-5 py-2.5 font-medium">이름</th>
                   <th className="px-5 py-2.5 font-medium">아이디</th>
                   <th className="px-5 py-2.5 font-medium">연락처</th>
-                  <th className="px-5 py-2.5 font-medium">사번</th>
                   <th className="px-5 py-2.5 font-medium">담당 분과</th>
                   <th className="px-5 py-2.5 text-right"></th>
                 </tr>
@@ -198,8 +197,8 @@ export default async function ProjectDetailPage({
               <tbody>
                 {secretaries.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-5 py-8 text-center text-sm text-slate-400">
-                      참여 간사가 없습니다. 위의 '간사 추가'로 간사 풀에서 추가하세요.
+                    <td colSpan={5} className="px-5 py-8 text-center text-sm text-slate-400">
+                      참여 담당자가 없습니다. 위의 '담당자 추가'로 담당자 풀에서 추가하세요.
                     </td>
                   </tr>
                 )}
@@ -209,9 +208,6 @@ export default async function ProjectDetailPage({
                     <td className="px-5 py-2.5 text-slate-600">{u.username}</td>
                     <td className="px-5 py-2.5 text-slate-600">
                       {u.phone ?? <span className="text-slate-300">—</span>}
-                    </td>
-                    <td className="px-5 py-2.5 text-slate-600">
-                      {u.employeeNo ?? <span className="text-slate-300">—</span>}
                     </td>
                     <td className="px-5 py-2.5">
                       {sessionsOfSecretary.has(u.id) ? (
@@ -241,10 +237,10 @@ export default async function ProjectDetailPage({
               </tbody>
             </table>
           </div>
-          {/* 표 밑: 간사 비밀번호 조회·재발급 모달 */}
+          {/* 표 밑: 담당자 비밀번호 조회·재발급 모달 */}
           <div className="flex justify-end">
             <UserPasswordManager
-              roleLabel="간사"
+              roleLabel="담당자"
               users={secretaries.map((u) => ({
                 id: u.id,
                 name: u.name,

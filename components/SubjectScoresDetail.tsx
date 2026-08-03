@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 
-// 지원기업(평가 대상)별 위원 점수·종합의견 모달 — 평가 의견서 상세·과제 집계 결과 공용.
+// 지원기업(평가 대상)별 위원 점수·종합의견 모달 — 평가 의견서 상세·사업 집계 결과 공용.
 // 호출부가 evaluators를 어떤 기준(채점 완료/승인 제출)으로 거를지 정하고, 문구는 프롭으로 맞춘다.
 export default function SubjectScoresDetail({
   subjectName,

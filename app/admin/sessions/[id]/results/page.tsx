@@ -161,7 +161,7 @@ async function ResultsContent({ id }: { id: string }) {
         />
       )}
 
-      {/* 합산 공식 + 위원 간 편차 정보 (화면 전용) — 간사에게는 숨김, 관리자만 표시 */}
+      {/* 합산 공식 + 위원 간 편차 정보 (화면 전용) — 담당자에게는 숨김, 관리자만 표시 */}
       {me.role === "MASTER" && (
         <div className="grid gap-4 print:hidden lg:grid-cols-2">
           <div className="rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-500">
@@ -191,7 +191,7 @@ async function ResultsContent({ id }: { id: string }) {
         </div>
       )}
 
-      {/* 분과 확정 (화면 전용, 최하단) — 간사: 제출 완료 / 관리자: 검토 완료 */}
+      {/* 분과 확정 (화면 전용, 최하단) — 담당자: 제출 완료 / 관리자: 검토 완료 */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-5 print:hidden">
         <div>
           <div className="text-sm font-semibold text-slate-700">
@@ -199,7 +199,7 @@ async function ResultsContent({ id }: { id: string }) {
           </div>
           <p className="mt-0.5 text-xs text-slate-400">
             {me.role === "MASTER"
-              ? "간사가 제출 완료한 분과를 검토하면 ‘완료’ 상태가 되고 점수가 잠깁니다."
+              ? "담당자가 제출 완료한 분과를 검토하면 ‘완료’ 상태가 되고 점수가 잠깁니다."
               : "집계 결과를 확인한 뒤 제출 완료하면 관리자가 검토합니다."}
           </p>
         </div>

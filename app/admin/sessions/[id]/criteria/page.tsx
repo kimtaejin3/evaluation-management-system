@@ -8,8 +8,8 @@ import CriteriaPreviewTable from "@/components/CriteriaPreviewTable";
 import CriteriaAckPanel from "@/components/CriteriaAckPanel";
 import { SkeletonTable } from "@/components/Skeletons";
 
-// 평가항목은 과제(Project) 단위 — 관리자가 과제 페이지에서 작성하고, 분과 화면에서는
-// 모두 조회 전용이다. 담당 간사는 내용 검토 후 '확인'(ack)만 한다.
+// 평가항목은 사업(Project) 단위 — 관리자가 사업 페이지에서 작성하고, 분과 화면에서는
+// 모두 조회 전용이다. 담당자는 내용 검토 후 '확인'(ack)만 한다.
 export default async function CriteriaPage({
   params,
 }: {
@@ -76,13 +76,13 @@ async function CriteriaContent({ id }: { id: string }) {
               href={`/admin/projects/${projectId}/criteria`}
               className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700"
             >
-              과제 평가항목 편집
+              사업 평가항목 편집
             </Link>
           )}
         </div>
       </div>
 
-      {/* 간사: 확인 패널(확인 전/후). 관리자: 편집은 과제 페이지에서. */}
+      {/* 담당자: 확인 패널(확인 전/후). 관리자: 편집은 사업 페이지에서. */}
       {!isMaster && (
         <CriteriaAckPanel
           sessionId={id}
@@ -93,7 +93,7 @@ async function CriteriaContent({ id }: { id: string }) {
 
       {!projectId ? (
         <p className="rounded-xl border border-slate-200 bg-white px-5 py-8 text-center text-sm text-slate-400">
-          이 분과는 소속 과제가 없어 평가항목을 표시할 수 없습니다.
+          이 분과는 소속 사업이 없어 평가항목을 표시할 수 없습니다.
         </p>
       ) : groups.length === 0 ? (
         <p className="rounded-xl border border-slate-200 bg-white px-5 py-8 text-center text-sm text-slate-400">

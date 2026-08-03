@@ -10,7 +10,7 @@ import { isAssignmentActive } from '@/lib/assignment'
 import { scoringUnitsForScope } from '@/lib/criteria-scope'
 
 // 채점 단위(unitId) 해석 — 지표별 모드면 Criterion.id, 통합(퉁) 모드면 CriterionSubitem.id.
-// 세션 소속(과제 공통/레거시 세션) 검증까지 수행하고, 저장에 쓸 컬럼과 만점을 돌려준다.
+// 세션 소속(사업 공통/레거시 세션) 검증까지 수행하고, 저장에 쓸 컬럼과 만점을 돌려준다.
 async function resolveUnit(
   session: { id: string; projectId: string | null },
   unitId: string,
@@ -32,7 +32,7 @@ async function resolveUnit(
 // 위원장 대상별 종합의견 저장 — 위원장 본인만, 진행 중·배정 유효한 분과에서만.
 // 위원장의 종합의견 저장 — 위원장은 평가표 하단이 아니라 대상별 화면('위원장 종합의견')에서 쓴다.
 // 저장 위치는 다른 위원과 같은 Opinion(위원×대상) 한 행이다.
-// 의견서가 간사 검토 제출(SUBMITTED)되거나 관리자 승인(APPROVED)된 뒤에는 수정·삭제할 수 없다.
+// 의견서가 담당자 검토 제출(SUBMITTED)되거나 관리자 승인(APPROVED)된 뒤에는 수정·삭제할 수 없다.
 export async function saveChairOpinion(
   sessionId: string,
   subjectId: string,
@@ -175,7 +175,7 @@ export async function autoSaveGroupComment(
   })
   if (!canEvaluatorEdit(sub?.status ?? null)) return { ok: false, error: 'locked' }
 
-  // 평가항목은 과제(Project) 단위 공통 — 소속 검증(레거시: 세션 항목)
+  // 평가항목은 사업(Project) 단위 공통 — 소속 검증(레거시: 세션 항목)
   const g = await prisma.criterionGroup.findUnique({ where: { id: groupId }, select: { projectId: true, sessionId: true } })
   const belongs = !!g && (session.projectId ? g.projectId === session.projectId : g.sessionId === sessionId)
   if (!belongs) return { ok: false, error: 'bad-group' }
@@ -224,7 +224,7 @@ export async function saveScores(
     return { error: '이미 제출/승인되어 수정할 수 없습니다.' }
   }
 
-  // 평가항목은 과제(Project) 단위 공통 — 채점 단위(지표별/통합) 기준으로 저장
+  // 평가항목은 사업(Project) 단위 공통 — 채점 단위(지표별/통합) 기준으로 저장
   const units = await scoringUnitsForScope(session.projectId ? { projectId: session.projectId } : { sessionId })
 
   for (const u of units) {
@@ -295,7 +295,7 @@ export async function saveScores(
 }
 
 // 위원장 확인 — 위원장이 특정 위원의 평가(점수·종합의견)를 확인했음을 기록한다.
-// 간사·마스터의 승인(Submission.status)과는 별개이며 집계에는 영향을 주지 않는다.
+// 담당자·마스터의 승인(Submission.status)과는 별개이며 집계에는 영향을 주지 않는다.
 export async function confirmEvaluation(
   sessionId: string,
   subjectId: string,

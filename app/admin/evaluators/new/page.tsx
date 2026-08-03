@@ -6,7 +6,7 @@ const labelCls = 'block text-sm font-medium text-slate-700'
 const inputCls =
   'mt-1.5 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500'
 
-// 새 평가위원 등록 — 간사 추가처럼 전용 페이지. 생성 후 평가위원 관리로 복귀.
+// 새 평가위원 등록 — 담당자 추가처럼 전용 페이지. 생성 후 평가위원 관리로 복귀.
 export default async function NewEvaluatorPage() {
   await assertMaster()
 

@@ -17,7 +17,7 @@ export default async function EvaluatorsAdminPage() {
           <h1 className="text-2xl font-bold">평가위원 관리</h1>
           <span className="inline-flex items-center gap-1 text-sm text-slate-500">
             <InfoIcon />
-            평가위원 계정을 등록·관리합니다. 분과 배정은 분과별 화면에서, 간사 관리는 간사 관리 페이지에서 진행하세요.
+            평가위원 계정을 등록·관리합니다. 분과 배정은 분과별 화면에서, 담당자 관리는 담당자 관리 페이지에서 진행하세요.
           </span>
         </div>
         <Link

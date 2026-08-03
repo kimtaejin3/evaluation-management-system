@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 
 type OpinionItem = { subjectName: string; text: string }
 
-// 과제 평가의견서 표의 '자세히 보기' — 분과 페이지로 이동하지 않고 모달로 의견서를 보여준다.
+// 사업 평가의견서 표의 '자세히 보기' — 분과 페이지로 이동하지 않고 모달로 의견서를 보여준다.
 // 내용은 분과 페이지와 동일하게 평가위원장이 작성한 종합의견만 표시한다.
 export default function SessionOpinionsModal({
   sessionName,

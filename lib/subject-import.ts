@@ -16,9 +16,9 @@ export const SUBJECT_FIELDS: SubjectFieldDef[] = [
 ]
 
 const SYNONYMS: Record<SubjectField, string[]> = {
-  name: ['기업명', '업체명', '회사명', '상호명', '상호', '대상명', '평가대상명', '평가대상', '과제명', '사업명', '기관명', '명칭', '기업', '업체', '회사'],
+  name: ['기업명', '업체명', '회사명', '상호명', '상호', '대상명', '평가대상명', '평가대상', '사업명', '사업명', '기관명', '명칭', '기업', '업체', '회사'],
   businessNo: ['사업자등록번호', '사업자번호', '사업자', '등록번호', 'businessno', 'bizno'],
-  description: ['설명', '사업개요', '과제개요', '개요', '비고', '내용'],
+  description: ['설명', '사업개요', '사업개요', '개요', '비고', '내용'],
 }
 
 function norm(s: string): string {

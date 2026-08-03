@@ -8,7 +8,7 @@ export function canManageSession(role: Role, userId: string, session: { secretar
   return false
 }
 
-// 과제 접근 권한
+// 사업 접근 권한
 export function canAccessProject(role: Role, userId: string, project: { secretaries: { id: string }[] }): boolean {
   if (role === 'MASTER') return true
   if (role === 'SECRETARY') return project.secretaries.some((s) => s.id === userId)

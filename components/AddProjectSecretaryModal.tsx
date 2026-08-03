@@ -7,14 +7,14 @@ import { addSecretaryToProject } from '@/app/admin/projects/actions'
 
 type SecretaryOpt = { id: string; name: string; username: string }
 
-// 과제 참여 간사 추가 — 간사 관리의 간사 풀에서 골라 이 과제에 연결한다.
-// 풀에 없는 사람은 '새 간사 만들기'(전용 페이지)로 생성하면서 자동 참여.
+// 사업 참여 담당자 추가 — 담당자 관리의 담당자 풀에서 골라 이 사업에 연결한다.
+// 풀에 없는 사람은 '새 담당자 만들기'(전용 페이지)로 생성하면서 자동 참여.
 export default function AddProjectSecretaryModal({
   projectId,
   candidates,
 }: {
   projectId: string
-  candidates: SecretaryOpt[] // 아직 이 과제에 참여하지 않은 간사들
+  candidates: SecretaryOpt[] // 아직 이 사업에 참여하지 않은 담당자들
 }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -42,7 +42,7 @@ export default function AddProjectSecretaryModal({
         onClick={() => setOpen(true)}
         className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium whitespace-nowrap text-slate-600 transition hover:bg-slate-50"
       >
-        + 간사 추가
+        + 담당자 추가
       </button>
 
       {open && (
@@ -57,8 +57,8 @@ export default function AddProjectSecretaryModal({
           >
             <div className="flex items-start justify-between">
               <div>
-                <h3 className="text-base font-semibold text-slate-800">참여 간사 추가</h3>
-                <p className="mt-0.5 text-xs text-slate-400">간사 풀에서 골라 이 과제에 추가합니다.</p>
+                <h3 className="text-base font-semibold text-slate-800">참여 담당자 추가</h3>
+                <p className="mt-0.5 text-xs text-slate-400">담당자 풀에서 골라 이 사업에 추가합니다.</p>
               </div>
               <button type="button" onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600" aria-label="닫기">
                 ✕
@@ -67,7 +67,7 @@ export default function AddProjectSecretaryModal({
 
             {candidates.length === 0 ? (
               <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
-                추가할 수 있는 간사가 없습니다. 새 간사를 만들어 주세요.
+                추가할 수 있는 담당자가 없습니다. 새 담당자를 만들어 주세요.
               </p>
             ) : (
               <select
@@ -77,7 +77,7 @@ export default function AddProjectSecretaryModal({
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               >
                 <option value="" disabled>
-                  간사 선택
+                  담당자 선택
                 </option>
                 {candidates.map((s) => (
                   <option key={s.id} value={s.id}>
@@ -92,7 +92,7 @@ export default function AddProjectSecretaryModal({
                 href={`/admin/secretaries/new?projectId=${projectId}`}
                 className="text-xs text-indigo-600 hover:underline"
               >
-                새 간사 만들기 →
+                새 담당자 만들기 →
               </Link>
               <div className="flex gap-2">
                 <button

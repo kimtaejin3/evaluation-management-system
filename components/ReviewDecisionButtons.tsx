@@ -19,7 +19,7 @@ const ACTIONS: Record<Kind, { approve: (id: string) => Promise<void>; reject: (i
   opinions: { approve: approveOpinions, reject: rejectOpinions },
 }
 
-// 과제 페이지 테이블의 '액션' 컬럼용 — 승인/반려 버튼을 항상 쌍으로 노출한다.
+// 사업 페이지 테이블의 '액션' 컬럼용 — 승인/반려 버튼을 항상 쌍으로 노출한다.
 // 승인은 제출(SUBMITTED)일 때만, 반려는 제출·승인(APPROVED)일 때만 활성화(그 외 비활성).
 // 관리자 전용 노출은 호출부에서 게이팅. wording='review'면 툴팁에 '검토' 표현을 쓴다(의견서).
 export default function ReviewDecisionButtons({
@@ -95,7 +95,7 @@ export default function ReviewDecisionButtons({
         type="button"
         disabled={pending || !canApprove}
         onClick={() => run(() => ACTIONS[kind].approve(sessionId))}
-        title={canApprove ? undefined : wording === 'review' ? '간사가 검토 완료해야 승인할 수 있습니다' : '간사가 제출 완료해야 승인할 수 있습니다'}
+        title={canApprove ? undefined : wording === 'review' ? '담당자가 검토 완료해야 승인할 수 있습니다' : '담당자가 제출 완료해야 승인할 수 있습니다'}
         className={approveCls}
       >
         승인
@@ -109,10 +109,10 @@ export default function ReviewDecisionButtons({
       >
         반려
       </button>
-      {/* 간사 제출(SUBMITTED) — 결정 대기 안내 */}
+      {/* 담당자 제출(SUBMITTED) — 결정 대기 안내 */}
       {status === 'SUBMITTED' && (
         <span className="text-xs whitespace-nowrap text-slate-500">
-          간사가 {wording === 'review' ? '검토' : '제출'}하였습니다. 승인 혹은 반려하세요.
+          담당자가 {wording === 'review' ? '검토' : '제출'}하였습니다. 승인 혹은 반려하세요.
         </span>
       )}
     </span>

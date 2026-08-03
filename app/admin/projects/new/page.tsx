@@ -10,20 +10,20 @@ export default async function NewProjectPage() {
   return (
     <div className="mx-auto max-w-xl">
       <Link href="/admin/projects" className="text-sm text-slate-400 hover:text-slate-600">
-        ← 과제 목록
+        ← 사업 목록
       </Link>
-      <h1 className="mt-1 text-2xl font-bold">새 과제 등록</h1>
+      <h1 className="mt-1 text-2xl font-bold">사업 등록</h1>
       <form action={createProject} className="mt-5 space-y-4 rounded-lg border border-slate-200 bg-white p-5">
         <div>
-          <label className="text-sm font-medium text-slate-700">과제명</label>
+          <label className="text-sm font-medium text-slate-700">사업명</label>
           <input name="name" required className={inputCls} placeholder="예) 2026년 상반기 R&D 지원사업" />
         </div>
         <div>
-          <label className="text-sm font-medium text-slate-700">과제 개요</label>
-          <textarea name="description" rows={2} required className={`${inputCls} resize-none`} placeholder="예) 사업 목적·범위, 주요 평가 관점 등 과제 개요를 입력하세요" />
+          <label className="text-sm font-medium text-slate-700">사업 개요</label>
+          <textarea name="description" rows={2} required className={`${inputCls} resize-none`} placeholder="예) 사업 목적·범위, 주요 평가 관점 등 사업 개요를 입력하세요" />
         </div>
         <div>
-          <label className="text-sm font-medium text-slate-700">과제유형</label>
+          <label className="text-sm font-medium text-slate-700">사업유형</label>
           <input name="taskType" required className={inputCls} placeholder="예) 지역특화 R&D — 인쇄 평가표 헤더에 표시" />
         </div>
         <div className="grid grid-cols-2 gap-4">
@@ -37,7 +37,7 @@ export default async function NewProjectPage() {
           </div>
         </div>
         <button className="rounded-md bg-indigo-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-indigo-700">
-          과제 생성
+          사업 생성
         </button>
       </form>
     </div>

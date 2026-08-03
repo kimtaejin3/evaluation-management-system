@@ -18,7 +18,7 @@ describe('assignmentStatusLabel', () => {
 })
 
 describe('initialAssignmentStatus', () => {
-  it('관리자 등록은 즉시 승인, 간사는 대기', () => {
+  it('관리자 등록은 즉시 승인, 담당자는 대기', () => {
     expect(initialAssignmentStatus('MASTER')).toBe('APPROVED')
     expect(initialAssignmentStatus('SECRETARY')).toBe('PENDING')
   })

@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation'
 
 export type ReviewStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED'
 
-// 간사 제출 → 관리자 승인/반려 공통 검토 배너.
+// 담당자 제출 → 관리자 승인/반려 공통 검토 배너.
 // 서버 액션은 페이지(서버 컴포넌트)에서 주입한다. draftBadge로 도메인별 '작성중/배정중' 라벨만 다르게.
-// wording: 'submit'(기본, 간사가 작성해 제출) | 'review'(간사가 내용을 검토 — 평가 의견서처럼
-// 위원이 작성한 것을 간사가 확인만 하는 도메인은 '제출' 대신 '검토' 표현을 쓴다)
+// wording: 'submit'(기본, 담당자가 작성해 제출) | 'review'(담당자가 내용을 검토 — 평가 의견서처럼
+// 위원이 작성한 것을 담당자가 확인만 하는 도메인은 '제출' 대신 '검토' 표현을 쓴다)
 export default function ReviewWorkflowPanel({
   sessionId,
   isMaster,
@@ -71,15 +71,15 @@ export default function ReviewWorkflowPanel({
   const message = (() => {
     if (isMaster) {
       if (isReview) {
-        if (status === 'DRAFT') return '간사가 검토 중입니다. 검토 완료 후 확인할 수 있습니다.'
-        if (status === 'REJECTED') return '반려됨 · 간사가 다시 검토 중입니다. 검토 완료하면 확인할 수 있습니다.'
-        if (status === 'SUBMITTED') return '간사가 검토를 완료했습니다. 확인 후 승인 또는 반려하세요.'
-        return '승인 완료 — 필요 시 다시 반려하면 간사가 재검토합니다.'
+        if (status === 'DRAFT') return '담당자가 검토 중입니다. 검토 완료 후 확인할 수 있습니다.'
+        if (status === 'REJECTED') return '반려됨 · 담당자가 다시 검토 중입니다. 검토 완료하면 확인할 수 있습니다.'
+        if (status === 'SUBMITTED') return '담당자가 검토를 완료했습니다. 확인 후 승인 또는 반려하세요.'
+        return '승인 완료 — 필요 시 다시 반려하면 담당자가 재검토합니다.'
       }
-      if (status === 'DRAFT') return '간사가 작성 중입니다. 제출 후 검토할 수 있습니다.'
-      if (status === 'REJECTED') return '반려됨 · 간사가 수정 중입니다. 다시 제출하면 검토할 수 있습니다.'
-      if (status === 'SUBMITTED') return '간사가 제출했습니다. 검토 후 승인 또는 반려하세요.'
-      return '승인 완료 — 필요 시 다시 반려하면 간사가 재수정합니다.'
+      if (status === 'DRAFT') return '담당자가 작성 중입니다. 제출 후 검토할 수 있습니다.'
+      if (status === 'REJECTED') return '반려됨 · 담당자가 수정 중입니다. 다시 제출하면 검토할 수 있습니다.'
+      if (status === 'SUBMITTED') return '담당자가 제출했습니다. 검토 후 승인 또는 반려하세요.'
+      return '승인 완료 — 필요 시 다시 반려하면 담당자가 재수정합니다.'
     }
     if (isReview) {
       if (status === 'DRAFT') return '의견서를 확인한 뒤 검토 완료하면 관리자가 승인합니다.'
@@ -201,7 +201,7 @@ function RejectButton({
               <h3 className="text-base font-semibold text-slate-900">반려 사유</h3>
               <button type="button" onClick={() => setOpen(false)} className="text-slate-400 transition hover:text-slate-600">✕</button>
             </div>
-            <p className="mt-2 text-xs text-slate-400">반려하면 담당 간사에게 사유가 표시되며, 간사가 수정 후 다시 제출합니다.</p>
+            <p className="mt-2 text-xs text-slate-400">반려하면 담당자에게 사유가 표시되며, 담당자가 수정 후 다시 제출합니다.</p>
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}

@@ -42,7 +42,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       '평가 상태': STATUS_LABEL[s.status] ?? s.status,
       '평가 기간':
         s.startDate || s.endDate ? `${fmtYmd(s.startDate)} ~ ${fmtYmd(s.endDate)}` : s.eventDate ? fmtYmd(s.eventDate) : '미정',
-      '담당 간사': s.secretary?.name ?? '미배정',
+      '담당자': s.secretary?.name ?? '미배정',
       '평가 대상 수': p.subjects.length,
       '평가위원 수': p.assignedCount,
       '완료 위원': `${p.completedEvaluators}/${p.assignedCount}`,

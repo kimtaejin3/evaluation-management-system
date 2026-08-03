@@ -8,7 +8,7 @@ import PasswordCell from "@/components/PasswordCell";
 import ExcelExportButton from "@/components/ExcelExportButton";
 import { SkeletonTable } from "@/components/Skeletons";
 
-// 과제 평가위원 선정현황 — 분과별 위원 배정을 테이블 뷰로 한눈에.
+// 사업 평가위원 선정현황 — 분과별 위원 배정을 테이블 뷰로 한눈에.
 // 배정·위원장 지정·승인/반려 등 상세 작업은 분과의 평가 위원 페이지에서 한다.
 export default async function ProjectEvaluatorsPage({
   params,
@@ -68,7 +68,7 @@ async function Content({ id }: { id: string }) {
             <thead className="text-left text-slate-500">
               <tr className="border-b border-slate-100 bg-slate-50/60">
                 <th className="px-5 py-3 font-medium">분과명</th>
-                <th className="px-5 py-3 font-medium">간사 제출</th>
+                <th className="px-5 py-3 font-medium">담당자 제출</th>
                 <th className="px-5 py-3 font-medium">위원명</th>
                 <th className="px-5 py-3 font-medium">아이디</th>
                 <th className="px-5 py-3 font-medium">비밀번호</th>
@@ -78,7 +78,7 @@ async function Content({ id }: { id: string }) {
             </thead>
             <tbody>
               {sessions.map((s) => {
-                // 분과 페이지와 동일 규칙 — 간사 제출(SUBMITTED/APPROVED) 전에는 관리자가
+                // 분과 페이지와 동일 규칙 — 담당자 제출(SUBMITTED/APPROVED) 전에는 관리자가
                 // 배정 위원 명단을 볼 수 없다(마감된 분과는 예외적으로 공개).
                 const adminBlocked =
                   isMaster &&
@@ -116,7 +116,7 @@ async function Content({ id }: { id: string }) {
                     <tr key={s.id} className="border-b border-slate-50 last:border-0">
                       {head}
                       <td colSpan={4} className="px-5 py-3 text-sm text-slate-400">
-                        간사 제출 전에는 배정 위원이 표시되지 않습니다.
+                        담당자 제출 전에는 배정 위원이 표시되지 않습니다.
                       </td>
                       {tail}
                     </tr>

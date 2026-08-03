@@ -15,28 +15,28 @@ export default async function NewSessionPage({
   const user = await requireAdminUser()
   const { projectId } = await searchParams
   const isMaster = user.role === 'MASTER'
-  // 취소/뒤로가기는 소속 과제로(없으면 분과 목록)
+  // 취소/뒤로가기는 소속 사업으로(없으면 분과 목록)
   const backHref = projectId ? `/admin/projects/${projectId}` : '/admin/projects'
-  const backLabel = '← 분과 간사 설정'
-  // 접근 가능한 과제: 마스터=전체, 간사=배정된 과제
+  const backLabel = '← 사업 담당자 설정'
+  // 접근 가능한 사업: 마스터=전체, 담당자=배정된 사업
   const [projects, secretaries] = await Promise.all([
     prisma.project.findMany({
       where: isMaster ? {} : { secretaries: { some: { id: user.id } } },
       orderBy: { createdAt: 'desc' },
       select: { id: true, name: true, startDate: true, endDate: true },
     }),
-    // 담당 간사 선택은 마스터만 가능(간사가 만들면 본인이 자동 담당)
+    // 담당자 선택은 마스터만 가능(담당자가 만들면 본인이 자동 담당)
     isMaster
       ? prisma.user.findMany({ where: { role: 'SECRETARY' }, orderBy: { name: 'asc' }, select: { id: true, name: true, username: true } })
       : Promise.resolve([]),
   ])
 
-  // 간사는 과제를 고르지 않는다 — 진입한 과제(쿼리) 또는 참여중인 과제로 고정.
-  // 마스터는 드롭다운으로 선택(진입한 과제가 있으면 미리 선택).
+  // 담당자는 사업을 고르지 않는다 — 진입한 사업(쿼리) 또는 참여중인 사업으로 고정.
+  // 마스터는 드롭다운으로 선택(진입한 사업이 있으면 미리 선택).
   const fixedProject = !isMaster
     ? ((projectId ? projects.find((p) => p.id === projectId) : undefined) ?? projects[0])
     : undefined
-  // 선택된 과제의 기간 — 평가 기간 입력 범위(min/max)로 사용
+  // 선택된 사업의 기간 — 평가 기간 입력 범위(min/max)로 사용
   const selected = fixedProject ?? (projectId ? projects.find((p) => p.id === projectId) : undefined)
   const toInput = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : undefined)
   const min = toInput(selected?.startDate ?? null)
@@ -48,7 +48,7 @@ export default async function NewSessionPage({
         <Link href={backHref} className="text-sm text-slate-400 hover:text-slate-600">{backLabel}</Link>
         <h1 className="mt-1 text-2xl font-bold">새 분과 등록</h1>
         <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
-          배정된 과제가 없어 분과를 만들 수 없습니다. {user.role === 'MASTER' ? '먼저 과제를 만들고 담당 간사를 배정하세요.' : '마스터에게 과제 배정을 요청하세요.'}
+          배정된 사업이 없어 분과를 만들 수 없습니다. {user.role === 'MASTER' ? '먼저 사업을 만들고 담당자를 배정하세요.' : '마스터에게 사업 배정을 요청하세요.'}
         </p>
       </div>
     )
@@ -63,10 +63,10 @@ export default async function NewSessionPage({
       <form action={createSession} className="mt-5 overflow-hidden rounded-lg border border-slate-200 bg-white">
         <div className="space-y-4 p-5">
           <div>
-            <label className={labelCls}>과제 <span className="text-rose-500">*</span></label>
+            <label className={labelCls}>사업 <span className="text-rose-500">*</span></label>
             {fixedProject ? (
               <>
-                {/* 간사: 참여중인 과제로 고정(선택 불가) */}
+                {/* 담당자: 참여중인 사업으로 고정(선택 불가) */}
                 <input type="hidden" name="projectId" value={fixedProject.id} />
                 <p className="mt-1.5 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
                   {fixedProject.name}
@@ -74,7 +74,7 @@ export default async function NewSessionPage({
               </>
             ) : (
               <select name="projectId" required defaultValue={projectId ?? ''} className={inputCls}>
-                <option value="" disabled>과제 선택</option>
+                <option value="" disabled>사업 선택</option>
                 {projects.map((p) => (
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
@@ -97,13 +97,13 @@ export default async function NewSessionPage({
             </div>
             {selected?.startDate && selected?.endDate && (
               <p className="mt-1 text-xs text-slate-400">
-                과제 기간({fmtYmd(selected.startDate)} ~ {fmtYmd(selected.endDate)}) 안에서 입력하세요.
+                사업 기간({fmtYmd(selected.startDate)} ~ {fmtYmd(selected.endDate)}) 안에서 입력하세요.
               </p>
             )}
           </div>
           {isMaster && (
             <div>
-              <label className={labelCls}>담당 간사</label>
+              <label className={labelCls}>담당자</label>
               <select name="secretaryId" defaultValue="" className={inputCls}>
                 <option value="">미배정(선택)</option>
                 {secretaries.map((s) => (
@@ -111,7 +111,7 @@ export default async function NewSessionPage({
                 ))}
               </select>
               {secretaries.length === 0 && (
-                <p className="mt-1 text-xs text-slate-400">등록된 간사가 없습니다. 나중에 배정할 수 있습니다.</p>
+                <p className="mt-1 text-xs text-slate-400">등록된 담당자가 없습니다. 나중에 배정할 수 있습니다.</p>
               )}
             </div>
           )}
