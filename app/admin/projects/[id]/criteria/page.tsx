@@ -78,6 +78,7 @@ async function Content({ id }: { id: string }) {
         <span className="text-xs text-slate-400">
           배점 합계 {totalAll}점 · 기준 만점 {project.maxScore}점
         </span>
+        {isMaster && <ExcelExportButton href="/api/criteria-template" label="양식 다운로드" />}
         {isMaster && <ExcelImportButton scopeId={id} kind="criteria" />}
         <ExcelExportButton href={`/api/projects/${id}/export/criteria`} />
         <CriteriaPrintButton projectId={id} />
