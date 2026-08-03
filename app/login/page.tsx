@@ -12,7 +12,7 @@ export default async function LoginPage() {
 // 평가위원 로그인은 '진행중 분과에 승인 배정'이 있어야 통과하므로(로그인 게이트),
 // 데모 계정도 실제로 들어가지는 사람만 고른다.
 async function getDemoAccounts(): Promise<DemoAccount[]> {
-  const [chairSession, evaluatorAssignment] = await Promise.all([
+  const [chairSession, evaluatorAssignment, secretary] = await Promise.all([
     // 위원장 — 현재 위원장으로 지정된 사람 아무나 (EvaluationSession에는 chairId 스칼라만 있다)
     prisma.evaluationSession.findFirst({
       where: { chairId: { not: null }, status: 'IN_PROGRESS' },
@@ -21,6 +21,12 @@ async function getDemoAccounts(): Promise<DemoAccount[]> {
     prisma.assignment.findFirst({
       where: { status: 'APPROVED', session: { status: 'IN_PROGRESS' }, user: { role: 'EVALUATOR' } },
       select: { user: { select: { id: true, username: true, name: true, tempPassword: true } } },
+    }),
+    // 담당자 — 임시 비밀번호가 있는(로그인 가능한) 담당자 아무나. 하드코딩 계정은 없을 수 있다.
+    prisma.user.findFirst({
+      where: { role: 'SECRETARY', tempPassword: { not: null } },
+      orderBy: { createdAt: 'asc' },
+      select: { username: true, name: true, tempPassword: true },
     }),
   ])
 
@@ -56,7 +62,7 @@ async function getDemoAccounts(): Promise<DemoAccount[]> {
 
   return [
     { role: '관리자', username: 'admin', password: 'admin1234' },
-    { role: '담당자', username: 'gansa', password: 'gansa1234' },
+    entry('담당자', secretary, '등록된 담당자 없음'),
     entry('평가위원', evaluator, '배정된 위원 없음'),
     entry('평가위원장', chair, '지정된 위원장 없음'),
   ]
