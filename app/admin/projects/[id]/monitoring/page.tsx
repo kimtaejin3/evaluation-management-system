@@ -9,6 +9,7 @@ import TableRefreshControl from "@/components/TableRefreshControl";
 import SortableTh from "@/components/SortableTh";
 import { parseSessionSort, sortSessions, type SessionSortField } from "@/lib/session-sort";
 import StatusBadge from "@/components/StatusBadge";
+import DeleteSessionInlineButton from "@/components/DeleteSessionInlineButton";
 import { SkeletonTable } from "@/components/Skeletons";
 
 export const dynamic = "force-dynamic";
@@ -66,7 +67,8 @@ async function Content({
   sort?: SessionSortField;
   dir: "asc" | "desc";
 }) {
-  await assertProjectAccess(id);
+  const { user } = await assertProjectAccess(id);
+  const isMaster = user.role === "MASTER";
   const fetched = await prisma.evaluationSession.findMany({
     where: { projectId: id },
     orderBy: { createdAt: "asc" },
@@ -110,6 +112,7 @@ async function Content({
                 <th className="px-5 py-3 font-medium">완료 위원</th>
                 <th className="px-5 py-3 font-medium">평가 의견서</th>
                 <th className="px-5 py-3 font-medium">자세히 보기</th>
+                {isMaster && <th className="px-5 py-3 font-medium">삭제</th>}
               </tr>
             </thead>
             <tbody>
@@ -149,6 +152,11 @@ async function Content({
                         자세히 보기
                       </Link>
                     </td>
+                    {isMaster && (
+                      <td className="px-5 py-3">
+                        <DeleteSessionInlineButton projectId={id} sessionId={s.id} sessionName={s.name} />
+                      </td>
+                    )}
                   </tr>
                 );
               })}

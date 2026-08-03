@@ -54,9 +54,8 @@ export async function createSession(formData: FormData) {
 // 심사 삭제 — criteria/subjects/assignments/scores는 Cascade.
 // 이 심사 전용 자료(sessionId 지정)는 파일까지 함께 삭제, 공통 자료(sessionId=null)는 보존.
 // Opinion·EditingPresence는 관계가 없어 별도 정리.
-export async function deleteSession(sessionId: string) {
-  await assertSessionAccess(sessionId)
-  const session = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { projectId: true } })
+// 분과 삭제 공통 — 자료(PDF)·의견·입력중 표시 정리 후 세션 삭제(나머지는 스키마 cascade).
+async function purgeSession(sessionId: string) {
   const docs = await prisma.document.findMany({ where: { sessionId } })
   for (const d of docs) {
     await deleteUpload(d.storedName, d.url)
@@ -65,10 +64,30 @@ export async function deleteSession(sessionId: string) {
   await prisma.opinion.deleteMany({ where: { sessionId } })
   await prisma.editingPresence.deleteMany({ where: { sessionId } })
   await prisma.evaluationSession.delete({ where: { id: sessionId } })
+}
+
+export async function deleteSession(sessionId: string) {
+  await assertSessionAccess(sessionId)
+  const session = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { projectId: true } })
+  await purgeSession(sessionId)
   // 사이드바(admin 레이아웃)의 분과·사업 목록까지 갱신
   revalidatePath('/admin', 'layout')
   // 삭제된 분과 페이지에 머물면 404가 되므로 소속 사업(또는 분과 목록)로 이동
   redirect(session?.projectId ? `/admin/projects/${session.projectId}` : '/admin/sessions')
+}
+
+// 사업 레벨(실시간 모니터링) 목록에서 분과 삭제 — 목록에 머물러야 하므로 리다이렉트하지 않는다.
+export async function deleteSessionFromProject(
+  projectId: string,
+  sessionId: string,
+): Promise<{ ok: boolean }> {
+  await assertSessionAccess(sessionId)
+  const session = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { projectId: true } })
+  if (!session || session.projectId !== projectId) return { ok: false }
+  await purgeSession(sessionId)
+  revalidatePath('/admin', 'layout')
+  revalidatePath(`/admin/projects/${projectId}/monitoring`)
+  return { ok: true }
 }
 
 export async function setSessionStatus(sessionId: string, status: 'DRAFT' | 'IN_PROGRESS' | 'CLOSED') {
