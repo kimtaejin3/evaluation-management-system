@@ -48,7 +48,9 @@ export async function createSession(formData: FormData) {
   })
   // 사이드바(담당자 분과 트리·사업 화면)까지 즉시 반영
   revalidatePath('/admin', 'layout')
-  redirect(`/admin/sessions/${session.id}`)
+  // 분과 생성 후 분과 상세로 튀지 않고, 방금 설정하던 사업 화면에 머문다(E2, 고객 요청).
+  revalidatePath(`/admin/projects/${projectId}`)
+  redirect(`/admin/projects/${projectId}`)
 }
 
 // 심사 삭제 — criteria/subjects/assignments/scores는 Cascade.
