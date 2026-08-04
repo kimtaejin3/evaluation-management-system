@@ -1,8 +1,9 @@
-// 엑셀(.xlsx) 내보내기 버튼 — 역할·상태와 무관하게 항상 노출되는 고정 버튼.
+// 내보내기 버튼 — 역할·상태와 무관하게 항상 노출되는 고정 버튼.
 // 서버 라우트(/api/sessions/[id]/export/*)로 이동해 파일을 내려받는다.
+// 기본 라벨은 '내보내기'(고객 요청 — 한글도 열리므로 '엑셀' 접두 제거).
 export default function ExcelExportButton({
   href,
-  label = "엑셀 내보내기",
+  label = "내보내기",
 }: {
   href: string;
   label?: string;

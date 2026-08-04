@@ -160,14 +160,14 @@ async function OpinionsContent({ id }: { id: string }) {
       {/* 지원기업별 점수 — 전 항목을 입력한 위원들의 총점 평균 */}
       {!adminBlocked && subjects.length > 0 && (
         <div className="space-y-2">
-          <h2 className="text-sm font-semibold text-slate-700">지원기업별 점수</h2>
+          <h2 className="text-sm font-semibold text-slate-700">지원기업별 총점</h2>
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
             <table className="table-grid w-full text-sm">
               <thead className="text-left text-slate-500">
                 <tr className="border-b border-slate-100 bg-slate-50/60">
                   <th className="px-5 py-2.5 font-medium">지원기업</th>
                   <th className="px-5 py-2.5 text-right font-medium">채점 완료 위원</th>
-                  <th className="px-5 py-2.5 text-right font-medium">점수</th>
+                  <th className="px-5 py-2.5 text-right font-medium">총점</th>
                   <th className="px-5 py-2.5 font-medium">종합의견</th>
                   <th className="px-5 py-2.5 font-medium">항목별의견</th>
                 </tr>
