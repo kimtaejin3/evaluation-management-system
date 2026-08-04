@@ -111,7 +111,7 @@ async function Content({
                 <th className="px-5 py-3 font-medium">평가위원 수</th>
                 <th className="px-5 py-3 font-medium">완료 위원</th>
                 <th className="px-5 py-3 font-medium">평가 의견서</th>
-                <th className="px-5 py-3 font-medium">자세히 보기</th>
+                <th className="px-5 py-3 font-medium">상세 평가 진행 상황</th>
                 {isMaster && <th className="px-5 py-3 font-medium">삭제</th>}
               </tr>
             </thead>
