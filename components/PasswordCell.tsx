@@ -1,23 +1,5 @@
-'use client'
-
-import { useState } from 'react'
-
+// 비밀번호 표시 셀 — 관리자 화면이므로 블라인드 없이 임시 비밀번호를 그대로 보여준다(고객 요청).
 export default function PasswordCell({ value }: { value: string | null }) {
-  const [shown, setShown] = useState(false)
   if (!value) return <span className="text-xs text-slate-400">미발급</span>
-  return (
-    <span className="inline-flex items-center gap-2">
-      <span className="font-mono text-sm tabular-nums text-slate-700">
-        {shown ? value : '•'.repeat(Math.min(value.length, 10))}
-      </span>
-      <button
-        type="button"
-        onClick={() => setShown((s) => !s)}
-        className="text-xs text-slate-400 transition hover:text-indigo-600"
-        aria-label={shown ? '비밀번호 숨기기' : '비밀번호 보기'}
-      >
-        {shown ? '숨기기' : '보기'}
-      </button>
-    </span>
-  )
+  return <span className="font-mono text-sm tabular-nums text-slate-700">{value}</span>
 }

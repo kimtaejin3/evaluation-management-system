@@ -7,7 +7,7 @@ import {
   assignEvaluator,
   setChair,
 } from "../../actions";
-import { resetEvaluatorPassword, deleteEvaluator } from "@/app/admin/actions";
+import { resetEvaluatorPassword } from "@/app/admin/actions";
 import { requireAdminUser } from "@/lib/authz";
 import { SkeletonCard, SkeletonTable } from "@/components/Skeletons";
 import PasswordCell from "@/components/PasswordCell";
@@ -274,18 +274,6 @@ async function EvaluatorsContent({ id }: { id: string }) {
                         >
                           <button className="text-sm text-slate-500 hover:text-amber-600 hover:underline">
                             배정 해제
-                          </button>
-                        </form>
-                        <span className="text-slate-300" aria-hidden>/</span>
-                        <form
-                          action={async () => {
-                            "use server";
-                            await deleteEvaluator(a.userId);
-                            revalidatePath(`/admin/sessions/${id}/evaluators`);
-                          }}
-                        >
-                          <button className="text-sm text-slate-500 hover:text-slate-700 hover:underline">
-                            계정 삭제
                           </button>
                         </form>
                       </div>
