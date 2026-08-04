@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db'
 import { assertMaster } from '@/lib/authz'
 import { hashPassword } from '@/lib/auth'
 import { passwordFromPhone } from '@/lib/phone'
+import { purgeSession } from '@/app/admin/sessions/actions'
 
 export async function createProject(formData: FormData) {
   await assertMaster()
@@ -80,6 +81,13 @@ export async function unassignSessionSecretary(projectId: string, sessionId: str
 // 사업 삭제 — 소속 분과의 projectId는 SetNull(미분류로 남음)
 export async function deleteProject(projectId: string) {
   await assertMaster()
+  // 분과(EvaluationSession)는 project FK가 onDelete:SetNull이라, 사업만 지우면 분과가
+  // projectId=null 고아로 남아 평가위원 화면·관리 화면에 계속 노출된다. 사업의 모든 분과를
+  // 먼저 정리(자료·의견까지)해 고아가 생기지 않도록 한다.
+  const sessions = await prisma.evaluationSession.findMany({ where: { projectId }, select: { id: true } })
+  for (const s of sessions) {
+    await purgeSession(s.id)
+  }
   await prisma.project.delete({ where: { id: projectId } })
   // 사이드바(admin 레이아웃)의 사업 목록 갱신 후 이동
   revalidatePath('/admin', 'layout')

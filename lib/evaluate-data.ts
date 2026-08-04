@@ -76,6 +76,8 @@ export async function getSheetData(
     prisma.groupComment.findMany({ where: { evaluatorId: userId, subjectId }, select: { groupId: true, text: true } }),
   ])
   if (!subject || !session) return null
+  // 사업이 삭제된 고아 분과(projectId=null)는 평가 대상이 아니다 — 접근 차단.
+  if (!session.projectId) return null
   if (!assignment || !isAssignmentActive(assignment.status)) return null
 
   const byUnit = new Map(existing.map((s) => [scoreUnitId(s), s]))
@@ -168,7 +170,9 @@ export interface HomeSession {
 export async function getHomeData(userId: string): Promise<HomeSession[]> {
   const [assignments, myScores] = await Promise.all([
     prisma.assignment.findMany({
-      where: { userId, status: 'APPROVED', session: { status: 'IN_PROGRESS' } },
+      // projectId:null(사업이 삭제되어 고아가 된 분과)는 평가위원에게 노출하지 않는다.
+      // 사업 삭제는 이제 분과까지 정리하지만(deleteProject), 과거 고아가 남아도 새어나가지 않도록 방어.
+      where: { userId, status: 'APPROVED', session: { status: 'IN_PROGRESS', projectId: { not: null } } },
       include: {
         session: {
           include: {
@@ -317,6 +321,8 @@ export async function getChairSubjectData(
 ): Promise<ChairSubjectData | null> {
   const session = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, include: { project: { select: { name: true } } } })
   if (!session || session.chairId !== userId) return null
+  // 사업이 삭제된 고아 분과(projectId=null)는 위원장 화면에도 노출하지 않는다.
+  if (!session.projectId) return null
   const chairId = session.chairId
 
   // 평가항목은 사업(Project) 단위 공통 — 채점 단위(unit) 기준으로 집계

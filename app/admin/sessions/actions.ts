@@ -55,7 +55,8 @@ export async function createSession(formData: FormData) {
 // 이 심사 전용 자료(sessionId 지정)는 파일까지 함께 삭제, 공통 자료(sessionId=null)는 보존.
 // Opinion·EditingPresence는 관계가 없어 별도 정리.
 // 분과 삭제 공통 — 자료(PDF)·의견·입력중 표시 정리 후 세션 삭제(나머지는 스키마 cascade).
-async function purgeSession(sessionId: string) {
+// 사업 삭제에서도 재사용한다(사업의 모든 분과를 정리해 고아 분과가 남지 않도록).
+export async function purgeSession(sessionId: string) {
   const docs = await prisma.document.findMany({ where: { sessionId } })
   for (const d of docs) {
     await deleteUpload(d.storedName, d.url)

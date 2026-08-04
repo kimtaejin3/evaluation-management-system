@@ -42,6 +42,8 @@ async function EvaluatorTable() {
     orderBy: { createdAt: "asc" },
     include: {
       assignments: {
+        // 사업이 삭제된 고아 분과(projectId=null)는 배정 칩에서 제외 — 삭제한 분과가 계속 뜨는 문제 방지.
+        where: { session: { projectId: { not: null } } },
         include: {
           session: { select: { id: true, name: true, status: true } },
         },
@@ -65,7 +67,7 @@ async function EvaluatorTable() {
       users={users}
       roleLabel="위원"
       chipsHeader="배정 분과"
-      chipsEmptyLabel="배정 없음"
+      chipsEmptyLabel="미정"
       emptyLabel="등록된 평가위원이 없습니다."
       deleteAction={deleteEvaluators}
     />
