@@ -77,4 +77,32 @@ describe('parseSheet', () => {
     const buf = toBuffer([['라벨', 5, true]])
     expect(parseSheet(buf)).toEqual([['라벨', '5', 'true']])
   })
+
+  // CSV 업로드 — 버퍼로 넘기면 codepage 오해로 한글이 깨진다(íê°í­ëª©). UTF-8 텍스트로 읽어야 한다.
+  it('UTF-8 CSV(BOM 없음)의 한글이 깨지지 않는다', () => {
+    const buf = Buffer.from('평가항목,세부항목,평가지표,배점\n사업계획,목표,지표,25\n', 'utf-8')
+    expect(parseSheet(buf)).toEqual([
+      ['평가항목', '세부항목', '평가지표', '배점'],
+      ['사업계획', '목표', '지표', '25'],
+    ])
+  })
+
+  it('UTF-8 CSV(BOM 있음)도 BOM을 떼고 정상 처리', () => {
+    const buf = Buffer.concat([
+      Buffer.from([0xef, 0xbb, 0xbf]),
+      Buffer.from('평가항목,배점\n사업계획,25\n', 'utf-8'),
+    ])
+    expect(parseSheet(buf)).toEqual([
+      ['평가항목', '배점'],
+      ['사업계획', '25'],
+    ])
+  })
+
+  it('TSV(탭 구분) 텍스트도 한글 유지하며 격자로 변환', () => {
+    const buf = Buffer.from('평가항목\t배점\n사업계획\t25\n', 'utf-8')
+    expect(parseSheet(buf)).toEqual([
+      ['평가항목', '배점'],
+      ['사업계획', '25'],
+    ])
+  })
 })
