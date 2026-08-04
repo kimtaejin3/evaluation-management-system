@@ -1,15 +1,12 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { assertProjectAccess } from "@/lib/authz";
 import { getSessionProgress } from "@/lib/progress";
 import { fmtYmd, fmtDateTimeKst } from "@/lib/dates";
 import ExcelExportButton from "@/components/ExcelExportButton";
 import TableRefreshControl from "@/components/TableRefreshControl";
-import SortableTh from "@/components/SortableTh";
 import { parseSessionSort, sortSessions, type SessionSortField } from "@/lib/session-sort";
-import StatusBadge from "@/components/StatusBadge";
-import DeleteSessionInlineButton from "@/components/DeleteSessionInlineButton";
+import MonitoringSessionsTable from "@/components/MonitoringSessionsTable";
 import { SkeletonTable } from "@/components/Skeletons";
 
 export const dynamic = "force-dynamic";
@@ -95,74 +92,21 @@ async function Content({
   });
   const opinionOf = new Map(opinionCounts.map((o) => [o.sessionId, o._count._all]));
 
-  return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        {sessions.length === 0 ? (
-          <p className="px-5 py-8 text-center text-sm text-slate-400">아직 분과가 없습니다.</p>
-        ) : (
-          <table className="table-grid w-full text-sm">
-            <thead className="text-left text-slate-500">
-              <tr className="border-b border-slate-100 bg-slate-50/60">
-                <SortableTh label="분과명" field="name" sort={sort} dir={dir} basePath={`/admin/projects/${id}/monitoring`} />
-                <th className="px-5 py-3 font-medium">평가 상태</th>
-                <SortableTh label="평가 기간" field="period" sort={sort} dir={dir} basePath={`/admin/projects/${id}/monitoring`} />
-                <th className="px-5 py-3 font-medium">담당자</th>
-                <th className="px-5 py-3 font-medium">평가 대상 수</th>
-                <th className="px-5 py-3 font-medium">평가위원 수</th>
-                <th className="px-5 py-3 font-medium">완료 위원</th>
-                <th className="px-5 py-3 font-medium">평가 의견서</th>
-                <th className="px-5 py-3 font-medium">상세 평가 진행 상황</th>
-                {isMaster && <th className="px-5 py-3 font-medium">삭제</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {sessions.map((s, i) => {
-                const p = progress[i];
-                const written = opinionOf.get(s.id) ?? 0;
-                const expected = p.assignedCount * p.subjects.length;
-                return (
-                  <tr key={s.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60">
-                    <td className="px-5 py-3">
-                      {/* 이동은 '자세히 보기'로 — 분과명은 일반 텍스트 */}
-                      <span className="font-medium text-slate-800">{s.name}</span>
-                    </td>
-                    <td className="px-5 py-3">
-                      <StatusBadge status={s.status} />
-                    </td>
-                    <td className="px-5 py-3 text-slate-600">{fmtPeriod(s)}</td>
-                    <td className="px-5 py-3 text-slate-600">
-                      {s.secretary?.name ?? <span className="text-xs text-rose-600">미배정</span>}
-                    </td>
-                    <td className="px-5 py-3 text-slate-600">{p.subjects.length}</td>
-                    <td className="px-5 py-3 text-slate-600">{p.assignedCount}</td>
-                    <td className="px-5 py-3 text-slate-600">
-                      {p.completedEvaluators}/{p.assignedCount}
-                    </td>
-                    <td className="px-5 py-3 text-slate-600">
-                      <span className="tabular-nums">
-                        {written}
-                        {expected > 0 && <span className="text-slate-400">/{expected}</span>}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3">
-                      <Link
-                        href={`/admin/sessions/${s.id}`}
-                        className="text-xs font-medium whitespace-nowrap text-slate-600 transition hover:text-indigo-700 hover:underline"
-                      >
-                        자세히 보기
-                      </Link>
-                    </td>
-                    {isMaster && (
-                      <td className="px-5 py-3">
-                        <DeleteSessionInlineButton projectId={id} sessionId={s.id} sessionName={s.name} />
-                      </td>
-                    )}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-    </div>
-  );
+  const rows = sessions.map((s, i) => {
+    const p = progress[i];
+    return {
+      id: s.id,
+      name: s.name,
+      status: s.status,
+      period: fmtPeriod(s),
+      secretaryName: s.secretary?.name ?? null,
+      subjectCount: p.subjects.length,
+      assignedCount: p.assignedCount,
+      completedEvaluators: p.completedEvaluators,
+      written: opinionOf.get(s.id) ?? 0,
+      expected: p.assignedCount * p.subjects.length,
+    };
+  });
+
+  return <MonitoringSessionsTable projectId={id} rows={rows} isMaster={isMaster} sort={sort} dir={dir} />;
 }
