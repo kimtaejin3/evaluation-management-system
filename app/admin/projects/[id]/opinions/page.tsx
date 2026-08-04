@@ -87,7 +87,7 @@ async function Content({ id }: { id: string }) {
                 <th className="px-5 py-3 font-medium">담당자</th>
                 <th className="px-5 py-3 font-medium">담당자 검토</th>
                 <th className="px-5 py-3 font-medium">평가 대상 수</th>
-                <th className="px-5 py-3 font-medium">자세히 보기</th>
+                <th className="px-5 py-3 font-medium">평가위원장 종합 의견</th>
                 <th className="px-5 py-3 font-medium">승인 상태</th>
               </tr>
             </thead>
