@@ -110,10 +110,10 @@ export default function ProjectSubjectsTable({
               <th className="px-5 py-3 font-medium">분과명</th>
               <th className="px-5 py-3 font-medium">담당자</th>
               <th className="px-5 py-3 font-medium">담당자 제출</th>
-              <th className="px-5 py-3 font-medium">평가 대상 수</th>
+              <th className="px-5 py-3 font-medium">평가 대상 현황</th>
               <th className="px-5 py-3 font-medium">점수</th>
               <th className="px-5 py-3 font-medium">자세히 보기</th>
-              <th className="px-5 py-3 font-medium">승인 상태</th>
+              <th className="px-5 py-3 text-center font-medium">승인 상태</th>
             </tr>
           </thead>
           <tbody>
@@ -129,7 +129,7 @@ export default function ProjectSubjectsTable({
                 <td className="px-5 py-3">
                   <ReviewStatusBadge status={r.reviewStatus} />
                 </td>
-                <td className="px-5 py-3 text-slate-600">{r.subjectCount}</td>
+                <td className="px-5 py-3 text-slate-600">{r.subjectCount}개 기업</td>
                 <td className="px-5 py-3">
                   <button
                     type="button"
@@ -149,8 +149,8 @@ export default function ProjectSubjectsTable({
                   </Link>
                 </td>
                 <td className="px-5 py-3">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {/* 상태 배지는 표시하지 않음 — 승인/반려 버튼으로만 판단 */}
+                  <div className="flex flex-wrap items-center justify-center gap-1.5">
+                    {/* 상태 배지는 표시하지 않음 — 승인/반려 버튼으로만 판단. 가운데 정렬(고객 요청) */}
                     {isMaster && (
                       <ReviewDecisionButtons sessionId={r.sessionId} status={r.reviewStatus} kind="subjects" />
                     )}

@@ -48,12 +48,6 @@ async function SessionInfo({ id }: { id: string }) {
       secretary: { select: { name: true } },
     },
   });
-  // 평가항목은 사업(Project) 단위 공통 — 소속 사업의 항목 수를 센다.
-  const criteriaCount = session
-    ? await prisma.criterion.count({
-        where: session.projectId ? { projectId: session.projectId } : { sessionId: id },
-      })
-    : 0;
   if (!session) notFound();
 
   const fmtDate = (d: Date | null) =>
@@ -73,7 +67,6 @@ async function SessionInfo({ id }: { id: string }) {
           ? `${fmtYmd(session.startDate)} ~ ${fmtYmd(session.endDate)}`
           : fmtYmd(session.eventDate),
     },
-    { label: "평가 항목 수", value: `${criteriaCount}개` },
     { label: "평가 대상 수", value: `${session._count.subjects}개` },
     { label: "평가위원 수", value: `${session._count.assignments}명` },
   ];
