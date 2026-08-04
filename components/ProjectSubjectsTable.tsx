@@ -19,6 +19,19 @@ export interface ProjectSubjectRow {
   evaluatorsHidden?: boolean
 }
 
+// 분과 통합 점수 = 기업(평가 대상)별 평균 총점의 평균. 점수가 하나도 없으면 null.
+function sessionAverage(row: ProjectSubjectRow): number | null {
+  if (row.evaluatorsHidden) return null
+  const subjectAvgs: number[] = []
+  for (const sub of row.subjects) {
+    const done = row.evaluators
+      .map((e) => row.totals[`${e.id}:${sub.id}`] ?? null)
+      .filter((v): v is number => v !== null)
+    if (done.length) subjectAvgs.push(done.reduce((a, b) => a + b, 0) / done.length)
+  }
+  return subjectAvgs.length ? subjectAvgs.reduce((a, b) => a + b, 0) / subjectAvgs.length : null
+}
+
 // 점수 보기 모달 — 평가 대상별 점수(채점 완료 위원의 총점 평균)
 function ScoresModal({ row, onClose }: { row: ProjectSubjectRow; onClose: () => void }) {
   useEffect(() => {
@@ -111,7 +124,7 @@ export default function ProjectSubjectsTable({
               <th className="px-5 py-3 font-medium">담당자</th>
               <th className="px-5 py-3 font-medium">담당자 제출</th>
               <th className="px-5 py-3 font-medium">평가 대상 현황</th>
-              <th className="px-5 py-3 font-medium">점수</th>
+              <th className="px-5 py-3 font-medium">통합 점수</th>
               <th className="px-5 py-3 font-medium">자세히 보기</th>
               <th className="px-5 py-3 text-center font-medium">승인 상태</th>
             </tr>
@@ -131,13 +144,22 @@ export default function ProjectSubjectsTable({
                 </td>
                 <td className="px-5 py-3 text-slate-600">{r.subjectCount}개 기업</td>
                 <td className="px-5 py-3">
-                  <button
-                    type="button"
-                    onClick={() => setOpenId(r.sessionId)}
-                    className="text-xs font-medium whitespace-nowrap text-slate-600 transition hover:text-indigo-700 hover:underline"
-                  >
-                    점수 보기
-                  </button>
+                  {(() => {
+                    const avg = sessionAverage(r)
+                    if (avg === null)
+                      return <span className="text-xs text-slate-300">—</span>
+                    // 통합 점수(기업 평균의 평균)를 값으로 노출, 클릭하면 기업별 점수 모달
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => setOpenId(r.sessionId)}
+                        className="font-semibold tabular-nums whitespace-nowrap text-slate-800 transition hover:text-indigo-700 hover:underline"
+                        title="기업별 점수 보기"
+                      >
+                        {avg.toFixed(2)}
+                      </button>
+                    )
+                  })()}
                 </td>
                 <td className="px-5 py-3">
                   {/* 분과 상세의 평가 대상 페이지로 이동 (실시간 모니터링의 자세히 보기와 동일 패턴) */}
