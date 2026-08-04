@@ -2,6 +2,7 @@ import AdminSidebar from "@/components/AdminSidebar";
 import AdminBreadcrumb from "@/components/AdminBreadcrumb";
 import SessionBackBar from "@/components/SessionBackBar";
 import ProjectTabNav from "@/components/ProjectTabNav";
+import SessionTabNav from "@/components/SessionTabNav";
 import AdminContentWidth from "@/components/AdminContentWidth";
 import HeaderTitle from "@/components/HeaderTitle";
 import TopProgressBar from "@/components/TopProgressBar";
@@ -83,8 +84,9 @@ export default async function AdminLayout({
         <AdminBreadcrumb sessions={sessionItems} role={user.role as "MASTER" | "SECRETARY"} />
         {/* 브레드크럼 바로 아래, 같은 좌측 라인에 '돌아가기'(분과 상세, 관리자·담당자 공통) */}
         <SessionBackBar sessions={sessionItems} />
-        {/* 사업 하위 페이지의 이전/다음 탭 이동 — 콘텐츠 밖 우상단 */}
+        {/* 사업/분과 하위 페이지의 이전/다음 탭 이동 — 콘텐츠 밖 우상단(경로에 맞는 쪽만 렌더) */}
         <ProjectTabNav />
+        <SessionTabNav />
         {/* 본문 최대 폭은 페이지별로 결정 — 대부분 max-w-7xl, 사업 담당자 설정은 풀 너비 */}
         <main className="w-full flex-1 px-6 py-6">
           <AdminContentWidth>{children}</AdminContentWidth>
