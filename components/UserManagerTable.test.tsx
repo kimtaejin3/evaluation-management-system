@@ -80,4 +80,21 @@ describe('UserManagerTable', () => {
     expect(screen.queryByText('소속')).not.toBeInTheDocument()
     expect(screen.queryByText('직급')).not.toBeInTheDocument()
   })
+
+  it('showPassword=true면 비밀번호 열에 임시 비밀번호를 평문 표시한다', () => {
+    renderTable({ showAffiliation: false, showPassword: true })
+    expect(screen.getByText('비밀번호')).toBeInTheDocument()
+    expect(screen.getByText('abcd1234')).toBeInTheDocument()
+  })
+
+  it('chips2Header가 있으면 두 번째 칩 열(참여 분과)을 렌더한다', () => {
+    const withSessions = [
+      { ...USERS[0], chips2: [{ label: 'A분과' }, { label: 'B분과' }] },
+      { ...USERS[1], chips2: [] },
+    ]
+    renderTable({ showAffiliation: false, chips2Header: '참여 중인 분과', chips2EmptyLabel: '배정 없음', users: withSessions })
+    expect(screen.getByText('참여 중인 분과')).toBeInTheDocument()
+    expect(screen.getByText('B분과')).toBeInTheDocument()
+    expect(screen.getByText('배정 없음')).toBeInTheDocument()
+  })
 })

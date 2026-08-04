@@ -46,9 +46,14 @@ async function SecretaryTable() {
       name: true,
       username: true,
       phone: true,
-      employeeNo: true,
       tempPassword: true,
       assignedProjects: { select: { id: true, name: true }, orderBy: { createdAt: "desc" } },
+      // 참여 중인 분과 — 본인이 담당(secretaryId)인 분과들(고아 분과 제외). 사업 1개라도 분과는 여러 개 가능.
+      secretariedSessions: {
+        where: { projectId: { not: null } },
+        select: { id: true, name: true },
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
 
@@ -59,6 +64,7 @@ async function SecretaryTable() {
     phone: u.phone,
     tempPassword: u.tempPassword,
     chips: u.assignedProjects.map((p) => ({ label: p.name, href: `/admin/projects/${p.id}` })),
+    chips2: u.secretariedSessions.map((s) => ({ label: s.name, href: `/admin/sessions/${s.id}` })),
   }));
 
   return (
@@ -67,6 +73,9 @@ async function SecretaryTable() {
       roleLabel="담당자"
       chipsHeader="참여 사업"
       chipsEmptyLabel="참여 없음"
+      chips2Header="참여 중인 분과"
+      chips2EmptyLabel="배정 없음"
+      showPassword
       emptyLabel="등록된 담당자가 없습니다. 위의 ‘담당자 추가’로 시작하세요."
       deleteAction={deleteSecretaries}
       updateAction={updateUserInfo}

@@ -13,6 +13,8 @@ export type ManagedUser = {
   affiliation?: string | null
   position?: string | null
   chips: { label: string; href?: string }[]
+  // 두 번째 칩 열(예: 담당자 참여 분과) — chips2Header가 있을 때만 렌더
+  chips2?: { label: string; href?: string }[]
 }
 
 // 담당자·평가위원 관리 공통 표.
@@ -30,6 +32,9 @@ export default function UserManagerTable({
   updateAction,
   resetPasswordAction,
   showAffiliation = false,
+  showPassword = false,
+  chips2Header,
+  chips2EmptyLabel = '없음',
 }: {
   users: ManagedUser[]
   roleLabel: string
@@ -40,6 +45,11 @@ export default function UserManagerTable({
   updateAction: (id: string, formData: FormData) => Promise<{ ok: boolean; error?: string }>
   resetPasswordAction: (id: string) => Promise<{ ok: boolean; password?: string }>
   showAffiliation?: boolean
+  // 아이디 옆 비밀번호 열(임시 비밀번호 평문 표시) — 담당자 관리용
+  showPassword?: boolean
+  // 두 번째 칩 열 머리글(예: '참여 중인 분과'). 있을 때만 열 렌더
+  chips2Header?: string
+  chips2EmptyLabel?: string
 }) {
   const router = useRouter()
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -57,8 +67,8 @@ export default function UserManagerTable({
     setSelected((prev) => (prev.size === users.length ? new Set() : new Set(users.map((u) => u.id))))
 
   const selectedUsers = users.filter((u) => selected.has(u.id))
-  // 이름/아이디/연락처 + (소속/직급) + chips + 체크박스
-  const cols = 4 + (showAffiliation ? 2 : 0) + 1
+  // 이름/아이디/연락처 + (비밀번호) + (소속/직급) + chips + (chips2) + 체크박스
+  const cols = 4 + (showPassword ? 1 : 0) + (showAffiliation ? 2 : 0) + (chips2Header ? 1 : 0) + 1
 
   return (
     <div className="space-y-3">
@@ -73,10 +83,12 @@ export default function UserManagerTable({
               </th>
               <th className="px-4 py-2.5 font-medium">이름</th>
               <th className="px-4 py-2.5 font-medium">아이디</th>
+              {showPassword && <th className="px-4 py-2.5 font-medium">비밀번호</th>}
               <th className="px-4 py-2.5 font-medium">연락처</th>
               {showAffiliation && <th className="px-4 py-2.5 font-medium">소속</th>}
               {showAffiliation && <th className="px-4 py-2.5 font-medium">직급</th>}
               <th className="px-4 py-2.5 font-medium">{chipsHeader}</th>
+              {chips2Header && <th className="px-4 py-2.5 font-medium">{chips2Header}</th>}
             </tr>
           </thead>
           <tbody>
@@ -100,6 +112,15 @@ export default function UserManagerTable({
                 </td>
                 <td className="px-4 py-2.5 font-medium text-slate-800">{u.name}</td>
                 <td className="px-4 py-2.5 text-slate-600">{u.username}</td>
+                {showPassword && (
+                  <td className="px-4 py-2.5">
+                    {u.tempPassword ? (
+                      <span className="font-mono text-sm tabular-nums text-slate-700">{u.tempPassword}</span>
+                    ) : (
+                      <span className="text-xs text-slate-400">재발급 필요</span>
+                    )}
+                  </td>
+                )}
                 <td className="px-4 py-2.5 text-slate-600">{u.phone ?? <span className="text-slate-300">—</span>}</td>
                 {showAffiliation && (
                   <td className="px-4 py-2.5 text-slate-600">{u.affiliation ?? <span className="text-slate-300">—</span>}</td>
@@ -107,33 +128,8 @@ export default function UserManagerTable({
                 {showAffiliation && (
                   <td className="px-4 py-2.5 text-slate-600">{u.position ?? <span className="text-slate-300">—</span>}</td>
                 )}
-                <td className="px-4 py-2.5">
-                  {u.chips.length === 0 ? (
-                    <span className="text-xs text-slate-400">{chipsEmptyLabel}</span>
-                  ) : (
-                    <span className="flex flex-wrap justify-center gap-1">
-                      {u.chips.map((c, i) =>
-                        c.href ? (
-                          <Link
-                            key={i}
-                            href={c.href}
-                            onClick={(e) => e.stopPropagation()}
-                            className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600 hover:bg-slate-200"
-                          >
-                            {c.label}
-                          </Link>
-                        ) : (
-                          <span
-                            key={i}
-                            className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600"
-                          >
-                            {c.label}
-                          </span>
-                        ),
-                      )}
-                    </span>
-                  )}
-                </td>
+                <ChipCell chips={u.chips} emptyLabel={chipsEmptyLabel} />
+                {chips2Header && <ChipCell chips={u.chips2 ?? []} emptyLabel={chips2EmptyLabel} />}
               </tr>
             ))}
           </tbody>
@@ -355,6 +351,39 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="mb-1 block text-xs font-medium text-slate-500">{label}</span>
       {children}
     </label>
+  )
+}
+
+// 칩 목록 셀 — 참여 사업/참여 분과 등. 빈 경우 안내 라벨.
+function ChipCell({ chips, emptyLabel }: { chips: { label: string; href?: string }[]; emptyLabel: string }) {
+  return (
+    <td className="px-4 py-2.5">
+      {chips.length === 0 ? (
+        <span className="text-xs text-slate-400">{emptyLabel}</span>
+      ) : (
+        <span className="flex flex-wrap justify-center gap-1">
+          {chips.map((c, i) =>
+            c.href ? (
+              <Link
+                key={i}
+                href={c.href}
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600 hover:bg-slate-200"
+              >
+                {c.label}
+              </Link>
+            ) : (
+              <span
+                key={i}
+                className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600"
+              >
+                {c.label}
+              </span>
+            ),
+          )}
+        </span>
+      )}
+    </td>
   )
 }
 
