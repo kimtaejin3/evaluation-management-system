@@ -105,4 +105,17 @@ describe('parseSheet', () => {
       ['사업계획', '25'],
     ])
   })
+
+  // EUC-KR(CP949) CSV — 구형 윈도우 엑셀 기본 인코딩. 유효 UTF-8이 아니라 자동 감지된다.
+  // 바이트는 '평가항목,세부항목,평가지표,배점\n사업계획,목표,지표,25\n'의 CP949 인코딩.
+  it('EUC-KR(CP949) CSV의 한글을 자동 감지해 정상 처리', () => {
+    const buf = Buffer.from(
+      'c6f2b0a1c7d7b8f12cbcbcbacec7d7b8f12cc6f2b0a1c1f6c7a52cb9e8c1a10abbe7bef7b0e8c8b92cb8f1c7a52cc1f6c7a52c32350a',
+      'hex',
+    )
+    expect(parseSheet(buf)).toEqual([
+      ['평가항목', '세부항목', '평가지표', '배점'],
+      ['사업계획', '목표', '지표', '25'],
+    ])
+  })
 })
