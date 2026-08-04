@@ -24,8 +24,8 @@ export default async function NewSecretaryPage({
       </Link>
       <h1 className="mt-1 text-2xl font-bold">새 담당자 등록</h1>
       <p className="mt-1 text-sm text-slate-500">
-        담당자 계정을 만듭니다{projectId ? ' (이 사업의 참여 담당자로 함께 등록됩니다)' : ''}. 비밀번호는 연락처 끝
-        4자리로 발급되며, 기존 아이디면 정보를 갱신합니다.
+        담당자 계정을 만듭니다{projectId ? ' (이 사업의 참여 담당자로 함께 등록됩니다)' : ''}. 비밀번호를 비우면 연락처
+        끝 4자리로 발급되며, 기존 아이디면 정보를 갱신합니다.
       </p>
 
       <form action={createSecretary} className="mt-5 overflow-hidden rounded-lg border border-slate-200 bg-white">
@@ -48,6 +48,12 @@ export default async function NewSecretaryPage({
               연락처 <span className="text-rose-500">*</span>
             </label>
             <input name="phone" required className={inputCls} placeholder="예) 010-1234-5678" />
+          </div>
+          <div>
+            <label className={labelCls}>
+              비밀번호 <span className="text-xs font-normal text-slate-400">(선택 — 비우면 연락처 끝 4자리)</span>
+            </label>
+            <input name="password" className={inputCls} placeholder="예) 5678" autoComplete="off" />
           </div>
         </div>
         <div className="flex justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-5 py-3">

@@ -145,7 +145,7 @@ export async function removeSecretaryFromProject(projectId: string, userId: stri
   revalidatePath(`/admin/projects/${projectId}`)
 }
 
-// 담당자 생성(마스터) — 이름·아이디·연락처·사번. 비밀번호는 연락처 끝 4자리로 발급.
+// 담당자 생성(마스터) — 이름·아이디·연락처·비밀번호. 비밀번호 미입력 시 연락처 끝 4자리로 발급.
 // 기존 아이디면 정보를 갱신하며 역할을 담당자로 승격한다. 생성 후 원래 사업 화면으로 복귀.
 // 사업 화면에서 만들면 그 사업의 참여 담당자로 연결되어(project.secretaries) 분과를 만들 수 있다.
 export async function createSecretary(formData: FormData) {
@@ -154,18 +154,18 @@ export async function createSecretary(formData: FormData) {
   const name = String(formData.get('name') ?? '').trim()
   const username = String(formData.get('username') ?? '').trim()
   const phone = String(formData.get('phone') ?? '').trim()
-  const employeeNo = String(formData.get('employeeNo') ?? '').trim() || null
-  const password = passwordFromPhone(phone)
+  // 비밀번호는 폼에서 직접 지정 가능(비우면 연락처 끝 4자리). 관리자가 값을 눈으로 확인·설정하도록.
+  const passwordInput = String(formData.get('password') ?? '').trim()
+  const password = passwordInput || passwordFromPhone(phone)
   if (!name || !username || !phone || !password) return
 
   const user = await prisma.user.upsert({
     where: { username },
-    update: { name, phone, employeeNo, role: 'SECRETARY' },
+    update: { name, phone, role: 'SECRETARY' },
     create: {
       username,
       name,
       phone,
-      employeeNo,
       role: 'SECRETARY',
       passwordHash: await hashPassword(password),
       tempPassword: password,
