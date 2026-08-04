@@ -31,6 +31,36 @@ export async function createProject(formData: FormData) {
   redirect(`/admin/projects/${p.id}`)
 }
 
+// 사업 정보 수정(마스터) — 사업 정보 변경 모달에서 호출. 이름/개요/유형/기간.
+export async function updateProject(
+  projectId: string,
+  formData: FormData,
+): Promise<{ ok: boolean; error?: string }> {
+  await assertMaster()
+  const name = String(formData.get('name') ?? '').trim()
+  const description = String(formData.get('description') ?? '').trim()
+  const taskType = String(formData.get('taskType') ?? '').trim()
+  const startRaw = String(formData.get('startDate') ?? '').trim()
+  const endRaw = String(formData.get('endDate') ?? '').trim()
+  if (!name) return { ok: false, error: '사업명은 필수입니다.' }
+  if (startRaw && endRaw && new Date(endRaw) < new Date(startRaw)) {
+    return { ok: false, error: '종료일이 시작일보다 빠릅니다.' }
+  }
+  await prisma.project.update({
+    where: { id: projectId },
+    data: {
+      name,
+      description: description || null,
+      taskType: taskType || null,
+      startDate: startRaw ? new Date(startRaw) : null,
+      endDate: endRaw ? new Date(endRaw) : null,
+    },
+  })
+  revalidatePath('/admin', 'layout')
+  revalidatePath(`/admin/projects/${projectId}`)
+  return { ok: true }
+}
+
 // "배정" = 담당자(기존 선택)를 분과에 배정. 사업 접근 권한도 함께 부여(project.secretaries).
 export async function assignSecretaryToSession(projectId: string, formData: FormData) {
   await assertMaster()

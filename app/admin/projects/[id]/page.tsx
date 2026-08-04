@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { assertProjectAccess } from "@/lib/authz";
 import { fmtYmd } from "@/lib/dates";
 import StatusBadge from "@/components/StatusBadge";
-import DeleteProjectButton from "@/components/DeleteProjectButton";
+import ProjectInfoButton from "@/components/ProjectInfoButton";
 import SessionSecretaryCell from "@/components/SessionSecretaryCell";
 import UserPasswordManager from "@/components/UserPasswordManager";
 import ExcelExportButton from "@/components/ExcelExportButton";
@@ -87,9 +87,6 @@ export default async function ProjectDetailPage({
               </span>
             )}
           </div>
-          {isMaster && (
-            <DeleteProjectButton projectId={id} projectName={project.name} sessionCount={project.sessions.length} />
-          )}
         </div>
       </div>
 
@@ -99,7 +96,7 @@ export default async function ProjectDetailPage({
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-slate-700">
-            사업 담당자 설정 <span className="ml-0.5 text-xs text-slate-400">{visibleSessions.length}개</span>
+            분과 설정 <span className="ml-0.5 text-xs text-slate-400">{visibleSessions.length}개</span>
           </h2>
           <div className="flex items-center gap-2">
             <ExcelExportButton href={`/api/projects/${id}/export/sessions`} />
@@ -249,6 +246,21 @@ export default async function ProjectDetailPage({
               }))}
             />
           </div>
+        </div>
+      )}
+
+      {/* 맨 하단: 사업 정보 변경(수정·삭제 통합) — 사업 삭제 단독 버튼을 대체 */}
+      {isMaster && (
+        <div className="flex justify-end border-t border-slate-100 pt-4">
+          <ProjectInfoButton
+            projectId={id}
+            name={project.name}
+            description={project.description}
+            taskType={project.taskType}
+            startDate={project.startDate ? project.startDate.toISOString().slice(0, 10) : null}
+            endDate={project.endDate ? project.endDate.toISOString().slice(0, 10) : null}
+            sessionCount={project.sessions.length}
+          />
         </div>
       )}
     </div>

@@ -17,7 +17,7 @@ export default async function NewSessionPage({
   const isMaster = user.role === 'MASTER'
   // 취소/뒤로가기는 소속 사업으로(없으면 분과 목록)
   const backHref = projectId ? `/admin/projects/${projectId}` : '/admin/projects'
-  const backLabel = '← 사업 담당자 설정'
+  const backLabel = '← 분과 설정'
   // 접근 가능한 사업: 마스터=전체, 담당자=배정된 사업
   const [projects, secretaries] = await Promise.all([
     prisma.project.findMany({

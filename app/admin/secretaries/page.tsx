@@ -19,7 +19,7 @@ export default async function SecretariesAdminPage() {
           <h1 className="text-2xl font-bold">담당자 관리</h1>
           <span className="inline-flex items-center gap-1 text-sm text-slate-500">
             <InfoIcon />
-            담당자 계정 풀을 관리합니다. 사업 참여는 각 사업의 사업 담당자 설정에서 추가하세요.
+            담당자 계정 풀을 관리합니다. 사업 참여는 각 사업의 분과 설정에서 추가하세요.
           </span>
         </div>
         <Link
