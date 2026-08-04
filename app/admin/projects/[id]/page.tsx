@@ -108,7 +108,8 @@ export default async function ProjectDetailPage({
             </Link>
           </div>
         </div>
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+        {/* 분과가 많아도 화면이 커지지 않도록 스크롤(고객 요청 — 설정 화면 축소) */}
+        <div className="max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-white">
         {visibleSessions.length === 0 ? (
           <p className="px-5 py-8 text-center text-sm text-slate-400">
             {isMaster ? "아직 분과가 없습니다. ‘분과 추가’로 시작하세요." : "내가 만든 분과가 없습니다. ‘분과 추가’로 시작하세요."}
@@ -116,7 +117,7 @@ export default async function ProjectDetailPage({
         ) : (
           <table className="table-grid w-full text-sm">
             <thead className="text-left text-slate-500">
-              <tr className="border-b border-slate-100 bg-slate-50/60">
+              <tr className="sticky top-0 z-10 border-b border-slate-100 bg-slate-50">
                 <SortableTh label="분과명" field="name" sort={sort} dir={dir} basePath={`/admin/projects/${id}`} />
                 <th className="px-5 py-3 font-medium">평가 상태</th>
                 <SortableTh label="평가 기간" field="period" sort={sort} dir={dir} basePath={`/admin/projects/${id}`} />
@@ -180,10 +181,11 @@ export default async function ProjectDetailPage({
               <AddProjectSecretaryModal projectId={id} candidates={candidates} />
             </div>
           </div>
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+          {/* 참여 담당자가 많아도 화면이 커지지 않도록 약 3행만 보이고 스크롤(고객 요청) */}
+          <div className="max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-white">
             <table className="table-grid w-full text-sm">
               <thead className="text-left text-slate-500">
-                <tr className="border-b border-slate-100 bg-slate-50/60">
+                <tr className="sticky top-0 z-10 border-b border-slate-100 bg-slate-50">
                   <th className="px-5 py-2.5 font-medium">이름</th>
                   <th className="px-5 py-2.5 font-medium">아이디</th>
                   <th className="px-5 py-2.5 font-medium">연락처</th>
