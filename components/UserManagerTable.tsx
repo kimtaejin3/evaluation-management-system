@@ -3,42 +3,47 @@
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import UserPasswordManager from './UserPasswordManager'
 
 export type ManagedUser = {
   id: string
   name: string
   username: string
   phone: string | null
-  employeeNo: string | null
   tempPassword: string | null
+  affiliation?: string | null
+  position?: string | null
   chips: { label: string; href?: string }[]
 }
 
-// 담당자·평가위원 관리 공통 표 — 평소엔 깔끔하게 보이다가 '{roleLabel} 삭제'를 누르면 선택 모드로 전환된다.
-// 선택 모드에서는 각 행에 체크박스가 나타나고(행 클릭으로도 토글), '선택 삭제'로 한 번에 삭제한다.
-// 비밀번호 조회·재발급은 옆의 모달 버튼(UserPasswordManager)에서. 삭제 액션은 페이지가 주입한다.
+// 담당자·평가위원 관리 공통 표.
+// - 체크박스를 항상 노출(상시 선택 가능). 머리글 체크박스로 전체 선택.
+// - 표 아래 오른쪽의 '{roleLabel} 정보 변경' 하나로 수정·비밀번호 재발급·삭제를 모두 처리.
+//   · 1명 선택: 정보 수정 폼 + 재발급 + 삭제
+//   · 2명 이상: 일괄 삭제만
 export default function UserManagerTable({
   users,
   roleLabel,
   chipsHeader,
   chipsEmptyLabel,
-  showEmployeeNo = false,
   emptyLabel,
   deleteAction,
+  updateAction,
+  resetPasswordAction,
+  showAffiliation = false,
 }: {
   users: ManagedUser[]
   roleLabel: string
   chipsHeader: string
   chipsEmptyLabel: string
-  showEmployeeNo?: boolean
   emptyLabel: string
   deleteAction: (ids: string[]) => Promise<void>
+  updateAction: (id: string, formData: FormData) => Promise<{ ok: boolean; error?: string }>
+  resetPasswordAction: (id: string) => Promise<{ ok: boolean; password?: string }>
+  showAffiliation?: boolean
 }) {
   const router = useRouter()
-  const [selecting, setSelecting] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [pending, start] = useTransition()
+  const [open, setOpen] = useState(false)
 
   const toggle = (id: string) =>
     setSelected((prev) => {
@@ -47,29 +52,13 @@ export default function UserManagerTable({
       else next.add(id)
       return next
     })
+  const allChecked = users.length > 0 && selected.size === users.length
+  const toggleAll = () =>
+    setSelected((prev) => (prev.size === users.length ? new Set() : new Set(users.map((u) => u.id))))
 
-  const enterSelect = () => {
-    setSelected(new Set())
-    setSelecting(true)
-  }
-  const cancel = () => {
-    setSelected(new Set())
-    setSelecting(false)
-  }
-
-  const bulkDelete = () => {
-    if (selected.size === 0) return
-    if (!confirm(`선택한 ${roleLabel} ${selected.size}명을 삭제할까요? 삭제하면 계정과 관련 정보가 모두 제거됩니다.`)) return
-    start(async () => {
-      await deleteAction([...selected])
-      setSelected(new Set())
-      setSelecting(false)
-      router.refresh()
-    })
-  }
-
-  // 열 수 = 이름/아이디/연락처 + (사번) + chips + (선택 체크박스)
-  const cols = 4 + (showEmployeeNo ? 1 : 0) + (selecting ? 1 : 0)
+  const selectedUsers = users.filter((u) => selected.has(u.id))
+  // 이름/아이디/연락처 + (소속/직급) + chips + 체크박스
+  const cols = 4 + (showAffiliation ? 2 : 0) + 1
 
   return (
     <div className="space-y-3">
@@ -77,11 +66,16 @@ export default function UserManagerTable({
         <table className="table-grid w-full text-sm">
           <thead className="text-left text-slate-500">
             <tr className="border-b border-slate-100 bg-slate-50/60">
-              {selecting && <th className="w-12 px-4 py-2.5" />}
+              <th className="w-12 px-4 py-2.5">
+                <button type="button" onClick={toggleAll} aria-label="전체 선택">
+                  <PrettyCheck checked={allChecked} />
+                </button>
+              </th>
               <th className="px-4 py-2.5 font-medium">이름</th>
               <th className="px-4 py-2.5 font-medium">아이디</th>
               <th className="px-4 py-2.5 font-medium">연락처</th>
-              {showEmployeeNo && <th className="px-4 py-2.5 font-medium">사번</th>}
+              {showAffiliation && <th className="px-4 py-2.5 font-medium">소속</th>}
+              {showAffiliation && <th className="px-4 py-2.5 font-medium">직급</th>}
               <th className="px-4 py-2.5 font-medium">{chipsHeader}</th>
             </tr>
           </thead>
@@ -96,25 +90,22 @@ export default function UserManagerTable({
             {users.map((u) => (
               <tr
                 key={u.id}
-                onClick={selecting ? () => toggle(u.id) : undefined}
-                className={`border-b border-slate-50 transition last:border-0 ${
-                  selecting
-                    ? selected.has(u.id)
-                      ? 'cursor-pointer bg-indigo-50'
-                      : 'cursor-pointer hover:bg-slate-50/60'
-                    : ''
+                onClick={() => toggle(u.id)}
+                className={`cursor-pointer border-b border-slate-50 transition last:border-0 ${
+                  selected.has(u.id) ? 'bg-indigo-50' : 'hover:bg-slate-50/60'
                 }`}
               >
-                {selecting && (
-                  <td className="px-4 py-2.5">
-                    <PrettyCheck checked={selected.has(u.id)} />
-                  </td>
-                )}
+                <td className="px-4 py-2.5">
+                  <PrettyCheck checked={selected.has(u.id)} />
+                </td>
                 <td className="px-4 py-2.5 font-medium text-slate-800">{u.name}</td>
                 <td className="px-4 py-2.5 text-slate-600">{u.username}</td>
                 <td className="px-4 py-2.5 text-slate-600">{u.phone ?? <span className="text-slate-300">—</span>}</td>
-                {showEmployeeNo && (
-                  <td className="px-4 py-2.5 text-slate-600">{u.employeeNo ?? <span className="text-slate-300">—</span>}</td>
+                {showAffiliation && (
+                  <td className="px-4 py-2.5 text-slate-600">{u.affiliation ?? <span className="text-slate-300">—</span>}</td>
+                )}
+                {showAffiliation && (
+                  <td className="px-4 py-2.5 text-slate-600">{u.position ?? <span className="text-slate-300">—</span>}</td>
                 )}
                 <td className="px-4 py-2.5">
                   {u.chips.length === 0 ? (
@@ -149,53 +140,225 @@ export default function UserManagerTable({
         </table>
       </div>
 
-      {/* 표 밑(카드 밖) 오른쪽: 평소엔 비밀번호 재발급 + {roleLabel} 삭제, 선택 모드에선 취소 + 선택 삭제 */}
-      <div className="flex justify-end gap-2">
-        {selecting ? (
-          <>
-            <button
-              type="button"
-              onClick={cancel}
-              disabled={pending}
-              className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium whitespace-nowrap text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
-            >
-              취소
-            </button>
-            <button
-              type="button"
-              onClick={bulkDelete}
-              disabled={selected.size === 0 || pending}
-              className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-1.5 text-sm font-medium whitespace-nowrap text-rose-600 transition hover:bg-rose-100 disabled:border-slate-300 disabled:bg-white disabled:text-slate-400 disabled:opacity-60"
-            >
-              {pending ? '삭제 중…' : selected.size > 0 ? `선택 삭제 (${selected.size})` : '선택 삭제'}
-            </button>
-          </>
-        ) : (
-          <>
-            <UserPasswordManager
-              roleLabel={roleLabel}
-              users={users.map((u) => ({
-                id: u.id,
-                name: u.name,
-                username: u.username,
-                tempPassword: u.tempPassword,
-              }))}
-            />
-            <button
-              type="button"
-              onClick={enterSelect}
-              className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium whitespace-nowrap text-slate-600 transition hover:bg-slate-50"
-            >
-              {roleLabel} 삭제
-            </button>
-          </>
+      {/* 표 밖 오른쪽: 선택 후 '정보 변경' 하나로 수정·재발급·삭제 */}
+      <div className="flex items-center justify-end gap-2">
+        {selected.size > 0 && (
+          <span className="mr-auto text-sm text-slate-500">{selected.size}명 선택됨</span>
         )}
+        <button
+          type="button"
+          disabled={selected.size === 0}
+          onClick={() => setOpen(true)}
+          className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium whitespace-nowrap text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
+        >
+          {roleLabel} 정보 변경
+        </button>
+      </div>
+
+      {open && (
+        <ManageModal
+          roleLabel={roleLabel}
+          users={selectedUsers}
+          showAffiliation={showAffiliation}
+          deleteAction={deleteAction}
+          updateAction={updateAction}
+          resetPasswordAction={resetPasswordAction}
+          onClose={() => setOpen(false)}
+          onDone={() => {
+            setOpen(false)
+            setSelected(new Set())
+            router.refresh()
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+// 정보 변경 모달 — 1명이면 수정/재발급/삭제, 여러 명이면 삭제만.
+function ManageModal({
+  roleLabel,
+  users,
+  showAffiliation,
+  deleteAction,
+  updateAction,
+  resetPasswordAction,
+  onClose,
+  onDone,
+}: {
+  roleLabel: string
+  users: ManagedUser[]
+  showAffiliation: boolean
+  deleteAction: (ids: string[]) => Promise<void>
+  updateAction: (id: string, formData: FormData) => Promise<{ ok: boolean; error?: string }>
+  resetPasswordAction: (id: string) => Promise<{ ok: boolean; password?: string }>
+  onClose: () => void
+  onDone: () => void
+}) {
+  const single = users.length === 1 ? users[0] : null
+  const [name, setName] = useState(single?.name ?? '')
+  const [phone, setPhone] = useState(single?.phone ?? '')
+  const [affiliation, setAffiliation] = useState(single?.affiliation ?? '')
+  const [position, setPosition] = useState(single?.position ?? '')
+  const [newPw, setNewPw] = useState<string | null>(null)
+  const [error, setError] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [pending, start] = useTransition()
+
+  const save = () => {
+    if (!single) return
+    setError('')
+    const fd = new FormData()
+    fd.set('name', name)
+    fd.set('phone', phone)
+    fd.set('affiliation', affiliation)
+    fd.set('position', position)
+    start(async () => {
+      const res = await updateAction(single.id, fd)
+      if (res.ok) onDone()
+      else setError(res.error ?? '저장에 실패했습니다.')
+    })
+  }
+  const reset = () => {
+    if (!single) return
+    setError('')
+    start(async () => {
+      const res = await resetPasswordAction(single.id)
+      if (res.ok && res.password) setNewPw(res.password)
+      else setError('재발급에 실패했습니다.')
+    })
+  }
+  const remove = () => {
+    start(async () => {
+      await deleteAction(users.map((u) => u.id))
+      onDone()
+    })
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-lg font-bold text-slate-900">{roleLabel} 정보 변경</h3>
+
+        {single ? (
+          <div className="mt-4 space-y-3">
+            <Field label="이름">
+              <input value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
+            </Field>
+            <Field label="아이디">
+              <input value={single.username} disabled className={`${inputCls} bg-slate-50 text-slate-400`} />
+            </Field>
+            <Field label="연락처">
+              <input value={phone} onChange={(e) => setPhone(e.target.value)} className={inputCls} />
+            </Field>
+            {showAffiliation && (
+              <>
+                <Field label="소속">
+                  <input value={affiliation} onChange={(e) => setAffiliation(e.target.value)} className={inputCls} />
+                </Field>
+                <Field label="직급">
+                  <input value={position} onChange={(e) => setPosition(e.target.value)} className={inputCls} />
+                </Field>
+              </>
+            )}
+            <Field label="비밀번호">
+              <div className="flex items-center gap-2">
+                <input
+                  value={newPw ?? single.tempPassword ?? '(변경됨 — 재발급 필요)'}
+                  disabled
+                  className={`${inputCls} bg-slate-50 font-mono ${newPw ? 'text-emerald-600' : 'text-slate-500'}`}
+                />
+                <button
+                  type="button"
+                  onClick={reset}
+                  disabled={pending}
+                  className="shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm whitespace-nowrap text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  재발급
+                </button>
+              </div>
+            </Field>
+            {newPw && <p className="text-xs text-emerald-600">새 임시 비밀번호가 발급되었습니다: <b>{newPw}</b></p>}
+          </div>
+        ) : (
+          <div className="mt-4">
+            <p className="text-sm text-slate-600">선택한 {roleLabel} {users.length}명:</p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {users.map((u) => (
+                <span key={u.id} className="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-700">{u.name}</span>
+              ))}
+            </div>
+            <p className="mt-3 text-xs text-slate-400">여러 명은 삭제만 가능합니다. 수정·재발급은 한 명씩 선택하세요.</p>
+          </div>
+        )}
+
+        {error && <p className="mt-3 text-sm font-medium text-rose-600">{error}</p>}
+
+        <div className="mt-6 flex items-center justify-between gap-2">
+          {confirmDelete ? (
+            <div className="flex w-full items-center justify-between gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2">
+              <span className="text-sm text-rose-700">{users.length}명을 삭제할까요? 계정·관련 정보가 모두 제거됩니다.</span>
+              <div className="flex shrink-0 gap-2">
+                <button type="button" onClick={() => setConfirmDelete(false)} className="rounded-md px-2 py-1 text-sm text-slate-500">취소</button>
+                <button
+                  type="button"
+                  onClick={remove}
+                  disabled={pending}
+                  className="rounded-md bg-rose-600 px-3 py-1 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-50"
+                >
+                  {pending ? '삭제 중…' : '삭제'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(true)}
+                disabled={pending}
+                className="rounded-lg border border-rose-300 bg-white px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50 disabled:opacity-50"
+              >
+                삭제
+              </button>
+              <div className="flex gap-2">
+                <button type="button" onClick={onClose} className="rounded-lg px-3 py-2 text-sm text-slate-500 hover:text-slate-700">
+                  닫기
+                </button>
+                {single && (
+                  <button
+                    type="button"
+                    onClick={save}
+                    disabled={pending || !name.trim()}
+                    className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    {pending ? '저장 중…' : '저장'}
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   )
 }
 
-// 예쁜 체크박스 — 선택 상태에 따라 남색 배경 + 흰 체크. 행 클릭으로 토글되므로 시각 표시용.
+const inputCls =
+  'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500'
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-xs font-medium text-slate-500">{label}</span>
+      {children}
+    </label>
+  )
+}
+
+// 예쁜 체크박스 — 선택 상태에 따라 남색 배경 + 흰 체크.
 function PrettyCheck({ checked }: { checked: boolean }) {
   return (
     <span

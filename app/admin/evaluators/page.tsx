@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import InfoIcon from "@/components/InfoIcon";
 import Link from "next/link";
 import UserManagerTable from "@/components/UserManagerTable";
-import { deleteEvaluators } from "../actions";
+import { deleteEvaluators, updateUserInfo, resetUserPassword } from "../actions";
 import { assertMaster } from "@/lib/authz";
 import { SkeletonTable } from "@/components/Skeletons";
 
@@ -57,7 +57,8 @@ async function EvaluatorTable() {
     name: u.name,
     username: u.username,
     phone: u.phone,
-    employeeNo: u.employeeNo,
+    affiliation: u.affiliation,
+    position: u.position,
     tempPassword: u.tempPassword,
     chips: u.assignments.map((a) => ({ label: a.session.name })),
   }));
@@ -70,6 +71,9 @@ async function EvaluatorTable() {
       chipsEmptyLabel="미정"
       emptyLabel="등록된 평가위원이 없습니다."
       deleteAction={deleteEvaluators}
+      updateAction={updateUserInfo}
+      resetPasswordAction={resetUserPassword}
+      showAffiliation
     />
   );
 }

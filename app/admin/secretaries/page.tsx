@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { assertMaster } from "@/lib/authz";
 import UserManagerTable from "@/components/UserManagerTable";
 import InfoIcon from "@/components/InfoIcon";
-import { deleteSecretaries } from "../actions";
+import { deleteSecretaries, updateUserInfo, resetUserPassword } from "../actions";
 import { SkeletonTable } from "@/components/Skeletons";
 
 // 담당자 관리(마스터) — 전역 담당자 풀. 담당자는 여러 사업에 참여할 수 있으며,
@@ -57,7 +57,6 @@ async function SecretaryTable() {
     name: u.name,
     username: u.username,
     phone: u.phone,
-    employeeNo: u.employeeNo,
     tempPassword: u.tempPassword,
     chips: u.assignedProjects.map((p) => ({ label: p.name, href: `/admin/projects/${p.id}` })),
   }));
@@ -70,6 +69,8 @@ async function SecretaryTable() {
       chipsEmptyLabel="참여 없음"
       emptyLabel="등록된 담당자가 없습니다. 위의 ‘담당자 추가’로 시작하세요."
       deleteAction={deleteSecretaries}
+      updateAction={updateUserInfo}
+      resetPasswordAction={resetUserPassword}
     />
   );
 }

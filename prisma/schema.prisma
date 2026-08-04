@@ -68,6 +68,9 @@ model User {
   phone        String?
   // 사번 — 간사 계정용(선택)
   employeeNo   String?
+  // 소속·직급 — 평가위원 관리 표시용(선택). 위원 명단에 소속/직급이 함께 뜨면 식별이 쉽다.
+  affiliation  String?
+  position     String?
   role         Role
   assignments  Assignment[]
   scores       Score[]

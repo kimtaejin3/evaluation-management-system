@@ -76,6 +76,36 @@ export async function resetEvaluatorPassword(userId: string) {
   revalidatePath('/admin/evaluators')
 }
 
+// 계정 정보 수정(담당자·평가위원 공통) — 이름/연락처/소속/직급. '정보 변경' 모달에서 호출.
+// 삭제 후 재등록하지 않고 바로 고칠 수 있게 한다. 역할은 바꾸지 않는다.
+export async function updateUserInfo(userId: string, formData: FormData): Promise<{ ok: boolean; error?: string }> {
+  await requireAdminUser()
+  const name = String(formData.get('name') ?? '').trim()
+  const phone = String(formData.get('phone') ?? '').trim() || null
+  const affiliation = String(formData.get('affiliation') ?? '').trim() || null
+  const position = String(formData.get('position') ?? '').trim() || null
+  if (!name) return { ok: false, error: '이름은 필수입니다.' }
+  await prisma.user.update({ where: { id: userId }, data: { name, phone, affiliation, position } })
+  revalidatePath('/admin', 'layout')
+  revalidatePath('/admin/evaluators')
+  revalidatePath('/admin/secretaries')
+  return { ok: true }
+}
+
+// 임시 비밀번호 재발급(담당자·평가위원 공통) — 새 임시 비번을 만들어 반환(모달에서 즉시 표시).
+export async function resetUserPassword(userId: string): Promise<{ ok: boolean; password?: string }> {
+  await requireAdminUser()
+  const newPw = randomUUID().replace(/-/g, '').slice(0, 8)
+  await prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash: await hashPassword(newPw), tempPassword: newPw },
+  })
+  revalidatePath('/admin', 'layout')
+  revalidatePath('/admin/evaluators')
+  revalidatePath('/admin/secretaries')
+  return { ok: true, password: newPw }
+}
+
 // ---- 기업(평가 대상 원본) 관리(전역) ----
 
 export async function createCompany(formData: FormData) {
