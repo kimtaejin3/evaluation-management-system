@@ -83,6 +83,11 @@ async function SubjectsContent({ id }: { id: string }) {
           )}
         </div>
       </div>
+      {!locked && !isMaster && canEdit && (
+        <p className="-mt-4 text-right text-xs text-slate-400">
+          한글(HWP)은 이 엑셀 양식을 한글에서 열어 표를 채운 뒤, 표를 복사해 ‘가져오기’ 창에 붙여넣으세요. (한글 파일 업로드는 지원하지 않습니다)
+        </p>
+      )}
 
       {/* 검토 워크플로 배너 — 담당자: 제출/취소, 관리자: 승인/반려 */}
       {!locked && (

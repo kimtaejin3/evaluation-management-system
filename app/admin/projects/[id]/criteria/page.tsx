@@ -83,6 +83,11 @@ async function Content({ id }: { id: string }) {
         <ExcelExportButton href={`/api/projects/${id}/export/criteria`} />
         <CriteriaPrintButton projectId={id} />
       </div>
+      {isMaster && (
+        <p className="text-right text-xs text-slate-400">
+          한글(HWP)은 이 엑셀 양식을 한글에서 열어 표를 채운 뒤, 표를 복사해 ‘가져오기’ 창에 붙여넣으세요. (한글 파일 업로드는 지원하지 않습니다)
+        </p>
+      )}
 
       {/* 항목 편집(관리자) / 조회(담당자) */}
       {isMaster ? (
