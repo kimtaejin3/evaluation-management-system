@@ -99,6 +99,8 @@ async function Content({
       name: s.name,
       status: s.status,
       period: fmtPeriod(s),
+      startDate: s.startDate ? s.startDate.toISOString().slice(0, 10) : "",
+      endDate: s.endDate ? s.endDate.toISOString().slice(0, 10) : "",
       secretaryName: s.secretary?.name ?? null,
       subjectCount: p.subjects.length,
       assignedCount: p.assignedCount,

@@ -93,6 +93,38 @@ export async function deleteSessionFromProject(
   return { ok: true }
 }
 
+// 분과 정보 수정(관리자) — '분과 정보 변경' 모달에서 호출. 분과명·평가 기간(시작일/종료일).
+// 기간은 소속 사업 기간 안에 있어야 한다(createSession과 동일 규칙). eventDate는 종료일과 동기화.
+export async function updateSession(
+  sessionId: string,
+  formData: FormData,
+): Promise<{ ok: boolean; error?: string }> {
+  await assertSessionAccess(sessionId)
+  const name = String(formData.get('name') ?? '').trim()
+  const startRaw = String(formData.get('startDate') ?? '').trim()
+  const endRaw = String(formData.get('endDate') ?? '').trim()
+  if (!name) return { ok: false, error: '분과명은 필수입니다.' }
+  const session = await prisma.evaluationSession.findUnique({
+    where: { id: sessionId },
+    select: { projectId: true, project: { select: { startDate: true, endDate: true } } },
+  })
+  if (!session) return { ok: false, error: '분과를 찾을 수 없습니다.' }
+  const startDate = startRaw ? new Date(startRaw) : null
+  const endDate = endRaw ? new Date(endRaw) : null
+  if (startDate && endDate && endDate < startDate) return { ok: false, error: '종료일이 시작일보다 빠릅니다.' }
+  if (startDate && session.project?.startDate && startDate < session.project.startDate)
+    return { ok: false, error: '시작일이 사업 기간보다 빠릅니다.' }
+  if (endDate && session.project?.endDate && endDate > session.project.endDate)
+    return { ok: false, error: '종료일이 사업 기간보다 늦습니다.' }
+  await prisma.evaluationSession.update({
+    where: { id: sessionId },
+    data: { name, startDate, endDate, eventDate: endDate },
+  })
+  revalidatePath('/admin', 'layout')
+  if (session.projectId) revalidatePath(`/admin/projects/${session.projectId}/monitoring`)
+  return { ok: true }
+}
+
 export async function setSessionStatus(sessionId: string, status: 'DRAFT' | 'IN_PROGRESS' | 'CLOSED') {
   await assertSessionAccess(sessionId)
   if (status === 'CLOSED') {
