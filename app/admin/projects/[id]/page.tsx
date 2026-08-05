@@ -74,11 +74,8 @@ export default async function ProjectDetailPage({
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/admin/projects" className="text-sm text-slate-400 hover:text-slate-600">
-          ← 사업 목록
-        </Link>
         {/* 제목 옆에 기간만 인라인 배치 */}
-        <div className="mt-1 flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-3">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <h1 className="text-2xl font-bold">{project.name}</h1>
             {(project.startDate || project.endDate) && (

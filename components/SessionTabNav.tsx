@@ -19,13 +19,13 @@ export default function SessionTabNav() {
   const next = SESSION_TABS[idx + 1];
   if (!prev && !next) return null;
 
-  const link = "text-sm font-medium text-slate-500 transition hover:text-slate-900";
+  const link = "text-base font-semibold text-slate-600 transition hover:text-slate-900";
 
   return (
     <div className="flex items-center justify-end gap-4 px-8 pt-3 print:hidden">
       {prev && (
-        <Link href={`/admin/sessions/${id}${prev.suffix}`} className={`inline-flex items-center gap-1 ${link}`}>
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 shrink-0" aria-hidden>
+        <Link href={`/admin/sessions/${id}${prev.suffix}`} className={`inline-flex items-center gap-1.5 ${link}`}>
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5 shrink-0" aria-hidden>
             <path d="M12 5l-5 5 5 5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           {prev.label}
@@ -33,9 +33,9 @@ export default function SessionTabNav() {
       )}
       {prev && next && <span className="text-slate-300">|</span>}
       {next && (
-        <Link href={`/admin/sessions/${id}${next.suffix}`} className={`inline-flex items-center gap-1 ${link}`}>
+        <Link href={`/admin/sessions/${id}${next.suffix}`} className={`inline-flex items-center gap-1.5 ${link}`}>
           {next.label}
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 shrink-0" aria-hidden>
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5 shrink-0" aria-hidden>
             <path d="M8 5l5 5-5 5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </Link>
