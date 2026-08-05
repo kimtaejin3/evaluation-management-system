@@ -29,7 +29,7 @@ export default function ResultsReviewCell({
       : `${base} border border-slate-200 bg-white text-slate-300 cursor-not-allowed`
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className="flex flex-wrap items-center justify-center gap-1.5">
       <button
         type="button"
         disabled={pending || closed || !submitted}
