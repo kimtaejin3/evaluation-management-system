@@ -73,7 +73,7 @@ async function Content({ id }: { id: string }) {
                 <th className="px-5 py-3 font-medium">아이디</th>
                 <th className="px-5 py-3 font-medium">비밀번호</th>
                 <th className="px-5 py-3 font-medium">연락처</th>
-                <th className="px-5 py-3 font-medium">승인 상태</th>
+                <th className="px-5 py-3 text-center font-medium">승인 상태</th>
               </tr>
             </thead>
             <tbody>
@@ -89,7 +89,7 @@ async function Content({ id }: { id: string }) {
                 // 마지막 컬럼(분과 단위) — 승인 상태(배지 없이 승인/반려 버튼으로만 판단)
                 const tail = (
                   <td rowSpan={rows} className="border-l border-slate-100 px-5 py-3 align-top">
-                    <div className="flex flex-wrap items-center gap-1.5">
+                    <div className="flex flex-wrap items-center justify-center gap-1.5">
                       {isMaster && (
                         <ReviewDecisionButtons sessionId={s.id} status={s.evaluatorStatus} kind="evaluators" />
                       )}

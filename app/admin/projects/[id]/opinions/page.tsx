@@ -88,7 +88,7 @@ async function Content({ id }: { id: string }) {
                 <th className="px-5 py-3 font-medium">담당자 검토</th>
                 <th className="px-5 py-3 font-medium">평가 대상 수</th>
                 <th className="px-5 py-3 font-medium">평가위원장 종합 의견</th>
-                <th className="px-5 py-3 font-medium">승인 상태</th>
+                <th className="px-5 py-3 text-center font-medium">승인 상태</th>
               </tr>
             </thead>
             <tbody>
@@ -117,8 +117,8 @@ async function Content({ id }: { id: string }) {
                       />
                     </td>
                     <td className="px-5 py-3">
-                      {/* 승인 상태 — 배지 없이 승인/반려 버튼으로만 판단 */}
-                      <div className="flex flex-wrap items-center gap-1.5">
+                      {/* 승인 상태 — 배지 없이 승인/반려 버튼으로만 판단(가운데 정렬) */}
+                      <div className="flex flex-wrap items-center justify-center gap-1.5">
                         {isMaster && (
                           <ReviewDecisionButtons sessionId={s.id} status={s.opinionStatus} kind="opinions" wording="review" />
                         )}
