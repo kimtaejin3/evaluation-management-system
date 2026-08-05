@@ -96,7 +96,7 @@ export default function SessionSecretaryCell({
             <input type="hidden" name="sessionId" value={sessionId} />
             {secretaries.length === 0 ? (
               <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                등록된 담당자가 없습니다. 분과 목록 아래 &lsquo;담당자 추가&rsquo;로 먼저 만들어 주세요.
+                등록된 담당자가 없습니다. &lsquo;담당자 관리&rsquo;에서 먼저 담당자를 등록해 주세요.
               </p>
             ) : (
               <select

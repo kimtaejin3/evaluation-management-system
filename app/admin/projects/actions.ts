@@ -136,15 +136,6 @@ export async function addSecretaryToProject(projectId: string, formData: FormDat
   revalidatePath(`/admin/projects/${projectId}`)
 }
 
-// 사업 참여 담당자 제외(마스터) — 연결 해제 + 이 사업 내 담당 분과도 함께 해제
-export async function removeSecretaryFromProject(projectId: string, userId: string) {
-  await assertMaster()
-  await prisma.project.update({ where: { id: projectId }, data: { secretaries: { disconnect: { id: userId } } } })
-  await prisma.evaluationSession.updateMany({ where: { projectId, secretaryId: userId }, data: { secretaryId: null } })
-  revalidatePath('/admin', 'layout')
-  revalidatePath(`/admin/projects/${projectId}`)
-}
-
 // 담당자 생성(마스터) — 이름·아이디·연락처·비밀번호. 비밀번호 미입력 시 연락처 끝 4자리로 발급.
 // 기존 아이디면 정보를 갱신하며 역할을 담당자로 승격한다. 생성 후 원래 사업 화면으로 복귀.
 // 사업 화면에서 만들면 그 사업의 참여 담당자로 연결되어(project.secretaries) 분과를 만들 수 있다.

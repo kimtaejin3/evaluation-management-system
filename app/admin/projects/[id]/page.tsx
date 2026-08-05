@@ -5,12 +5,9 @@ import { fmtYmd } from "@/lib/dates";
 import StatusBadge from "@/components/StatusBadge";
 import ProjectInfoButton from "@/components/ProjectInfoButton";
 import SessionSecretaryCell from "@/components/SessionSecretaryCell";
-import UserPasswordManager from "@/components/UserPasswordManager";
 import ExcelExportButton from "@/components/ExcelExportButton";
 import SortableTh from "@/components/SortableTh";
 import { parseSessionSort, sortSessions } from "@/lib/session-sort";
-import { removeSecretaryFromProject } from "../actions";
-import AddProjectSecretaryModal from "@/components/AddProjectSecretaryModal";
 
 
 export default async function ProjectDetailPage({
@@ -35,11 +32,6 @@ export default async function ProjectDetailPage({
           _count: { select: { subjects: true, assignments: true } },
         },
       },
-      // 참여 담당자(담당자 풀에서 이 사업에 추가된 사람들)
-      secretaries: {
-        orderBy: { name: "asc" },
-        select: { id: true, name: true, username: true, phone: true, employeeNo: true, tempPassword: true },
-      },
     },
   });
   if (!project) return null;
@@ -52,14 +44,13 @@ export default async function ProjectDetailPage({
     dir,
   );
 
-  // 참여 담당자(이 사업) — 담당 배정 모달 + 하단 담당자 테이블 공용.
-  // 추가 후보 = 담당자 풀(담당자 관리)에서 아직 이 사업에 참여하지 않은 담당자.
-  const secretaries = project.secretaries;
-  const candidates = isMaster
+  // 전역 담당자 풀(담당자 관리) — 분과 설정에서 별도 '담당자 추가' 없이 그대로 보여주고,
+  // 분과 배정도 이 풀에서 바로 선택한다(배정 시 사업에 자동 연결됨).
+  const secretaries = isMaster
     ? await prisma.user.findMany({
-        where: { role: "SECRETARY", id: { notIn: secretaries.map((s) => s.id) } },
+        where: { role: "SECRETARY" },
         orderBy: { name: "asc" },
-        select: { id: true, name: true, username: true },
+        select: { id: true, name: true, username: true, phone: true, tempPassword: true },
       })
     : [];
   // 담당자별 이 사업 내 담당 분과
@@ -166,35 +157,33 @@ export default async function ProjectDetailPage({
         </div>
       </div>
 
-      {/* 담당자 관리 — 분과 목록 아래(관리자 전용): 담당자 목록 + 생성 */}
+      {/* 담당자 현황 — 분과 목록 아래(관리자 전용): 담당자 관리에 등록된 전역 담당자 풀을 그대로 표시.
+          별도 '담당자 추가' 없이, 위 분과 표의 '담당자' 셀에서 이 풀 중에서 배정한다. */}
       {isMaster && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-slate-700">
-              참여 담당자 <span className="ml-0.5 text-xs text-slate-400">{secretaries.length}명</span>
+              담당자 현황 <span className="ml-0.5 text-xs text-slate-400">{secretaries.length}명</span>
+              <span className="ml-2 text-xs font-normal text-slate-400">담당자 관리에 등록된 담당자 전체</span>
             </h2>
-            <div className="flex items-center gap-2">
-              <ExcelExportButton href={`/api/projects/${id}/export/secretaries`} />
-              <AddProjectSecretaryModal projectId={id} candidates={candidates} />
-            </div>
           </div>
-          {/* 참여 담당자가 많아도 화면이 커지지 않도록 약 3행만 보이고 스크롤(고객 요청) */}
-          <div className="max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-white">
+          {/* 담당자가 많아도 화면이 커지지 않도록 약 3행만 보이고 스크롤(고객 요청) */}
+          <div className="max-h-44 overflow-y-auto rounded-xl border border-slate-200 bg-white">
             <table className="table-grid w-full text-sm">
               <thead className="text-left text-slate-500">
                 <tr className="sticky top-0 z-10 border-b border-slate-100 bg-slate-50">
                   <th className="px-5 py-2.5 font-medium">이름</th>
                   <th className="px-5 py-2.5 font-medium">아이디</th>
+                  <th className="px-5 py-2.5 font-medium">비밀번호</th>
                   <th className="px-5 py-2.5 font-medium">연락처</th>
                   <th className="px-5 py-2.5 font-medium">담당 분과</th>
-                  <th className="px-5 py-2.5 text-right"></th>
                 </tr>
               </thead>
               <tbody>
                 {secretaries.length === 0 && (
                   <tr>
                     <td colSpan={5} className="px-5 py-8 text-center text-sm text-slate-400">
-                      참여 담당자가 없습니다. 위의 '담당자 추가'로 담당자 풀에서 추가하세요.
+                      등록된 담당자가 없습니다. ‘담당자 관리’에서 먼저 담당자를 등록하세요.
                     </td>
                   </tr>
                 )}
@@ -202,6 +191,13 @@ export default async function ProjectDetailPage({
                   <tr key={u.id} className="border-b border-slate-50 last:border-0">
                     <td className="px-5 py-2.5 font-medium text-slate-800">{u.name}</td>
                     <td className="px-5 py-2.5 text-slate-600">{u.username}</td>
+                    <td className="px-5 py-2.5">
+                      {u.tempPassword ? (
+                        <span className="font-mono text-sm tabular-nums text-slate-700">{u.tempPassword}</span>
+                      ) : (
+                        <span className="text-xs text-slate-400">재발급 필요</span>
+                      )}
+                    </td>
                     <td className="px-5 py-2.5 text-slate-600">
                       {u.phone ?? <span className="text-slate-300">—</span>}
                     </td>
@@ -218,32 +214,10 @@ export default async function ProjectDetailPage({
                         <span className="text-xs text-slate-400">배정 없음</span>
                       )}
                     </td>
-                    <td className="px-5 py-2.5 text-right">
-                      <form
-                        action={async () => {
-                          "use server";
-                          await removeSecretaryFromProject(id, u.id);
-                        }}
-                      >
-                        <button className="text-sm whitespace-nowrap text-slate-500 hover:text-slate-700 hover:underline">제외</button>
-                      </form>
-                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-          {/* 표 밑: 담당자 비밀번호 조회·재발급 모달 */}
-          <div className="flex justify-end">
-            <UserPasswordManager
-              roleLabel="담당자"
-              users={secretaries.map((u) => ({
-                id: u.id,
-                name: u.name,
-                username: u.username,
-                tempPassword: u.tempPassword,
-              }))}
-            />
           </div>
         </div>
       )}
