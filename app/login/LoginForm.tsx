@@ -175,6 +175,10 @@ export default function LoginForm({ demoAccounts }: { demoAccounts: DemoAccount[
                 })}
               </div>
               <p className="mt-2 text-xs text-slate-400">계정을 누르면 아이디·비밀번호가 채워집니다.</p>
+              {/* 데모/프로토타입 전용 — 분과를 골라 그 분과의 위원/위원장으로 로그인 */}
+              <a href="/demo-login" className="mt-2 inline-block text-xs font-medium text-indigo-600 hover:underline">
+                분과별 평가위원 로그인 (데모) →
+              </a>
             </div>
           </div>
         </div>
