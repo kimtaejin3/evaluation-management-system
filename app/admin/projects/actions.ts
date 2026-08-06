@@ -10,18 +10,13 @@ import { purgeSession } from '@/app/admin/sessions/actions'
 export async function createProject(formData: FormData) {
   await assertMaster()
   const name = String(formData.get('name') ?? '').trim()
-  const description = String(formData.get('description') ?? '').trim()
   const startRaw = String(formData.get('startDate') ?? '').trim()
   const endRaw = String(formData.get('endDate') ?? '').trim()
-  const taskType = String(formData.get('taskType') ?? '').trim()
-  // 사업명·사업 개요·사업유형·기간(시작일/종료일) 모두 필수
-  if (!name || !description || !taskType || !startRaw || !endRaw) return
+  // 사업명·기간(시작일/종료일)만 필수. 사업 개요·사업유형은 등록 폼에서 제거됨(선택).
+  if (!name || !startRaw || !endRaw) return
   const p = await prisma.project.create({
     data: {
       name,
-      description,
-      // 인쇄 평가표 헤더용 사업유형
-      taskType,
       startDate: new Date(startRaw),
       endDate: new Date(endRaw),
     },

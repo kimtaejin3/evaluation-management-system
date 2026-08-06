@@ -166,7 +166,7 @@ type ProjectItem = {
   sessions: Session[];
 };
 
-// 마스터 사이드바: 사업 노드 + 사업 단위 페이지 메뉴(항상 펼침, 접기 없음).
+// 마스터 사이드바: 사업 노드 + 사업 단위 페이지 메뉴(사업별 접기/펼치기).
 // 관리자는 분과를 개별로 오가지 않고, 사업의 모니터링/평가항목/평가대상/평가위원/의견서
 // 페이지에서 분과들을 테이블 뷰로 한눈에 본다. (분과 상세는 각 페이지의 분과명 링크로 진입)
 function ProjectNode({
@@ -177,27 +177,56 @@ function ProjectNode({
   pathname: string;
 }) {
   const base = `/admin/projects/${project.id}`;
-  // 사업명은 그룹 헤더 — 선택 표시는 하위 탭(사업 담당자 설정 등)에만 준다.
-  // '사업 담당자 설정'(suffix "")이 사업 홈(base)과 같은 URL이므로 사업명 노드는 선택 표시하지 않는다.
+  // 현재 이 사업(또는 하위 탭)을 보고 있으면 펼침. 사용자가 접었다 펼 수 있고, 진입 시 자동 펼침.
+  const active = pathname === base || pathname.startsWith(`${base}/`);
+  const [open, setOpen] = useState(active);
+  useEffect(() => {
+    if (active) setOpen(true);
+  }, [active]);
+  // 사업명은 그룹 헤더 — 선택 표시는 하위 탭(분과 설정 등)에만 준다.
   const tabActive = (suffix: string) =>
     suffix === "" ? pathname === base : pathname.startsWith(`${base}${suffix}`);
   return (
     <div>
-      <Link href={base} className={sessionCls(false)} title={project.name}>
-        <span className="truncate">{project.name}</span>
-      </Link>
-      <div className="ml-3 space-y-0.5 border-l border-white/10 pl-2">
-        {PROJECT_TABS.map((t) => (
-          <Link
-            key={t.suffix}
-            href={`${base}${t.suffix}`}
-            className={sessionCls(tabActive(t.suffix))}
-            title={t.desc}
+      <div className="flex items-center gap-0.5">
+        <Link href={base} className={`${sessionCls(false)} min-w-0 flex-1`} title={project.name}>
+          <span className="truncate">{project.name}</span>
+        </Link>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-label={open ? "접기" : "펼치기"}
+          aria-expanded={open}
+          className="shrink-0 rounded p-1 text-slate-400 transition hover:bg-white/[0.06] hover:text-white"
+        >
+          <svg
+            viewBox="0 0 20 20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={`h-3.5 w-3.5 transition-transform ${open ? "" : "-rotate-90"}`}
+            aria-hidden
           >
-            <span className="truncate">{t.label}</span>
-          </Link>
-        ))}
+            <path d="m5 8 5 5 5-5" />
+          </svg>
+        </button>
       </div>
+      {open && (
+        <div className="ml-3 space-y-0.5 border-l border-white/10 pl-2">
+          {PROJECT_TABS.map((t) => (
+            <Link
+              key={t.suffix}
+              href={`${base}${t.suffix}`}
+              className={sessionCls(tabActive(t.suffix))}
+              title={t.desc}
+            >
+              <span className="truncate">{t.label}</span>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

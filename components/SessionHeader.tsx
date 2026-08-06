@@ -39,7 +39,7 @@ export default function SessionHeader({
           </span>
         )}
       </div>
-      {isMain && <DeleteSessionButton sessionId={sessionId} sessionName={sessionName} />}
+      {isMain && <DeleteSessionButton sessionId={sessionId} sessionName={sessionName} variant="prominent" />}
     </div>
   );
 }

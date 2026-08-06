@@ -89,7 +89,7 @@ export default async function AdminLayout({
         {/* 분과 탭 이동은 담당자 전용 — 관리자는 '자세히 보기'로 드릴인하므로 우상단 네비를 숨긴다 */}
         {user.role === "SECRETARY" && <SessionTabNav />}
         {/* 본문 최대 폭은 페이지별로 결정 — 대부분 max-w-7xl, 사업 담당자 설정은 풀 너비 */}
-        <main className="w-full flex-1 px-6 py-6">
+        <main className="flex w-full flex-1 flex-col px-6 py-6">
           <AdminContentWidth>{children}</AdminContentWidth>
         </main>
       </div>

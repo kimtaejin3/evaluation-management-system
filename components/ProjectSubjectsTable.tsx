@@ -125,7 +125,6 @@ export default function ProjectSubjectsTable({
               <th className="px-5 py-3 font-medium">담당자 제출</th>
               <th className="px-5 py-3 font-medium">평가 대상 현황</th>
               <th className="px-5 py-3 font-medium">통합 점수</th>
-              <th className="px-5 py-3 font-medium">자세히 보기</th>
               <th className="px-5 py-3 text-center font-medium">승인 상태</th>
             </tr>
           </thead>
@@ -142,7 +141,18 @@ export default function ProjectSubjectsTable({
                 <td className="px-5 py-3">
                   <ReviewStatusBadge status={r.reviewStatus} />
                 </td>
-                <td className="px-5 py-3 text-slate-600">{r.subjectCount}개 기업</td>
+                <td className="px-5 py-3 text-slate-600">
+                  {/* '○개 기업' 옆에 작은 '자세히 보기' 링크(분과 상세의 평가 대상 페이지로 이동) */}
+                  <span className="inline-flex items-center gap-2">
+                    <span>{r.subjectCount}개 기업</span>
+                    <Link
+                      href={`/admin/sessions/${r.sessionId}/subjects`}
+                      className="text-xs font-medium whitespace-nowrap text-slate-500 transition hover:text-indigo-700 hover:underline"
+                    >
+                      자세히 보기
+                    </Link>
+                  </span>
+                </td>
                 <td className="px-5 py-3">
                   {(() => {
                     const avg = sessionAverage(r)
@@ -160,15 +170,6 @@ export default function ProjectSubjectsTable({
                       </button>
                     )
                   })()}
-                </td>
-                <td className="px-5 py-3">
-                  {/* 분과 상세의 평가 대상 페이지로 이동 (실시간 모니터링의 자세히 보기와 동일 패턴) */}
-                  <Link
-                    href={`/admin/sessions/${r.sessionId}/subjects`}
-                    className="text-xs font-medium whitespace-nowrap text-slate-600 transition hover:text-indigo-700 hover:underline"
-                  >
-                    자세히 보기
-                  </Link>
                 </td>
                 <td className="px-5 py-3">
                   <div className="flex flex-wrap items-center justify-center gap-1.5">

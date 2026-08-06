@@ -5,7 +5,6 @@ import { fmtYmd } from "@/lib/dates";
 import StatusBadge from "@/components/StatusBadge";
 import ProjectInfoButton from "@/components/ProjectInfoButton";
 import SessionSecretaryCell from "@/components/SessionSecretaryCell";
-import ExcelExportButton from "@/components/ExcelExportButton";
 import SortableTh from "@/components/SortableTh";
 import { parseSessionSort, sortSessions } from "@/lib/session-sort";
 
@@ -63,7 +62,7 @@ export default async function ProjectDetailPage({
 
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-1 flex-col gap-6">
       <div>
         {/* 제목 옆에 기간만 인라인 배치 */}
         <div className="flex items-start justify-between gap-3">
@@ -86,15 +85,12 @@ export default async function ProjectDetailPage({
           <h2 className="text-sm font-semibold text-slate-700">
             분과 설정 <span className="ml-0.5 text-xs text-slate-400">{visibleSessions.length}개</span>
           </h2>
-          <div className="flex items-center gap-2">
-            <ExcelExportButton href={`/api/projects/${id}/export/sessions`} />
-            <Link
-              href={`/admin/sessions/new?projectId=${id}`}
-              className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium whitespace-nowrap text-slate-600 transition hover:bg-slate-50"
-            >
-              + 분과 추가
-            </Link>
-          </div>
+          <Link
+            href={`/admin/sessions/new?projectId=${id}`}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium whitespace-nowrap text-slate-600 transition hover:bg-slate-50"
+          >
+            + 분과 추가
+          </Link>
         </div>
         {/* 분과가 많아도 화면이 커지지 않도록 스크롤(고객 요청 — 설정 화면 축소) */}
         <div className="max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-white">
@@ -157,10 +153,25 @@ export default async function ProjectDetailPage({
         </div>
       </div>
 
-      {/* 담당자 현황 — 분과 목록 아래(관리자 전용): 담당자 관리에 등록된 전역 담당자 풀을 그대로 표시.
+      {/* 맨 하단: 사업 정보 변경(수정·삭제 통합) — 사업 삭제 단독 버튼을 대체 */}
+      {isMaster && (
+        <div className="flex justify-end border-t border-slate-100 pt-4">
+          <ProjectInfoButton
+            projectId={id}
+            name={project.name}
+            description={project.description}
+            taskType={project.taskType}
+            startDate={project.startDate ? project.startDate.toISOString().slice(0, 10) : null}
+            endDate={project.endDate ? project.endDate.toISOString().slice(0, 10) : null}
+            sessionCount={project.sessions.length}
+          />
+        </div>
+      )}
+
+      {/* 화면 맨 밑(사업 정보 변경 아래, 관리자 전용): 담당자 관리에 등록된 전역 담당자 풀 현황.
           별도 '담당자 추가' 없이, 위 분과 표의 '담당자' 셀에서 이 풀 중에서 배정한다. */}
       {isMaster && (
-        <div className="space-y-3">
+        <div className="mt-auto space-y-3 border-t border-slate-100 pt-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-slate-700">
               담당자 현황 <span className="ml-0.5 text-xs text-slate-400">{secretaries.length}명</span>
@@ -219,21 +230,6 @@ export default async function ProjectDetailPage({
               </tbody>
             </table>
           </div>
-        </div>
-      )}
-
-      {/* 맨 하단: 사업 정보 변경(수정·삭제 통합) — 사업 삭제 단독 버튼을 대체 */}
-      {isMaster && (
-        <div className="flex justify-end border-t border-slate-100 pt-4">
-          <ProjectInfoButton
-            projectId={id}
-            name={project.name}
-            description={project.description}
-            taskType={project.taskType}
-            startDate={project.startDate ? project.startDate.toISOString().slice(0, 10) : null}
-            endDate={project.endDate ? project.endDate.toISOString().slice(0, 10) : null}
-            sessionCount={project.sessions.length}
-          />
         </div>
       )}
     </div>

@@ -3,7 +3,16 @@
 import { useEffect, useState, useTransition } from 'react'
 import { deleteSession } from '@/app/admin/sessions/actions'
 
-export default function DeleteSessionButton({ sessionId, sessionName }: { sessionId: string; sessionName: string }) {
+export default function DeleteSessionButton({
+  sessionId,
+  sessionName,
+  variant = 'compact',
+}: {
+  sessionId: string
+  sessionName: string
+  // compact: 작은 '삭제'(분과 목록 등). prominent: 크고 눈에 띄는 '분과 삭제'(분과 상세 헤더).
+  variant?: 'compact' | 'prominent'
+}) {
   const [open, setOpen] = useState(false)
   const [pending, startTransition] = useTransition()
 
@@ -27,9 +36,13 @@ export default function DeleteSessionButton({ sessionId, sessionName }: { sessio
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="shrink-0 rounded-md border border-slate-200 px-2 py-0.5 text-xs text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
+        className={
+          variant === 'prominent'
+            ? 'shrink-0 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50'
+            : 'shrink-0 rounded-md border border-slate-200 px-2 py-0.5 text-xs text-slate-400 transition hover:bg-slate-50 hover:text-slate-600'
+        }
       >
-        삭제
+        {variant === 'prominent' ? '분과 삭제' : '삭제'}
       </button>
 
       {open && (
