@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import InfoIcon from "@/components/InfoIcon";
 import Link from "next/link";
 import UserManagerTable from "@/components/UserManagerTable";
+import ExcelExportButton from "@/components/ExcelExportButton";
+import EvaluatorAccountImportButton from "@/components/EvaluatorAccountImportButton";
 import { deleteEvaluators, updateUserInfo, resetUserPassword } from "../actions";
 import { assertMaster } from "@/lib/authz";
 import { SkeletonTable } from "@/components/Skeletons";
@@ -20,12 +22,17 @@ export default async function EvaluatorsAdminPage() {
             평가위원 계정을 등록·관리합니다. 분과 배정은 분과별 화면에서, 담당자 관리는 담당자 관리 페이지에서 진행하세요.
           </span>
         </div>
-        <Link
-          href="/admin/evaluators/new"
-          className="shrink-0 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium whitespace-nowrap text-slate-600 transition hover:bg-slate-50"
-        >
-          + 평가위원 추가
-        </Link>
+        <div className="flex shrink-0 items-center gap-2">
+          {/* 엑셀 양식(테이블에 맞춘 머리글) + 엑셀 업로드(일괄 등록) + 단건 추가 */}
+          <ExcelExportButton href="/api/evaluators-template" label="양식 다운로드" />
+          <EvaluatorAccountImportButton />
+          <Link
+            href="/admin/evaluators/new"
+            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium whitespace-nowrap text-slate-600 transition hover:bg-slate-50"
+          >
+            + 평가위원 추가
+          </Link>
+        </div>
       </div>
 
       <Suspense fallback={<SkeletonTable rows={5} cols={5} />}>

@@ -8,6 +8,8 @@ import { hashPassword } from '@/lib/auth'
 import { passwordFromPhone } from '@/lib/phone'
 import { saveUpload, deleteUpload, isPdf } from '@/lib/storage'
 import { requireAdminUser, assertMaster } from '@/lib/authz'
+import { buildSecretaries, type SecretaryColumnMapping } from '@/lib/secretary-import'
+import { buildEvalAccounts, type EvalAccountColumnMapping } from '@/lib/evaluator-account-import'
 
 // ---- 평가위원·담당자 계정 관리(전역) ----
 
@@ -104,6 +106,112 @@ export async function resetUserPassword(userId: string): Promise<{ ok: boolean; 
   revalidatePath('/admin/evaluators')
   revalidatePath('/admin/secretaries')
   return { ok: true, password: newPw }
+}
+
+// ---- 담당자 엑셀 일괄 등록(마스터) ----
+
+export type SecretaryImportPayload = { grid: string[][]; mapping: SecretaryColumnMapping; hasHeader: boolean }
+export type ImportedSecretary = { name: string; username: string; tempPassword: string | null }
+export type SecretaryImportResult = { ok: boolean; error?: string; warnings?: string[]; accounts?: ImportedSecretary[] }
+
+// 담당자 명단(엑셀/붙여넣기)을 일괄 등록. 아이디 없으면 자동 생성, 비밀번호는 비었으면 연락처 끝
+// 4자리(그것도 없으면 자동). 기존 아이디는 정보 갱신·담당자로 승격(비밀번호는 유지).
+export async function commitSecretaryImport(payload: SecretaryImportPayload): Promise<SecretaryImportResult> {
+  await assertMaster()
+  const grid = payload.grid ?? []
+  if (grid.length === 0) return { ok: false, error: '가져올 내용이 없습니다.' }
+  const { rows, warnings } = buildSecretaries(grid, payload.mapping, { hasHeader: payload.hasHeader })
+  if (rows.length === 0) return { ok: false, error: warnings[0] ?? '가져올 담당자가 없습니다.', warnings }
+
+  const genUsername = () => `sec_${randomUUID().replace(/-/g, '').slice(0, 8)}`
+  const genPassword = () => randomUUID().replace(/-/g, '').slice(0, 8)
+
+  // bcrypt 해시는 느려 미리 준비(조회·해시)한 뒤 순차 쓰기.
+  const prepared = await Promise.all(
+    rows.map(async (r) => {
+      const username = r.username || genUsername()
+      const existing = await prisma.user.findUnique({ where: { username }, select: { id: true } })
+      if (existing) {
+        return { kind: 'existing' as const, id: existing.id, username, name: r.name, phone: r.phone }
+      }
+      const pw = r.password || (r.phone ? passwordFromPhone(r.phone) : null) || genPassword()
+      return { kind: 'new' as const, username, name: r.name, phone: r.phone, pw, hash: await hashPassword(pw) }
+    }),
+  )
+
+  const accounts: ImportedSecretary[] = []
+  for (const p of prepared) {
+    if (p.kind === 'existing') {
+      await prisma.user.update({ where: { id: p.id }, data: { name: p.name, phone: p.phone ?? undefined, role: 'SECRETARY' } })
+      accounts.push({ name: p.name, username: p.username, tempPassword: null })
+    } else {
+      await prisma.user.create({
+        data: { username: p.username, name: p.name, phone: p.phone, role: 'SECRETARY', passwordHash: p.hash, tempPassword: p.pw },
+      })
+      accounts.push({ name: p.name, username: p.username, tempPassword: p.pw })
+    }
+  }
+  revalidatePath('/admin', 'layout')
+  revalidatePath('/admin/secretaries')
+  return { ok: true, warnings, accounts }
+}
+
+// ---- 평가위원 엑셀 일괄 등록(마스터) ----
+
+export type EvalAccountImportPayload = { grid: string[][]; mapping: EvalAccountColumnMapping; hasHeader: boolean }
+export type ImportedEvalAccount = { name: string; username: string; tempPassword: string | null }
+export type EvalAccountImportResult = { ok: boolean; error?: string; warnings?: string[]; accounts?: ImportedEvalAccount[] }
+
+// 평가위원 명단(엑셀/붙여넣기)을 전역 계정으로 일괄 등록. 아이디 없으면 자동 생성, 비밀번호는 비우면
+// 연락처 끝 4자리(그것도 없으면 자동). 소속·직급 포함. 기존 아이디는 정보 갱신·평가위원으로 승격.
+export async function commitEvalAccountImport(payload: EvalAccountImportPayload): Promise<EvalAccountImportResult> {
+  await assertMaster()
+  const grid = payload.grid ?? []
+  if (grid.length === 0) return { ok: false, error: '가져올 내용이 없습니다.' }
+  const { rows, warnings } = buildEvalAccounts(grid, payload.mapping, { hasHeader: payload.hasHeader })
+  if (rows.length === 0) return { ok: false, error: warnings[0] ?? '가져올 평가위원이 없습니다.', warnings }
+
+  const genUsername = () => `wiwon_${randomUUID().replace(/-/g, '').slice(0, 8)}`
+  const genPassword = () => randomUUID().replace(/-/g, '').slice(0, 8)
+
+  const prepared = await Promise.all(
+    rows.map(async (r) => {
+      const username = r.username || genUsername()
+      const existing = await prisma.user.findUnique({ where: { username }, select: { id: true } })
+      const common = { name: r.name, phone: r.phone, affiliation: r.affiliation, position: r.position }
+      if (existing) return { kind: 'existing' as const, id: existing.id, username, ...common }
+      const pw = r.password || (r.phone ? passwordFromPhone(r.phone) : null) || genPassword()
+      return { kind: 'new' as const, username, ...common, pw, hash: await hashPassword(pw) }
+    }),
+  )
+
+  const accounts: ImportedEvalAccount[] = []
+  for (const p of prepared) {
+    if (p.kind === 'existing') {
+      await prisma.user.update({
+        where: { id: p.id },
+        data: { name: p.name, phone: p.phone ?? undefined, affiliation: p.affiliation, position: p.position, role: 'EVALUATOR' },
+      })
+      accounts.push({ name: p.name, username: p.username, tempPassword: null })
+    } else {
+      await prisma.user.create({
+        data: {
+          username: p.username,
+          name: p.name,
+          phone: p.phone,
+          affiliation: p.affiliation,
+          position: p.position,
+          role: 'EVALUATOR',
+          passwordHash: p.hash,
+          tempPassword: p.pw,
+        },
+      })
+      accounts.push({ name: p.name, username: p.username, tempPassword: p.pw })
+    }
+  }
+  revalidatePath('/admin', 'layout')
+  revalidatePath('/admin/evaluators')
+  return { ok: true, warnings, accounts }
 }
 
 // ---- 기업(평가 대상 원본) 관리(전역) ----

@@ -12,7 +12,6 @@ import { requireAdminUser } from "@/lib/authz";
 import { SkeletonCard, SkeletonTable } from "@/components/Skeletons";
 import PasswordCell from "@/components/PasswordCell";
 import ExcelExportButton from "@/components/ExcelExportButton";
-import ExcelImportButton from "@/components/ExcelImportButton";
 import EvaluatorReviewPanel, { type EvaluatorStatus } from "@/components/EvaluatorReviewPanel";
 
 const inputCls =
@@ -101,11 +100,8 @@ async function EvaluatorsContent({ id }: { id: string }) {
         </p>
       ) : !canEdit ? null : (
         <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <div className="text-sm font-semibold text-slate-700">
-              평가위원 배정
-            </div>
-            <ExcelImportButton scopeId={id} kind="evaluators" />
+          <div className="mb-3 text-sm font-semibold text-slate-700">
+            평가위원 배정
           </div>
           {/* 관리자가 전역으로 등록한 위원만 불러와 배정 */}
           <form action={assignEvaluator.bind(null, id)} className="flex gap-2">

@@ -4,6 +4,8 @@ import { prisma } from "@/lib/db";
 import { assertMaster } from "@/lib/authz";
 import UserManagerTable from "@/components/UserManagerTable";
 import InfoIcon from "@/components/InfoIcon";
+import ExcelExportButton from "@/components/ExcelExportButton";
+import SecretaryImportButton from "@/components/SecretaryImportButton";
 import { deleteSecretaries, updateUserInfo, resetUserPassword } from "../actions";
 import { SkeletonTable } from "@/components/Skeletons";
 
@@ -22,12 +24,17 @@ export default async function SecretariesAdminPage() {
             담당자 계정 풀을 관리합니다. 사업 참여는 각 사업의 분과 설정에서 추가하세요.
           </span>
         </div>
-        <Link
-          href="/admin/secretaries/new"
-          className="shrink-0 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium whitespace-nowrap text-slate-600 transition hover:bg-slate-50"
-        >
-          + 담당자 추가
-        </Link>
+        <div className="flex shrink-0 items-center gap-2">
+          {/* 엑셀 양식(현재 테이블에 맞춘 머리글) + 엑셀 업로드(일괄 등록) + 단건 추가 */}
+          <ExcelExportButton href="/api/secretaries-template" label="양식 다운로드" />
+          <SecretaryImportButton />
+          <Link
+            href="/admin/secretaries/new"
+            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium whitespace-nowrap text-slate-600 transition hover:bg-slate-50"
+          >
+            + 담당자 추가
+          </Link>
+        </div>
       </div>
 
       <Suspense fallback={<SkeletonTable rows={5} cols={6} />}>
