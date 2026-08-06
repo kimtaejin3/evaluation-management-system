@@ -400,10 +400,12 @@ export interface FoldedGroup {
 
 /**
  * 세부항목 통합배점 판별:
- * 배점이 세부항목에 한 번만(병합셀) 적혀 여러 지표가 그 배점을 공유하면 통합배점으로 접는다.
- * 조건 — 모두 정량 & 지표 2개 이상 & 배점이 적힌 지표가 1개 이상이면서 전부는 아님(= 빈 지표 존재).
- * 이때 lumpScore = 적힌 배점 합, 각 지표 배점은 0(채점은 세부항목 단위).
- * 그 외(지표마다 배점이 다 있음/1개 지표/정성)는 지표별 배점 유지.
+ * 배점이 세부항목 단위(병합셀)로 매겨져 여러 지표가 '하나의 같은 배점'을 공유하면 통합배점으로 접는다.
+ * 병합셀은 파서에 따라 (a) 첫 행만 값·나머지 빈칸 또는 (b) 모든 행에 같은 값이 복제되어 들어오므로,
+ * 파서에 의존하지 않도록 "적힌 배점의 서로 다른 값이 1종뿐"인지로 판별한다.
+ * 조건 — 모두 정량 & 지표 2개 이상 & 배점이 적힌 지표가 1개 이상 & 그 값이 전부 동일(1종).
+ * 이때 lumpScore = 그 공통 배점(합이 아니라 값 1개), 각 지표 배점은 0(채점은 세부항목 단위).
+ * 그 외(지표마다 배점이 다름/1개 지표/정성)는 지표별 배점 유지.
  */
 export function foldCriteria(rows: CriterionDraft[]): FoldedGroup[] {
   type SB = { name: string; drafts: CriterionDraft[] }
@@ -430,11 +432,12 @@ export function foldCriteria(rows: CriterionDraft[]): FoldedGroup[] {
 
   return gs.map((g) => {
     const subitems: FoldedSubitem[] = g.subs.map((s) => {
-      const provided = s.drafts.filter((d) => d.scoreProvided)
+      const providedVals = s.drafts.filter((d) => d.scoreProvided).map((d) => d.maxScore)
+      const distinct = [...new Set(providedVals)]
       const allQuant = s.drafts.every((d) => d.type === 'QUANTITATIVE')
-      const isLump =
-        allQuant && s.drafts.length > 1 && provided.length >= 1 && provided.length < s.drafts.length
-      const lumpScore = isLump ? provided.reduce((a, d) => a + d.maxScore, 0) : null
+      // 지표 2개 이상이 '동일한 배점 1종'만 가지면(병합셀 공유) 통합배점
+      const isLump = allQuant && s.drafts.length > 1 && providedVals.length >= 1 && distinct.length === 1
+      const lumpScore = isLump ? distinct[0] : null
       return {
         name: s.name,
         lumpScore,
