@@ -1,8 +1,8 @@
-import * as XLSX from 'xlsx'
 import { prisma } from '@/lib/db'
 import { getCurrentToken } from '@/lib/session'
 import { canTokenAccessSession } from '@/lib/authz'
 import { criteriaScopeForSession } from '@/lib/criteria-scope'
+import { buildCriteriaWorkbook } from '@/lib/criteria-export'
 
 // 평가 항목 → xlsx 다운로드(평가항목/세부항목/평가지표/배점, group→subitem→criterion order 정렬)
 // 평가항목은 사업(Project) 단위 공통 — 분과의 소속 사업 항목을 내려준다.
@@ -29,26 +29,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     },
   })
 
-  // 통합(퉁) 배점 세부항목은 배점을 첫 지표 행에만 1번 기재(지표는 설명)
-  const rows = groups.flatMap((g) =>
-    g.subitems.flatMap((sub) =>
-      sub.criteria.length === 0
-        ? sub.maxScore != null
-          ? [{ 평가항목: g.name, 세부항목: sub.name, 평가지표: '', 배점: sub.maxScore as number | string }]
-          : []
-        : sub.criteria.map((c, i) => ({
-            평가항목: g.name,
-            세부항목: sub.name,
-            평가지표: c.name,
-            배점: sub.maxScore != null ? (i === 0 ? sub.maxScore : '') : c.maxScore,
-          })),
-    ),
-  )
-
-  const wb = XLSX.utils.book_new()
-  const ws = XLSX.utils.json_to_sheet(rows)
-  XLSX.utils.book_append_sheet(wb, ws, '평가항목')
-  const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })
+  const buf = await buildCriteriaWorkbook(groups)
 
   return new Response(buf, {
     headers: {
