@@ -28,7 +28,7 @@ export default function CriteriaPreviewTable({ groups }: { groups: GroupDTO[] })
             const groupCell = (
               <td
                 rowSpan={groupRowSpan}
-                className="criteria-group border-r border-slate-100 px-4 py-3 align-top font-semibold text-slate-800"
+                className="criteria-group border-r border-slate-100 px-4 py-3 align-middle font-semibold text-slate-800"
               >
                 {g.name}
                 <span className="mt-0.5 block text-xs font-normal text-slate-400">
@@ -71,7 +71,7 @@ export default function CriteriaPreviewTable({ groups }: { groups: GroupDTO[] })
                   {cIdx === 0 && (
                     <td
                       rowSpan={subRowSpan}
-                      className="border-r border-slate-100 px-4 py-3 align-top text-slate-700"
+                      className="border-r border-slate-100 px-4 py-3 align-middle text-slate-700"
                     >
                       {s.name}
                       {lump && (
@@ -89,7 +89,7 @@ export default function CriteriaPreviewTable({ groups }: { groups: GroupDTO[] })
                     cIdx === 0 && (
                       <td
                         rowSpan={subRowSpan}
-                        className="px-4 py-3 text-right align-top font-semibold tabular-nums text-slate-800"
+                        className="px-4 py-3 text-right align-middle font-semibold tabular-nums text-slate-800"
                       >
                         {s.maxScore}
                       </td>

@@ -449,7 +449,7 @@ function GroupBlock({
       if (lump && cIdx === 0) {
         // 통합 배점 — 지표 행들을 세로 병합해 세부항목 점수 1개만 표시(수정은 세부항목 연필에서)
         cells.push(
-          <td key="m" rowSpan={subRowSpan} className="px-4 py-3 text-right align-top font-semibold tabular-nums text-slate-800">
+          <td key="m" rowSpan={subRowSpan} className="px-4 py-3 text-right align-middle font-semibold tabular-nums text-slate-800">
             {fmt(s.maxScore!)}
           </td>,
         );
@@ -495,7 +495,7 @@ function GroupNameCell({
   };
 
   return (
-    <td rowSpan={rowSpan} className="criteria-group border-r border-slate-100 px-4 py-3 align-top">
+    <td rowSpan={rowSpan} className="criteria-group border-r border-slate-100 px-4 py-3 align-middle">
       {editing ? (
         <form action={submit} className="flex flex-col gap-2">
           <input name="name" defaultValue={group.name} className={inputCls} autoFocus />
@@ -586,7 +586,7 @@ function SubitemNameCell({
     run(() => deleteSubitem(subitem.id));
   };
   return (
-    <td rowSpan={rowSpan} className="border-r border-slate-100 px-4 py-3 align-top">
+    <td rowSpan={rowSpan} className="border-r border-slate-100 px-4 py-3 align-middle">
       {editing ? (
         <form action={submit} className="flex flex-col gap-2">
           <input name="name" defaultValue={subitem.name} className={inputCls} autoFocus />
