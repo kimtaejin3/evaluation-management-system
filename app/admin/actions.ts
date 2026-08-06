@@ -104,6 +104,34 @@ export async function assignEvaluatorsToSession(
   return { ok: true }
 }
 
+// 관리자가 담당자 관리에서 담당자를 특정 분과에 배정.
+// 분과당 담당자는 1명(secretaryId)이므로 1명만 배정 가능. 사업 접근 권한도 함께 부여.
+export async function assignSecretaryToSessionGlobal(
+  userIds: string[],
+  sessionId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  await assertMaster()
+  const clean = [...new Set(userIds.filter(Boolean))]
+  if (!sessionId || clean.length === 0) return { ok: false, error: '배정할 담당자와 분과를 선택하세요.' }
+  if (clean.length > 1) return { ok: false, error: '분과당 담당자는 1명입니다. 담당자를 1명만 선택하세요.' }
+  const userId = clean[0]
+  const user = await prisma.user.findFirst({ where: { id: userId, role: 'SECRETARY' }, select: { id: true } })
+  if (!user) return { ok: false, error: '배정할 담당자를 찾을 수 없습니다.' }
+  const session = await prisma.evaluationSession.findUnique({
+    where: { id: sessionId },
+    select: { id: true, status: true, projectId: true },
+  })
+  if (!session || !session.projectId) return { ok: false, error: '분과를 찾을 수 없습니다.' }
+  if (session.status === 'CLOSED') return { ok: false, error: '마감된 분과에는 배정할 수 없습니다.' }
+  // 사업 접근 권한 부여 후 분과 담당자 지정(기존 담당자 있으면 교체)
+  await prisma.project.update({ where: { id: session.projectId }, data: { secretaries: { connect: { id: userId } } } })
+  await prisma.evaluationSession.update({ where: { id: sessionId }, data: { secretaryId: userId } })
+  revalidatePath('/admin', 'layout')
+  revalidatePath('/admin/secretaries')
+  revalidatePath(`/admin/projects/${session.projectId}`)
+  return { ok: true }
+}
+
 // 임시 비밀번호 재발급 — 새 임시 비번 생성·저장
 export async function resetEvaluatorPassword(userId: string) {
   await requireAdminUser()

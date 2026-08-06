@@ -37,6 +37,7 @@ export default function UserManagerTable({
   chips2EmptyLabel = '없음',
   sessionOptions,
   assignAction,
+  assignSingle = false,
 }: {
   users: ManagedUser[]
   roleLabel: string
@@ -55,6 +56,8 @@ export default function UserManagerTable({
   // 분과 배정(관리자 전용) — 둘 다 있으면 '분과 배정' 버튼·모달 노출
   sessionOptions?: { id: string; label: string; group?: string }[]
   assignAction?: (userIds: string[], sessionId: string) => Promise<{ ok: boolean; error?: string }>
+  // 1분과=1인 배정(담당자) — 정확히 1명 선택했을 때만 배정 가능
+  assignSingle?: boolean
 }) {
   const router = useRouter()
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -151,8 +154,9 @@ export default function UserManagerTable({
         {canAssign && (
           <button
             type="button"
-            disabled={selected.size === 0}
+            disabled={assignSingle ? selected.size !== 1 : selected.size === 0}
             onClick={() => setAssignOpen(true)}
+            title={assignSingle ? '담당자는 분과당 1명 — 1명만 선택하세요' : undefined}
             className="rounded-lg border border-indigo-300 bg-white px-3 py-1.5 text-sm font-medium whitespace-nowrap text-indigo-600 transition hover:bg-indigo-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
           >
             분과 배정
@@ -187,6 +191,8 @@ export default function UserManagerTable({
 
       {assignOpen && canAssign && (
         <AssignModal
+          roleLabel={roleLabel}
+          single={assignSingle}
           users={selectedUsers}
           sessionOptions={sessionOptions!}
           assignAction={assignAction!}
@@ -202,14 +208,18 @@ export default function UserManagerTable({
   )
 }
 
-// 분과 배정 모달(관리자) — 선택 위원들을 한 분과에 일괄 배정.
+// 분과 배정 모달(관리자) — 선택 인원을 한 분과에 배정.
 function AssignModal({
+  roleLabel,
+  single,
   users,
   sessionOptions,
   assignAction,
   onClose,
   onDone,
 }: {
+  roleLabel: string
+  single: boolean
   users: ManagedUser[]
   sessionOptions: { id: string; label: string; group?: string }[]
   assignAction: (userIds: string[], sessionId: string) => Promise<{ ok: boolean; error?: string }>
@@ -245,10 +255,14 @@ function AssignModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <h3 className="text-lg font-bold text-slate-900">분과 배정</h3>
-        <p className="mt-1 text-sm text-slate-500">선택한 위원을 지정한 분과에 배정합니다. 배정된 위원은 즉시 평가에 참여할 수 있습니다.</p>
+        <p className="mt-1 text-sm text-slate-500">
+          {single
+            ? `선택한 ${roleLabel}를 지정한 분과의 담당자로 배정합니다. 분과당 담당자는 1명이며 기존 담당자가 있으면 교체됩니다.`
+            : `선택한 ${roleLabel}을 지정한 분과에 배정합니다. 배정된 ${roleLabel}은 즉시 평가에 참여할 수 있습니다.`}
+        </p>
 
         <div className="mt-4">
-          <p className="text-sm text-slate-600">선택한 위원 {users.length}명:</p>
+          <p className="text-sm text-slate-600">선택한 {roleLabel} {users.length}명:</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {users.map((u) => (
               <span key={u.id} className="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-700">{u.name}</span>

@@ -6,7 +6,7 @@ import UserManagerTable from "@/components/UserManagerTable";
 import InfoIcon from "@/components/InfoIcon";
 import ExcelExportButton from "@/components/ExcelExportButton";
 import SecretaryImportButton from "@/components/SecretaryImportButton";
-import { deleteSecretaries, updateUserInfo, resetUserPassword } from "../actions";
+import { deleteSecretaries, updateUserInfo, resetUserPassword, assignSecretaryToSessionGlobal } from "../actions";
 import { SkeletonTable } from "@/components/Skeletons";
 
 // 담당자 관리(마스터) — 전역 담당자 풀. 담당자는 여러 사업에 참여할 수 있으며,
@@ -21,7 +21,7 @@ export default async function SecretariesAdminPage() {
           <h1 className="text-2xl font-bold">담당자 관리</h1>
           <span className="inline-flex items-center gap-1 text-sm text-slate-500">
             <InfoIcon />
-            담당자 계정 풀을 관리합니다. 사업 참여는 각 사업의 분과 설정에서 추가하세요.
+            담당자 계정 풀을 관리하고, 담당자를 선택해 분과에 배정합니다(분과당 1명).
           </span>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -45,24 +45,38 @@ export default async function SecretariesAdminPage() {
 }
 
 async function SecretaryTable() {
-  const secretaries = await prisma.user.findMany({
-    where: { role: "SECRETARY" },
-    orderBy: { createdAt: "asc" },
-    select: {
-      id: true,
-      name: true,
-      username: true,
-      phone: true,
-      tempPassword: true,
-      assignedProjects: { select: { id: true, name: true }, orderBy: { createdAt: "desc" } },
-      // 참여 중인 분과 — 본인이 담당(secretaryId)인 분과들(고아 분과 제외). 사업 1개라도 분과는 여러 개 가능.
-      secretariedSessions: {
-        where: { projectId: { not: null } },
-        select: { id: true, name: true },
-        orderBy: { createdAt: "desc" },
+  const [secretaries, sessions] = await Promise.all([
+    prisma.user.findMany({
+      where: { role: "SECRETARY" },
+      orderBy: { createdAt: "asc" },
+      select: {
+        id: true,
+        name: true,
+        username: true,
+        phone: true,
+        tempPassword: true,
+        assignedProjects: { select: { id: true, name: true }, orderBy: { createdAt: "desc" } },
+        // 참여 중인 분과 — 본인이 담당(secretaryId)인 분과들(고아 분과 제외). 사업 1개라도 분과는 여러 개 가능.
+        secretariedSessions: {
+          where: { projectId: { not: null } },
+          select: { id: true, name: true },
+          orderBy: { createdAt: "desc" },
+        },
       },
-    },
-  });
+    }),
+    // 배정 대상 분과 — 사업이 있는(고아 아님) 미마감 분과만.
+    prisma.evaluationSession.findMany({
+      where: { projectId: { not: null }, status: { not: "CLOSED" } },
+      orderBy: [{ project: { createdAt: "desc" } }, { createdAt: "desc" }],
+      select: { id: true, name: true, project: { select: { name: true } } },
+    }),
+  ]);
+
+  const sessionOptions = sessions.map((s) => ({
+    id: s.id,
+    label: s.name,
+    group: s.project?.name ?? "기타",
+  }));
 
   const users = secretaries.map((u) => ({
     id: u.id,
@@ -87,6 +101,9 @@ async function SecretaryTable() {
       deleteAction={deleteSecretaries}
       updateAction={updateUserInfo}
       resetPasswordAction={resetUserPassword}
+      sessionOptions={sessionOptions}
+      assignAction={assignSecretaryToSessionGlobal}
+      assignSingle
     />
   );
 }
