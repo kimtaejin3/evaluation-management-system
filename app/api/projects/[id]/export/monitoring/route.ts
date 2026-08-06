@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx'
+import { buildStyledSheet, xlsxResponse } from '@/lib/xlsx-style'
 import { prisma } from '@/lib/db'
 import { getCurrentToken } from '@/lib/session'
 import { canTokenAccessProject } from '@/lib/authz'
@@ -50,13 +50,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     }
   })
 
-  const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), '실시간 모니터링')
-  const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })
-  return new Response(buf, {
-    headers: {
-      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent('평가 실시간 모니터링.xlsx')}`,
-    },
-  })
+  const buf = await buildStyledSheet({ sheetName: '실시간 모니터링', columns: ['분과명', '평가 상태', '평가 기간', '담당자', '평가 대상 수', '평가위원 수', '완료 위원', '평가 의견서'], rows })
+  return xlsxResponse(buf, '평가 실시간 모니터링.xlsx')
 }

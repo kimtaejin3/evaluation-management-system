@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx'
+import { buildStyledSheet, xlsxResponse } from '@/lib/xlsx-style'
 import { prisma } from '@/lib/db'
 import { criteriaScopeForSession, scoringUnitsForScope } from '@/lib/criteria-scope'
 import { scoreUnitId } from '@/lib/criteria-units'
@@ -50,15 +50,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     if (!rankedIds.has(s.id)) rows.push({ 순위: '', 기업명: s.name, 최종점수: 0, 등급: '-', 선정: '' })
   }
 
-  const wb = XLSX.utils.book_new()
-  const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [{ 순위: '', 기업명: '', 최종점수: '', 등급: '', 선정: '' }])
-  XLSX.utils.book_append_sheet(wb, ws, '집계결과')
-  const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })
-
-  return new Response(buf, {
-    headers: {
-      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent('집계결과.xlsx')}`,
-    },
-  })
+  const buf = await buildStyledSheet({ sheetName: '집계결과', columns: ['순위', '기업명', '최종점수', '등급', '선정'], rows })
+  return xlsxResponse(buf, '집계결과.xlsx')
 }

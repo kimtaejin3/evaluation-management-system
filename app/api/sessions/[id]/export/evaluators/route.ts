@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx'
+import { buildStyledSheet, xlsxResponse } from '@/lib/xlsx-style'
 import { prisma } from '@/lib/db'
 import { getCurrentToken } from '@/lib/session'
 import { canTokenAccessSession } from '@/lib/authz'
@@ -25,15 +25,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     상태: assignmentStatusLabel(a.status as AssignmentStatus),
   }))
 
-  const wb = XLSX.utils.book_new()
-  const ws = XLSX.utils.json_to_sheet(rows)
-  XLSX.utils.book_append_sheet(wb, ws, '평가위원')
-  const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })
-
-  return new Response(buf, {
-    headers: {
-      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent('평가위원.xlsx')}`,
-    },
-  })
+  const buf = await buildStyledSheet({ sheetName: '평가위원', columns: ['이름', '아이디', '연락처', '상태'], rows })
+  return xlsxResponse(buf, '평가위원.xlsx')
 }
