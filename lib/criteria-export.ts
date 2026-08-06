@@ -107,13 +107,7 @@ export async function buildCriteriaWorkbook(groups: ExportGroup[]): Promise<Arra
     ws.getRow(r).height = lines === 1 ? 19 : lines * 15
   }
 
-  // 배점(마지막 열, 4번째) 오른쪽의 모든 빈 열(E~XFD)을 숨겨, 표가 배점에서 끝나 보이게 한다.
-  // (엑셀·Numbers는 표 밖에도 빈 열을 계속 보여줘 'E열이 비어 존재'하는 것처럼 느껴지므로 전부 숨김)
-  for (let c = 5; c <= 16384; c++) ws.getColumn(c).hidden = true
-
-  // 시트 격자선 숨김 — 테두리 준 표(A~D)만 보이고 오른쪽/아래 빈 영역의 격자선(빈 컬럼처럼
-  // 보이던 것)을 제거한다. 틀 고정(freeze)은 배점 오른쪽에 빈 칸처럼 보일 수 있어 사용하지 않는다.
-  ws.views = [{ showGridLines: false }]
+  // 격자선은 엑셀 기본대로 켜 둔다 — 표 밖 빈 열(E~)까지 평범한 스프레드시트로 보이게.
   // 인쇄/미리보기 시 한 페이지 폭에 맞춘다(평가지표가 넓어 여러 페이지로 쪼개지지 않도록).
   ws.pageSetup = { orientation: 'landscape', fitToWidth: 1, fitToHeight: 0, horizontalCentered: true }
 

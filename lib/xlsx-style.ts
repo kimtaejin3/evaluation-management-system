@@ -56,9 +56,7 @@ export async function buildStyledSheet(opts: {
   columns.forEach((_, i) => {
     ws.getColumn(i + 1).width = Math.min(60, maxW[i] + 3)
   })
-  // 마지막 열 오른쪽의 빈 열 숨김 — 표가 마지막 열에서 끝나 보이게
-  for (let c = columns.length + 1; c <= 16384; c++) ws.getColumn(c).hidden = true
-  ws.views = [{ showGridLines: false }]
+  // 격자선은 엑셀 기본대로 켜 둔다 — 표 밖 빈 열까지 평범한 스프레드시트로 보이게.
 
   return (await wb.xlsx.writeBuffer()) as unknown as ArrayBuffer
 }
