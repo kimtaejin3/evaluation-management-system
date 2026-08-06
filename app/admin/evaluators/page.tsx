@@ -5,7 +5,7 @@ import Link from "next/link";
 import UserManagerTable from "@/components/UserManagerTable";
 import ExcelExportButton from "@/components/ExcelExportButton";
 import EvaluatorAccountImportButton from "@/components/EvaluatorAccountImportButton";
-import { deleteEvaluators, updateUserInfo, resetUserPassword } from "../actions";
+import { deleteEvaluators, updateUserInfo, resetUserPassword, assignEvaluatorsToSession } from "../actions";
 import { assertMaster } from "@/lib/authz";
 import { SkeletonTable } from "@/components/Skeletons";
 
@@ -19,7 +19,7 @@ export default async function EvaluatorsAdminPage() {
           <h1 className="text-2xl font-bold">평가위원 관리</h1>
           <span className="inline-flex items-center gap-1 text-sm text-slate-500">
             <InfoIcon />
-            평가위원 계정을 등록·관리합니다. 분과 배정은 분과별 화면에서, 담당자 관리는 담당자 관리 페이지에서 진행하세요.
+            평가위원 계정을 등록·관리하고, 선택한 위원을 분과에 배정합니다. 위원장 지정은 담당자가 분과별 화면에서 진행합니다.
           </span>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -44,20 +44,34 @@ export default async function EvaluatorsAdminPage() {
 }
 
 async function EvaluatorTable() {
-  const evaluators = await prisma.user.findMany({
-    where: { role: "EVALUATOR" },
-    orderBy: { createdAt: "asc" },
-    include: {
-      assignments: {
-        // 사업이 삭제된 고아 분과(projectId=null)는 배정 칩에서 제외 — 삭제한 분과가 계속 뜨는 문제 방지.
-        where: { session: { projectId: { not: null } } },
-        include: {
-          session: { select: { id: true, name: true, status: true } },
+  const [evaluators, sessions] = await Promise.all([
+    prisma.user.findMany({
+      where: { role: "EVALUATOR" },
+      orderBy: { createdAt: "asc" },
+      include: {
+        assignments: {
+          // 사업이 삭제된 고아 분과(projectId=null)는 배정 칩에서 제외 — 삭제한 분과가 계속 뜨는 문제 방지.
+          where: { session: { projectId: { not: null } } },
+          include: {
+            session: { select: { id: true, name: true, status: true } },
+          },
+          orderBy: { session: { createdAt: "desc" } },
         },
-        orderBy: { session: { createdAt: "desc" } },
       },
-    },
-  });
+    }),
+    // 배정 대상 분과 — 사업이 있는(고아 아님) 미마감 분과만.
+    prisma.evaluationSession.findMany({
+      where: { projectId: { not: null }, status: { not: "CLOSED" } },
+      orderBy: [{ project: { createdAt: "desc" } }, { createdAt: "desc" }],
+      select: { id: true, name: true, project: { select: { name: true } } },
+    }),
+  ]);
+
+  const sessionOptions = sessions.map((s) => ({
+    id: s.id,
+    label: s.name,
+    group: s.project?.name ?? "기타",
+  }));
 
   const users = evaluators.map((u) => ({
     id: u.id,
@@ -81,6 +95,8 @@ async function EvaluatorTable() {
       updateAction={updateUserInfo}
       resetPasswordAction={resetUserPassword}
       showAffiliation
+      sessionOptions={sessionOptions}
+      assignAction={assignEvaluatorsToSession}
     />
   );
 }

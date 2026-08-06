@@ -1,7 +1,7 @@
 // 평가위원 계정 명단 엑셀 임포트(전역 등록) — 평가위원 관리 테이블에 맞춘 열:
 // 이름 / 아이디 / 비밀번호 / 연락처 / 소속 / 직급. 순수 파싱/매핑만(서버·클라 공용).
 
-export type EvalAccountField = 'name' | 'username' | 'phone' | 'password' | 'affiliation' | 'position'
+export type EvalAccountField = 'name' | 'username' | 'phone' | 'affiliation' | 'position'
 
 export interface EvalAccountFieldDef {
   field: EvalAccountField
@@ -9,10 +9,10 @@ export interface EvalAccountFieldDef {
   required: boolean
 }
 
+// 비밀번호는 양식에 없음 — 가져오기 시 연락처 뒷자리로 자동 발급.
 export const EVAL_ACCOUNT_FIELDS: EvalAccountFieldDef[] = [
   { field: 'name', label: '이름', required: true },
   { field: 'username', label: '아이디', required: false },
-  { field: 'password', label: '비밀번호', required: false },
   { field: 'phone', label: '연락처', required: false },
   { field: 'affiliation', label: '소속', required: false },
   { field: 'position', label: '직급', required: false },
@@ -21,7 +21,6 @@ export const EVAL_ACCOUNT_FIELDS: EvalAccountFieldDef[] = [
 const SYNONYMS: Record<EvalAccountField, string[]> = {
   name: ['이름', '성명', '위원', '평가위원', '심사위원', '위원명', '성함', 'name'],
   username: ['아이디', '계정', '계정id', '로그인', '로그인id', 'id', 'username', '이메일', 'email'],
-  password: ['비밀번호', '비번', '임시비밀번호', '패스워드', 'password', 'pw', 'pass'],
   phone: ['연락처', '전화번호', '전화', '휴대폰', '휴대전화', '핸드폰', '연락', 'tel', 'hp', 'mobile', 'phone'],
   affiliation: ['소속', '소속기관', '기관', '회사', '소속회사', '근무처', 'affiliation', 'org'],
   position: ['직급', '직위', '직책', '보직', 'position', 'title', 'rank'],
@@ -73,7 +72,6 @@ export interface EvalAccountDraft {
   name: string
   username: string | null
   phone: string | null
-  password: string | null
   affiliation: string | null
   position: string | null
 }
@@ -94,7 +92,6 @@ export function buildEvalAccounts(
   const nameCol = col('name')
   const userCol = col('username')
   const phoneCol = col('phone')
-  const pwCol = col('password')
   const affCol = col('affiliation')
   const posCol = col('position')
 
@@ -117,7 +114,6 @@ export function buildEvalAccounts(
       name,
       username,
       phone: val(r, phoneCol),
-      password: val(r, pwCol),
       affiliation: val(r, affCol),
       position: val(r, posCol),
     })

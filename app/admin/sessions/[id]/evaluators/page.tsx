@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import {
   removeEvaluator,
-  assignEvaluator,
   setChair,
 } from "../../actions";
 import { resetEvaluatorPassword } from "@/app/admin/actions";
@@ -47,15 +46,6 @@ async function EvaluatorsContent({ id }: { id: string }) {
       include: { user: true },
     }),
   ]);
-  const assignedIds = assignments.map((a) => a.userId);
-  // 평가위원 관리에서 등록됐지만 이 분과에 아직 배정되지 않은 위원
-  const available = await prisma.user.findMany({
-    where: {
-      role: "EVALUATOR",
-      id: { notIn: assignedIds.length ? assignedIds : [""] },
-    },
-    orderBy: { name: "asc" },
-  });
   const locked = session?.status === "CLOSED";
   const es = (session?.evaluatorStatus ?? "DRAFT") as EvaluatorStatus;
   // 담당자 제출(SUBMITTED) 이후에만 관리자가 배정을 볼 수 있다. 제출 전(DRAFT/REJECTED)은 '배정중'.
@@ -93,53 +83,9 @@ async function EvaluatorsContent({ id }: { id: string }) {
         />
       )}
 
-      {/* 위원 배정 (상단) — 전역 등록된 위원을 드롭다운으로 선택해 배정만. 담당자·배정중에만 */}
-      {locked ? (
-        <p className="text-sm text-slate-400">
-          마감된 분과는 평가위원을 수정할 수 없습니다.
-        </p>
-      ) : !canEdit ? null : (
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <div className="mb-3 text-sm font-semibold text-slate-700">
-            평가위원 배정
-          </div>
-          {/* 관리자가 전역으로 등록한 위원만 불러와 배정 */}
-          <form action={assignEvaluator.bind(null, id)} className="flex gap-2">
-            <select
-              name="userId"
-              defaultValue=""
-              required
-              className={`flex-1 ${inputCls}`}
-            >
-              <option value="" disabled>
-                평가위원 선택 (평가위원 관리 등록자)
-              </option>
-              {available.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name} · {u.username}
-                </option>
-              ))}
-            </select>
-            <button
-              disabled={available.length === 0}
-              className="shrink-0 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-40"
-            >
-              배정
-            </button>
-          </form>
-          <p className="mt-3 text-xs text-slate-400">
-            위원 계정은{" "}
-            <Link
-              href="/admin/evaluators"
-              className="text-indigo-600 hover:underline"
-            >
-              평가위원 관리
-            </Link>
-            에서 관리자가 전역으로 등록·관리합니다. 여기서는 등록된 위원을 이
-            분과에 배정만 하며, 배정된 위원은 관리자 승인 후 평가에 참여할 수
-            있습니다.
-          </p>
-        </div>
+      {/* 평가위원 배정은 관리자가 '평가위원 관리'에서 분과별로 수행. 담당자는 위원장 지정만 한다. */}
+      {locked && (
+        <p className="text-sm text-slate-400">마감된 분과는 위원장을 변경할 수 없습니다.</p>
       )}
 
       {/* 위원장 지정 (담당자 전용) — 배정된 위원 중 1인. 검토 상태와 무관하게 항시 지정 가능 */}
@@ -284,7 +230,7 @@ async function EvaluatorsContent({ id }: { id: string }) {
                   colSpan={canEdit ? 6 : 5}
                   className="px-5 py-10 text-center text-slate-400"
                 >
-                  배정된 위원이 없습니다. 위에서 평가위원을 선택해 배정하세요.
+                  배정된 위원이 없습니다. 관리자가 &lsquo;평가위원 관리&rsquo;에서 분과에 배정합니다.
                 </td>
               </tr>
             )}

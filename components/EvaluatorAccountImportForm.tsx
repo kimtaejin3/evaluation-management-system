@@ -18,8 +18,8 @@ import { parseHtmlTable } from "./clipboard-table";
 const inputCls =
   "rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500";
 
-// 평가위원 관리 테이블에 맞춘 열: 이름 / 아이디 / 비밀번호 / 연락처 / 소속 / 직급
-const SAMPLE = `이름\t아이디\t비밀번호\t연락처\t소속\t직급\n이평가\twiwon1\t\t010-1234-5678\t한국기술평가원\t책임연구원\n박심사\t\t\t010-2222-3333\t대전대학교\t교수`;
+// 평가위원 관리 테이블에 맞춘 열: 이름 / 아이디 / 연락처 / 소속 / 직급 (비밀번호는 연락처 뒷자리로 자동)
+const SAMPLE = `이름\t아이디\t연락처\t소속\t직급\n이평가\twiwon1\t010-1234-5678\t한국기술평가원\t책임연구원\n박심사\t\t010-2222-3333\t대전대학교\t교수`;
 
 export default function EvaluatorAccountImportForm({ onDone }: { onDone: () => void }) {
   const router = useRouter();
@@ -262,7 +262,6 @@ export default function EvaluatorAccountImportForm({ onDone }: { onDone: () => v
                     <tr className="border-b border-slate-200">
                       <th className="px-3 py-2 font-medium">이름</th>
                       <th className="px-3 py-2 font-medium">아이디</th>
-                      <th className="px-3 py-2 font-medium">비밀번호</th>
                       <th className="px-3 py-2 font-medium">연락처</th>
                       <th className="px-3 py-2 font-medium">소속</th>
                       <th className="px-3 py-2 font-medium">직급</th>
@@ -273,7 +272,6 @@ export default function EvaluatorAccountImportForm({ onDone }: { onDone: () => v
                       <tr key={i} className="border-b border-slate-100">
                         <td className="px-3 py-2 text-slate-800">{r.name}</td>
                         <td className="px-3 py-2 font-mono text-slate-500">{r.username ?? "(자동 생성)"}</td>
-                        <td className="px-3 py-2 font-mono text-slate-500">{r.password ?? (r.phone ? "(연락처 끝 4자리)" : "(자동)")}</td>
                         <td className="px-3 py-2 text-slate-500">{r.phone ?? "—"}</td>
                         <td className="px-3 py-2 text-slate-500">{r.affiliation ?? "—"}</td>
                         <td className="px-3 py-2 text-slate-500">{r.position ?? "—"}</td>

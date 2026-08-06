@@ -41,6 +41,20 @@ export default async function NewEvaluatorPage() {
             </label>
             <input name="phone" required className={inputCls} placeholder="예) 010-1234-5678" />
           </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelCls}>
+                소속 <span className="text-xs font-normal text-slate-400">(선택)</span>
+              </label>
+              <input name="affiliation" className={inputCls} placeholder="예) 한국기술평가원" />
+            </div>
+            <div>
+              <label className={labelCls}>
+                직급 <span className="text-xs font-normal text-slate-400">(선택)</span>
+              </label>
+              <input name="position" className={inputCls} placeholder="예) 책임연구원" />
+            </div>
+          </div>
         </div>
         <div className="flex justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-5 py-3">
           <Link

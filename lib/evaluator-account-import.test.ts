@@ -2,11 +2,10 @@ import { describe, it, expect } from 'vitest'
 import { autoDetectEvalAccountMapping, buildEvalAccounts } from './evaluator-account-import'
 
 describe('evaluator-account-import', () => {
-  it('테이블 머리글(이름/아이디/비밀번호/연락처/소속/직급)을 자동 매핑', () => {
-    expect(autoDetectEvalAccountMapping(['이름', '아이디', '비밀번호', '연락처', '소속', '직급'])).toEqual([
+  it('테이블 머리글(이름/아이디/연락처/소속/직급)을 자동 매핑(비밀번호 없음)', () => {
+    expect(autoDetectEvalAccountMapping(['이름', '아이디', '연락처', '소속', '직급'])).toEqual([
       'name',
       'username',
-      'password',
       'phone',
       'affiliation',
       'position',
@@ -25,15 +24,15 @@ describe('evaluator-account-import', () => {
 
   it('행을 초안으로 변환(소속/직급 포함, 빈 값 null)', () => {
     const grid = [
-      ['이름', '아이디', '비밀번호', '연락처', '소속', '직급'],
-      ['이평가', 'wiwon1', '', '010-1234-5678', '기평원', '책임'],
-      ['박심사', '', 'pw1234', '', '', ''],
+      ['이름', '아이디', '연락처', '소속', '직급'],
+      ['이평가', 'wiwon1', '010-1234-5678', '기평원', '책임'],
+      ['박심사', '', '', '', ''],
     ]
     const mapping = autoDetectEvalAccountMapping(grid[0])
     const { rows } = buildEvalAccounts(grid, mapping, { hasHeader: true })
     expect(rows).toEqual([
-      { name: '이평가', username: 'wiwon1', phone: '010-1234-5678', password: null, affiliation: '기평원', position: '책임' },
-      { name: '박심사', username: null, phone: null, password: 'pw1234', affiliation: null, position: null },
+      { name: '이평가', username: 'wiwon1', phone: '010-1234-5678', affiliation: '기평원', position: '책임' },
+      { name: '박심사', username: null, phone: null, affiliation: null, position: null },
     ])
   })
 

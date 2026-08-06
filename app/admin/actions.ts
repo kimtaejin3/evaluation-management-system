@@ -18,6 +18,8 @@ export async function createEvaluator(formData: FormData) {
   const username = String(formData.get('username') ?? '').trim()
   const name = String(formData.get('name') ?? '').trim()
   const phone = String(formData.get('phone') ?? '').trim()
+  const affiliation = String(formData.get('affiliation') ?? '').trim() || null
+  const position = String(formData.get('position') ?? '').trim() || null
   // 임시 비밀번호 = 연락처 끝 4자리(연락처 필수)
   const password = passwordFromPhone(phone)
   // 역할: 담당자(SECRETARY) 생성은 마스터만. 그 외/담당자 아닌 요청은 평가위원.
@@ -28,8 +30,8 @@ export async function createEvaluator(formData: FormData) {
 
   await prisma.user.upsert({
     where: { username },
-    update: { name, phone, role },
-    create: { username, name, phone, role, passwordHash: await hashPassword(password), tempPassword: password },
+    update: { name, phone, role, affiliation, position },
+    create: { username, name, phone, role, affiliation, position, passwordHash: await hashPassword(password), tempPassword: password },
   })
   revalidatePath('/admin', 'layout')
   revalidatePath('/admin/evaluators')
@@ -64,6 +66,42 @@ export async function deleteEvaluators(ids: string[]) {
   await prisma.user.deleteMany({ where: { id: { in: clean }, role: 'EVALUATOR' } })
   revalidatePath('/admin', 'layout')
   revalidatePath('/admin/evaluators')
+}
+
+// 관리자가 평가위원 관리에서 선택 위원들을 특정 분과에 일괄 배정.
+// 관리자 권한 배정이므로 즉시 APPROVED. 담당자는 위원장 지정만 하며 배정은 하지 않는다.
+export async function assignEvaluatorsToSession(
+  userIds: string[],
+  sessionId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const admin = await assertMaster()
+  const clean = [...new Set(userIds.filter(Boolean))]
+  if (!sessionId || clean.length === 0) return { ok: false, error: '배정할 위원과 분과를 선택하세요.' }
+  const session = await prisma.evaluationSession.findUnique({
+    where: { id: sessionId },
+    select: { id: true, status: true },
+  })
+  if (!session) return { ok: false, error: '분과를 찾을 수 없습니다.' }
+  if (session.status === 'CLOSED') return { ok: false, error: '마감된 분과에는 배정할 수 없습니다.' }
+  // 평가위원만 배정 대상
+  const evaluators = await prisma.user.findMany({
+    where: { id: { in: clean }, role: 'EVALUATOR' },
+    select: { id: true },
+  })
+  if (evaluators.length === 0) return { ok: false, error: '배정할 평가위원이 없습니다.' }
+  const now = new Date()
+  await prisma.$transaction(
+    evaluators.map((e) =>
+      prisma.assignment.upsert({
+        where: { sessionId_userId: { sessionId, userId: e.id } },
+        update: { status: 'APPROVED', decidedAt: now, createdById: admin.id },
+        create: { sessionId, userId: e.id, status: 'APPROVED', decidedAt: now, createdById: admin.id },
+      }),
+    ),
+  )
+  revalidatePath('/admin/evaluators')
+  revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
+  return { ok: true }
 }
 
 // 임시 비밀번호 재발급 — 새 임시 비번 생성·저장
@@ -180,7 +218,8 @@ export async function commitEvalAccountImport(payload: EvalAccountImportPayload)
       const existing = await prisma.user.findUnique({ where: { username }, select: { id: true } })
       const common = { name: r.name, phone: r.phone, affiliation: r.affiliation, position: r.position }
       if (existing) return { kind: 'existing' as const, id: existing.id, username, ...common }
-      const pw = r.password || (r.phone ? passwordFromPhone(r.phone) : null) || genPassword()
+      // 비밀번호는 연락처 뒷자리로 자동 발급(연락처 없으면 임의 생성)
+      const pw = (r.phone ? passwordFromPhone(r.phone) : null) || genPassword()
       return { kind: 'new' as const, username, ...common, pw, hash: await hashPassword(pw) }
     }),
   )
