@@ -8,6 +8,7 @@ import {
   looksLikeHeader,
   resolveHeader,
   buildCriteria,
+  foldCriteria,
   CRITERION_FIELDS,
   type ColumnMapping,
   type CriterionField,
@@ -78,9 +79,14 @@ export default function ImportCriteriaForm({
     () => buildCriteria(grid, mapping, { hasHeader, typeMode: "auto" }),
     [grid, mapping, hasHeader],
   );
+  // 미리보기용 3단 트리 + 통합배점 판별(커밋과 동일 규칙). 같은 평가항목/세부항목은 합쳐 보여준다.
+  const foldedPreview = useMemo(() => foldCriteria(preview.rows), [preview.rows]);
 
   const sampleRows = grid.slice(resolved.dataStart, resolved.dataStart + 3);
   const nameMapped = mapping.includes("name");
+  const showGroup = mapping.includes("group");
+  const showSubitem = mapping.includes("subitem");
+  const showWeight = mapping.includes("weight");
 
   const resetSource = () => {
     setOverride({});
@@ -287,31 +293,94 @@ export default function ImportCriteriaForm({
             {preview.rows.length > 0 && (
               <div className="max-h-56 overflow-auto rounded-xl border border-slate-200 bg-white">
                 <table className="w-full text-sm">
-                  <thead className="sticky top-0 bg-slate-50 text-left text-slate-500">
+                  <thead className="sticky top-0 bg-slate-50 text-center text-slate-500">
                     <tr className="border-b border-slate-200">
-                      {mapping.includes("group") && <th className="whitespace-nowrap px-3 py-2 font-medium">평가항목</th>}
-                      {mapping.includes("subitem") && <th className="whitespace-nowrap px-3 py-2 font-medium">세부항목</th>}
+                      {showGroup && <th className="whitespace-nowrap px-3 py-2 font-medium">평가항목</th>}
+                      {showSubitem && <th className="whitespace-nowrap px-3 py-2 font-medium">세부항목</th>}
                       <th className="px-3 py-2 font-medium">평가지표</th>
-                      <th className="whitespace-nowrap px-3 py-2 text-right font-medium">배점</th>
-                      {mapping.includes("weight") && <th className="whitespace-nowrap px-3 py-2 text-right font-medium">가중치</th>}
+                      <th className="whitespace-nowrap px-3 py-2 text-center font-medium">배점</th>
+                      {showWeight && <th className="whitespace-nowrap px-3 py-2 text-center font-medium">가중치</th>}
                     </tr>
                   </thead>
                   <tbody>
-                    {preview.rows.slice(0, 100).map((r, i) => (
-                      <tr key={i} className="border-b border-slate-100 align-top">
-                        {mapping.includes("group") && (
-                          <td className="whitespace-nowrap px-3 py-2 text-slate-500">{r.group ?? "—"}</td>
-                        )}
-                        {mapping.includes("subitem") && (
-                          <td className="whitespace-nowrap px-3 py-2 text-slate-500">{r.subitem ?? "—"}</td>
-                        )}
-                        <td className="px-3 py-2 text-slate-800">{r.name}</td>
-                        <td className="whitespace-nowrap px-3 py-2 text-right text-slate-700">{r.maxScore}</td>
-                        {mapping.includes("weight") && (
-                          <td className="whitespace-nowrap px-3 py-2 text-right text-slate-500">{r.weight}</td>
-                        )}
-                      </tr>
-                    ))}
+                    {foldedPreview.map((g) => {
+                      const groupRowSpan = g.subitems.reduce(
+                        (a, s) => a + Math.max(1, s.leaves.length),
+                        0,
+                      );
+                      let groupPlaced = false;
+                      return g.subitems.map((s, si) => {
+                        const subRowSpan = Math.max(1, s.leaves.length);
+                        const lump = s.lumpScore != null;
+                        return s.leaves.map((leaf, li) => {
+                          const cells: React.ReactNode[] = [];
+                          if (showGroup && !groupPlaced) {
+                            groupPlaced = true;
+                            cells.push(
+                              <td
+                                key="g"
+                                rowSpan={groupRowSpan}
+                                className="border-r border-slate-100 px-3 py-2 text-center align-middle font-medium text-slate-700"
+                              >
+                                {g.name}
+                              </td>,
+                            );
+                          }
+                          if (showSubitem && li === 0) {
+                            cells.push(
+                              <td
+                                key="s"
+                                rowSpan={subRowSpan}
+                                className="border-r border-slate-100 px-3 py-2 text-center align-middle text-slate-600"
+                              >
+                                {s.name}
+                                {lump && (
+                                  <span className="mt-1 block">
+                                    <span className="inline-flex items-center rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-600">
+                                      통합 배점
+                                    </span>
+                                  </span>
+                                )}
+                              </td>,
+                            );
+                          }
+                          cells.push(
+                            <td key="n" className="px-3 py-2 text-slate-800">
+                              {leaf.name}
+                            </td>,
+                          );
+                          if (lump) {
+                            if (li === 0)
+                              cells.push(
+                                <td
+                                  key="m"
+                                  rowSpan={subRowSpan}
+                                  className="whitespace-nowrap px-3 py-2 text-center align-middle font-semibold text-slate-800"
+                                >
+                                  {s.lumpScore}
+                                </td>,
+                              );
+                          } else {
+                            cells.push(
+                              <td key="m" className="whitespace-nowrap px-3 py-2 text-center text-slate-700">
+                                {leaf.maxScore}
+                              </td>,
+                            );
+                          }
+                          if (showWeight)
+                            cells.push(
+                              <td key="w" className="whitespace-nowrap px-3 py-2 text-center text-slate-500">
+                                {lump ? "—" : leaf.weight}
+                              </td>,
+                            );
+                          return (
+                            <tr key={`${g.name}-${si}-${li}`} className="border-b border-slate-100">
+                              {cells}
+                            </tr>
+                          );
+                        });
+                      });
+                    })}
                   </tbody>
                 </table>
               </div>

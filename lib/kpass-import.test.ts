@@ -5,6 +5,7 @@ import {
   looksLikeHeader,
   resolveHeader,
   buildCriteria,
+  foldCriteria,
   type ColumnMapping,
 } from './kpass-import'
 
@@ -274,5 +275,45 @@ describe('buildCriteria — 정성 등급 척도표(grade)', () => {
     const { rows } = buildCriteria(grid, map, { hasHeader: true })
     expect(rows).toHaveLength(3)
     expect(rows.some((r) => r.name.includes('합계'))).toBe(false)
+  })
+})
+
+describe('foldCriteria (통합배점 판별)', () => {
+  const map: ColumnMapping = ['group', 'subitem', 'name', 'maxScore']
+
+  it('세부항목에 배점이 한 번만(병합셀) 있으면 통합배점으로 접는다', () => {
+    // 사용자 양식: 목표 및 내용(배점 30)이 지표 3개에 걸쳐 병합 — 첫 지표에만 30, 나머지는 빈칸
+    const grid = [
+      ['평가항목', '세부항목', '평가지표', '배점'],
+      ['사업계획', '정책부합성', '정부지원 필요성', '10'],
+      ['사업계획', '목표 및 내용', 'RFP 부합 정도', '30'],
+      ['', '', '목표의 구체성', ''],
+      ['', '', '연구방법 충실성', ''],
+    ]
+    const { rows } = buildCriteria(grid, map, { hasHeader: true })
+    const folded = foldCriteria(rows)
+    const g = folded.find((x) => x.name === '사업계획')!
+    const sub = g.subitems.find((s) => s.name === '목표 및 내용')!
+    expect(sub.lumpScore).toBe(30) // 통합배점
+    expect(sub.leaves).toHaveLength(3)
+    expect(sub.leaves.every((l) => l.maxScore === 0)).toBe(true) // 지표별 배점 0(채점은 세부항목 단위)
+    // 단일 지표 세부항목은 지표별 배점 유지
+    const single = g.subitems.find((s) => s.name === '정책부합성')!
+    expect(single.lumpScore).toBeNull()
+    expect(single.leaves[0].maxScore).toBe(10)
+    // 그룹 만점 = 10 + 30
+    expect(g.maxScore).toBe(40)
+  })
+
+  it('지표마다 배점이 모두 있으면 지표별 배점 유지(통합 아님)', () => {
+    const grid = [
+      ['평가항목', '세부항목', '평가지표', '배점'],
+      ['A', '세부1', '지표1', '5'],
+      ['A', '세부1', '지표2', '7'],
+    ]
+    const { rows } = buildCriteria(grid, map, { hasHeader: true })
+    const sub = foldCriteria(rows)[0].subitems[0]
+    expect(sub.lumpScore).toBeNull()
+    expect(sub.leaves.map((l) => l.maxScore)).toEqual([5, 7])
   })
 })

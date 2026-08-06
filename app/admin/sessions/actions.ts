@@ -9,7 +9,7 @@ import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from '@/lib/upload-limits'
 import { canCloseSession, CLOSE_BLOCKED_MESSAGE } from '@/lib/session-rules'
 import { randomUUID } from 'crypto'
 import { hashPassword } from '@/lib/auth'
-import { buildCriteria, type ColumnMapping, type BuildOptions } from '@/lib/kpass-import'
+import { buildCriteria, foldCriteria, type ColumnMapping, type BuildOptions } from '@/lib/kpass-import'
 import { buildEvaluators, type EvalColumnMapping } from '@/lib/evaluator-import'
 import { passwordFromPhone } from '@/lib/phone'
 import { buildSubjects, type SubjectColumnMapping } from '@/lib/subject-import'
@@ -382,29 +382,9 @@ export async function commitKpassImport(projectId: string, payload: KpassImportP
     }
   }
 
-  // 평가항목(group) → 세부항목(subitem) → 평가지표(리프) 3단으로 중첩. 첫 등장 순서 보존.
-  // group 없으면 '기타', subitem 없으면 평가지표명을 세부항목으로 사용(각 지표가 자기 세부항목).
-  type SubBucket = { name: string; leaves: typeof rows }
-  type GroupBucket = { name: string; subs: SubBucket[]; subByName: Map<string, SubBucket> }
-  const groupBuckets: GroupBucket[] = []
-  const groupByName = new Map<string, GroupBucket>()
-  for (const r of rows) {
-    const gName = r.group?.trim() || '기타'
-    const sName = r.subitem?.trim() || r.name
-    let g = groupByName.get(gName)
-    if (!g) {
-      g = { name: gName, subs: [], subByName: new Map() }
-      groupByName.set(gName, g)
-      groupBuckets.push(g)
-    }
-    let sub = g.subByName.get(sName)
-    if (!sub) {
-      sub = { name: sName, leaves: [] }
-      g.subByName.set(sName, sub)
-      g.subs.push(sub)
-    }
-    sub.leaves.push(r)
-  }
+  // 평가항목(group) → 세부항목(subitem) → 평가지표(리프) 3단으로 중첩 + 통합배점 판별.
+  // (병합셀로 세부항목에 배점이 한 번만 적힌 경우 통합배점으로 접는다 — foldCriteria가 처리.)
+  const folded = foldCriteria(rows)
 
   await prisma.$transaction(
     async (tx) => {
@@ -420,20 +400,16 @@ export async function commitKpassImport(projectId: string, payload: KpassImportP
         criterionOrder = await tx.criterion.count({ where: { projectId } })
       }
 
-      for (const g of groupBuckets) {
+      for (const g of folded) {
         const group = await tx.criterionGroup.create({
-          data: {
-            projectId,
-            name: g.name,
-            maxScore: g.subs.reduce((sum, sub) => sum + sub.leaves.reduce((a, l) => a + l.maxScore, 0), 0),
-            order: groupOrder++,
-          },
+          data: { projectId, name: g.name, maxScore: g.maxScore, order: groupOrder++ },
         })
 
         let subitemOrder = 0
-        for (const sub of g.subs) {
+        for (const sub of g.subitems) {
           const subitem = await tx.criterionSubitem.create({
-            data: { groupId: group.id, name: sub.name, order: subitemOrder++ },
+            // 통합배점이면 세부항목에 maxScore 저장(퉁 채점), 아니면 null(지표별 배점)
+            data: { groupId: group.id, name: sub.name, maxScore: sub.lumpScore, order: subitemOrder++ },
           })
           for (const leaf of sub.leaves) {
             await tx.criterion.create({

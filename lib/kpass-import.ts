@@ -244,6 +244,8 @@ export interface CriterionDraft {
   maxScore: number
   weight: number
   gradeOptions: GradeOption[] | null
+  // 이 행에 배점이 실제로 적혀 있었는지(병합셀로 비어 있던 행 구분용). 통합배점 판별에 사용.
+  scoreProvided: boolean
 }
 
 export interface BuildResult {
@@ -319,6 +321,7 @@ export function buildCriteria(grid: string[][], mapping: ColumnMapping, opts: Bu
     let type: 'QUANTITATIVE' | 'QUALITATIVE'
     let maxScore: number
     let gradeOptions: GradeOption[] | null = null
+    let scoreProvided = false
 
     if (gradeCols.length > 0) {
       // 정성 등급 척도: 각 grade 열 = (머리글 라벨, 셀 점수). 가로 병합셀은 직전 점수로 채움.
@@ -340,9 +343,11 @@ export function buildCriteria(grid: string[][], mapping: ColumnMapping, opts: Bu
       }
       gradeOptions = opts2
       maxScore = Math.max(...opts2.map((o) => o.points))
+      scoreProvided = true
     } else {
       const scoreRaw = scoreCol >= 0 ? (r[scoreCol] ?? '').trim() : ''
       const scoreNum = toNumber(scoreRaw)
+      scoreProvided = scoreNum !== null
       type = typeMode === 'all-qualitative' ? 'QUALITATIVE' : 'QUANTITATIVE'
       if (type === 'QUALITATIVE') {
         // 등급 열이 없는 정성 → 배점 기준 기본 A~E 등급 자동 생성
@@ -352,18 +357,100 @@ export function buildCriteria(grid: string[][], mapping: ColumnMapping, opts: Bu
           warnings.push(`${lineNo}행 "${name}": 정성 항목인데 배점이 없어 만점 0으로 생성됩니다.`)
         }
       } else if (scoreNum === null) {
+        // 배점을 숫자로 읽지 못한 정량 행. 셀이 '비어 있으면' 통합배점(병합셀)의 하위 지표일 수 있어
+        // 경고하지 않고 만점 0으로 둔다(통합 여부는 foldCriteria에서 판별). 값이 있는데 숫자가 아니면(오타) 경고.
         maxScore = 0
-        warnings.push(`${lineNo}행 "${name}": 배점을 숫자로 읽지 못했습니다("${scoreRaw}"). 만점 0으로 생성됩니다.`)
+        if (scoreRaw !== '') {
+          warnings.push(`${lineNo}행 "${name}": 배점을 숫자로 읽지 못했습니다("${scoreRaw}"). 만점 0으로 생성됩니다.`)
+        }
       } else {
         maxScore = scoreNum
       }
     }
 
-    rows.push({ group, subitem, name, type, maxScore, weight, gradeOptions })
+    rows.push({ group, subitem, name, type, maxScore, weight, gradeOptions, scoreProvided })
   })
 
   if (rows.length === 0) {
     warnings.push('가져올 항목이 없습니다. 매핑과 "헤더 포함" 설정을 확인하세요.')
   }
   return { rows, warnings }
+}
+
+// ── 평탄 초안 → 3단 트리(평가항목→세부항목→평가지표) + 통합배점 판별 ──
+// 커밋(DB 저장)과 미리보기가 같은 규칙을 쓰도록 순수 함수로 공유한다.
+export interface FoldedLeaf {
+  name: string
+  maxScore: number // 통합배점 세부항목이면 0(채점은 세부항목 단위)
+  weight: number
+  type: 'QUANTITATIVE' | 'QUALITATIVE'
+  gradeOptions: GradeOption[] | null
+}
+export interface FoldedSubitem {
+  name: string
+  // null = 지표별 배점, 값 = 세부항목 통합배점(퉁 채점)
+  lumpScore: number | null
+  leaves: FoldedLeaf[]
+}
+export interface FoldedGroup {
+  name: string
+  maxScore: number
+  subitems: FoldedSubitem[]
+}
+
+/**
+ * 세부항목 통합배점 판별:
+ * 배점이 세부항목에 한 번만(병합셀) 적혀 여러 지표가 그 배점을 공유하면 통합배점으로 접는다.
+ * 조건 — 모두 정량 & 지표 2개 이상 & 배점이 적힌 지표가 1개 이상이면서 전부는 아님(= 빈 지표 존재).
+ * 이때 lumpScore = 적힌 배점 합, 각 지표 배점은 0(채점은 세부항목 단위).
+ * 그 외(지표마다 배점이 다 있음/1개 지표/정성)는 지표별 배점 유지.
+ */
+export function foldCriteria(rows: CriterionDraft[]): FoldedGroup[] {
+  type SB = { name: string; drafts: CriterionDraft[] }
+  type GB = { name: string; subs: SB[]; byName: Map<string, SB> }
+  const gs: GB[] = []
+  const gByName = new Map<string, GB>()
+  for (const r of rows) {
+    const gName = r.group?.trim() || '기타'
+    const sName = r.subitem?.trim() || r.name // 세부항목 없으면 지표명이 곧 세부항목
+    let g = gByName.get(gName)
+    if (!g) {
+      g = { name: gName, subs: [], byName: new Map() }
+      gByName.set(gName, g)
+      gs.push(g)
+    }
+    let s = g.byName.get(sName)
+    if (!s) {
+      s = { name: sName, drafts: [] }
+      g.byName.set(sName, s)
+      g.subs.push(s)
+    }
+    s.drafts.push(r)
+  }
+
+  return gs.map((g) => {
+    const subitems: FoldedSubitem[] = g.subs.map((s) => {
+      const provided = s.drafts.filter((d) => d.scoreProvided)
+      const allQuant = s.drafts.every((d) => d.type === 'QUANTITATIVE')
+      const isLump =
+        allQuant && s.drafts.length > 1 && provided.length >= 1 && provided.length < s.drafts.length
+      const lumpScore = isLump ? provided.reduce((a, d) => a + d.maxScore, 0) : null
+      return {
+        name: s.name,
+        lumpScore,
+        leaves: s.drafts.map((d) => ({
+          name: d.name,
+          maxScore: isLump ? 0 : d.maxScore,
+          weight: d.weight,
+          type: d.type,
+          gradeOptions: d.gradeOptions,
+        })),
+      }
+    })
+    const maxScore = subitems.reduce(
+      (sum, s) => sum + (s.lumpScore ?? s.leaves.reduce((a, l) => a + l.maxScore, 0)),
+      0,
+    )
+    return { name: g.name, maxScore, subitems }
+  })
 }
