@@ -588,8 +588,19 @@ export async function commitSubjectImport(
       for (const r of rows) {
         const company = await tx.company.upsert({
           where: { name: r.name },
-          update: { businessNo: r.businessNo ?? undefined, description: r.description ?? undefined },
-          create: { name: r.name, businessNo: r.businessNo, description: r.description },
+          update: {
+            businessNo: r.businessNo ?? undefined,
+            region: r.region ?? undefined,
+            leadResearcher: r.leadResearcher ?? undefined,
+            description: r.description ?? undefined,
+          },
+          create: {
+            name: r.name,
+            businessNo: r.businessNo,
+            region: r.region,
+            leadResearcher: r.leadResearcher,
+            description: r.description,
+          },
         })
         const exists = await tx.subject.findUnique({
           where: { sessionId_companyId: { sessionId, companyId: company.id } },
@@ -986,15 +997,30 @@ export async function rejectEvaluators(sessionId: string, reason: string) {
 }
 
 // 담당자(담당) 집계결과 '제출 완료' → 관리자 검토 대기. 관리자는 조회만이므로 MASTER는 차단.
-export async function submitSessionForReview(sessionId: string) {
+export async function submitSessionForReview(sessionId: string): Promise<{ ok: boolean; error?: string }> {
   const { user } = await assertSessionAccess(sessionId)
-  if (user.role === 'MASTER') return
+  if (user.role === 'MASTER') return { ok: false, error: '담당자만 제출할 수 있습니다.' }
+  // 위원장 검토 완료 게이트 — 위원(위원장 제외)이 제출한 평가 중 위원장이 아직 검토(확인)하지 않은
+  // 건이 있으면 제출 불가. 개별 위원의 미제출(예: 박심사)은 막지 않는다(검토할 게 없으므로).
+  const session = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { chairId: true } })
+  const pending = await prisma.submission.count({
+    where: {
+      sessionId,
+      status: 'SUBMITTED',
+      chairConfirmedAt: null,
+      ...(session?.chairId ? { evaluatorId: { not: session.chairId } } : {}),
+    },
+  })
+  if (pending > 0) {
+    return { ok: false, error: `위원장 검토가 완료되지 않은 평가가 ${pending}건 있습니다. 위원장 검토 완료 후 제출하세요.` }
+  }
   await prisma.evaluationSession.update({
     where: { id: sessionId },
     data: { submittedForReviewAt: new Date() },
   })
   revalidatePath(`/admin/sessions/${sessionId}`)
   revalidatePath(`/admin/sessions/${sessionId}/results`)
+  return { ok: true }
 }
 
 // 담당자 제출 취소(관리자 검토 완료 전까지). 마감(CLOSED)된 분과는 되돌릴 수 없다.

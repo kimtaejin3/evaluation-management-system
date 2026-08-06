@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { submitSessionForReview, cancelSubmitSessionForReview } from "@/app/admin/sessions/actions";
 
@@ -19,6 +19,7 @@ export default function SubmitReviewButton({
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  const [error, setError] = useState("");
 
   if (closed) {
     return <span className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-500">검토 완료됨</span>;
@@ -47,19 +48,24 @@ export default function SubmitReviewButton({
   }
 
   return (
-    <button
-      type="button"
-      disabled={pending}
-      onClick={() => {
-        if (!confirm("집계 결과를 제출 완료할까요? 관리자가 검토 후 최종 완료합니다.")) return;
-        start(async () => {
-          await submitSessionForReview(sessionId);
-          router.refresh();
-        });
-      }}
-      className="rounded-lg bg-[var(--gov-navy)] px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
-    >
-      {pending ? "처리 중…" : "제출 완료"}
-    </button>
+    <div className="flex flex-col items-end gap-1.5">
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() => {
+          if (!confirm("집계 결과를 제출 완료할까요? 관리자가 검토 후 최종 완료합니다.")) return;
+          setError("");
+          start(async () => {
+            const res = await submitSessionForReview(sessionId);
+            if (res?.ok) router.refresh();
+            else setError(res?.error ?? "제출에 실패했습니다.");
+          });
+        }}
+        className="rounded-lg bg-[var(--gov-navy)] px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+      >
+        {pending ? "처리 중…" : "제출 완료"}
+      </button>
+      {error && <span className="max-w-xs text-right text-xs font-medium text-rose-600">{error}</span>}
+    </div>
   );
 }

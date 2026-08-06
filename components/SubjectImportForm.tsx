@@ -21,7 +21,7 @@ import { parseHtmlTable } from "./clipboard-table";
 const inputCls =
   "rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500";
 
-const SAMPLE = `기업명\t사업자번호\t설명\n(주)가나기술\t123-45-67890\tAI 솔루션\n다라산업\t234-56-78901\t정밀부품\n마바건설\t\t`;
+const SAMPLE = `기업명\t사업자번호\t지역\t연구책임자\n(주)가나기술\t123-45-67890\t대전\t홍길동\n다라산업\t234-56-78901\t서울\t김연구\n마바건설\t\t부산\t이책임`;
 
 export default function SubjectImportForm({
   sessionId,
@@ -234,7 +234,8 @@ export default function SubjectImportForm({
                     <tr className="border-b border-slate-200">
                       <th className="px-3 py-2 font-medium">기업명</th>
                       <th className="whitespace-nowrap px-3 py-2 font-medium">사업자번호</th>
-                      <th className="px-3 py-2 font-medium">설명</th>
+                      <th className="px-3 py-2 font-medium">지역</th>
+                      <th className="whitespace-nowrap px-3 py-2 font-medium">연구책임자</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -242,7 +243,8 @@ export default function SubjectImportForm({
                       <tr key={i} className="border-b border-slate-100 align-top">
                         <td className="px-3 py-2 text-slate-800">{r.name}</td>
                         <td className="whitespace-nowrap px-3 py-2 text-slate-500">{r.businessNo ?? "—"}</td>
-                        <td className="px-3 py-2 text-slate-500">{r.description ?? "—"}</td>
+                        <td className="px-3 py-2 text-slate-500">{r.region ?? "—"}</td>
+                        <td className="whitespace-nowrap px-3 py-2 text-slate-500">{r.leadResearcher ?? "—"}</td>
                       </tr>
                     ))}
                   </tbody>

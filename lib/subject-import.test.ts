@@ -34,8 +34,8 @@ describe('buildSubjects', () => {
     const { rows, warnings } = buildSubjects(grid, map, { hasHeader: true })
     expect(warnings).toEqual([])
     expect(rows).toEqual([
-      { name: '(주)가나기술', businessNo: '123-45-67890', description: 'AI 솔루션' },
-      { name: '다라산업', businessNo: null, description: null },
+      { name: '(주)가나기술', businessNo: '123-45-67890', region: null, leadResearcher: null, description: 'AI 솔루션' },
+      { name: '다라산업', businessNo: null, region: null, leadResearcher: null, description: null },
     ])
   })
 
@@ -49,5 +49,18 @@ describe('buildSubjects', () => {
     const { rows, warnings } = buildSubjects(grid, [null, 'businessNo', 'description'], { hasHeader: true })
     expect(rows).toHaveLength(0)
     expect(warnings[0]).toMatch(/기업명/)
+  })
+
+  it('지역·연구책임자 열을 자동 매핑하고 추출한다', () => {
+    const g = [
+      ['기업명', '사업자번호', '지역', '연구책임자'],
+      ['(주)가나기술', '123-45-67890', '대전', '홍길동'],
+      ['다라산업', '', '', ''],
+    ]
+    const map = autoDetectSubjectMapping(g[0])
+    expect(map).toEqual(['name', 'businessNo', 'region', 'leadResearcher'])
+    const { rows } = buildSubjects(g, map, { hasHeader: true })
+    expect(rows[0]).toEqual({ name: '(주)가나기술', businessNo: '123-45-67890', region: '대전', leadResearcher: '홍길동', description: null })
+    expect(rows[1]).toMatchObject({ region: null, leadResearcher: null })
   })
 })
