@@ -204,7 +204,7 @@ function ManageSessionsModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-auto bg-black/40 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-auto bg-black/40 p-4">
       <div onClick={(e) => e.stopPropagation()} className="my-8 w-full max-w-md space-y-4 rounded-2xl bg-white p-6 shadow-xl">
         <h3 className="text-lg font-bold text-slate-900">분과 정보 변경</h3>
 

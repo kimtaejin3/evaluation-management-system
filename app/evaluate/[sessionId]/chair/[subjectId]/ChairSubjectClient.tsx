@@ -338,7 +338,7 @@ export default function ChairSubjectClient({
 
       {/* 제출 확인 모달 — 서명 필수 */}
       {submitOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" onClick={() => setSubmitOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
           <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6" onClick={(e) => e.stopPropagation()}>
             <div className="text-xs text-slate-400">제출 확인 · 제출 후에는 관리자만 재오픈할 수 있습니다</div>
             <h3 className="mt-1 text-lg font-bold text-slate-900">{data?.subjectName} 종합의견을 제출할까요?</h3>
@@ -374,7 +374,7 @@ export default function ChairSubjectClient({
 
       {/* 의견 상세 모달 */}
       {detail && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-auto bg-black/30 p-4" onClick={() => setDetail(null)}>
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-auto bg-black/30 p-4">
           <div className="my-8 max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="mb-4 flex items-start justify-between gap-3">
               <h3 className="text-base font-semibold text-slate-800">
@@ -400,7 +400,7 @@ export default function ChairSubjectClient({
 
       {/* 검토완료 확인 */}
       {confirmTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setConfirmTarget(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-base font-semibold text-slate-900">검토완료</h3>
             <p className="mt-2 text-sm leading-relaxed text-slate-600">

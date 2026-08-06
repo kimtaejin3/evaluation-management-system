@@ -47,7 +47,6 @@ export default function OpinionDetailButton({
       {open && (
         <div
           className="fixed inset-0 z-50 flex items-start justify-center overflow-auto bg-black/30 p-4"
-          onClick={() => setOpen(false)}
         >
           <div
             className="my-8 max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl"

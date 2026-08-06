@@ -31,7 +31,6 @@ export default function EvaluatorAccountImportButton() {
       {open && (
         <div
           className="fixed inset-0 z-50 flex items-start justify-center overflow-auto bg-black/30 p-4"
-          onClick={() => setOpen(false)}
         >
           <div className="my-8 w-full max-w-3xl rounded-xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="mb-4 flex items-center justify-between">

@@ -36,7 +36,7 @@ export default function EvaluatorRoster({
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 p-4" onClick={() => setOpen(false)}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 p-4">
           <div className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
               <div className="text-base font-semibold text-slate-800">평가 위원 <span className="text-slate-400">({evaluators.length}명)</span></div>

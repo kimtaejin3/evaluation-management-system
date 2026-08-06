@@ -67,7 +67,7 @@ function AddModal({
     onSubmit(fd);
   };
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
       <form
         onSubmit={submit}
         onClick={(e) => e.stopPropagation()}
@@ -272,8 +272,8 @@ export default function CriteriaEditor({
       </p>
 
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-        <table className="table-grid criteria-left w-full text-sm">
-          <thead className="bg-slate-50 text-left text-slate-500">
+        <table className="table-grid w-full text-sm">
+          <thead className="bg-slate-50 text-center text-slate-500">
             <tr className="border-b border-slate-200">
               <th className="px-4 py-2.5 font-medium">평가항목</th>
               <th className="px-4 py-2.5 font-medium">세부항목</th>

@@ -43,7 +43,6 @@ function ScoresModal({ row, onClose }: { row: ProjectSubjectRow; onClose: () => 
   return (
     <div
       className="fixed inset-0 z-50 flex items-start justify-center overflow-auto bg-black/30 p-4"
-      onClick={onClose}
     >
       <div
         className="my-8 w-full max-w-2xl rounded-xl bg-white p-6 shadow-xl"

@@ -43,7 +43,6 @@ export default function UserPasswordManager({
       {open && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
-          onClick={() => setOpen(false)}
         >
           <div
             className="flex max-h-[80vh] w-full max-w-2xl flex-col rounded-xl bg-white shadow-xl"

@@ -73,7 +73,6 @@ export default function OpinionViewer({ items }: { items: OpinionItem[] }) {
       {modalItem && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4"
-          onClick={() => setModalItem(null)}
         >
           <div
             className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-xl border border-slate-200 bg-white p-5 shadow-lg"
