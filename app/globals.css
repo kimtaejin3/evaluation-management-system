@@ -143,3 +143,23 @@ aside {
 .table-grid tbody tr:last-child > td {
   border-bottom: 0;
 }
+
+/* 얇은 스크롤바 — 담당자 현황 등 스크롤 컨테이너용 */
+.thin-scrollbar {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: rgb(203 213 225) transparent; /* thumb slate-300 / track 투명 */
+}
+.thin-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.thin-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgb(203 213 225); /* slate-300 */
+  border-radius: 9999px;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(148 163 184); /* slate-400 */
+}

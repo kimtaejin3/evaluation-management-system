@@ -92,8 +92,8 @@ export async function buildCriteriaWorkbook(groups: ExportGroup[]): Promise<Arra
     }
   }
 
-  // 열 너비 — 셀 내용에 딱 맞춤. 평가지표는 내용이 길어 상한을 넉넉히(대부분 한 줄).
-  const CAP = [24, 26, 110, 10]
+  // 열 너비 — 셀 내용에 맞춤. 평가지표는 상한을 두어 한 페이지에 들어오게 하고, 긴 지표는 줄바꿈.
+  const CAP = [24, 26, 58, 10]
   ws.columns.forEach((col, i) => {
     col.width = Math.min(CAP[i], maxW[i] + 2)
   })
@@ -107,9 +107,11 @@ export async function buildCriteriaWorkbook(groups: ExportGroup[]): Promise<Arra
     ws.getRow(r).height = lines === 1 ? 19 : lines * 15
   }
 
-  // 헤더 고정(스크롤 시 유지) + 시트 격자선 숨김 — 테두리 준 표(A~D)만 보이고
-  // 오른쪽/아래 빈 영역의 기본 격자선(빈 컬럼처럼 보이던 것)을 제거한다.
-  ws.views = [{ state: 'frozen', ySplit: 1, showGridLines: false }]
+  // 시트 격자선 숨김 — 테두리 준 표(A~D)만 보이고 오른쪽/아래 빈 영역의 격자선(빈 컬럼처럼
+  // 보이던 것)을 제거한다. 틀 고정(freeze)은 배점 오른쪽에 빈 칸처럼 보일 수 있어 사용하지 않는다.
+  ws.views = [{ showGridLines: false }]
+  // 인쇄/미리보기 시 한 페이지 폭에 맞춘다(평가지표가 넓어 여러 페이지로 쪼개지지 않도록).
+  ws.pageSetup = { orientation: 'landscape', fitToWidth: 1, fitToHeight: 0, horizontalCentered: true }
 
   void colLetter
   // exceljs writeBuffer는 Node에서 Buffer를 반환 — Response body로 넘기기 위해 ArrayBuffer로 취급.

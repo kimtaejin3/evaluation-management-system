@@ -179,7 +179,7 @@ export default async function ProjectDetailPage({
             </h2>
           </div>
           {/* 담당자가 많아도 화면이 커지지 않도록 약 3행만 보이고 스크롤(고객 요청) */}
-          <div className="max-h-44 overflow-y-auto rounded-xl border border-slate-200 bg-white">
+          <div className="thin-scrollbar max-h-44 overflow-y-auto rounded-xl border border-slate-200 bg-white">
             <table className="table-grid w-full text-sm">
               <thead className="text-left text-slate-500">
                 <tr className="sticky top-0 z-10 border-b border-slate-100 bg-slate-50">
