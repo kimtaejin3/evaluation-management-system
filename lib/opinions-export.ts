@@ -101,8 +101,11 @@ export async function buildOpinionsWorkbook(input: OpinionExportInput): Promise<
     ws.getColumn(c).width = Math.min(CAP[c - 1], maxW[c - 1] + 2)
   }
 
-  // 머리글 고정 + 격자선 숨김
-  ws.views = [{ state: 'frozen', ySplit: headerRows, showGridLines: false }]
+  // 마지막 열 오른쪽의 빈 열을 모두 숨겨 표가 마지막 열에서 끝나 보이게 한다(엑셀·Numbers의 빈 열 노출 방지).
+  for (let c = totalCols + 1; c <= 16384; c++) ws.getColumn(c).hidden = true
+
+  // 격자선 숨김(틀 고정은 마지막 열 오른쪽 빈칸처럼 보일 수 있어 사용하지 않음)
+  ws.views = [{ showGridLines: false }]
 
   return (await wb.xlsx.writeBuffer()) as unknown as ArrayBuffer
 }
