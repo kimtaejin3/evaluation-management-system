@@ -63,7 +63,7 @@ async function EvaluatorTable() {
     prisma.evaluationSession.findMany({
       where: { projectId: { not: null }, status: { not: "CLOSED" } },
       orderBy: [{ project: { createdAt: "desc" } }, { createdAt: "desc" }],
-      select: { id: true, name: true, project: { select: { name: true } } },
+      select: { id: true, name: true, projectId: true, project: { select: { name: true } } },
     }),
   ]);
 
@@ -71,6 +71,7 @@ async function EvaluatorTable() {
     id: s.id,
     label: s.name,
     group: s.project?.name ?? "기타",
+    projectId: s.projectId ?? undefined,
   }));
 
   const users = evaluators.map((u) => {

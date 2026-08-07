@@ -111,6 +111,39 @@ export async function setEvaluatorSessions(
   return { ok: true }
 }
 
+// 담당자의 '참여 사업'을 한 번에 설정(체크된 사업 = 참여). 분과는 '분과 설정'에서 이 사업 안에서 고른다.
+// 참여 해제된 사업의 분과 중 이 담당자가 맡던 것은 함께 해제한다.
+export async function setSecretaryProjects(
+  userId: string,
+  projectIds: string[],
+): Promise<{ ok: boolean; error?: string }> {
+  await assertMaster()
+  const user = await prisma.user.findFirst({
+    where: { id: userId, role: 'SECRETARY' },
+    select: { id: true, assignedProjects: { select: { id: true } } },
+  })
+  if (!user) return { ok: false, error: '담당자를 찾을 수 없습니다.' }
+  const want = [...new Set(projectIds.filter(Boolean))]
+  const beforeIds = user.assignedProjects.map((p) => p.id)
+  const removed = beforeIds.filter((id) => !want.includes(id))
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: userId },
+      data: { assignedProjects: { set: want.map((id) => ({ id })) } },
+    })
+    // 참여 해제된 사업의 분과에서 이 담당자를 해제
+    if (removed.length) {
+      await tx.evaluationSession.updateMany({
+        where: { projectId: { in: removed }, secretaryId: userId },
+        data: { secretaryId: null },
+      })
+    }
+  })
+  revalidatePath('/admin', 'layout')
+  revalidatePath('/admin/secretaries')
+  return { ok: true }
+}
+
 // '정보 변경' 모달에서 한 담당자가 담당할 분과를 한 번에 설정(체크된 분과 = 담당).
 // 분과당 담당자는 1명이라 체크 시 secretaryId를 이 담당자로 지정(기존 교체)하고 사업 접근도 부여.
 // 후보(미마감·사업 있는) 분과 안에서만 조정하며, 마감·고아 분과는 건드리지 않는다.

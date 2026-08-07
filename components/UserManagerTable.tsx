@@ -15,8 +15,10 @@ export type ManagedUser = {
   chips: { label: string; href?: string }[]
   // 두 번째 칩 열(예: 담당자 참여 분과) — chips2Header가 있을 때만 렌더
   chips2?: { label: string; href?: string }[]
-  // 현재 배정된 분과 id 목록 — '정보 변경' 모달의 분과 배정 체크박스 초기값
+  // 현재 배정된 분과 id 목록 — 분과 배정 체크박스 초기값
   assignedSessionIds?: string[]
+  // 현재 참여 사업 id 목록 — 사업 설정 체크박스 초기값 + 분과 설정 범위 제한
+  assignedProjectIds?: string[]
 }
 
 // 담당자·평가위원 관리 공통 표.
@@ -39,6 +41,8 @@ export default function UserManagerTable({
   chips2EmptyLabel = '없음',
   sessionOptions,
   setSessionsAction,
+  projectOptions,
+  setProjectsAction,
 }: {
   users: ManagedUser[]
   roleLabel: string
@@ -54,17 +58,22 @@ export default function UserManagerTable({
   // 두 번째 칩 열 머리글(예: '참여 중인 분과'). 있을 때만 열 렌더
   chips2Header?: string
   chips2EmptyLabel?: string
-  // 분과 배정(관리자 전용) — 둘 다 있으면 '정보 변경' 모달(1명 선택)에서 분과 배정 체크박스 노출
-  sessionOptions?: { id: string; label: string; group?: string }[]
+  // 분과 배정 — '정보 변경' 모달과 분과 칸 '설정'에서 사용. projectId로 사업별 범위 제한.
+  sessionOptions?: { id: string; label: string; group?: string; projectId?: string }[]
   // 한 사용자의 분과 배정을 한 번에 설정(체크된 분과 = 배정)
   setSessionsAction?: (userId: string, sessionIds: string[]) => Promise<{ ok: boolean; error?: string }>
+  // 사업 참여 설정(담당자) — 참여 사업 칸 '사업 설정'에서 사용
+  projectOptions?: { id: string; label: string }[]
+  setProjectsAction?: (userId: string, projectIds: string[]) => Promise<{ ok: boolean; error?: string }>
 }) {
   const router = useRouter()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [open, setOpen] = useState(false)
-  // 칩 셀의 '설정'으로 여는 개별 분과 배정 모달 대상 사용자
-  const [assignUser, setAssignUser] = useState<ManagedUser | null>(null)
+  // 칩 셀의 '설정'으로 여는 개별 배정 모달 대상 사용자
+  const [sessionUser, setSessionUser] = useState<ManagedUser | null>(null)
+  const [projectUser, setProjectUser] = useState<ManagedUser | null>(null)
   const canAssign = !!(sessionOptions && setSessionsAction)
+  const canSetProjects = !!(projectOptions && setProjectsAction)
 
   const toggle = (id: string) =>
     setSelected((prev) => {
@@ -139,12 +148,18 @@ export default function UserManagerTable({
                 {showAffiliation && (
                   <td className="px-4 py-2.5 text-slate-600">{u.position ?? <span className="text-slate-300">—</span>}</td>
                 )}
-                <ChipCell chips={u.chips} emptyLabel={chipsEmptyLabel} />
+                <ChipCell
+                  chips={u.chips}
+                  emptyLabel={chipsEmptyLabel}
+                  setLabel="사업 설정"
+                  onSet={canSetProjects ? () => setProjectUser(u) : undefined}
+                />
                 {chips2Header && (
                   <ChipCell
                     chips={u.chips2 ?? []}
                     emptyLabel={chips2EmptyLabel}
-                    onSet={canAssign ? () => setAssignUser(u) : undefined}
+                    setLabel="분과 설정"
+                    onSet={canAssign ? () => setSessionUser(u) : undefined}
                   />
                 )}
               </tr>
@@ -187,19 +202,111 @@ export default function UserManagerTable({
         />
       )}
 
-      {assignUser && canAssign && (
-        <SessionAssignModal
-          user={assignUser}
+      {projectUser && canSetProjects && (
+        <ProjectAssignModal
+          user={projectUser}
           roleLabel={roleLabel}
-          sessionOptions={sessionOptions!}
-          setSessionsAction={setSessionsAction!}
-          onClose={() => setAssignUser(null)}
+          projectOptions={projectOptions!}
+          setProjectsAction={setProjectsAction!}
+          onClose={() => setProjectUser(null)}
           onDone={() => {
-            setAssignUser(null)
+            setProjectUser(null)
             router.refresh()
           }}
         />
       )}
+
+      {sessionUser && canAssign && (
+        <SessionAssignModal
+          user={sessionUser}
+          roleLabel={roleLabel}
+          sessionOptions={sessionOptions!}
+          // 담당자(사업 참여 개념 있음)는 참여 사업의 분과만 고르게 제한. 평가위원은 전체.
+          restrictProjectIds={canSetProjects ? (sessionUser.assignedProjectIds ?? []) : null}
+          setSessionsAction={setSessionsAction!}
+          onClose={() => setSessionUser(null)}
+          onDone={() => {
+            setSessionUser(null)
+            router.refresh()
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+// 개별 사업 참여 설정 모달 — 참여 사업 칸 '사업 설정'으로 연다. 체크된 사업 = 참여.
+function ProjectAssignModal({
+  user,
+  roleLabel,
+  projectOptions,
+  setProjectsAction,
+  onClose,
+  onDone,
+}: {
+  user: ManagedUser
+  roleLabel: string
+  projectOptions: { id: string; label: string }[]
+  setProjectsAction: (userId: string, projectIds: string[]) => Promise<{ ok: boolean; error?: string }>
+  onClose: () => void
+  onDone: () => void
+}) {
+  const [checked, setChecked] = useState<Set<string>>(new Set(user.assignedProjectIds ?? []))
+  const [error, setError] = useState('')
+  const [pending, start] = useTransition()
+  const toggle = (id: string) =>
+    setChecked((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  const save = () => {
+    setError('')
+    start(async () => {
+      const res = await setProjectsAction(user.id, [...checked])
+      if (res.ok) onDone()
+      else setError(res.error ?? '저장에 실패했습니다.')
+    })
+  }
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-lg font-bold text-slate-900">사업 설정</h3>
+        <p className="mt-1 text-sm text-slate-500">
+          <b className="text-slate-700">{user.name}</b> {roleLabel}이 참여할 사업을 체크하세요. 분과는 ‘분과 설정’에서 이 사업 안에서 고릅니다.
+        </p>
+        <div className="mt-3">
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-xs font-medium text-slate-500">사업 목록</span>
+            <span className="text-xs text-slate-400">{checked.size}개 선택</span>
+          </div>
+          {projectOptions.length === 0 ? (
+            <p className="text-xs text-slate-400">등록된 사업이 없습니다.</p>
+          ) : (
+            <div className="thin-scrollbar max-h-64 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
+              {projectOptions.map((p) => (
+                <label key={p.id} className="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-sm hover:bg-slate-50">
+                  <input
+                    type="checkbox"
+                    checked={checked.has(p.id)}
+                    onChange={() => toggle(p.id)}
+                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className="text-slate-700">{p.label}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+        {error && <p className="mt-3 text-sm font-medium text-rose-600">{error}</p>}
+        <div className="mt-6 flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="rounded-lg px-3 py-2 text-sm text-slate-500 hover:text-slate-700">취소</button>
+          <button type="button" onClick={save} disabled={pending} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
+            {pending ? '저장 중…' : '저장'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -209,13 +316,16 @@ function SessionAssignModal({
   user,
   roleLabel,
   sessionOptions,
+  restrictProjectIds,
   setSessionsAction,
   onClose,
   onDone,
 }: {
   user: ManagedUser
   roleLabel: string
-  sessionOptions: { id: string; label: string; group?: string }[]
+  sessionOptions: { id: string; label: string; group?: string; projectId?: string }[]
+  // 값이 있으면 이 사업(id)들의 분과만 노출(담당자: 참여 사업 안에서만). null이면 전체.
+  restrictProjectIds: string[] | null
   setSessionsAction: (userId: string, sessionIds: string[]) => Promise<{ ok: boolean; error?: string }>
   onClose: () => void
   onDone: () => void
@@ -230,12 +340,17 @@ function SessionAssignModal({
       else next.add(id)
       return next
     })
+  // 담당자는 참여 사업 안의 분과만. 평가위원은 전체.
+  const visibleOptions = restrictProjectIds
+    ? sessionOptions.filter((s) => s.projectId && restrictProjectIds.includes(s.projectId))
+    : sessionOptions
   const sessionGroups = new Map<string, { id: string; label: string }[]>()
-  for (const s of sessionOptions) {
+  for (const s of visibleOptions) {
     const key = s.group ?? '기타'
     if (!sessionGroups.has(key)) sessionGroups.set(key, [])
     sessionGroups.get(key)!.push({ id: s.id, label: s.label })
   }
+  const needsProjectFirst = restrictProjectIds != null && restrictProjectIds.length === 0
   const save = () => {
     setError('')
     start(async () => {
@@ -248,7 +363,7 @@ function SessionAssignModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <h3 className="text-lg font-bold text-slate-900">분과 배정</h3>
+        <h3 className="text-lg font-bold text-slate-900">분과 설정</h3>
         <p className="mt-1 text-sm text-slate-500">
           <b className="text-slate-700">{user.name}</b> {roleLabel}이 참여할 분과를 체크하세요.
           {roleLabel === '담당자' && ' 분과당 담당자는 1명이라 기존 담당자는 교체됩니다.'}
@@ -259,7 +374,9 @@ function SessionAssignModal({
             <span className="text-xs font-medium text-slate-500">분과 목록</span>
             <span className="text-xs text-slate-400">{checked.size}개 선택</span>
           </div>
-          {sessionOptions.length === 0 ? (
+          {needsProjectFirst ? (
+            <p className="text-xs text-amber-600">먼저 ‘사업 설정’에서 참여 사업을 선택하세요.</p>
+          ) : visibleOptions.length === 0 ? (
             <p className="text-xs text-slate-400">배정 가능한 분과가 없습니다. 먼저 사업·분과를 등록하세요.</p>
           ) : (
             <div className="thin-scrollbar max-h-64 space-y-2 overflow-y-auto rounded-lg border border-slate-200 p-2">
@@ -618,35 +735,39 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 // 칩 목록 셀 — 참여 사업/참여 분과 등. 빈 경우 안내 라벨.
-// 칩 목록 셀. onSet이 있으면 '설정' 버튼으로 배정 모달을 연다.
-// (버튼은 stopPropagation으로 행 체크박스 토글을 막는다.)
+// 칩 목록 셀. 비어 있고 onSet이 있으면 밑줄 텍스트 '설정'을 보여 배정 모달을 연다.
+// 이미 배정(칩)이 있으면 '설정'은 숨기고 칩만 표시(수정은 '정보 변경'에서).
+// '설정'은 stopPropagation으로 행 체크박스 토글을 막는다.
 function ChipCell({
   chips,
   emptyLabel,
   onSet,
+  setLabel = '설정',
 }: {
   chips: { label: string; href?: string }[]
   emptyLabel: string
   onSet?: () => void
+  setLabel?: string
 }) {
-  // 행 선택 토글을 막고 배정 모달 열기
-  const setBtn = onSet ? (
-    <button
-      type="button"
-      onClick={(e) => {
-        e.stopPropagation()
-        onSet()
-      }}
-      className="inline-flex items-center rounded-md border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-600 transition hover:bg-indigo-100"
-    >
-      설정
-    </button>
-  ) : null
-
   return (
     <td className="px-4 py-2.5">
       {chips.length === 0 ? (
-        <span className="flex justify-center">{setBtn ?? <span className="text-xs text-slate-400">{emptyLabel}</span>}</span>
+        <span className="flex justify-center">
+          {onSet ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onSet()
+              }}
+              className="text-xs font-medium text-indigo-600 underline underline-offset-2 transition hover:text-indigo-700"
+            >
+              {setLabel}
+            </button>
+          ) : (
+            <span className="text-xs text-slate-400">{emptyLabel}</span>
+          )}
+        </span>
       ) : (
         <span className="flex flex-wrap items-center justify-center gap-1">
           {chips.map((c, i) =>
@@ -668,7 +789,6 @@ function ChipCell({
               </span>
             ),
           )}
-          {setBtn}
         </span>
       )}
     </td>

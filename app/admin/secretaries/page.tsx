@@ -6,7 +6,7 @@ import UserManagerTable from "@/components/UserManagerTable";
 import InfoIcon from "@/components/InfoIcon";
 import ExcelExportButton from "@/components/ExcelExportButton";
 import SecretaryImportButton from "@/components/SecretaryImportButton";
-import { deleteSecretaries, updateUserInfo, resetUserPassword, setSecretarySessions } from "../actions";
+import { deleteSecretaries, updateUserInfo, resetUserPassword, setSecretarySessions, setSecretaryProjects } from "../actions";
 import { SkeletonTable } from "@/components/Skeletons";
 
 // 담당자 관리(마스터) — 전역 담당자 풀. 담당자는 여러 사업에 참여할 수 있으며,
@@ -45,7 +45,7 @@ export default async function SecretariesAdminPage() {
 }
 
 async function SecretaryTable() {
-  const [secretaries, sessions] = await Promise.all([
+  const [secretaries, sessions, projects] = await Promise.all([
     prisma.user.findMany({
       where: { role: "SECRETARY" },
       orderBy: { createdAt: "asc" },
@@ -68,15 +68,19 @@ async function SecretaryTable() {
     prisma.evaluationSession.findMany({
       where: { projectId: { not: null }, status: { not: "CLOSED" } },
       orderBy: [{ project: { createdAt: "desc" } }, { createdAt: "desc" }],
-      select: { id: true, name: true, project: { select: { name: true } } },
+      select: { id: true, name: true, projectId: true, project: { select: { name: true } } },
     }),
+    // 사업 목록 — '사업 설정'용
+    prisma.project.findMany({ orderBy: { createdAt: "desc" }, select: { id: true, name: true } }),
   ]);
 
   const sessionOptions = sessions.map((s) => ({
     id: s.id,
     label: s.name,
     group: s.project?.name ?? "기타",
+    projectId: s.projectId ?? undefined,
   }));
+  const projectOptions = projects.map((p) => ({ id: p.id, label: p.name }));
 
   const users = secretaries.map((u) => ({
     id: u.id,
@@ -87,6 +91,7 @@ async function SecretaryTable() {
     chips: u.assignedProjects.map((p) => ({ label: p.name, href: `/admin/projects/${p.id}` })),
     chips2: u.secretariedSessions.map((s) => ({ label: s.name, href: `/admin/sessions/${s.id}` })),
     assignedSessionIds: u.secretariedSessions.map((s) => s.id),
+    assignedProjectIds: u.assignedProjects.map((p) => p.id),
   }));
 
   return (
@@ -104,6 +109,8 @@ async function SecretaryTable() {
       resetPasswordAction={resetUserPassword}
       sessionOptions={sessionOptions}
       setSessionsAction={setSecretarySessions}
+      projectOptions={projectOptions}
+      setProjectsAction={setSecretaryProjects}
     />
   );
 }
