@@ -78,6 +78,7 @@ model User {
   createdAt    DateTime     @default(now())
 
   assignedProjects    Project[]           @relation("ProjectSecretaries")
+  evaluatingProjects  Project[]           @relation("ProjectEvaluators")
   secretariedSessions EvaluationSession[] @relation("SessionSecretary")
 }
 
@@ -95,6 +96,7 @@ model Project {
   // 집계 환산·등급 기준 만점(기본 100). 평가항목 배점 합계는 이 값과 일치해야 하며, 소속 분과 maxScore의 원본.
   maxScore    Int                 @default(100)
   secretaries User[]              @relation("ProjectSecretaries")
+  evaluators  User[]              @relation("ProjectEvaluators")
   sessions    EvaluationSession[]
   // 평가항목은 과제 단위(모든 분과 공통) — 관리자가 작성, 간사는 확인
   criteria        Criterion[]

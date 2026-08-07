@@ -5,7 +5,7 @@ import Link from "next/link";
 import UserManagerTable from "@/components/UserManagerTable";
 import ExcelExportButton from "@/components/ExcelExportButton";
 import EvaluatorAccountImportButton from "@/components/EvaluatorAccountImportButton";
-import { deleteEvaluators, updateUserInfo, resetUserPassword, setEvaluatorSessions } from "../actions";
+import { deleteEvaluators, updateUserInfo, resetUserPassword, setEvaluatorSessions, setEvaluatorProjects } from "../actions";
 import { assertMaster } from "@/lib/authz";
 import { SkeletonTable } from "@/components/Skeletons";
 
@@ -44,11 +44,13 @@ export default async function EvaluatorsAdminPage() {
 }
 
 async function EvaluatorTable() {
-  const [evaluators, sessions] = await Promise.all([
+  const [evaluators, sessions, projects] = await Promise.all([
     prisma.user.findMany({
       where: { role: "EVALUATOR" },
       orderBy: { createdAt: "asc" },
       include: {
+        // 참여 사업 — 분과 배정과 별개로 저장되는 관계
+        evaluatingProjects: { select: { id: true, name: true }, orderBy: { createdAt: "desc" } },
         assignments: {
           // 사업이 삭제된 고아 분과(projectId=null)는 배정 칩에서 제외 — 삭제한 분과가 계속 뜨는 문제 방지.
           where: { session: { projectId: { not: null } } },
@@ -65,6 +67,8 @@ async function EvaluatorTable() {
       orderBy: [{ project: { createdAt: "desc" } }, { createdAt: "desc" }],
       select: { id: true, name: true, projectId: true, project: { select: { name: true } } },
     }),
+    // 사업 목록 — '사업 설정'용
+    prisma.project.findMany({ orderBy: { createdAt: "desc" }, select: { id: true, name: true } }),
   ]);
 
   const sessionOptions = sessions.map((s) => ({
@@ -73,23 +77,21 @@ async function EvaluatorTable() {
     group: s.project?.name ?? "기타",
     projectId: s.projectId ?? undefined,
   }));
+  const projectOptions = projects.map((p) => ({ id: p.id, label: p.name }));
 
-  const users = evaluators.map((u) => {
-    // 참여 사업 = 배정 분과들의 사업(중복 제거)
-    const projectNames = [...new Set(u.assignments.map((a) => a.session.project?.name).filter(Boolean) as string[])];
-    return {
-      id: u.id,
-      name: u.name,
-      username: u.username,
-      phone: u.phone,
-      affiliation: u.affiliation,
-      position: u.position,
-      tempPassword: u.tempPassword,
-      chips: projectNames.map((name) => ({ label: name })),
-      chips2: u.assignments.map((a) => ({ label: a.session.name })),
-      assignedSessionIds: u.assignments.map((a) => a.session.id),
-    };
-  });
+  const users = evaluators.map((u) => ({
+    id: u.id,
+    name: u.name,
+    username: u.username,
+    phone: u.phone,
+    affiliation: u.affiliation,
+    position: u.position,
+    tempPassword: u.tempPassword,
+    chips: u.evaluatingProjects.map((p) => ({ label: p.name })),
+    chips2: u.assignments.map((a) => ({ label: a.session.name })),
+    assignedSessionIds: u.assignments.map((a) => a.session.id),
+    assignedProjectIds: u.evaluatingProjects.map((p) => p.id),
+  }));
 
   return (
     <UserManagerTable
@@ -106,6 +108,8 @@ async function EvaluatorTable() {
       showAffiliation
       sessionOptions={sessionOptions}
       setSessionsAction={setEvaluatorSessions}
+      projectOptions={projectOptions}
+      setProjectsAction={setEvaluatorProjects}
     />
   );
 }

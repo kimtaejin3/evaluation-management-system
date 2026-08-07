@@ -98,11 +98,54 @@ export async function setEvaluatorSessions(
         update: { status: 'APPROVED', decidedAt: now, createdById: admin.id },
         create: { sessionId: sid, userId, status: 'APPROVED', decidedAt: now, createdById: admin.id },
       })
+      // 분과 배정 시 그 사업에도 참여 연결(참여 사업과 일관성 유지)
+      if (s!.projectId) {
+        await tx.user.update({ where: { id: userId }, data: { evaluatingProjects: { connect: { id: s!.projectId } } } })
+      }
     }
     for (const c of toRemove) {
       await tx.assignment.delete({ where: { sessionId_userId: { sessionId: c.sessionId, userId } } })
       if (c.session?.chairId === userId) {
         await tx.evaluationSession.update({ where: { id: c.sessionId }, data: { chairId: null } })
+      }
+    }
+  })
+  revalidatePath('/admin', 'layout')
+  revalidatePath('/admin/evaluators')
+  return { ok: true }
+}
+
+// 평가위원의 '참여 사업'을 한 번에 설정(체크된 사업 = 참여). 분과는 '분과 설정'에서 이 사업 안에서 고른다.
+// 참여 해제된 사업의 분과 배정(이 위원)은 함께 해제한다.
+export async function setEvaluatorProjects(
+  userId: string,
+  projectIds: string[],
+): Promise<{ ok: boolean; error?: string }> {
+  await assertMaster()
+  const user = await prisma.user.findFirst({
+    where: { id: userId, role: 'EVALUATOR' },
+    select: { id: true, evaluatingProjects: { select: { id: true } } },
+  })
+  if (!user) return { ok: false, error: '평가위원을 찾을 수 없습니다.' }
+  const want = [...new Set(projectIds.filter(Boolean))]
+  const beforeIds = user.evaluatingProjects.map((p) => p.id)
+  const removed = beforeIds.filter((id) => !want.includes(id))
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: userId },
+      data: { evaluatingProjects: { set: want.map((id) => ({ id })) } },
+    })
+    // 참여 해제된 사업의 분과에서 이 위원의 배정 제거(+ 위원장이면 해제)
+    if (removed.length) {
+      const affected = await tx.assignment.findMany({
+        where: { userId, session: { projectId: { in: removed } } },
+        select: { sessionId: true, session: { select: { chairId: true } } },
+      })
+      await tx.assignment.deleteMany({ where: { userId, session: { projectId: { in: removed } } } })
+      for (const a of affected) {
+        if (a.session?.chairId === userId) {
+          await tx.evaluationSession.update({ where: { id: a.sessionId }, data: { chairId: null } })
+        }
       }
     }
   })
