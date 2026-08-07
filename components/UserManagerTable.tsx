@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
@@ -193,6 +193,8 @@ export default function UserManagerTable({
           resetPasswordAction={resetPasswordAction}
           sessionOptions={canAssign ? sessionOptions : undefined}
           setSessionsAction={canAssign ? setSessionsAction : undefined}
+          projectOptions={canSetProjects ? projectOptions : undefined}
+          setProjectsAction={canSetProjects ? setProjectsAction : undefined}
           onClose={() => setOpen(false)}
           onDone={() => {
             setOpen(false)
@@ -430,6 +432,8 @@ function ManageModal({
   resetPasswordAction,
   sessionOptions,
   setSessionsAction,
+  projectOptions,
+  setProjectsAction,
   onClose,
   onDone,
 }: {
@@ -439,8 +443,10 @@ function ManageModal({
   deleteAction: (ids: string[]) => Promise<void>
   updateAction: (id: string, formData: FormData) => Promise<{ ok: boolean; error?: string }>
   resetPasswordAction: (id: string) => Promise<{ ok: boolean; password?: string }>
-  sessionOptions?: { id: string; label: string; group?: string }[]
+  sessionOptions?: { id: string; label: string; group?: string; projectId?: string }[]
   setSessionsAction?: (userId: string, sessionIds: string[]) => Promise<{ ok: boolean; error?: string }>
+  projectOptions?: { id: string; label: string }[]
+  setProjectsAction?: (userId: string, projectIds: string[]) => Promise<{ ok: boolean; error?: string }>
   onClose: () => void
   onDone: () => void
 }) {
@@ -451,6 +457,9 @@ function ManageModal({
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
   const [pending, start] = useTransition()
+  // 편집 폼의 저장을 하단 버튼 행에서 트리거 + 유효/진행 상태 반영
+  const editRef = useRef<{ submit: () => void }>(null)
+  const [editStatus, setEditStatus] = useState({ valid: true, busy: false })
 
   // 저장 성공 처리 — 1명이면 닫고 새로고침, 여러 명이면 모달을 유지하고 다음 미저장 인원으로 이동.
   const handleSaved = (id: string) => {
@@ -506,13 +515,17 @@ function ManageModal({
         {active && (
           <EditUserForm
             key={active.id}
+            ref={editRef}
             user={active}
             roleLabel={roleLabel}
             showAffiliation={showAffiliation}
             sessionOptions={sessionOptions}
+            setSessionsAction={setSessionsAction}
+            projectOptions={projectOptions}
+            setProjectsAction={setProjectsAction}
             updateAction={updateAction}
             resetPasswordAction={resetPasswordAction}
-            setSessionsAction={setSessionsAction}
+            onStatus={setEditStatus}
             onSaved={() => handleSaved(active.id)}
           />
         )}
@@ -538,14 +551,24 @@ function ManageModal({
               <button
                 type="button"
                 onClick={() => setConfirmDelete(true)}
-                disabled={pending}
+                disabled={pending || editStatus.busy}
                 className="rounded-lg border border-rose-300 bg-white px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50 disabled:opacity-50"
               >
                 {multi ? `${users.length}명 삭제` : '삭제'}
               </button>
-              <button type="button" onClick={close} className="rounded-lg px-3 py-2 text-sm text-slate-500 hover:text-slate-700">
-                닫기
-              </button>
+              <div className="flex gap-2">
+                <button type="button" onClick={close} className="rounded-lg px-3 py-2 text-sm text-slate-500 hover:text-slate-700">
+                  닫기
+                </button>
+                <button
+                  type="button"
+                  onClick={() => editRef.current?.submit()}
+                  disabled={editStatus.busy || !editStatus.valid}
+                  className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {editStatus.busy ? '저장 중…' : '저장'}
+                </button>
+              </div>
             </>
           )}
         </div>
@@ -556,25 +579,38 @@ function ManageModal({
 
 // 개별 사용자 편집 폼 — 활성 사용자 1명의 정보/비밀번호/분과 배정을 수정·저장.
 // key={user.id}로 렌더되어 사용자를 전환하면 입력 상태가 새로 초기화된다.
-function EditUserForm({
-  user,
-  roleLabel,
-  showAffiliation,
-  sessionOptions,
-  updateAction,
-  resetPasswordAction,
-  setSessionsAction,
-  onSaved,
-}: {
-  user: ManagedUser
-  roleLabel: string
-  showAffiliation: boolean
-  sessionOptions?: { id: string; label: string; group?: string }[]
-  updateAction: (id: string, formData: FormData) => Promise<{ ok: boolean; error?: string }>
-  resetPasswordAction: (id: string) => Promise<{ ok: boolean; password?: string }>
-  setSessionsAction?: (userId: string, sessionIds: string[]) => Promise<{ ok: boolean; error?: string }>
-  onSaved: () => void
-}) {
+type EditHandle = { submit: () => void }
+const EditUserForm = forwardRef<
+  EditHandle,
+  {
+    user: ManagedUser
+    roleLabel: string
+    showAffiliation: boolean
+    sessionOptions?: { id: string; label: string; group?: string; projectId?: string }[]
+    setSessionsAction?: (userId: string, sessionIds: string[]) => Promise<{ ok: boolean; error?: string }>
+    projectOptions?: { id: string; label: string }[]
+    setProjectsAction?: (userId: string, projectIds: string[]) => Promise<{ ok: boolean; error?: string }>
+    updateAction: (id: string, formData: FormData) => Promise<{ ok: boolean; error?: string }>
+    resetPasswordAction: (id: string) => Promise<{ ok: boolean; password?: string }>
+    onStatus: (s: { valid: boolean; busy: boolean }) => void
+    onSaved: () => void
+  }
+>(function EditUserForm(
+  {
+    user,
+    roleLabel,
+    showAffiliation,
+    sessionOptions,
+    setSessionsAction,
+    projectOptions,
+    setProjectsAction,
+    updateAction,
+    resetPasswordAction,
+    onStatus,
+    onSaved,
+  },
+  ref,
+) {
   const [name, setName] = useState(user.name)
   const [phone, setPhone] = useState(user.phone ?? '')
   const [affiliation, setAffiliation] = useState(user.affiliation ?? '')
@@ -584,20 +620,46 @@ function EditUserForm({
   const [pending, start] = useTransition()
 
   const canAssign = !!(sessionOptions && setSessionsAction)
-  const [checked, setChecked] = useState<Set<string>>(new Set(user.assignedSessionIds ?? []))
+  const canSetProjects = !!(projectOptions && setProjectsAction)
+  const [checkedSessions, setCheckedSessions] = useState<Set<string>>(new Set(user.assignedSessionIds ?? []))
+  const [checkedProjects, setCheckedProjects] = useState<Set<string>>(new Set(user.assignedProjectIds ?? []))
+
   const toggleSession = (id: string) =>
-    setChecked((prev) => {
+    setCheckedSessions((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
       return next
     })
+  const toggleProject = (id: string) => {
+    setCheckedProjects((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+    // 사업 체크 해제 시 그 사업의 분과 선택도 함께 해제
+    if (checkedProjects.has(id)) {
+      const drop = new Set((sessionOptions ?? []).filter((s) => s.projectId === id).map((s) => s.id))
+      setCheckedSessions((prev) => new Set([...prev].filter((sid) => !drop.has(sid))))
+    }
+  }
+
+  // 담당자·평가위원 모두 참여 사업 안의 분과만 노출(사업 미선택 시 안내)
+  const visibleSessions = canSetProjects
+    ? (sessionOptions ?? []).filter((s) => s.projectId && checkedProjects.has(s.projectId))
+    : sessionOptions ?? []
   const sessionGroups = new Map<string, { id: string; label: string }[]>()
-  for (const s of sessionOptions ?? []) {
+  for (const s of visibleSessions) {
     const key = s.group ?? '기타'
     if (!sessionGroups.has(key)) sessionGroups.set(key, [])
     sessionGroups.get(key)!.push({ id: s.id, label: s.label })
   }
+
+  // 상태(유효/진행)를 상단 버튼 행에 반영
+  useEffect(() => {
+    onStatus({ valid: name.trim() !== '', busy: pending })
+  }, [name, pending, onStatus])
 
   const save = () => {
     setError('')
@@ -612,8 +674,21 @@ function EditUserForm({
         setError(res.error ?? '저장에 실패했습니다.')
         return
       }
+      // 사업 → 분과 순으로 반영(참여 사업 저장 후 그 안의 분과 배정)
+      if (canSetProjects) {
+        const pres = await setProjectsAction!(user.id, [...checkedProjects])
+        if (!pres.ok) {
+          setError(pres.error ?? '사업 설정에 실패했습니다.')
+          return
+        }
+      }
       if (canAssign) {
-        const ares = await setSessionsAction!(user.id, [...checked])
+        const validSessions = canSetProjects
+          ? [...checkedSessions].filter((sid) =>
+              (sessionOptions ?? []).some((s) => s.id === sid && s.projectId && checkedProjects.has(s.projectId)),
+            )
+          : [...checkedSessions]
+        const ares = await setSessionsAction!(user.id, validSessions)
         if (!ares.ok) {
           setError(ares.error ?? '분과 배정에 실패했습니다.')
           return
@@ -622,6 +697,8 @@ function EditUserForm({
       onSaved()
     })
   }
+  useImperativeHandle(ref, () => ({ submit: save }))
+
   const reset = () => {
     setError('')
     start(async () => {
@@ -671,14 +748,44 @@ function EditUserForm({
       </Field>
       {newPw && <p className="text-xs text-emerald-600">새 임시 비밀번호가 발급되었습니다: <b>{newPw}</b></p>}
 
+      {/* 1단계: 참여 사업 선택(담당자·평가위원 공통) */}
+      {canSetProjects && (
+        <div className="border-t border-slate-100 pt-3">
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-xs font-medium text-slate-500">참여 사업</span>
+            <span className="text-xs text-slate-400">{checkedProjects.size}개 선택</span>
+          </div>
+          {projectOptions!.length === 0 ? (
+            <p className="text-xs text-slate-400">등록된 사업이 없습니다.</p>
+          ) : (
+            <div className="thin-scrollbar max-h-32 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
+              {projectOptions!.map((p) => (
+                <label key={p.id} className="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-sm hover:bg-slate-50">
+                  <input
+                    type="checkbox"
+                    checked={checkedProjects.has(p.id)}
+                    onChange={() => toggleProject(p.id)}
+                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className="text-slate-700">{p.label}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 2단계: 선택한 사업의 분과 배정 */}
       {canAssign && (
         <div className="border-t border-slate-100 pt-3">
           <div className="mb-1 flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500">분과 배정</span>
-            <span className="text-xs text-slate-400">{checked.size}개 선택</span>
+            <span className="text-xs text-slate-400">{checkedSessions.size}개 선택</span>
           </div>
-          {sessionOptions!.length === 0 ? (
-            <p className="text-xs text-slate-400">배정 가능한 분과가 없습니다. 먼저 사업·분과를 등록하세요.</p>
+          {canSetProjects && checkedProjects.size === 0 ? (
+            <p className="text-xs text-amber-600">먼저 위에서 참여 사업을 선택하세요.</p>
+          ) : visibleSessions.length === 0 ? (
+            <p className="text-xs text-slate-400">배정 가능한 분과가 없습니다.</p>
           ) : (
             <div className="thin-scrollbar max-h-40 space-y-2 overflow-y-auto rounded-lg border border-slate-200 p-2">
               {[...sessionGroups.entries()].map(([group, opts]) => (
@@ -688,7 +795,7 @@ function EditUserForm({
                     <label key={o.id} className="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-sm hover:bg-slate-50">
                       <input
                         type="checkbox"
-                        checked={checked.has(o.id)}
+                        checked={checkedSessions.has(o.id)}
                         onChange={() => toggleSession(o.id)}
                         className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                       />
@@ -707,20 +814,9 @@ function EditUserForm({
       )}
 
       {error && <p className="text-sm font-medium text-rose-600">{error}</p>}
-
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={save}
-          disabled={pending || !name.trim()}
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-        >
-          {pending ? '저장 중…' : '저장'}
-        </button>
-      </div>
     </div>
   )
-}
+})
 
 const inputCls =
   'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500'
