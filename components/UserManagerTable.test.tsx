@@ -64,15 +64,17 @@ describe('UserManagerTable', () => {
     expect(within(dialog).getByRole('button', { name: '삭제' })).toBeInTheDocument()
   })
 
-  it('2명 선택 후 정보 변경 → 삭제만 가능(수정 폼 없음)', async () => {
+  it('2명 선택 후 정보 변경 → 각자 수정(저장) 가능 + 일괄 삭제', async () => {
     const user = userEvent.setup()
     renderTable()
     await user.click(screen.getByText('이평가'))
     await user.click(screen.getByText('박심사'))
     await user.click(screen.getByRole('button', { name: '위원 정보 변경' }))
-    expect(screen.getByText(/삭제만 가능합니다/)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: '저장' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '삭제' })).toBeInTheDocument()
+    // 여러 명이어도 수정 폼(저장 버튼)이 있고, 삭제는 '2명 삭제'로 표시
+    expect(screen.getByRole('button', { name: '저장' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '2명 삭제' })).toBeInTheDocument()
+    // 이름 칩으로 활성 사용자를 전환할 수 있다
+    expect(screen.getByRole('button', { name: /박심사/ })).toBeInTheDocument()
   })
 
   it('담당자 모드(showAffiliation=false)에서는 소속/직급 열이 없다', () => {

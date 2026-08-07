@@ -206,69 +206,30 @@ function ManageModal({
   onClose: () => void
   onDone: () => void
 }) {
-  const single = users.length === 1 ? users[0] : null
-  const [name, setName] = useState(single?.name ?? '')
-  const [phone, setPhone] = useState(single?.phone ?? '')
-  const [affiliation, setAffiliation] = useState(single?.affiliation ?? '')
-  const [position, setPosition] = useState(single?.position ?? '')
-  const [newPw, setNewPw] = useState<string | null>(null)
-  const [error, setError] = useState('')
+  // 여러 명 선택 시에도 각자 수정 가능 — 상단 이름 칩으로 활성 사용자 전환.
+  const [activeId, setActiveId] = useState(users[0]?.id ?? '')
+  const active = users.find((u) => u.id === activeId) ?? users[0] ?? null
+  const multi = users.length > 1
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
   const [pending, start] = useTransition()
 
-  // 분과 배정 — 1명 선택 + 배정 액션이 있을 때만. 체크된 분과 = 배정.
-  const canAssign = !!(single && sessionOptions && setSessionsAction)
-  const [checked, setChecked] = useState<Set<string>>(new Set(single?.assignedSessionIds ?? []))
-  const toggleSession = (id: string) =>
-    setChecked((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  // 사업(group)별 묶음
-  const sessionGroups = new Map<string, { id: string; label: string }[]>()
-  for (const s of sessionOptions ?? []) {
-    const key = s.group ?? '기타'
-    if (!sessionGroups.has(key)) sessionGroups.set(key, [])
-    sessionGroups.get(key)!.push({ id: s.id, label: s.label })
-  }
-
-  const save = () => {
-    if (!single) return
-    setError('')
-    const fd = new FormData()
-    fd.set('name', name)
-    fd.set('phone', phone)
-    fd.set('affiliation', affiliation)
-    fd.set('position', position)
-    start(async () => {
-      const res = await updateAction(single.id, fd)
-      if (!res.ok) {
-        setError(res.error ?? '저장에 실패했습니다.')
-        return
-      }
-      // 정보 저장과 함께 분과 배정도 한 번에 반영
-      if (canAssign) {
-        const ares = await setSessionsAction!(single.id, [...checked])
-        if (!ares.ok) {
-          setError(ares.error ?? '분과 배정에 실패했습니다.')
-          return
-        }
-      }
+  // 저장 성공 처리 — 1명이면 닫고 새로고침, 여러 명이면 모달을 유지하고 다음 미저장 인원으로 이동.
+  const handleSaved = (id: string) => {
+    if (!multi) {
       onDone()
-    })
+      return
+    }
+    const next = new Set(savedIds)
+    next.add(id)
+    setSavedIds(next)
+    const nextUser = users.find((u) => !next.has(u.id))
+    if (nextUser) setActiveId(nextUser.id)
   }
-  const reset = () => {
-    if (!single) return
-    setError('')
-    start(async () => {
-      const res = await resetPasswordAction(single.id)
-      if (res.ok && res.password) setNewPw(res.password)
-      else setError('재발급에 실패했습니다.')
-    })
-  }
-  const remove = () => {
+  // 닫기 — 저장한 게 있으면 목록을 새로고침하며 닫는다.
+  const close = () => (savedIds.size > 0 ? onDone() : onClose())
+
+  const removeAll = () => {
     start(async () => {
       await deleteAction(users.map((u) => u.id))
       onDone()
@@ -283,96 +244,42 @@ function ManageModal({
       >
         <h3 className="text-lg font-bold text-slate-900">{roleLabel} 정보 변경</h3>
 
-        {single ? (
-          <div className="mt-4 space-y-3">
-            <Field label="이름">
-              <input value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
-            </Field>
-            <Field label="아이디">
-              <input value={single.username} disabled className={`${inputCls} bg-slate-50 text-slate-400`} />
-            </Field>
-            <Field label="연락처">
-              <input value={phone} onChange={(e) => setPhone(e.target.value)} className={inputCls} />
-            </Field>
-            {showAffiliation && (
-              <>
-                <Field label="소속">
-                  <input value={affiliation} onChange={(e) => setAffiliation(e.target.value)} className={inputCls} />
-                </Field>
-                <Field label="직급">
-                  <input value={position} onChange={(e) => setPosition(e.target.value)} className={inputCls} />
-                </Field>
-              </>
-            )}
-            <Field label="비밀번호">
-              <div className="flex items-center gap-2">
-                <input
-                  value={newPw ?? single.tempPassword ?? '(변경됨 — 재발급 필요)'}
-                  disabled
-                  className={`${inputCls} bg-slate-50 font-mono ${newPw ? 'text-emerald-600' : 'text-slate-500'}`}
-                />
-                <button
-                  type="button"
-                  onClick={reset}
-                  disabled={pending}
-                  className="shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm whitespace-nowrap text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-                >
-                  재발급
-                </button>
-              </div>
-            </Field>
-            {newPw && <p className="text-xs text-emerald-600">새 임시 비밀번호가 발급되었습니다: <b>{newPw}</b></p>}
-
-            {canAssign && (
-              <div className="border-t border-slate-100 pt-3">
-                <div className="mb-1 flex items-center justify-between">
-                  <span className="text-xs font-medium text-slate-500">분과 배정</span>
-                  <span className="text-xs text-slate-400">{checked.size}개 선택</span>
-                </div>
-                {sessionOptions!.length === 0 ? (
-                  <p className="text-xs text-slate-400">배정 가능한 분과가 없습니다. 먼저 사업·분과를 등록하세요.</p>
-                ) : (
-                  <div className="thin-scrollbar max-h-40 space-y-2 overflow-y-auto rounded-lg border border-slate-200 p-2">
-                    {[...sessionGroups.entries()].map(([group, opts]) => (
-                      <div key={group}>
-                        <div className="px-1 py-0.5 text-xs font-semibold text-slate-400">{group}</div>
-                        {opts.map((o) => (
-                          <label key={o.id} className="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-sm hover:bg-slate-50">
-                            <input
-                              type="checkbox"
-                              checked={checked.has(o.id)}
-                              onChange={() => toggleSession(o.id)}
-                              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                            />
-                            <span className="text-slate-700">{o.label}</span>
-                          </label>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <p className="mt-1 text-xs text-slate-400">
-                  체크한 분과에 배정됩니다. 아래 ‘저장’ 시 정보와 함께 한 번에 반영됩니다.
-                  {roleLabel === '담당자' && ' 분과당 담당자는 1명이라 기존 담당자는 교체됩니다.'}
-                </p>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="mt-4">
-            <p className="text-sm text-slate-600">선택한 {roleLabel} {users.length}명:</p>
+        {multi && (
+          <div className="mt-3">
+            <p className="text-xs text-slate-400">선택한 {roleLabel} {users.length}명 — 이름을 눌러 각각 수정하세요.</p>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {users.map((u) => (
-                <span key={u.id} className="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-700">{u.name}</span>
+                <button
+                  key={u.id}
+                  type="button"
+                  onClick={() => setActiveId(u.id)}
+                  className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
+                    u.id === active?.id ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {savedIds.has(u.id) && <span className={u.id === active?.id ? 'text-emerald-200' : 'text-emerald-600'}>✓ </span>}
+                  {u.name}
+                </button>
               ))}
             </div>
-            <p className="mt-3 text-xs text-slate-400">여러 명은 삭제만 가능합니다. 수정·재발급은 한 명씩 선택하세요.</p>
           </div>
         )}
 
-        {error && <p className="mt-3 text-sm font-medium text-rose-600">{error}</p>}
+        {active && (
+          <EditUserForm
+            key={active.id}
+            user={active}
+            roleLabel={roleLabel}
+            showAffiliation={showAffiliation}
+            sessionOptions={sessionOptions}
+            updateAction={updateAction}
+            resetPasswordAction={resetPasswordAction}
+            setSessionsAction={setSessionsAction}
+            onSaved={() => handleSaved(active.id)}
+          />
+        )}
 
-        <div className="mt-6 flex items-center justify-between gap-2">
+        <div className="mt-6 flex items-center justify-between gap-2 border-t border-slate-100 pt-4">
           {confirmDelete ? (
             <div className="flex w-full items-center justify-between gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2">
               <span className="text-sm text-rose-700">{users.length}명을 삭제할까요? 계정·관련 정보가 모두 제거됩니다.</span>
@@ -380,7 +287,7 @@ function ManageModal({
                 <button type="button" onClick={() => setConfirmDelete(false)} className="rounded-md px-2 py-1 text-sm text-slate-500">취소</button>
                 <button
                   type="button"
-                  onClick={remove}
+                  onClick={removeAll}
                   disabled={pending}
                   className="rounded-md bg-rose-600 px-3 py-1 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-50"
                 >
@@ -396,26 +303,182 @@ function ManageModal({
                 disabled={pending}
                 className="rounded-lg border border-rose-300 bg-white px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50 disabled:opacity-50"
               >
-                삭제
+                {multi ? `${users.length}명 삭제` : '삭제'}
               </button>
-              <div className="flex gap-2">
-                <button type="button" onClick={onClose} className="rounded-lg px-3 py-2 text-sm text-slate-500 hover:text-slate-700">
-                  닫기
-                </button>
-                {single && (
-                  <button
-                    type="button"
-                    onClick={save}
-                    disabled={pending || !name.trim()}
-                    className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-                  >
-                    {pending ? '저장 중…' : '저장'}
-                  </button>
-                )}
-              </div>
+              <button type="button" onClick={close} className="rounded-lg px-3 py-2 text-sm text-slate-500 hover:text-slate-700">
+                닫기
+              </button>
             </>
           )}
         </div>
+      </div>
+    </div>
+  )
+}
+
+// 개별 사용자 편집 폼 — 활성 사용자 1명의 정보/비밀번호/분과 배정을 수정·저장.
+// key={user.id}로 렌더되어 사용자를 전환하면 입력 상태가 새로 초기화된다.
+function EditUserForm({
+  user,
+  roleLabel,
+  showAffiliation,
+  sessionOptions,
+  updateAction,
+  resetPasswordAction,
+  setSessionsAction,
+  onSaved,
+}: {
+  user: ManagedUser
+  roleLabel: string
+  showAffiliation: boolean
+  sessionOptions?: { id: string; label: string; group?: string }[]
+  updateAction: (id: string, formData: FormData) => Promise<{ ok: boolean; error?: string }>
+  resetPasswordAction: (id: string) => Promise<{ ok: boolean; password?: string }>
+  setSessionsAction?: (userId: string, sessionIds: string[]) => Promise<{ ok: boolean; error?: string }>
+  onSaved: () => void
+}) {
+  const [name, setName] = useState(user.name)
+  const [phone, setPhone] = useState(user.phone ?? '')
+  const [affiliation, setAffiliation] = useState(user.affiliation ?? '')
+  const [position, setPosition] = useState(user.position ?? '')
+  const [newPw, setNewPw] = useState<string | null>(null)
+  const [error, setError] = useState('')
+  const [pending, start] = useTransition()
+
+  const canAssign = !!(sessionOptions && setSessionsAction)
+  const [checked, setChecked] = useState<Set<string>>(new Set(user.assignedSessionIds ?? []))
+  const toggleSession = (id: string) =>
+    setChecked((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  const sessionGroups = new Map<string, { id: string; label: string }[]>()
+  for (const s of sessionOptions ?? []) {
+    const key = s.group ?? '기타'
+    if (!sessionGroups.has(key)) sessionGroups.set(key, [])
+    sessionGroups.get(key)!.push({ id: s.id, label: s.label })
+  }
+
+  const save = () => {
+    setError('')
+    const fd = new FormData()
+    fd.set('name', name)
+    fd.set('phone', phone)
+    fd.set('affiliation', affiliation)
+    fd.set('position', position)
+    start(async () => {
+      const res = await updateAction(user.id, fd)
+      if (!res.ok) {
+        setError(res.error ?? '저장에 실패했습니다.')
+        return
+      }
+      if (canAssign) {
+        const ares = await setSessionsAction!(user.id, [...checked])
+        if (!ares.ok) {
+          setError(ares.error ?? '분과 배정에 실패했습니다.')
+          return
+        }
+      }
+      onSaved()
+    })
+  }
+  const reset = () => {
+    setError('')
+    start(async () => {
+      const res = await resetPasswordAction(user.id)
+      if (res.ok && res.password) setNewPw(res.password)
+      else setError('재발급에 실패했습니다.')
+    })
+  }
+
+  return (
+    <div className="mt-4 space-y-3">
+      <Field label="이름">
+        <input value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
+      </Field>
+      <Field label="아이디">
+        <input value={user.username} disabled className={`${inputCls} bg-slate-50 text-slate-400`} />
+      </Field>
+      <Field label="연락처">
+        <input value={phone} onChange={(e) => setPhone(e.target.value)} className={inputCls} />
+      </Field>
+      {showAffiliation && (
+        <>
+          <Field label="소속">
+            <input value={affiliation} onChange={(e) => setAffiliation(e.target.value)} className={inputCls} />
+          </Field>
+          <Field label="직급">
+            <input value={position} onChange={(e) => setPosition(e.target.value)} className={inputCls} />
+          </Field>
+        </>
+      )}
+      <Field label="비밀번호">
+        <div className="flex items-center gap-2">
+          <input
+            value={newPw ?? user.tempPassword ?? '(변경됨 — 재발급 필요)'}
+            disabled
+            className={`${inputCls} bg-slate-50 font-mono ${newPw ? 'text-emerald-600' : 'text-slate-500'}`}
+          />
+          <button
+            type="button"
+            onClick={reset}
+            disabled={pending}
+            className="shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm whitespace-nowrap text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+          >
+            재발급
+          </button>
+        </div>
+      </Field>
+      {newPw && <p className="text-xs text-emerald-600">새 임시 비밀번호가 발급되었습니다: <b>{newPw}</b></p>}
+
+      {canAssign && (
+        <div className="border-t border-slate-100 pt-3">
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-xs font-medium text-slate-500">분과 배정</span>
+            <span className="text-xs text-slate-400">{checked.size}개 선택</span>
+          </div>
+          {sessionOptions!.length === 0 ? (
+            <p className="text-xs text-slate-400">배정 가능한 분과가 없습니다. 먼저 사업·분과를 등록하세요.</p>
+          ) : (
+            <div className="thin-scrollbar max-h-40 space-y-2 overflow-y-auto rounded-lg border border-slate-200 p-2">
+              {[...sessionGroups.entries()].map(([group, opts]) => (
+                <div key={group}>
+                  <div className="px-1 py-0.5 text-xs font-semibold text-slate-400">{group}</div>
+                  {opts.map((o) => (
+                    <label key={o.id} className="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-sm hover:bg-slate-50">
+                      <input
+                        type="checkbox"
+                        checked={checked.has(o.id)}
+                        onChange={() => toggleSession(o.id)}
+                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span className="text-slate-700">{o.label}</span>
+                    </label>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="mt-1 text-xs text-slate-400">
+            체크한 분과에 배정됩니다. ‘저장’ 시 정보와 함께 한 번에 반영됩니다.
+            {roleLabel === '담당자' && ' 분과당 담당자는 1명이라 기존 담당자는 교체됩니다.'}
+          </p>
+        </div>
+      )}
+
+      {error && <p className="text-sm font-medium text-rose-600">{error}</p>}
+
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={save}
+          disabled={pending || !name.trim()}
+          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+        >
+          {pending ? '저장 중…' : '저장'}
+        </button>
       </div>
     </div>
   )
