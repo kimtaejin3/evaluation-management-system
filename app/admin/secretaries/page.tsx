@@ -6,7 +6,7 @@ import UserManagerTable from "@/components/UserManagerTable";
 import InfoIcon from "@/components/InfoIcon";
 import ExcelExportButton from "@/components/ExcelExportButton";
 import SecretaryImportButton from "@/components/SecretaryImportButton";
-import { deleteSecretaries, updateUserInfo, resetUserPassword, assignSecretaryToSessionGlobal } from "../actions";
+import { deleteSecretaries, updateUserInfo, resetUserPassword, setSecretarySessions } from "../actions";
 import { SkeletonTable } from "@/components/Skeletons";
 
 // 담당자 관리(마스터) — 전역 담당자 풀. 담당자는 여러 사업에 참여할 수 있으며,
@@ -86,6 +86,7 @@ async function SecretaryTable() {
     tempPassword: u.tempPassword,
     chips: u.assignedProjects.map((p) => ({ label: p.name, href: `/admin/projects/${p.id}` })),
     chips2: u.secretariedSessions.map((s) => ({ label: s.name, href: `/admin/sessions/${s.id}` })),
+    assignedSessionIds: u.secretariedSessions.map((s) => s.id),
   }));
 
   return (
@@ -102,8 +103,7 @@ async function SecretaryTable() {
       updateAction={updateUserInfo}
       resetPasswordAction={resetUserPassword}
       sessionOptions={sessionOptions}
-      assignAction={assignSecretaryToSessionGlobal}
-      assignSingle
+      setSessionsAction={setSecretarySessions}
     />
   );
 }

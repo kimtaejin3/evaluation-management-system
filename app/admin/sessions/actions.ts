@@ -606,6 +606,18 @@ async function subjectsEditable(sessionId: string): Promise<boolean> {
   return !!s && (s.subjectReviewStatus === 'DRAFT' || s.subjectReviewStatus === 'REJECTED')
 }
 
+// 과제 서류 관리(업로드/삭제) 가능 여부.
+// 관리자(MASTER)는 마감만 아니면 항상 가능(제출 상태와 무관). 담당자는 작성/반려(제출 전)일 때만.
+async function docsManageable(sessionId: string, role: string): Promise<boolean> {
+  const s = await prisma.evaluationSession.findUnique({
+    where: { id: sessionId },
+    select: { status: true, subjectReviewStatus: true },
+  })
+  if (!s || s.status === 'CLOSED') return false
+  if (role === 'MASTER') return true
+  return s.subjectReviewStatus === 'DRAFT' || s.subjectReviewStatus === 'REJECTED'
+}
+
 export async function addSubject(sessionId: string, formData: FormData) {
   const { user } = await assertSessionAccess(sessionId)
   if (user.role === 'MASTER') return
@@ -683,11 +695,10 @@ export async function deleteSubject(sessionId: string, subjectId: string) {
   revalidatePath(`/admin/sessions/${sessionId}/subjects`)
 }
 
-// 평가 대상(기업) 자료 업로드 — 이 심사 전용(sessionId)으로 저장. 사업계획/현장실태조사서/사전검토표 등. 담당자 전용.
+// 평가 대상(기업) 자료 업로드 — 이 심사 전용(sessionId)으로 저장. 사업계획/현장실태조사서/사전검토표 등. 담당자·관리자.
 export async function uploadSubjectDocument(sessionId: string, companyId: string, formData: FormData) {
   const { user } = await assertSessionAccess(sessionId)
-  if (user.role === 'MASTER') return
-  if (!(await subjectsEditable(sessionId))) return
+  if (!(await docsManageable(sessionId, user.role))) return
   // PDF만 허용
   const files = formData.getAll('file').filter((f): f is File => f instanceof File && f.size > 0 && isPdf(f))
   if (files.length === 0) return
@@ -724,8 +735,7 @@ export async function presignSubjectUpload(
   fileType: string,
 ): Promise<PresignResult> {
   const { user } = await assertSessionAccess(sessionId)
-  if (user.role === 'MASTER') return { error: '담당자만 업로드할 수 있습니다.' }
-  if (!(await subjectsEditable(sessionId))) return { error: '제출/승인 상태에서는 자료를 수정할 수 없습니다.' }
+  if (!(await docsManageable(sessionId, user.role))) return { error: '지금은 자료를 업로드할 수 없습니다.' }
   if (!fileName.toLowerCase().endsWith('.pdf') && fileType !== 'application/pdf')
     return { error: 'PDF만 업로드할 수 있습니다.' }
   if (fileSize > MAX_UPLOAD_BYTES) return { error: `파일이 너무 큽니다. 최대 ${MAX_UPLOAD_MB}MB까지 업로드할 수 있습니다.` }
@@ -740,8 +750,7 @@ export async function registerSubjectDocument(
   meta: { storedName: string; url: string; originalName: string; mimeType: string },
 ): Promise<{ ok: true } | { error: string }> {
   const { user } = await assertSessionAccess(sessionId)
-  if (user.role === 'MASTER') return { error: '담당자만 업로드할 수 있습니다.' }
-  if (!(await subjectsEditable(sessionId))) return { error: '제출/승인 상태에서는 자료를 수정할 수 없습니다.' }
+  if (!(await docsManageable(sessionId, user.role))) return { error: '지금은 자료를 업로드할 수 없습니다.' }
   // presign에서 발급한 키 형식만 허용(임의 키 등록 방지)
   if (meta.url !== `r2:documents/${meta.storedName}` || !/^[0-9a-f-]{36}\.[a-z0-9]+$/i.test(meta.storedName))
     return { error: '잘못된 업로드 정보입니다.' }
@@ -768,8 +777,7 @@ export async function registerSubjectDocument(
 
 export async function deleteSubjectDocument(sessionId: string, documentId: string) {
   const { user } = await assertSessionAccess(sessionId)
-  if (user.role === 'MASTER') return // 관리자는 조회만
-  if (!(await subjectsEditable(sessionId))) return
+  if (!(await docsManageable(sessionId, user.role))) return
   const doc = await prisma.document.findUnique({ where: { id: documentId } })
   if (!doc) return
   await prisma.document.delete({ where: { id: documentId } })

@@ -5,7 +5,7 @@ import Link from "next/link";
 import UserManagerTable from "@/components/UserManagerTable";
 import ExcelExportButton from "@/components/ExcelExportButton";
 import EvaluatorAccountImportButton from "@/components/EvaluatorAccountImportButton";
-import { deleteEvaluators, updateUserInfo, resetUserPassword, assignEvaluatorsToSession } from "../actions";
+import { deleteEvaluators, updateUserInfo, resetUserPassword, setEvaluatorSessions } from "../actions";
 import { assertMaster } from "@/lib/authz";
 import { SkeletonTable } from "@/components/Skeletons";
 
@@ -53,7 +53,7 @@ async function EvaluatorTable() {
           // 사업이 삭제된 고아 분과(projectId=null)는 배정 칩에서 제외 — 삭제한 분과가 계속 뜨는 문제 방지.
           where: { session: { projectId: { not: null } } },
           include: {
-            session: { select: { id: true, name: true, status: true } },
+            session: { select: { id: true, name: true, status: true, project: { select: { name: true } } } },
           },
           orderBy: { session: { createdAt: "desc" } },
         },
@@ -73,30 +73,38 @@ async function EvaluatorTable() {
     group: s.project?.name ?? "기타",
   }));
 
-  const users = evaluators.map((u) => ({
-    id: u.id,
-    name: u.name,
-    username: u.username,
-    phone: u.phone,
-    affiliation: u.affiliation,
-    position: u.position,
-    tempPassword: u.tempPassword,
-    chips: u.assignments.map((a) => ({ label: a.session.name })),
-  }));
+  const users = evaluators.map((u) => {
+    // 참여 사업 = 배정 분과들의 사업(중복 제거)
+    const projectNames = [...new Set(u.assignments.map((a) => a.session.project?.name).filter(Boolean) as string[])];
+    return {
+      id: u.id,
+      name: u.name,
+      username: u.username,
+      phone: u.phone,
+      affiliation: u.affiliation,
+      position: u.position,
+      tempPassword: u.tempPassword,
+      chips: projectNames.map((name) => ({ label: name })),
+      chips2: u.assignments.map((a) => ({ label: a.session.name })),
+      assignedSessionIds: u.assignments.map((a) => a.session.id),
+    };
+  });
 
   return (
     <UserManagerTable
       users={users}
       roleLabel="위원"
-      chipsHeader="배정 분과"
-      chipsEmptyLabel="미정"
+      chipsHeader="참여 사업"
+      chipsEmptyLabel="참여 없음"
+      chips2Header="배정 분과"
+      chips2EmptyLabel="미정"
       emptyLabel="등록된 평가위원이 없습니다."
       deleteAction={deleteEvaluators}
       updateAction={updateUserInfo}
       resetPasswordAction={resetUserPassword}
       showAffiliation
       sessionOptions={sessionOptions}
-      assignAction={assignEvaluatorsToSession}
+      setSessionsAction={setEvaluatorSessions}
     />
   );
 }

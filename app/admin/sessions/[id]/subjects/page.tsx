@@ -144,6 +144,7 @@ async function SubjectsContent({ id }: { id: string }) {
         <SubjectsTable
           sessionId={id}
           canEdit={canEdit}
+          canManageDocs={canEdit || (isMaster && !locked)}
           subjects={subjects.map(
             (s): SubjectRow => ({
               id: s.id,

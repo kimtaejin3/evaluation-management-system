@@ -15,6 +15,8 @@ export type ManagedUser = {
   chips: { label: string; href?: string }[]
   // 두 번째 칩 열(예: 담당자 참여 분과) — chips2Header가 있을 때만 렌더
   chips2?: { label: string; href?: string }[]
+  // 현재 배정된 분과 id 목록 — '정보 변경' 모달의 분과 배정 체크박스 초기값
+  assignedSessionIds?: string[]
 }
 
 // 담당자·평가위원 관리 공통 표.
@@ -36,8 +38,7 @@ export default function UserManagerTable({
   chips2Header,
   chips2EmptyLabel = '없음',
   sessionOptions,
-  assignAction,
-  assignSingle = false,
+  setSessionsAction,
 }: {
   users: ManagedUser[]
   roleLabel: string
@@ -53,17 +54,15 @@ export default function UserManagerTable({
   // 두 번째 칩 열 머리글(예: '참여 중인 분과'). 있을 때만 열 렌더
   chips2Header?: string
   chips2EmptyLabel?: string
-  // 분과 배정(관리자 전용) — 둘 다 있으면 '분과 배정' 버튼·모달 노출
+  // 분과 배정(관리자 전용) — 둘 다 있으면 '정보 변경' 모달(1명 선택)에서 분과 배정 체크박스 노출
   sessionOptions?: { id: string; label: string; group?: string }[]
-  assignAction?: (userIds: string[], sessionId: string) => Promise<{ ok: boolean; error?: string }>
-  // 1분과=1인 배정(담당자) — 정확히 1명 선택했을 때만 배정 가능
-  assignSingle?: boolean
+  // 한 사용자의 분과 배정을 한 번에 설정(체크된 분과 = 배정)
+  setSessionsAction?: (userId: string, sessionIds: string[]) => Promise<{ ok: boolean; error?: string }>
 }) {
   const router = useRouter()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [open, setOpen] = useState(false)
-  const [assignOpen, setAssignOpen] = useState(false)
-  const canAssign = !!(sessionOptions && assignAction)
+  const canAssign = !!(sessionOptions && setSessionsAction)
 
   const toggle = (id: string) =>
     setSelected((prev) => {
@@ -151,17 +150,6 @@ export default function UserManagerTable({
         {selected.size > 0 && (
           <span className="mr-auto text-sm text-slate-500">{selected.size}명 선택됨</span>
         )}
-        {canAssign && (
-          <button
-            type="button"
-            disabled={assignSingle ? selected.size !== 1 : selected.size === 0}
-            onClick={() => setAssignOpen(true)}
-            title={assignSingle ? '담당자는 분과당 1명 — 1명만 선택하세요' : undefined}
-            className="rounded-lg border border-indigo-300 bg-white px-3 py-1.5 text-sm font-medium whitespace-nowrap text-indigo-600 transition hover:bg-indigo-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
-          >
-            분과 배정
-          </button>
-        )}
         <button
           type="button"
           disabled={selected.size === 0}
@@ -180,6 +168,8 @@ export default function UserManagerTable({
           deleteAction={deleteAction}
           updateAction={updateAction}
           resetPasswordAction={resetPasswordAction}
+          sessionOptions={canAssign ? sessionOptions : undefined}
+          setSessionsAction={canAssign ? setSessionsAction : undefined}
           onClose={() => setOpen(false)}
           onDone={() => {
             setOpen(false)
@@ -188,126 +178,6 @@ export default function UserManagerTable({
           }}
         />
       )}
-
-      {assignOpen && canAssign && (
-        <AssignModal
-          roleLabel={roleLabel}
-          single={assignSingle}
-          users={selectedUsers}
-          sessionOptions={sessionOptions!}
-          assignAction={assignAction!}
-          onClose={() => setAssignOpen(false)}
-          onDone={() => {
-            setAssignOpen(false)
-            setSelected(new Set())
-            router.refresh()
-          }}
-        />
-      )}
-    </div>
-  )
-}
-
-// 분과 배정 모달(관리자) — 선택 인원을 한 분과에 배정.
-function AssignModal({
-  roleLabel,
-  single,
-  users,
-  sessionOptions,
-  assignAction,
-  onClose,
-  onDone,
-}: {
-  roleLabel: string
-  single: boolean
-  users: ManagedUser[]
-  sessionOptions: { id: string; label: string; group?: string }[]
-  assignAction: (userIds: string[], sessionId: string) => Promise<{ ok: boolean; error?: string }>
-  onClose: () => void
-  onDone: () => void
-}) {
-  const [sessionId, setSessionId] = useState('')
-  const [error, setError] = useState('')
-  const [pending, start] = useTransition()
-
-  // 사업(group)별로 optgroup 구성
-  const groups = new Map<string, { id: string; label: string }[]>()
-  for (const s of sessionOptions) {
-    const key = s.group ?? ''
-    if (!groups.has(key)) groups.set(key, [])
-    groups.get(key)!.push({ id: s.id, label: s.label })
-  }
-
-  const submit = () => {
-    if (!sessionId) {
-      setError('배정할 분과를 선택하세요.')
-      return
-    }
-    setError('')
-    start(async () => {
-      const res = await assignAction(users.map((u) => u.id), sessionId)
-      if (res.ok) onDone()
-      else setError(res.error ?? '배정에 실패했습니다.')
-    })
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <h3 className="text-lg font-bold text-slate-900">분과 배정</h3>
-        <p className="mt-1 text-sm text-slate-500">
-          {single
-            ? `선택한 ${roleLabel}를 지정한 분과의 담당자로 배정합니다. 분과당 담당자는 1명이며 기존 담당자가 있으면 교체됩니다.`
-            : `선택한 ${roleLabel}을 지정한 분과에 배정합니다. 배정된 ${roleLabel}은 즉시 평가에 참여할 수 있습니다.`}
-        </p>
-
-        <div className="mt-4">
-          <p className="text-sm text-slate-600">선택한 {roleLabel} {users.length}명:</p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {users.map((u) => (
-              <span key={u.id} className="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-700">{u.name}</span>
-            ))}
-          </div>
-        </div>
-
-        <Field label="배정할 분과">
-          <select value={sessionId} onChange={(e) => setSessionId(e.target.value)} className={inputCls}>
-            <option value="" disabled>분과 선택</option>
-            {[...groups.entries()].map(([group, opts]) =>
-              group ? (
-                <optgroup key={group} label={group}>
-                  {opts.map((o) => (
-                    <option key={o.id} value={o.id}>{o.label}</option>
-                  ))}
-                </optgroup>
-              ) : (
-                opts.map((o) => (
-                  <option key={o.id} value={o.id}>{o.label}</option>
-                ))
-              ),
-            )}
-          </select>
-        </Field>
-
-        {sessionOptions.length === 0 && (
-          <p className="mt-3 text-sm text-amber-600">배정 가능한 분과가 없습니다. 먼저 사업·분과를 등록하세요.</p>
-        )}
-        {error && <p className="mt-3 text-sm font-medium text-rose-600">{error}</p>}
-
-        <div className="mt-6 flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-lg px-3 py-2 text-sm text-slate-500 hover:text-slate-700">
-            취소
-          </button>
-          <button
-            type="button"
-            onClick={submit}
-            disabled={pending || !sessionId}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-          >
-            {pending ? '배정 중…' : '배정'}
-          </button>
-        </div>
-      </div>
     </div>
   )
 }
@@ -320,6 +190,8 @@ function ManageModal({
   deleteAction,
   updateAction,
   resetPasswordAction,
+  sessionOptions,
+  setSessionsAction,
   onClose,
   onDone,
 }: {
@@ -329,6 +201,8 @@ function ManageModal({
   deleteAction: (ids: string[]) => Promise<void>
   updateAction: (id: string, formData: FormData) => Promise<{ ok: boolean; error?: string }>
   resetPasswordAction: (id: string) => Promise<{ ok: boolean; password?: string }>
+  sessionOptions?: { id: string; label: string; group?: string }[]
+  setSessionsAction?: (userId: string, sessionIds: string[]) => Promise<{ ok: boolean; error?: string }>
   onClose: () => void
   onDone: () => void
 }) {
@@ -342,6 +216,24 @@ function ManageModal({
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [pending, start] = useTransition()
 
+  // 분과 배정 — 1명 선택 + 배정 액션이 있을 때만. 체크된 분과 = 배정.
+  const canAssign = !!(single && sessionOptions && setSessionsAction)
+  const [checked, setChecked] = useState<Set<string>>(new Set(single?.assignedSessionIds ?? []))
+  const toggleSession = (id: string) =>
+    setChecked((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  // 사업(group)별 묶음
+  const sessionGroups = new Map<string, { id: string; label: string }[]>()
+  for (const s of sessionOptions ?? []) {
+    const key = s.group ?? '기타'
+    if (!sessionGroups.has(key)) sessionGroups.set(key, [])
+    sessionGroups.get(key)!.push({ id: s.id, label: s.label })
+  }
+
   const save = () => {
     if (!single) return
     setError('')
@@ -352,8 +244,19 @@ function ManageModal({
     fd.set('position', position)
     start(async () => {
       const res = await updateAction(single.id, fd)
-      if (res.ok) onDone()
-      else setError(res.error ?? '저장에 실패했습니다.')
+      if (!res.ok) {
+        setError(res.error ?? '저장에 실패했습니다.')
+        return
+      }
+      // 정보 저장과 함께 분과 배정도 한 번에 반영
+      if (canAssign) {
+        const ares = await setSessionsAction!(single.id, [...checked])
+        if (!ares.ok) {
+          setError(ares.error ?? '분과 배정에 실패했습니다.')
+          return
+        }
+      }
+      onDone()
     })
   }
   const reset = () => {
@@ -375,7 +278,7 @@ function ManageModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div
-        className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-lg font-bold text-slate-900">{roleLabel} 정보 변경</h3>
@@ -419,6 +322,41 @@ function ManageModal({
               </div>
             </Field>
             {newPw && <p className="text-xs text-emerald-600">새 임시 비밀번호가 발급되었습니다: <b>{newPw}</b></p>}
+
+            {canAssign && (
+              <div className="border-t border-slate-100 pt-3">
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="text-xs font-medium text-slate-500">분과 배정</span>
+                  <span className="text-xs text-slate-400">{checked.size}개 선택</span>
+                </div>
+                {sessionOptions!.length === 0 ? (
+                  <p className="text-xs text-slate-400">배정 가능한 분과가 없습니다. 먼저 사업·분과를 등록하세요.</p>
+                ) : (
+                  <div className="thin-scrollbar max-h-40 space-y-2 overflow-y-auto rounded-lg border border-slate-200 p-2">
+                    {[...sessionGroups.entries()].map(([group, opts]) => (
+                      <div key={group}>
+                        <div className="px-1 py-0.5 text-xs font-semibold text-slate-400">{group}</div>
+                        {opts.map((o) => (
+                          <label key={o.id} className="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-sm hover:bg-slate-50">
+                            <input
+                              type="checkbox"
+                              checked={checked.has(o.id)}
+                              onChange={() => toggleSession(o.id)}
+                              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                            <span className="text-slate-700">{o.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p className="mt-1 text-xs text-slate-400">
+                  체크한 분과에 배정됩니다. 아래 ‘저장’ 시 정보와 함께 한 번에 반영됩니다.
+                  {roleLabel === '담당자' && ' 분과당 담당자는 1명이라 기존 담당자는 교체됩니다.'}
+                </p>
+              </div>
+            )}
           </div>
         ) : (
           <div className="mt-4">

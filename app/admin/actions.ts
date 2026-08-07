@@ -68,67 +68,81 @@ export async function deleteEvaluators(ids: string[]) {
   revalidatePath('/admin/evaluators')
 }
 
-// 관리자가 평가위원 관리에서 선택 위원들을 특정 분과에 일괄 배정.
-// 관리자 권한 배정이므로 즉시 APPROVED. 담당자는 위원장 지정만 하며 배정은 하지 않는다.
-export async function assignEvaluatorsToSession(
-  userIds: string[],
-  sessionId: string,
+// '정보 변경' 모달에서 한 위원의 분과 배정을 한 번에 설정(체크된 분과 = 배정).
+// 후보(미마감·사업 있는) 분과 안에서만 추가/해제하며, 마감·고아 분과 배정은 건드리지 않는다.
+export async function setEvaluatorSessions(
+  userId: string,
+  sessionIds: string[],
 ): Promise<{ ok: boolean; error?: string }> {
   const admin = await assertMaster()
-  const clean = [...new Set(userIds.filter(Boolean))]
-  if (!sessionId || clean.length === 0) return { ok: false, error: '배정할 위원과 분과를 선택하세요.' }
-  const session = await prisma.evaluationSession.findUnique({
-    where: { id: sessionId },
-    select: { id: true, status: true },
+  const user = await prisma.user.findFirst({ where: { id: userId, role: 'EVALUATOR' }, select: { id: true } })
+  if (!user) return { ok: false, error: '평가위원을 찾을 수 없습니다.' }
+  const want = new Set(sessionIds.filter(Boolean))
+  // 현재 배정 + 각 분과의 배정 가능 여부(마감/고아 제외 판단용)
+  const current = await prisma.assignment.findMany({
+    where: { userId },
+    select: { sessionId: true, session: { select: { status: true, projectId: true, chairId: true } } },
   })
-  if (!session) return { ok: false, error: '분과를 찾을 수 없습니다.' }
-  if (session.status === 'CLOSED') return { ok: false, error: '마감된 분과에는 배정할 수 없습니다.' }
-  // 평가위원만 배정 대상
-  const evaluators = await prisma.user.findMany({
-    where: { id: { in: clean }, role: 'EVALUATOR' },
-    select: { id: true },
-  })
-  if (evaluators.length === 0) return { ok: false, error: '배정할 평가위원이 없습니다.' }
+  const assignable = (s: { status: string; projectId: string | null } | null) =>
+    !!s && s.status !== 'CLOSED' && s.projectId != null
+  const toRemove = current.filter((c) => assignable(c.session) && !want.has(c.sessionId))
+  const currentIds = new Set(current.map((c) => c.sessionId))
+  const toAdd = [...want].filter((sid) => !currentIds.has(sid))
   const now = new Date()
-  await prisma.$transaction(
-    evaluators.map((e) =>
-      prisma.assignment.upsert({
-        where: { sessionId_userId: { sessionId, userId: e.id } },
+  await prisma.$transaction(async (tx) => {
+    for (const sid of toAdd) {
+      const s = await tx.evaluationSession.findUnique({ where: { id: sid }, select: { status: true, projectId: true } })
+      if (!assignable(s)) continue // 마감/고아 분과는 배정 불가
+      await tx.assignment.upsert({
+        where: { sessionId_userId: { sessionId: sid, userId } },
         update: { status: 'APPROVED', decidedAt: now, createdById: admin.id },
-        create: { sessionId, userId: e.id, status: 'APPROVED', decidedAt: now, createdById: admin.id },
-      }),
-    ),
-  )
+        create: { sessionId: sid, userId, status: 'APPROVED', decidedAt: now, createdById: admin.id },
+      })
+    }
+    for (const c of toRemove) {
+      await tx.assignment.delete({ where: { sessionId_userId: { sessionId: c.sessionId, userId } } })
+      if (c.session?.chairId === userId) {
+        await tx.evaluationSession.update({ where: { id: c.sessionId }, data: { chairId: null } })
+      }
+    }
+  })
+  revalidatePath('/admin', 'layout')
   revalidatePath('/admin/evaluators')
-  revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
   return { ok: true }
 }
 
-// 관리자가 담당자 관리에서 담당자를 특정 분과에 배정.
-// 분과당 담당자는 1명(secretaryId)이므로 1명만 배정 가능. 사업 접근 권한도 함께 부여.
-export async function assignSecretaryToSessionGlobal(
-  userIds: string[],
-  sessionId: string,
+// '정보 변경' 모달에서 한 담당자가 담당할 분과를 한 번에 설정(체크된 분과 = 담당).
+// 분과당 담당자는 1명이라 체크 시 secretaryId를 이 담당자로 지정(기존 교체)하고 사업 접근도 부여.
+// 후보(미마감·사업 있는) 분과 안에서만 조정하며, 마감·고아 분과는 건드리지 않는다.
+export async function setSecretarySessions(
+  userId: string,
+  sessionIds: string[],
 ): Promise<{ ok: boolean; error?: string }> {
   await assertMaster()
-  const clean = [...new Set(userIds.filter(Boolean))]
-  if (!sessionId || clean.length === 0) return { ok: false, error: '배정할 담당자와 분과를 선택하세요.' }
-  if (clean.length > 1) return { ok: false, error: '분과당 담당자는 1명입니다. 담당자를 1명만 선택하세요.' }
-  const userId = clean[0]
   const user = await prisma.user.findFirst({ where: { id: userId, role: 'SECRETARY' }, select: { id: true } })
-  if (!user) return { ok: false, error: '배정할 담당자를 찾을 수 없습니다.' }
-  const session = await prisma.evaluationSession.findUnique({
-    where: { id: sessionId },
-    select: { id: true, status: true, projectId: true },
+  if (!user) return { ok: false, error: '담당자를 찾을 수 없습니다.' }
+  const want = new Set(sessionIds.filter(Boolean))
+  // 이 담당자가 현재 맡은(배정 가능한) 분과
+  const current = await prisma.evaluationSession.findMany({
+    where: { secretaryId: userId, status: { not: 'CLOSED' }, projectId: { not: null } },
+    select: { id: true },
   })
-  if (!session || !session.projectId) return { ok: false, error: '분과를 찾을 수 없습니다.' }
-  if (session.status === 'CLOSED') return { ok: false, error: '마감된 분과에는 배정할 수 없습니다.' }
-  // 사업 접근 권한 부여 후 분과 담당자 지정(기존 담당자 있으면 교체)
-  await prisma.project.update({ where: { id: session.projectId }, data: { secretaries: { connect: { id: userId } } } })
-  await prisma.evaluationSession.update({ where: { id: sessionId }, data: { secretaryId: userId } })
+  const currentIds = new Set(current.map((s) => s.id))
+  const toRemove = [...currentIds].filter((sid) => !want.has(sid))
+  const toAdd = [...want].filter((sid) => !currentIds.has(sid))
+  await prisma.$transaction(async (tx) => {
+    for (const sid of toAdd) {
+      const s = await tx.evaluationSession.findUnique({ where: { id: sid }, select: { status: true, projectId: true } })
+      if (!s || s.status === 'CLOSED' || !s.projectId) continue
+      await tx.project.update({ where: { id: s.projectId }, data: { secretaries: { connect: { id: userId } } } })
+      await tx.evaluationSession.update({ where: { id: sid }, data: { secretaryId: userId } })
+    }
+    for (const sid of toRemove) {
+      await tx.evaluationSession.update({ where: { id: sid }, data: { secretaryId: null } })
+    }
+  })
   revalidatePath('/admin', 'layout')
   revalidatePath('/admin/secretaries')
-  revalidatePath(`/admin/projects/${session.projectId}`)
   return { ok: true }
 }
 

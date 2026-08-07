@@ -33,10 +33,13 @@ export default function SubjectsTable({
   sessionId,
   subjects,
   canEdit,
+  canManageDocs = canEdit,
 }: {
   sessionId: string;
   subjects: SubjectRow[];
   canEdit: boolean;
+  // 과제 서류(업로드/삭제) 관리 권한 — 관리자도 가능. 미지정 시 canEdit(담당자)만.
+  canManageDocs?: boolean;
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -125,7 +128,7 @@ export default function SubjectsTable({
                       }}
                       className="text-xs font-medium whitespace-nowrap text-slate-600 transition hover:text-indigo-700 hover:underline"
                     >
-                      {canEdit ? "관리" : "보기"} ({s.documents.length})
+                      {canManageDocs ? "관리" : "보기"} ({s.documents.length})
                     </button>
                   </td>
                 </tr>
@@ -179,7 +182,7 @@ export default function SubjectsTable({
                     <span>{d.originalName}</span>
                     <span className="text-xs text-slate-400">{formatSize(d.size)}</span>
                   </a>
-                  {canEdit && (
+                  {canManageDocs && (
                     <button type="button" onClick={() => removeDoc(d.id)} disabled={pending} className="ml-2 shrink-0 text-xs text-slate-400 hover:text-rose-600 hover:underline disabled:opacity-50">
                       삭제
                     </button>
@@ -187,10 +190,10 @@ export default function SubjectsTable({
                 </li>
               ))}
               {curDoc.documents.length === 0 && (
-                <li className="text-sm text-slate-400">등록된 자료가 없습니다.{canEdit && " 아래에서 업로드하세요."}</li>
+                <li className="text-sm text-slate-400">등록된 자료가 없습니다.{canManageDocs && " 아래에서 업로드하세요."}</li>
               )}
             </ul>
-            {canEdit && <SubjectUploadForm sessionId={sessionId} companyId={curDoc.companyId} />}
+            {canManageDocs && <SubjectUploadForm sessionId={sessionId} companyId={curDoc.companyId} />}
           </div>
         </div>
       )}
