@@ -27,17 +27,6 @@ function formatSize(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-// 평가 대상 상태 — 텍스트만(대기=회색, 승인=검정, 반려=빨강)
-function StatusText({ status }: { status: SubjectRow["status"] }) {
-  const map = {
-    PENDING: { label: "대기", cls: "text-slate-500" },
-    APPROVED: { label: "승인", cls: "font-semibold text-slate-900" },
-    REJECTED: { label: "반려", cls: "text-rose-600" },
-  } as const;
-  const s = map[status];
-  return <span className={`text-xs whitespace-nowrap ${s.cls}`}>{s.label}</span>;
-}
-
 // 담당자의 평가 대상 목록 — 체크박스 상시 + 하단 '평가 대상 정보 변경'(수정·삭제 통합).
 // 서류(문서) 관리는 행별 '서류' 버튼 모달에서. 편집은 canEdit(작성/반려)일 때만.
 export default function SubjectsTable({
@@ -100,7 +89,6 @@ export default function SubjectsTable({
                 <th className="px-5 py-2.5 font-medium">지역</th>
                 <th className="px-5 py-2.5 font-medium">연구책임자</th>
                 <th className="px-5 py-2.5 font-medium">서류</th>
-                <th className="px-5 py-2.5 font-medium">상태</th>
               </tr>
             </thead>
             <tbody>
@@ -139,9 +127,6 @@ export default function SubjectsTable({
                     >
                       {canEdit ? "관리" : "보기"} ({s.documents.length})
                     </button>
-                  </td>
-                  <td className="px-5 py-2.5">
-                    <StatusText status={s.status} />
                   </td>
                 </tr>
               ))}

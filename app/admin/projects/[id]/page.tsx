@@ -49,7 +49,14 @@ export default async function ProjectDetailPage({
     ? await prisma.user.findMany({
         where: { role: "SECRETARY" },
         orderBy: { name: "asc" },
-        select: { id: true, name: true, username: true, phone: true, tempPassword: true },
+        select: {
+          id: true,
+          name: true,
+          username: true,
+          phone: true,
+          tempPassword: true,
+          assignedProjects: { select: { name: true }, orderBy: { createdAt: "desc" } },
+        },
       })
     : [];
   // 담당자별 이 사업 내 담당 분과
@@ -187,13 +194,14 @@ export default async function ProjectDetailPage({
                   <th className="px-5 py-2.5 font-medium">아이디</th>
                   <th className="px-5 py-2.5 font-medium">비밀번호</th>
                   <th className="px-5 py-2.5 font-medium">연락처</th>
+                  <th className="px-5 py-2.5 font-medium">참여 사업</th>
                   <th className="px-5 py-2.5 font-medium">담당 분과</th>
                 </tr>
               </thead>
               <tbody>
                 {secretaries.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-5 py-8 text-center text-sm text-slate-400">
+                    <td colSpan={6} className="px-5 py-8 text-center text-sm text-slate-400">
                       등록된 담당자가 없습니다. ‘담당자 관리’에서 먼저 담당자를 등록하세요.
                     </td>
                   </tr>
@@ -211,6 +219,19 @@ export default async function ProjectDetailPage({
                     </td>
                     <td className="px-5 py-2.5 text-slate-600">
                       {u.phone ?? <span className="text-slate-300">—</span>}
+                    </td>
+                    <td className="px-5 py-2.5">
+                      {u.assignedProjects.length > 0 ? (
+                        <span className="flex flex-wrap justify-center gap-1">
+                          {u.assignedProjects.map((p) => (
+                            <span key={p.name} className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                              {p.name}
+                            </span>
+                          ))}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-400">참여 없음</span>
+                      )}
                     </td>
                     <td className="px-5 py-2.5">
                       {sessionsOfSecretary.has(u.id) ? (

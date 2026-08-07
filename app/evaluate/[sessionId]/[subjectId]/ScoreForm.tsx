@@ -486,12 +486,13 @@ export default function ScoreForm({
                   </tr>
                 )}
                 {/* 종합의견 — 평가항목별 의견과 같은 결로 표 맨 아래 전체 폭(제출 시 comment로 저장).
-                    위원장은 여기가 아니라 대상별 화면의 '위원장 종합의견'에서 쓰므로 칸을 숨긴다. */}
-                {!isChair && (
+                    위원장도 이 칸에서 바로 종합의견을 쓸 수 있다(대상별 '위원장 종합의견'과 같은 Opinion에 저장). */}
                 <tr className="border-t border-slate-200 bg-slate-50/60">
                   <td colSpan={5} className="px-3 py-3">
                     <div className="mb-1.5 flex items-center justify-between">
-                      <span className="text-sm font-semibold text-slate-700">평가위원 종합의견</span>
+                      <span className="text-sm font-semibold text-slate-700">
+                        {isChair ? "위원장 종합의견" : "평가위원 종합의견"}
+                      </span>
                       <span className="text-xs text-slate-400">{comment.length} / 1000</span>
                     </div>
                     <textarea
@@ -501,12 +502,20 @@ export default function ScoreForm({
                       onChange={(e) => setComment(e.target.value)}
                       disabled={locked}
                       rows={4}
-                      placeholder="대상에 대한 종합적인 평가 의견을 입력하세요. (선택)"
+                      placeholder={
+                        isChair
+                          ? "위원별 평가를 참고해 이 대상에 대한 위원장 종합의견을 입력하세요. (제출 전 필수)"
+                          : "대상에 대한 종합적인 평가 의견을 입력하세요. (선택)"
+                      }
                       className="w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-50"
                     />
+                    {isChair && (
+                      <p className="mt-1 text-xs text-slate-400">
+                        저장 후 ‘위원별 평가 · 종합의견 →’ 화면에서도 이어서 수정·제출할 수 있습니다.
+                      </p>
+                    )}
                   </td>
                 </tr>
-                )}
               </tbody>
             </table>
           </div>

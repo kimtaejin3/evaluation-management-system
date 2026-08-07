@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { fmtYmd } from "@/lib/dates";
 import { getSessionProgress } from "@/lib/progress";
 import MonitoringList from "@/components/MonitoringList";
+import ReviewTable from "@/components/ReviewTable";
 import EvaluatorRoster from "@/components/EvaluatorRoster";
 import LiveRefresher from "@/components/LiveRefresher";
 import SessionStatusControl from "@/components/SessionStatusControl";
@@ -148,6 +149,9 @@ async function MonitoringSection({ id }: { id: string }) {
       </div>
 
       <MonitoringList data={p} sessionId={id} />
+
+      {/* 위원별 제출 승인/반려 — '자세히 보기'가 평가 의견서로 이동하므로, 승인/반려는 여기 하단에서 처리 */}
+      <ReviewTable sessionId={id} rows={p.review} />
     </section>
   );
 }
