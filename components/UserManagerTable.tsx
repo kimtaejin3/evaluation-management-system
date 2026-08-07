@@ -62,6 +62,8 @@ export default function UserManagerTable({
   const router = useRouter()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [open, setOpen] = useState(false)
+  // 칩 셀의 '설정'으로 여는 개별 분과 배정 모달 대상 사용자
+  const [assignUser, setAssignUser] = useState<ManagedUser | null>(null)
   const canAssign = !!(sessionOptions && setSessionsAction)
 
   const toggle = (id: string) =>
@@ -138,7 +140,13 @@ export default function UserManagerTable({
                   <td className="px-4 py-2.5 text-slate-600">{u.position ?? <span className="text-slate-300">—</span>}</td>
                 )}
                 <ChipCell chips={u.chips} emptyLabel={chipsEmptyLabel} />
-                {chips2Header && <ChipCell chips={u.chips2 ?? []} emptyLabel={chips2EmptyLabel} />}
+                {chips2Header && (
+                  <ChipCell
+                    chips={u.chips2 ?? []}
+                    emptyLabel={chips2EmptyLabel}
+                    onSet={canAssign ? () => setAssignUser(u) : undefined}
+                  />
+                )}
               </tr>
             ))}
           </tbody>
@@ -178,11 +186,124 @@ export default function UserManagerTable({
           }}
         />
       )}
+
+      {assignUser && canAssign && (
+        <SessionAssignModal
+          user={assignUser}
+          roleLabel={roleLabel}
+          sessionOptions={sessionOptions!}
+          setSessionsAction={setSessionsAction!}
+          onClose={() => setAssignUser(null)}
+          onDone={() => {
+            setAssignUser(null)
+            router.refresh()
+          }}
+        />
+      )}
     </div>
   )
 }
 
-// 정보 변경 모달 — 1명이면 수정/재발급/삭제, 여러 명이면 삭제만.
+// 개별 분과 배정 모달 — 칩 셀 '설정'으로 연다. 체크된 분과 = 배정.
+function SessionAssignModal({
+  user,
+  roleLabel,
+  sessionOptions,
+  setSessionsAction,
+  onClose,
+  onDone,
+}: {
+  user: ManagedUser
+  roleLabel: string
+  sessionOptions: { id: string; label: string; group?: string }[]
+  setSessionsAction: (userId: string, sessionIds: string[]) => Promise<{ ok: boolean; error?: string }>
+  onClose: () => void
+  onDone: () => void
+}) {
+  const [checked, setChecked] = useState<Set<string>>(new Set(user.assignedSessionIds ?? []))
+  const [error, setError] = useState('')
+  const [pending, start] = useTransition()
+  const toggleSession = (id: string) =>
+    setChecked((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  const sessionGroups = new Map<string, { id: string; label: string }[]>()
+  for (const s of sessionOptions) {
+    const key = s.group ?? '기타'
+    if (!sessionGroups.has(key)) sessionGroups.set(key, [])
+    sessionGroups.get(key)!.push({ id: s.id, label: s.label })
+  }
+  const save = () => {
+    setError('')
+    start(async () => {
+      const res = await setSessionsAction(user.id, [...checked])
+      if (res.ok) onDone()
+      else setError(res.error ?? '배정에 실패했습니다.')
+    })
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-lg font-bold text-slate-900">분과 배정</h3>
+        <p className="mt-1 text-sm text-slate-500">
+          <b className="text-slate-700">{user.name}</b> {roleLabel}이 참여할 분과를 체크하세요.
+          {roleLabel === '담당자' && ' 분과당 담당자는 1명이라 기존 담당자는 교체됩니다.'}
+        </p>
+
+        <div className="mt-3">
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-xs font-medium text-slate-500">분과 목록</span>
+            <span className="text-xs text-slate-400">{checked.size}개 선택</span>
+          </div>
+          {sessionOptions.length === 0 ? (
+            <p className="text-xs text-slate-400">배정 가능한 분과가 없습니다. 먼저 사업·분과를 등록하세요.</p>
+          ) : (
+            <div className="thin-scrollbar max-h-64 space-y-2 overflow-y-auto rounded-lg border border-slate-200 p-2">
+              {[...sessionGroups.entries()].map(([group, opts]) => (
+                <div key={group}>
+                  <div className="px-1 py-0.5 text-xs font-semibold text-slate-400">{group}</div>
+                  {opts.map((o) => (
+                    <label key={o.id} className="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-sm hover:bg-slate-50">
+                      <input
+                        type="checkbox"
+                        checked={checked.has(o.id)}
+                        onChange={() => toggleSession(o.id)}
+                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span className="text-slate-700">{o.label}</span>
+                    </label>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {error && <p className="mt-3 text-sm font-medium text-rose-600">{error}</p>}
+
+        <div className="mt-6 flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="rounded-lg px-3 py-2 text-sm text-slate-500 hover:text-slate-700">
+            취소
+          </button>
+          <button
+            type="button"
+            onClick={save}
+            disabled={pending}
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+          >
+            {pending ? '저장 중…' : '저장'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// 정보 변경 모달 — 상단 이름 칩으로 활성 인원을 바꿔 각자 수정, 하단에서 일괄 삭제.
 function ManageModal({
   roleLabel,
   users,
@@ -497,13 +618,37 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 // 칩 목록 셀 — 참여 사업/참여 분과 등. 빈 경우 안내 라벨.
-function ChipCell({ chips, emptyLabel }: { chips: { label: string; href?: string }[]; emptyLabel: string }) {
+// 칩 목록 셀. onSet이 있으면 '설정' 버튼으로 배정 모달을 연다.
+// (버튼은 stopPropagation으로 행 체크박스 토글을 막는다.)
+function ChipCell({
+  chips,
+  emptyLabel,
+  onSet,
+}: {
+  chips: { label: string; href?: string }[]
+  emptyLabel: string
+  onSet?: () => void
+}) {
+  // 행 선택 토글을 막고 배정 모달 열기
+  const setBtn = onSet ? (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation()
+        onSet()
+      }}
+      className="inline-flex items-center rounded-md border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-600 transition hover:bg-indigo-100"
+    >
+      설정
+    </button>
+  ) : null
+
   return (
     <td className="px-4 py-2.5">
       {chips.length === 0 ? (
-        <span className="text-xs text-slate-400">{emptyLabel}</span>
+        <span className="flex justify-center">{setBtn ?? <span className="text-xs text-slate-400">{emptyLabel}</span>}</span>
       ) : (
-        <span className="flex flex-wrap justify-center gap-1">
+        <span className="flex flex-wrap items-center justify-center gap-1">
           {chips.map((c, i) =>
             c.href ? (
               <Link
@@ -523,6 +668,7 @@ function ChipCell({ chips, emptyLabel }: { chips: { label: string; href?: string
               </span>
             ),
           )}
+          {setBtn}
         </span>
       )}
     </td>
