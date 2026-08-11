@@ -105,17 +105,15 @@ export default function ReviewWorkflowPanel({
 
       <div className="flex shrink-0 items-center gap-2">
         {!isMaster && (status === 'DRAFT' || status === 'REJECTED') && (
-          <button
-            type="button"
-            disabled={pending}
-            onClick={() => {
-              if (!confirm(t.submitConfirm)) return
-              run(() => onSubmit(sessionId))
-            }}
+          <ConfirmButton
+            label={status === 'REJECTED' ? t.resubmit : t.submit}
+            pending={pending}
+            title={isReview ? '검토 완료' : '제출'}
+            body={t.submitConfirm}
+            confirmLabel={isReview ? '검토 완료' : '제출'}
+            onConfirm={() => run(() => onSubmit(sessionId))}
             className="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50"
-          >
-            {pending ? '처리 중…' : status === 'REJECTED' ? t.resubmit : t.submit}
-          </button>
+          />
         )}
         {!isMaster && status === 'SUBMITTED' && (
           <button
@@ -134,23 +132,82 @@ export default function ReviewWorkflowPanel({
         {isMaster && (status === 'SUBMITTED' || status === 'APPROVED') && (
           <>
             {status === 'SUBMITTED' && (
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() => {
-                  if (!confirm('승인할까요?')) return
-                  run(() => onApprove(sessionId))
-                }}
+              <ConfirmButton
+                label="승인"
+                pending={pending}
+                title="승인"
+                body="이 분과의 평가를 승인할까요? 승인하면 집계 결과가 확정 단계로 넘어갑니다."
+                confirmLabel="승인"
+                onConfirm={() => run(() => onApprove(sessionId))}
                 className="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50"
-              >
-                {pending ? '처리 중…' : '승인'}
-              </button>
+              />
             )}
             <RejectButton pending={pending} run={run} onReject={(reason) => onReject(sessionId, reason)} />
           </>
         )}
       </div>
     </div>
+  )
+}
+
+// 확인 모달이 뜨는 승인/검토완료 버튼
+function ConfirmButton({
+  label,
+  pending,
+  title,
+  body,
+  confirmLabel,
+  onConfirm,
+  className,
+}: {
+  label: string
+  pending: boolean
+  title: string
+  body: string
+  confirmLabel: string
+  onConfirm: () => void
+  className: string
+}) {
+  const [open, setOpen] = useState(false)
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open])
+  return (
+    <>
+      <button type="button" disabled={pending} onClick={() => setOpen(true)} className={className}>
+        {pending ? '처리 중…' : label}
+      </button>
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-semibold text-slate-900">{title}</h3>
+              <button type="button" onClick={() => setOpen(false)} className="text-slate-400 transition hover:text-slate-600">✕</button>
+            </div>
+            <p className="mt-2 text-sm text-slate-500">{body}</p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" onClick={() => setOpen(false)} className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-600 transition hover:bg-slate-50">
+                취소
+              </button>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => {
+                  setOpen(false)
+                  onConfirm()
+                }}
+                className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 

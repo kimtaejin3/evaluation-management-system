@@ -2,7 +2,6 @@ import { Suspense } from 'react'
 import { getSessionProgress } from '@/lib/progress'
 import StatCard from '@/components/StatCard'
 import MonitoringList from '@/components/MonitoringList'
-import ReviewTable from '@/components/ReviewTable'
 import { SkeletonStats, SkeletonTable } from '@/components/Skeletons'
 
 export default async function ProgressPage({ params }: { params: Promise<{ id: string }> }) {
@@ -32,7 +31,6 @@ async function ProgressContent({ id }: { id: string }) {
         <StatCard label="평가 항목" value={`${p.totalCriteria}개`} />
       </div>
       <MonitoringList data={p} sessionId={id} />
-      <ReviewTable sessionId={id} rows={p.review} />
     </div>
   )
 }

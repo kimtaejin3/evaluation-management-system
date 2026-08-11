@@ -44,8 +44,6 @@ export default function MonitoringList({ data, sessionId }: { data: ProgressData
             const rows = evRowsAt(si)
             const total = rows.length
             const inputCount = rows.filter((r) => isSubmitted(r.cell.status)).length
-            const notInput = total - inputCount
-            const submittedCount = rows.filter((r) => r.cell.status === 'submitted').length // 미승인
             const pct = total > 0 ? Math.round((inputCount / total) * 100) : 0
             const allDone = total > 0 && inputCount === total
             return (
@@ -59,17 +57,7 @@ export default function MonitoringList({ data, sessionId }: { data: ProgressData
                   </div>
                   <span className="whitespace-nowrap text-sm font-semibold tabular-nums text-slate-700">{inputCount}/{total}</span>
                 </div>
-                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
-                  {inputCount > 0 && (
-                    <span className="whitespace-nowrap rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">입력 {inputCount}</span>
-                  )}
-                  {notInput > 0 && (
-                    <span className="whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">미입력 {notInput}</span>
-                  )}
-                  {submittedCount > 0 && (
-                    <span className="whitespace-nowrap rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700">미승인 {submittedCount}</span>
-                  )}
-                </div>
+                <div className="min-w-0 flex-1" />
                 <Link
                   href={`/admin/sessions/${sessionId}/opinions`}
                   className="text-sm font-medium text-slate-600 transition hover:text-indigo-700 hover:underline"

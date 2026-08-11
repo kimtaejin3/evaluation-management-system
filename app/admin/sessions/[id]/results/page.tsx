@@ -49,11 +49,14 @@ async function ResultsContent({ id }: { id: string }) {
     prisma.score.findMany({ where: { sessionId: id } }),
     prisma.assignment.findMany({ where: { sessionId: id }, include: { user: { select: { id: true, name: true } } } }),
     getSessionInsights(id),
-    prisma.submission.findMany({ where: { sessionId: id, status: "APPROVED" }, select: { evaluatorId: true, subjectId: true } }),
+    prisma.submission.findMany({ where: { sessionId: id, status: { in: ["SUBMITTED", "APPROVED"] } }, select: { evaluatorId: true, subjectId: true } }),
   ]);
 
-  // 집계는 승인(APPROVED)된 (위원, 대상)의 점수만 사용
-  const approved = new Set(approvedSubs.map((s) => `${s.evaluatorId}:${s.subjectId}`));
+  // 담당자가 '평가 의견서'에서 검토 완료(opinionStatus=SUBMITTED/APPROVED)해야 집계에 점수가 뜬다.
+  const opinionStatus = session?.opinionStatus ?? "DRAFT";
+  const reviewDone = opinionStatus === "SUBMITTED" || opinionStatus === "APPROVED";
+  // 검토 완료 시 제출된 (위원, 대상)의 점수만 사용. 검토 전이면 집계 결과에 점수를 감춘다.
+  const approved = reviewDone ? new Set(approvedSubs.map((s) => `${s.evaluatorId}:${s.subjectId}`)) : new Set<string>();
   const approvedScores = scores.filter((s) => approved.has(`${s.evaluatorId}:${s.subjectId}`));
 
   const finalScores = computeFinalScores(
@@ -104,6 +107,13 @@ async function ResultsContent({ id }: { id: string }) {
 
   return (
     <div className="space-y-5">
+      {/* 검토 전 안내 — 담당자가 평가 의견서 검토를 완료해야 점수가 집계된다('집계 결과' 제목 아래) */}
+      {!reviewDone && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 print:hidden">
+          담당자가 <b>평가 의견서</b>에서 검토를 완료하면 집계 결과에 점수가 표시됩니다. (현재 검토 전)
+        </div>
+      )}
+
       {/* 화면 전용 컨트롤 — 엑셀 내보내기 + 인쇄(선정 결과 인쇄 도구) */}
       <div className="flex items-center justify-end gap-2 print:hidden">
         <ExcelExportButton href={`/api/sessions/${id}/export/results`} />
