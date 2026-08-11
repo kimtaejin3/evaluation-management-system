@@ -18,7 +18,8 @@ function buildChairSteps(data: ChairSubjectData, opinion: string) {
     status: data.chairSubmissionStatus,
     scored: chair?.state === 'complete',
     opinionWritten: opinion.trim().length > 0,
-    sessionClosed: data.lockReason === 'closed',
+    secretaryReviewed: data.secretaryReviewed,
+    masterApproved: data.masterApproved,
   })
   return stepsFromFlags(CHAIR_REVIEW_STAGE_LABELS, flags)
 }

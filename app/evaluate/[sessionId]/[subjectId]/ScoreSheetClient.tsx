@@ -125,6 +125,8 @@ export default function ScoreSheetClient({
       otherScores={data.otherScores}
       otherPending={data.otherPending}
       submissionStatus={data.submissionStatus}
+      secretaryReviewed={data.secretaryReviewed}
+      masterApproved={data.masterApproved}
       initialStep={stepFor}
       onSelectSubject={handleSelect}
       onDirty={() => cache.current.delete(cur)}

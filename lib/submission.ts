@@ -43,49 +43,52 @@ export const REVIEW_STAGE_LABELS = [
   '관리자 검토 완료',
 ] as const
 
-// 평가위원장 화면 상단 진행 스텝 — 평가의견 작성 → 종합의견 작성 → 제출 → 담당자 검토 → 관리자 검토(최종)
+// 평가위원장 화면 상단 진행 스텝 — 평가의견 작성 → 위원장 종합의견 작성 → 제출 → 담당자 검토 → 관리자 검토(최종)
 export const CHAIR_REVIEW_STAGE_LABELS = [
   '평가의견 작성',
-  '종합의견 작성',
+  '위원장 종합의견 작성',
   '제출',
   '담당자 검토 완료',
   '관리자 검토 완료',
 ] as const
 
 // 위원장 진행 5단계 완료 플래그 — 평가의견 작성 · 종합의견 작성 · 제출 · 담당자 검토 · 관리자 검토.
-// 위원장은 점수 입력 후 종합의견을 쓰고 제출하므로 단계가 선형이 아니라 조건별로 판정한다.
+// 담당자 검토/관리자 검토는 분과 단위 '평가 의견서' 검토 상태(opinionStatus)로 판정한다.
+//   secretaryReviewed = 담당자 검토 완료(opinionStatus SUBMITTED/APPROVED)
+//   masterApproved     = 관리자 승인(opinionStatus APPROVED)
 export function chairReviewFlags(opts: {
   status: SubmissionStatus | null
   scored: boolean
   opinionWritten: boolean
-  sessionClosed: boolean
+  secretaryReviewed: boolean
+  masterApproved: boolean
 }): boolean[] {
   const submitted = opts.status === 'SUBMITTED' || opts.status === 'APPROVED'
-  const approved = opts.status === 'APPROVED'
   return [
     opts.scored || submitted, // 1 평가의견 작성
     opts.opinionWritten, // 2 종합의견 작성
     submitted, // 3 제출
-    approved, // 4 담당자 검토 완료
-    opts.sessionClosed && approved, // 5 관리자 검토 완료
+    submitted && opts.secretaryReviewed, // 4 담당자 검토 완료
+    submitted && opts.masterApproved, // 5 관리자 검토 완료
   ]
 }
 
 // 평가위원 진행 5단계 완료 플래그 — 평가의견 작성 · 제출 · 위원장 검토 · 담당자 검토 · 관리자 검토.
-// 위원장 검토(chairConfirmed)는 담당자 승인과 독립으로 판정한다(승인됐다고 위원장 검토를 자동 완료로 보지 않음).
+// 위원장 검토(chairConfirmed)는 담당자 검토와 독립으로 판정한다.
+// 담당자/관리자 검토는 분과 단위 '평가 의견서' 검토 상태(opinionStatus)로 판정한다.
 export function reviewFlags(opts: {
   status: SubmissionStatus | null
   scored: boolean
   chairConfirmed: boolean
-  sessionClosed: boolean
+  secretaryReviewed: boolean
+  masterApproved: boolean
 }): boolean[] {
   const submitted = opts.status === 'SUBMITTED' || opts.status === 'APPROVED'
-  const approved = opts.status === 'APPROVED'
   return [
     opts.scored || submitted, // 평가의견 작성
     submitted, // 제출
     opts.chairConfirmed, // 위원장 검토 완료
-    approved, // 담당자 검토 완료
-    opts.sessionClosed && approved, // 관리자 검토 완료
+    submitted && opts.secretaryReviewed, // 담당자 검토 완료
+    submitted && opts.masterApproved, // 관리자 검토 완료
   ]
 }

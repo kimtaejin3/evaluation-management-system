@@ -38,6 +38,9 @@ export interface SheetData {
   otherScores: Record<string, { name: string; value: number }[]>
   otherPending: Record<string, string[]>
   submissionStatus: import('./submission').SubmissionStatus | null
+  // 담당자 검토 완료(opinionStatus SUBMITTED/APPROVED) · 관리자 승인(APPROVED)
+  secretaryReviewed: boolean
+  masterApproved: boolean
   // 상단 진행 스텝 완료 플래그(5): 평가의견 작성·제출·위원장 검토·담당자 검토·관리자 검토(최종)
   reviewFlags: boolean[]
 }
@@ -127,11 +130,15 @@ export async function getSheetData(
     otherScores,
     otherPending,
     submissionStatus: submission?.status ?? null,
+    // 담당자 검토/관리자 검토 스텝은 분과 단위 '평가 의견서' 검토 상태로 판정
+    secretaryReviewed: session.opinionStatus === 'SUBMITTED' || session.opinionStatus === 'APPROVED',
+    masterApproved: session.opinionStatus === 'APPROVED',
     reviewFlags: reviewFlags({
       status: submission?.status ?? null,
       scored: totalUnits > 0 && byUnit.size >= totalUnits,
       chairConfirmed: submission?.chairConfirmedAt != null,
-      sessionClosed: session.status === 'CLOSED',
+      secretaryReviewed: session.opinionStatus === 'SUBMITTED' || session.opinionStatus === 'APPROVED',
+      masterApproved: session.opinionStatus === 'APPROVED',
     }),
   }
 }
@@ -309,6 +316,9 @@ export interface ChairSubjectData {
   locked: boolean
   /** 읽기 전용 사유 — 'closed'(분과 마감) | 'opinionReviewed'(의견서 제출/승인) */
   lockReason: 'closed' | 'opinionReviewed' | null
+  /** 담당자 검토 완료(opinionStatus SUBMITTED/APPROVED) · 관리자 승인(APPROVED) — 진행 스텝용 */
+  secretaryReviewed: boolean
+  masterApproved: boolean
   prevSubjectId: string | null
   nextSubjectId: string | null
 }
@@ -396,6 +406,8 @@ export async function getChairSubjectData(
     subjectName: subject.name,
     locked: lockReason !== null,
     lockReason,
+    secretaryReviewed: opinionReviewed,
+    masterApproved: session.opinionStatus === 'APPROVED',
     chairOpinion: chairOpinionRow?.text ?? '',
     ...neighborSubjects(subjects.map((s) => s.id), subjectId),
     evaluators: ordered.map((a) => {

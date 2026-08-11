@@ -47,6 +47,8 @@ export default function ScoreForm({
   groupComments = {},
   subjects = [],
   submissionStatus = null,
+  secretaryReviewed = false,
+  masterApproved = false,
   onSelectSubject,
   onDirty,
 }: {
@@ -69,6 +71,8 @@ export default function ScoreForm({
   otherScores?: Record<string, { name: string; value: number }[]>;
   otherPending?: Record<string, string[]>;
   submissionStatus?: "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED" | null;
+  secretaryReviewed?: boolean;
+  masterApproved?: boolean;
   // CSR 모드 호환(현재 미사용)
   initialStep?: string;
   // CSR 모드: 대상 전환을 라우트 이동 없이 처리
@@ -202,7 +206,7 @@ export default function ScoreForm({
   const reviewSteps = isChair
     ? stepsFromFlags(
         CHAIR_REVIEW_STAGE_LABELS,
-        chairReviewFlags({ status: submissionStatus, scored: allFilled, opinionWritten: chairOpinionWritten, sessionClosed: false }),
+        chairReviewFlags({ status: submissionStatus, scored: allFilled, opinionWritten: chairOpinionWritten, secretaryReviewed, masterApproved }),
       )
     : evalSteps;
 
@@ -490,9 +494,7 @@ export default function ScoreForm({
                 <tr className="border-t border-slate-200 bg-slate-50/60">
                   <td colSpan={5} className="px-3 py-3">
                     <div className="mb-1.5 flex items-center justify-between">
-                      <span className="text-sm font-semibold text-slate-700">
-                        {isChair ? "위원장 종합의견" : "평가위원 종합의견"}
-                      </span>
+                      <span className="text-sm font-semibold text-slate-700">평가위원 종합의견</span>
                       <span className="text-xs text-slate-400">{comment.length} / 1000</span>
                     </div>
                     <textarea
@@ -504,7 +506,7 @@ export default function ScoreForm({
                       rows={4}
                       placeholder={
                         isChair
-                          ? "위원별 평가를 참고해 이 대상에 대한 위원장 종합의견을 입력하세요. (제출 전 필수)"
+                          ? "이 대상에 대한 종합의견을 입력하세요. (제출 전 필수)"
                           : "대상에 대한 종합적인 평가 의견을 입력하세요. (선택)"
                       }
                       className="w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-50"
