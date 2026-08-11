@@ -110,7 +110,7 @@ async function ResultsContent({ id }: { id: string }) {
       {/* 검토 전 안내 — 담당자가 평가 의견서 검토를 완료해야 점수가 집계된다('집계 결과' 제목 아래) */}
       {!reviewDone && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 print:hidden">
-          담당자가 <b>평가 의견서</b>에서 검토를 완료하면 집계 결과에 점수가 표시됩니다. (현재 검토 전)
+          <b>평가 의견서</b>에서 검토를 완료하면 집계 결과에 점수가 표시됩니다. (현재 검토 전)
         </div>
       )}
 
