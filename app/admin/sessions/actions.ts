@@ -986,7 +986,11 @@ export async function submitSessionForReview(sessionId: string): Promise<{ ok: b
   if (user.role === 'MASTER') return { ok: false, error: '담당자만 제출할 수 있습니다.' }
   // 위원장 검토 완료 게이트 — 위원(위원장 제외)이 제출한 평가 중 위원장이 아직 검토(확인)하지 않은
   // 건이 있으면 제출 불가. 개별 위원의 미제출(예: 박심사)은 막지 않는다(검토할 게 없으므로).
-  const session = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { chairId: true } })
+  const session = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { chairId: true, opinionStatus: true } })
+  // 평가 의견서 검토 완료 전에는 집계 점수가 확정되지 않으므로 분과 제출 불가
+  if (session && session.opinionStatus !== 'SUBMITTED' && session.opinionStatus !== 'APPROVED') {
+    return { ok: false, error: '평가 의견서 검토 완료 후 제출할 수 있습니다.' }
+  }
   const pending = await prisma.submission.count({
     where: {
       sessionId,
@@ -1025,8 +1029,12 @@ export async function cancelSubmitSessionForReview(sessionId: string) {
 // eventDate 마감 가드(canCloseSession)는 의도적으로 건너뛴다(스펙상 검토 완료엔 사전 마감조건 없음).
 export async function completeReview(sessionId: string) {
   await assertMaster()
-  const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { submittedForReviewAt: true } })
+  const s = await prisma.evaluationSession.findUnique({
+    where: { id: sessionId },
+    select: { submittedForReviewAt: true, opinionStatus: true },
+  })
   if (!s || s.submittedForReviewAt == null) return // 담당자 제출 전에는 검토 완료 불가
+  if (s.opinionStatus !== 'APPROVED') return // 평가 의견서 승인 전에는 분과 마감 불가
   await prisma.evaluationSession.update({ where: { id: sessionId }, data: { status: 'CLOSED' } })
   revalidatePath(`/admin/sessions/${sessionId}`)
   revalidatePath(`/admin/sessions/${sessionId}/results`)
@@ -1109,11 +1117,44 @@ export async function rejectSubjectReview(sessionId: string, reason: string) {
 }
 
 // ── 평가 의견서 검토 워크플로: 담당자 제출 → 관리자 승인/반려 (세션 단위) ──
+// 담당자 '검토 완료' 사전 조건 — 위원장 검토가 끝나야 담당자가 검토를 완료할 수 있다.
+//   · 위원장이 지정되어 있어야 함
+//   · 위원(위원장 제외)이 제출한 평가 중 위원장 미확인(chairConfirmedAt null) 건이 없어야 함
+//   · 위원장 본인이 모든 대상에 대해 제출(위원장 종합의견 포함)했어야 함
+// (미제출 위원 자체는 막지 않는다 — 분과 제출 게이트와 동일한 원칙)
+export async function opinionReviewBlockers(sessionId: string): Promise<string[]> {
+  const session = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { chairId: true } })
+  const blockers: string[] = []
+  if (!session) return ['분과를 찾을 수 없습니다.']
+  if (!session.chairId) {
+    blockers.push('위원장이 지정되지 않았습니다. 평가위원 현황에서 위원장을 지정하세요.')
+    return blockers
+  }
+  const [unconfirmed, subjectCount, chairSubmitted, chairOpinions] = await Promise.all([
+    prisma.submission.count({
+      where: { sessionId, status: 'SUBMITTED', chairConfirmedAt: null, evaluatorId: { not: session.chairId } },
+    }),
+    prisma.subject.count({ where: { sessionId } }),
+    prisma.submission.count({
+      where: { sessionId, evaluatorId: session.chairId, status: { in: ['SUBMITTED', 'APPROVED'] } },
+    }),
+    prisma.opinion.count({ where: { sessionId, evaluatorId: session.chairId, text: { not: '' } } }),
+  ])
+  if (unconfirmed > 0) blockers.push(`위원장이 확인하지 않은 위원 평가가 ${unconfirmed}건 있습니다.`)
+  if (subjectCount > 0 && chairSubmitted < subjectCount)
+    blockers.push(`위원장 본인 평가 제출이 ${subjectCount - chairSubmitted}건 남았습니다.`)
+  if (subjectCount > 0 && chairOpinions < subjectCount)
+    blockers.push(`위원장 종합의견이 ${subjectCount - chairOpinions}건 비어 있습니다.`)
+  return blockers
+}
+
 export async function submitOpinions(sessionId: string) {
   const { user } = await assertSessionAccess(sessionId)
   if (user.role === 'MASTER') return
   const count = await prisma.opinion.count({ where: { sessionId, text: { not: '' } } })
   if (count === 0) return
+  // 위원장 검토가 끝나지 않은 분과는 검토 완료 불가(비정상 흐름 차단) — 사유는 화면 라벨로 안내
+  if ((await opinionReviewBlockers(sessionId)).length > 0) return
   await prisma.evaluationSession.update({
     where: { id: sessionId },
     data: { opinionStatus: 'SUBMITTED', opinionRejectionReason: null },
@@ -1148,9 +1189,10 @@ export async function rejectOpinions(sessionId: string, reason: string) {
   await assertMaster()
   const trimmed = (reason ?? '').trim()
   if (!trimmed) return
-  // 승인(APPROVED) 이후에도 반려 가능.
-  const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { opinionStatus: true } })
-  if (!s || (s.opinionStatus !== 'SUBMITTED' && s.opinionStatus !== 'APPROVED')) return
+  // 승인(APPROVED) 이후에도 반려 가능. 단 마감(CLOSED)된 분과는 상태를 되돌릴 수 없다.
+  const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { opinionStatus: true, status: true } })
+  if (!s || s.status === 'CLOSED') return
+  if (s.opinionStatus !== 'SUBMITTED' && s.opinionStatus !== 'APPROVED') return
   await prisma.evaluationSession.update({
     where: { id: sessionId },
     data: { opinionStatus: 'REJECTED', opinionRejectionReason: trimmed },

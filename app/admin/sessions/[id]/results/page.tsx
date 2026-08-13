@@ -212,6 +212,17 @@ async function ResultsContent({ id }: { id: string }) {
               ? "담당자가 제출 완료한 분과를 검토하면 ‘완료’ 상태가 되고 점수가 잠깁니다."
               : "집계 결과를 확인한 뒤 제출 완료하면 관리자가 검토합니다."}
           </p>
+          {/* 순서 미충족 주의 라벨 — 서버 액션에서도 동일 조건으로 차단됨 */}
+          {session?.status !== "CLOSED" && !reviewDone && (
+            <p className="mt-1 text-xs font-medium text-amber-600">
+              ⚠ 평가 의견서 검토 완료 전에는 {me.role === "MASTER" ? "분과 검토를 완료할" : "제출할"} 수 없습니다.
+            </p>
+          )}
+          {me.role === "MASTER" && session?.status !== "CLOSED" && reviewDone && opinionStatus !== "APPROVED" && (
+            <p className="mt-1 text-xs font-medium text-amber-600">
+              ⚠ 평가 의견서를 승인해야 분과 검토를 완료할 수 있습니다.
+            </p>
+          )}
         </div>
         {me.role === "MASTER" ? (
           <CompleteReviewButton

@@ -12,6 +12,7 @@ import {
   cancelSubmitOpinions,
   approveOpinions,
   rejectOpinions,
+  opinionReviewBlockers,
 } from "../../actions";
 import OpinionViewer from "./OpinionViewer";
 import OpinionDetailButton from "@/components/OpinionDetailButton";
@@ -115,6 +116,9 @@ async function OpinionsContent({ id }: { id: string }) {
   // 담당자 제출(SUBMITTED) 이후에만 관리자가 의견서를 볼 수 있다.
   const adminCanView = os === "SUBMITTED" || os === "APPROVED";
   const adminBlocked = isMaster && !locked && !adminCanView;
+  // 검토 완료 전이라면 위원장 검토 미완료 사유를 조회해 라벨로 안내(검토 완료는 서버에서도 차단됨)
+  const blockers =
+    !locked && (os === "DRAFT" || os === "REJECTED") ? await opinionReviewBlockers(id) : [];
 
   return (
     <div className="space-y-4">
@@ -138,6 +142,18 @@ async function OpinionsContent({ id }: { id: string }) {
           onApprove={approveOpinions}
           onReject={rejectOpinions}
         />
+      )}
+
+      {/* 위원장 검토 미완료 안내 — 아래 조건이 해소되어야 검토 완료가 가능하다(서버에서도 차단) */}
+      {blockers.length > 0 && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+          <p className="font-medium">위원장 검토가 끝나야 검토 완료할 수 있습니다.</p>
+          <ul className="mt-1 list-inside list-disc space-y-0.5 text-xs">
+            {blockers.map((b) => (
+              <li key={b}>{b}</li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {adminBlocked ? null : evaluators.length === 0 ? (

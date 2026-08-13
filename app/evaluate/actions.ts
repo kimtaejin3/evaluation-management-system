@@ -89,10 +89,14 @@ export async function submitChairEvaluation(
   if (!user) return { ok: false, error: 'auth' }
   const session = await prisma.evaluationSession.findUnique({
     where: { id: sessionId },
-    select: { chairId: true, status: true, projectId: true },
+    select: { chairId: true, status: true, projectId: true, opinionStatus: true },
   })
   if (!session || session.chairId !== user.id) return { ok: false, error: '위원장만 제출할 수 있습니다.' }
   if (session.status !== 'IN_PROGRESS') return { ok: false, error: '진행 중인 심사에서만 제출할 수 있습니다.' }
+  // 담당자 검토 시작 후 신규 제출 차단(saveChairOpinion과 동일 규칙)
+  if (session.opinionStatus === 'SUBMITTED' || session.opinionStatus === 'APPROVED') {
+    return { ok: false, error: '담당자 검토가 진행 중이라 제출할 수 없습니다. 담당자에게 문의하세요.' }
+  }
 
   const assigned = await prisma.assignment.findUnique({
     where: { sessionId_userId: { sessionId, userId: user.id } },
@@ -276,6 +280,12 @@ export async function saveScores(
     return { error: '진행 중인 심사에서만 입력할 수 있습니다.' }
   }
 
+  // 담당자가 의견서 검토를 완료(SUBMITTED)/관리자 승인(APPROVED)한 뒤의 신규 제출은 차단 —
+  // 검토된 집계와 어긋나는 비정상 흐름 방지. 담당자가 검토 완료를 취소하면 다시 제출할 수 있다.
+  if (intent === 'submit' && (session.opinionStatus === 'SUBMITTED' || session.opinionStatus === 'APPROVED')) {
+    return { error: '담당자 검토가 진행 중이라 제출할 수 없습니다. 담당자에게 문의하세요.' }
+  }
+
   const assigned = await prisma.assignment.findUnique({
     where: { sessionId_userId: { sessionId, userId: user.id } },
     select: { status: true },
@@ -387,10 +397,14 @@ export async function confirmEvaluation(
   if (!user) return { ok: false, error: 'auth' }
   const session = await prisma.evaluationSession.findUnique({
     where: { id: sessionId },
-    select: { chairId: true, status: true },
+    select: { chairId: true, status: true, opinionStatus: true },
   })
   if (!session || session.chairId !== user.id) return { ok: false, error: '위원장만 확인할 수 있습니다.' }
   if (session.status !== 'IN_PROGRESS') return { ok: false, error: '진행 중인 심사에서만 확인할 수 있습니다.' }
+  // 담당자 검토 시작 후에는 확인 상태를 바꿀 수 없다(검토된 내용과의 불일치 방지)
+  if (session.opinionStatus === 'SUBMITTED' || session.opinionStatus === 'APPROVED') {
+    return { ok: false, error: '담당자 검토가 진행 중이라 변경할 수 없습니다.' }
+  }
   if (evaluatorId === user.id) return { ok: false, error: '본인 평가는 확인 대상이 아닙니다.' }
 
   // 제출한 평가만 확인 대상 — 대상이 이 분과 소속인지도 함께 검증된다
