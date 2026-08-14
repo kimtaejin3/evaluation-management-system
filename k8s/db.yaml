@@ -1,0 +1,94 @@
+# 평가시스템 DB — 클러스터 내 Postgres.
+#
+# kiops-vendor(vendor-db) 방식을 따른다: DB 는 Deployment 가 아니라 **StatefulSet**.
+# Deployment 의 롤링 업데이트는 새 pod 를 먼저 띄워 옛 pod 와 겹치는 구간이 생기고,
+# 같은 데이터 디렉터리에 프로세스 둘이 붙으면 깨진다. StatefulSet 은 하나씩 처리해
+# 그 구간이 없고, volumeClaimTemplates 로 pod 와 디스크가 1:1 로 붙는다.
+#
+# 사전 작업(최초 1회, 103 에서) — 비밀번호는 git 에 두지 않는다:
+#   kubectl -n ems create secret generic ems-db-secret \
+#     --from-literal=POSTGRES_USER=ems \
+#     --from-literal=POSTGRES_PASSWORD='<강한 비밀번호>' \
+#     --from-literal=POSTGRES_DB=ems
+#
+# ⚠️ 이미지 태그는 반드시 고정한다 — lineworld DB 의 `mariadb`(무태그=latest) 전례:
+#    재생성 시 메이저가 튀고, 한 번 올라간 데이터 디렉터리는 다운그레이드가 안 된다.
+apiVersion: v1
+kind: Service
+metadata:
+  name: ems-db
+  namespace: ems
+  labels:
+    app: ems-db
+spec:
+  type: ClusterIP
+  selector:
+    app: ems-db
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+      protocol: TCP
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ems-db
+  namespace: ems
+  labels:
+    app: ems-db
+spec:
+  serviceName: ems-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ems-db
+  template:
+    metadata:
+      labels:
+        app: ems-db
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16.9-alpine
+          ports:
+            - containerPort: 5432
+              name: postgres
+          envFrom:
+            - secretRef:
+                name: ems-db-secret
+          env:
+            # 볼륨 루트에 lost+found 등이 있으면 initdb 가 거부한다 → 하위 디렉터리 사용
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "ems", "-d", "ems"]
+            periodSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "ems", "-d", "ems"]
+            periodSeconds: 10
+            failureThreshold: 3
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        # storageClassName 미지정 = 클러스터 기본 StorageClass 사용.
+        # 배포 전 103 에서 `kubectl get sc` 로 기본(default) SC 존재를 확인하고,
+        # 없으면 NFS 기반 SC 이름을 여기에 명시할 것 (예: nfs-client).
+        resources:
+          requests:
+            storage: 8Gi

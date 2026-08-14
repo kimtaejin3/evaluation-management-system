@@ -1,0 +1,16 @@
+# 비밀값 — 이미지에 절대 넣지 않는다 (env 는 k8s Secret 으로 런타임 주입)
+.env
+.env.*
+!.env.example
+
+node_modules
+.next
+.git
+storage
+screenshots
+test-results
+e2e
+docs
+*.md
+Dockerfile
+k8s

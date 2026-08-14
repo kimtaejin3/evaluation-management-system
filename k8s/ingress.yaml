@@ -1,0 +1,26 @@
+# 외부 노출 — https://eval.mipllab.com (와일드카드 *.mipllab.com).
+# 신규 서브도메인이 38번 리버스 프록시를 그대로 통과하는지 배포 전에 확인할 것
+# (와일드카드로 다 넘기는지, server 블록 추가가 필요한지).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ems-ingress
+  namespace: ems
+  annotations:
+    # Server Action 업로드 여유(next.config bodySizeLimit 4mb 보다 크게)
+    nginx.ingress.kubernetes.io/proxy-body-size: "20m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: eval.mipllab.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ems-service
+                port:
+                  number: 80
