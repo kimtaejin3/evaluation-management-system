@@ -17,8 +17,19 @@ Vercel 배포는 그대로 유지하고, 사내 쿠버네티스에 **독립 데�
 ssh lw@210.217.121.39 -p 5022
 ssh tomcat@192.168.0.103
 
-kubectl get sc                    # 기본 StorageClass 있는지 — 없으면 db.yaml 에 이름 명시
+kubectl get sc                    # nfs-default-storageclass 가 동적 프로비저너인지 확인
 kubectl get ns ems                # 네임스페이스 (KIOPS 가 만들어 주지 않으면 create)
+```
+
+**스토리지**: csms 는 동적 프로비저닝이 아니라 **수동 PV**(NFS 경로 직접 지정) 방식이었다.
+`kubectl get sc` 에 프로비저너가 없으면(또는 배포 후 PVC 가 Pending 이면):
+
+```bash
+# 볼륨서버 100 에서 데이터 디렉터리 생성 (최초 1회)
+ssh tomcat@192.168.0.100 'mkdir -p /data1/nfs-cluster-vol/dev/ems-db'
+
+# 103 에서 PV 적용 (최초 1회) — k8s/db-pv.yaml 내용 그대로
+kubectl apply -f db-pv.yaml
 ```
 
 - R2 egress: 워커 노드에서 외부 https 나가는지 (`curl -sI https://cloudflare.com` 정도)

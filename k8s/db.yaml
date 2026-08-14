@@ -86,9 +86,9 @@ spec:
         name: data
       spec:
         accessModes: ["ReadWriteOnce"]
-        # storageClassName 미지정 = 클러스터 기본 StorageClass 사용.
-        # 배포 전 103 에서 `kubectl get sc` 로 기본(default) SC 존재를 확인하고,
-        # 없으면 NFS 기반 SC 이름을 여기에 명시할 것 (예: nfs-client).
+        # csms(pvc-8g-evc-csms-b)와 같은 SC 이름. 동적 프로비저너가 없다면
+        # 수동 PV(db-pv.yaml, 1회성)를 먼저 적용해야 Bound 된다 — 그 파일 참고.
+        storageClassName: nfs-default-storageclass
         resources:
           requests:
             storage: 8Gi

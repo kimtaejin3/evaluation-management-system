@@ -1,0 +1,37 @@
+# DB 데이터용 PV — **1회성 수동 자원. 파이프라인(KIOPS)이 적용하는 파일이 아니다.**
+#
+# csms 의 pvc-8g-evc-csms-b 와 같은 방식: 이 클러스터는 동적 프로비저너가 확인되지
+# 않아, NFS(볼륨서버 100) 경로를 박은 PV 를 손으로 만들어 두고 PVC 가 붙는다.
+# db.yaml 의 volumeClaimTemplates(data-ems-db-0)가 storageClassName 으로 매칭된다.
+#
+# 적용 전 준비(볼륨서버 100 에서, 최초 1회):
+#   ssh tomcat@192.168.0.100
+#   mkdir -p /data1/nfs-cluster-vol/dev/ems-db
+#
+# 적용(103 에서, 최초 1회):
+#   kubectl apply -f <이 파일>   # scp 로 옮기거나 heredoc 으로 붙여넣기
+#
+# ⚠️ 배포 전 `kubectl get sc` 로 nfs-default-storageclass 가 동적 프로비저너를
+#    가진 진짜 SC 인지 확인 — 프로비저너가 있으면 이 PV 없이도 PVC 가 Bound 되므로
+#    이 파일은 건너뛴다. PVC 가 Pending 이면 이 PV 를 적용한다.
+#
+# csms 의 교훈으로 reclaimPolicy 는 **Retain** — Delete 로 두면 PVC 를 지울 때
+# NFS 의 DB 데이터까지 사라질 수 있다.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-8g-ems-db
+spec:
+  capacity:
+    storage: 8Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-default-storageclass
+  mountOptions:
+    - hard
+    - nfsvers=4.1
+  nfs:
+    path: /data1/nfs-cluster-vol/dev/ems-db
+    server: 192.168.0.100
