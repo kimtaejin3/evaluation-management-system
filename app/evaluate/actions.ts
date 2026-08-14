@@ -113,6 +113,26 @@ export async function submitChairEvaluation(
   })
   if (!canEvaluatorEdit(existing?.status ?? null)) return { ok: false, error: '이미 제출/승인되어 수정할 수 없습니다.' }
 
+  // 모든 배정 위원(위원장 제외)이 이 대상 평가를 제출해야 위원장이 제출할 수 있다.
+  // (위원장 검토·종합의견은 위원 평가를 종합하는 단계이므로 전원 제출이 선행 조건)
+  const [assignsAll, subsAll] = await Promise.all([
+    prisma.assignment.findMany({ where: { sessionId }, select: { userId: true, status: true } }),
+    prisma.submission.findMany({
+      where: { subjectId, status: { in: ['SUBMITTED', 'APPROVED'] } },
+      select: { evaluatorId: true },
+    }),
+  ])
+  const submittedIds = new Set(subsAll.map((s) => s.evaluatorId))
+  const pendingEvaluators = assignsAll.filter(
+    (a) => a.userId !== user.id && isAssignmentActive(a.status) && !submittedIds.has(a.userId),
+  )
+  if (pendingEvaluators.length > 0) {
+    return {
+      ok: false,
+      error: `아직 제출하지 않은 위원이 ${pendingEvaluators.length}명 있습니다. 모든 위원이 제출한 뒤 제출할 수 있습니다.`,
+    }
+  }
+
   const opinion = String(formData.get('opinion') ?? '').trim()
   if (!opinion) return { ok: false, error: '종합의견을 작성한 뒤 제출할 수 있습니다.' }
   const signature = String(formData.get('signature') ?? '')
