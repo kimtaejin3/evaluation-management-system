@@ -119,7 +119,17 @@ export default function ChairSubjectClient({
       const res = await submitChairEvaluation(sessionId, subjectId, fd)
       if (res?.ok) {
         setSubmitOpen(false)
-        setData((d) => (d ? { ...d, chairSubmissionStatus: 'SUBMITTED', chairOpinion: opinion } : d))
+        // 위원장 본인 행(제출 여부)까지 즉시 갱신 — 새로고침 전에도 '제출'로 보이게
+        setData((d) =>
+          d
+            ? {
+                ...d,
+                chairSubmissionStatus: 'SUBMITTED',
+                chairOpinion: opinion,
+                evaluators: d.evaluators.map((e) => (e.isChair ? { ...e, submitted: true, opinion } : e)),
+              }
+            : d,
+        )
       } else {
         setSubmitErr(res?.error ?? '제출에 실패했습니다.')
       }

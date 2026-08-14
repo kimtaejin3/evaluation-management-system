@@ -11,7 +11,8 @@ const gradeBadge =
 export interface RankSubject {
   id: string
   name: string
-  finalScore: number
+  // 점수 없는(검토 전) 대상은 null — 최종·등급을 '–'로 표시
+  finalScore: number | null
   rank: number | null
 }
 export interface RankCriterion {

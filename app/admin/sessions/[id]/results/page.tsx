@@ -86,7 +86,8 @@ async function ResultsContent({ id }: { id: string }) {
     ...ranked.map((r) => ({ id: r.subjectId, name: subjectName.get(r.subjectId) ?? "", finalScore: r.finalScore, rank: r.rank as number | null })),
     ...subjects
       .filter((s) => !rankInfo.has(s.id))
-      .map((s) => ({ id: s.id, name: s.name, finalScore: 0, rank: null as number | null })),
+      // 점수 없는(집계 전/검토 전) 대상은 최종·등급을 계산하지 않는다(0.00/D로 보이는 것 방지)
+      .map((s) => ({ id: s.id, name: s.name, finalScore: null as number | null, rank: null as number | null })),
   ];
   // 항목을 평가항목(그룹)별로 그룹핑 — 첫 행에 rowSpan
   const NO_GROUP = "미분류";
@@ -162,7 +163,7 @@ async function ResultsContent({ id }: { id: string }) {
         </div>
       ) : (
         <ResultsView
-          winners={winners.map((w) => ({ id: w.id, name: w.name, finalScore: w.finalScore }))}
+          winners={winners.map((w) => ({ id: w.id, name: w.name, finalScore: w.finalScore ?? 0 }))}
           subjects={orderedSubjects}
           criteria={orderedCriteria.map((c) => ({ id: c.unitId, code: itemCode.get(c.unitId) ?? "", name: c.label, weight: c.weight }))}
           evaluators={assignments.map((a) => ({ id: a.userId, name: a.user.name }))}
