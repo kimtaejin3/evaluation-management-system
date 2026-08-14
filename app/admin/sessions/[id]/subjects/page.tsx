@@ -97,6 +97,7 @@ async function SubjectsContent({ id }: { id: string }) {
           status={sr}
           rejectionReason={session?.subjectReviewRejectionReason ?? null}
           draftBadge="작성중"
+          approveConfirmBody="이 분과의 평가 대상 구성을 승인할까요? 승인하면 담당자 제출본이 확정됩니다."
           onSubmit={submitSubjectReview}
           onCancelSubmit={cancelSubmitSubjectReview}
           onApprove={approveSubjectReview}

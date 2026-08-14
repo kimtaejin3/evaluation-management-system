@@ -65,8 +65,10 @@ async function Content({ id }: { id: string }) {
     }),
   ]);
 
+  // 통합배점 세부항목은 sub.maxScore 하나로, 지표별 세부항목은 지표 합으로 계산
   const totalAll = groups.reduce(
-    (s, g) => s + g.subitems.reduce((s2, sub) => s2 + sub.criteria.reduce((s3, c) => s3 + c.maxScore, 0), 0),
+    (s, g) =>
+      s + g.subitems.reduce((s2, sub) => s2 + (sub.maxScore ?? sub.criteria.reduce((s3, c) => s3 + c.maxScore, 0)), 0),
     0,
   );
   const ackedCount = sessions.filter((s) => s.criteriaAckAt).length;

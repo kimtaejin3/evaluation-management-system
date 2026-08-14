@@ -42,7 +42,7 @@ async function OpinionsContent({ id }: { id: string }) {
   const isMaster = me.role === "MASTER";
   // 평가항목은 사업(Project) 단위 공통 — 채점 단위(지표별/통합) 기준으로 점수 계산
   const criteriaWhere = await criteriaScopeForSession(id);
-  const [session, assignments, subjects, opinions, units, scores, groupComments] = await Promise.all([
+  const [session, assignments, subjects, opinions, units, scores, groupComments, submissions] = await Promise.all([
     prisma.evaluationSession.findUnique({ where: { id } }),
     prisma.assignment.findMany({ where: { sessionId: id }, include: { user: { select: { id: true, name: true } } } }),
     prisma.subject.findMany({ where: { sessionId: id }, orderBy: { name: "asc" } }),
@@ -56,7 +56,13 @@ async function OpinionsContent({ id }: { id: string }) {
       where: { sessionId: id },
       select: { evaluatorId: true, subjectId: true, groupId: true, text: true },
     }),
+    // 총점 집계는 '제출된' 평가만 — 집계 결과와 같은 기준(자동 저장된 미제출 점수 제외)
+    prisma.submission.findMany({
+      where: { sessionId: id, status: { in: ["SUBMITTED", "APPROVED"] } },
+      select: { evaluatorId: true, subjectId: true },
+    }),
   ]);
+  const submittedSet = new Set(submissions.map((s) => `${s.evaluatorId}:${s.subjectId}`));
 
   // (위원:대상)별 총점 — 전 단위를 입력한 조합만 산출(그 외 null)
   const weights = units.map((u) => ({ id: u.unitId, weight: u.weight }));
@@ -68,6 +74,8 @@ async function OpinionsContent({ id }: { id: string }) {
     scoreRowsOf.get(k)!.push({ criterionId: scoreUnitId(sc), value: sc.value });
   }
   const totalOf = (evaluatorId: string, subjectId: string): number | null => {
+    // 제출된 평가만 총점에 포함(집계 결과와 동일 기준)
+    if (!submittedSet.has(`${evaluatorId}:${subjectId}`)) return null;
     const rows = scoreRowsOf.get(`${evaluatorId}:${subjectId}`) ?? [];
     return totalCriteria > 0 && rows.length >= totalCriteria ? computeWeightedScore(rows, weights) : null;
   };
@@ -137,6 +145,7 @@ async function OpinionsContent({ id }: { id: string }) {
           rejectionReason={session?.opinionRejectionReason ?? null}
           draftBadge="검토중"
           wording="review"
+          approveConfirmBody="이 분과의 평가 의견서를 승인할까요? 승인하면 집계 결과가 확정 단계로 넘어갑니다."
           onSubmit={submitOpinions}
           onCancelSubmit={cancelSubmitOpinions}
           onApprove={approveOpinions}

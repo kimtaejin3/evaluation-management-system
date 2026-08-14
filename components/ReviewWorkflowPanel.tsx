@@ -16,6 +16,7 @@ export default function ReviewWorkflowPanel({
   rejectionReason,
   draftBadge = '작성중',
   wording = 'submit',
+  approveConfirmBody = '이 분과의 평가를 승인할까요? 승인하면 집계 결과가 확정 단계로 넘어갑니다.',
   onSubmit,
   onCancelSubmit,
   onApprove,
@@ -27,6 +28,8 @@ export default function ReviewWorkflowPanel({
   rejectionReason: string | null
   draftBadge?: string
   wording?: 'submit' | 'review'
+  // 관리자 승인 확인 모달 본문 — 도메인(평가 대상/의견서 등)에 맞는 문구를 넘긴다
+  approveConfirmBody?: string
   onSubmit: (sessionId: string) => Promise<void>
   onCancelSubmit: (sessionId: string) => Promise<void>
   onApprove: (sessionId: string) => Promise<void>
@@ -136,7 +139,7 @@ export default function ReviewWorkflowPanel({
                 label="승인"
                 pending={pending}
                 title="승인"
-                body="이 분과의 평가를 승인할까요? 승인하면 집계 결과가 확정 단계로 넘어갑니다."
+                body={approveConfirmBody}
                 confirmLabel="승인"
                 onConfirm={() => run(() => onApprove(sessionId))}
                 className="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50"

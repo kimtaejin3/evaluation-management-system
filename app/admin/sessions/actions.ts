@@ -33,6 +33,7 @@ export async function createSession(formData: FormData) {
   const project = await prisma.project.findUnique({ where: { id: projectId }, select: { startDate: true, endDate: true } })
   if (project?.startDate && startDate < project.startDate) return
   if (project?.endDate && endDate > project.endDate) return
+  const secretaryId = user.role === 'SECRETARY' ? user.id : (String(formData.get('secretaryId') ?? '') || null)
   const session = await prisma.evaluationSession.create({
     data: {
       name,
@@ -43,9 +44,13 @@ export async function createSession(formData: FormData) {
       eventDate: endDate,
       projectId,
       // 담당자가 만들면 본인이 담당, 마스터가 만들면 폼의 secretaryId(선택)
-      secretaryId: user.role === 'SECRETARY' ? user.id : (String(formData.get('secretaryId') ?? '') || null),
+      secretaryId,
     },
   })
+  // 분과 담당자로 지정된 계정은 이 사업의 '참여 사업'에도 연결(사이드바·담당자 현황 일관성)
+  if (secretaryId) {
+    await prisma.project.update({ where: { id: projectId }, data: { secretaries: { connect: { id: secretaryId } } } })
+  }
   // 사이드바(담당자 분과 트리·사업 화면)까지 즉시 반영
   revalidatePath('/admin', 'layout')
   // 분과 생성 후 분과 상세로 튀지 않고, 방금 설정하던 사업 화면에 머문다(E2, 고객 요청).

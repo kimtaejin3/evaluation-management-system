@@ -72,6 +72,8 @@ export default function UserManagerTable({
   // 칩 셀의 '설정'으로 여는 개별 배정 모달 대상 사용자
   const [sessionUser, setSessionUser] = useState<ManagedUser | null>(null)
   const [projectUser, setProjectUser] = useState<ManagedUser | null>(null)
+  // 사업 설정 저장 직후 router.refresh 전에도 '분과 설정'이 최신 참여 사업을 보도록 로컬 오버라이드
+  const [projectOverrides, setProjectOverrides] = useState<Record<string, string[]>>({})
   const canAssign = !!(sessionOptions && setSessionsAction)
   const canSetProjects = !!(projectOptions && setProjectsAction)
 
@@ -211,7 +213,9 @@ export default function UserManagerTable({
           projectOptions={projectOptions!}
           setProjectsAction={setProjectsAction!}
           onClose={() => setProjectUser(null)}
-          onDone={() => {
+          onDone={(savedIds) => {
+            // refresh가 끝나기 전에 '분과 설정'을 열어도 최신 참여 사업이 보이도록 오버라이드
+            setProjectOverrides((prev) => ({ ...prev, [projectUser.id]: savedIds }))
             setProjectUser(null)
             router.refresh()
           }}
@@ -224,7 +228,10 @@ export default function UserManagerTable({
           roleLabel={roleLabel}
           sessionOptions={sessionOptions!}
           // 담당자(사업 참여 개념 있음)는 참여 사업의 분과만 고르게 제한. 평가위원은 전체.
-          restrictProjectIds={canSetProjects ? (sessionUser.assignedProjectIds ?? []) : null}
+          // 방금 저장한 사업 설정(오버라이드)이 있으면 그것을 우선 사용.
+          restrictProjectIds={
+            canSetProjects ? (projectOverrides[sessionUser.id] ?? sessionUser.assignedProjectIds ?? []) : null
+          }
           setSessionsAction={setSessionsAction!}
           onClose={() => setSessionUser(null)}
           onDone={() => {
@@ -251,7 +258,8 @@ function ProjectAssignModal({
   projectOptions: { id: string; label: string }[]
   setProjectsAction: (userId: string, projectIds: string[]) => Promise<{ ok: boolean; error?: string }>
   onClose: () => void
-  onDone: () => void
+  // 저장 성공 시 체크된 사업 id를 부모에 전달(분과 설정 즉시 반영용)
+  onDone: (savedIds: string[]) => void
 }) {
   const [checked, setChecked] = useState<Set<string>>(new Set(user.assignedProjectIds ?? []))
   const [error, setError] = useState('')
@@ -266,8 +274,9 @@ function ProjectAssignModal({
   const save = () => {
     setError('')
     start(async () => {
-      const res = await setProjectsAction(user.id, [...checked])
-      if (res.ok) onDone()
+      const ids = [...checked]
+      const res = await setProjectsAction(user.id, ids)
+      if (res.ok) onDone(ids)
       else setError(res.error ?? '저장에 실패했습니다.')
     })
   }

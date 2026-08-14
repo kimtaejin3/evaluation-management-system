@@ -8,6 +8,7 @@ import {
   approveEvaluators,
   rejectEvaluators,
 } from '@/app/admin/sessions/actions'
+import ConfirmModalButton from '@/components/ConfirmModalButton'
 
 export type EvaluatorStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED'
 
@@ -63,47 +64,41 @@ export default function EvaluatorReviewPanel({
       <div className="flex shrink-0 items-center gap-2">
         {/* 담당자 액션 */}
         {!isMaster && (status === 'DRAFT' || status === 'REJECTED') && (
-          <button
-            type="button"
-            disabled={pending}
-            onClick={() => {
-              if (!confirm('평가위원 배정을 제출할까요? 제출하면 관리자가 검토하며, 제출 중에는 배정을 변경할 수 없습니다.')) return
-              run(() => submitEvaluators(sessionId))
-            }}
+          <ConfirmModalButton
+            label={status === 'REJECTED' ? '다시 제출' : '제출'}
+            pending={pending}
+            title="평가위원 배정 제출"
+            body="평가위원 배정을 제출할까요? 제출하면 관리자가 검토하며, 제출 중에는 배정을 변경할 수 없습니다."
+            confirmLabel="제출"
+            onConfirm={() => run(() => submitEvaluators(sessionId))}
             className="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50"
-          >
-            {pending ? '처리 중…' : status === 'REJECTED' ? '다시 제출' : '제출'}
-          </button>
+          />
         )}
         {!isMaster && status === 'SUBMITTED' && (
-          <button
-            type="button"
-            disabled={pending}
-            onClick={() => {
-              if (!confirm('제출을 취소하고 다시 배정 상태로 되돌릴까요?')) return
-              run(() => cancelSubmitEvaluators(sessionId))
-            }}
+          <ConfirmModalButton
+            label="제출 취소"
+            pending={pending}
+            title="제출 취소"
+            body="제출을 취소하고 다시 배정 상태로 되돌릴까요?"
+            confirmLabel="제출 취소"
+            onConfirm={() => run(() => cancelSubmitEvaluators(sessionId))}
             className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
-          >
-            {pending ? '처리 중…' : '제출 취소'}
-          </button>
+          />
         )}
 
         {/* 관리자 액션 */}
         {isMaster && (status === 'SUBMITTED' || status === 'APPROVED') && (
           <>
             {status === 'SUBMITTED' && (
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() => {
-                  if (!confirm('이 분과의 평가위원 배정을 승인할까요? 승인하면 위원들이 평가에 참여할 수 있습니다.')) return
-                  run(() => approveEvaluators(sessionId))
-                }}
+              <ConfirmModalButton
+                label="승인"
+                pending={pending}
+                title="평가위원 배정 승인"
+                body="이 분과의 평가위원 배정을 승인할까요? 승인하면 위원들이 평가에 참여할 수 있습니다."
+                confirmLabel="승인"
+                onConfirm={() => run(() => approveEvaluators(sessionId))}
                 className="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50"
-              >
-                {pending ? '처리 중…' : '승인'}
-              </button>
+              />
             )}
             <RejectButton sessionId={sessionId} pending={pending} run={run} />
           </>
