@@ -2,8 +2,8 @@ import { S3Client, PutBucketCorsCommand, GetBucketCorsCommand } from '@aws-sdk/c
 
 // R2 버킷 CORS 설정 — 브라우저 → R2 직접 업로드(presigned PUT)에 필요. 멱등(재실행 안전).
 // 실행: node --env-file=.env --import tsx scripts/setup-r2-cors.ts
-// 허용 오리진: 로컬 개발 + Vercel 배포(프리뷰 포함). 커스텀 도메인을 붙이면 여기에 추가할 것.
-const ORIGINS = ['http://localhost:3000', 'https://*.vercel.app']
+// 허용 오리진: 로컬 개발 + Vercel 배포(프리뷰 포함) + 사내 k8s 배포. 커스텀 도메인을 붙이면 여기에 추가할 것.
+const ORIGINS = ['http://localhost:3000', 'https://*.vercel.app', 'https://eval.mipllab.com']
 
 async function main() {
   const { R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET } = process.env
