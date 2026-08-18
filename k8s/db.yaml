@@ -68,6 +68,14 @@ spec:
             limits:
               cpu: "500m"
               memory: "512Mi"
+          # 최초 기동 시 NFS 위 initdb 가 느리다 — startupProbe 로 최대 5분 유예.
+          # 이게 없으면 liveness 가 30초 만에 초기화 중인 컨테이너를 죽여서
+          # '계정만 있고 DB 는 없는' 반쪽 상태가 남는다(2026-08-18 실제 발생).
+          startupProbe:
+            exec:
+              command: ["pg_isready", "-U", "ems"]
+            periodSeconds: 5
+            failureThreshold: 60
           readinessProbe:
             exec:
               command: ["pg_isready", "-U", "ems", "-d", "ems"]
