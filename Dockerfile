@@ -17,6 +17,13 @@ COPY . .
 # 빌드 시 DB 접속은 불필요(전 페이지 동적 렌더링, env 는 런타임 주입).
 RUN npm run build
 
+# 마이그레이션 전용 prisma CLI 완전 설치본 — standalone 트레이싱은 앱 코드 기준이라
+# CLI 의존성(effect 등)을 포함하지 않는다. node_modules/prisma 만 복사하면
+# 런타임에 MODULE_NOT_FOUND 로 죽는다(초기 배포에서 실제 발생).
+RUN mkdir -p /opt/prisma-cli && cd /opt/prisma-cli \
+  && npm init -y > /dev/null \
+  && npm i --no-audit --no-fund prisma@6.19.3
+
 # ── 2단계: 실행 ──────────────────────────────────────────────
 FROM node:22-alpine
 
@@ -36,12 +43,11 @@ COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
 COPY --from=build /app/public ./public
 
-# 마이그레이션(initContainer 의 `prisma migrate deploy`)용 — schema + migrations + prisma CLI.
-# @prisma(client·engines)는 standalone 에 이미 트레이싱돼 있지만, CLI 와 버전을 맞추기
-# 위해 빌드 스테이지 것으로 통째로 덮는다.
+# 마이그레이션(initContainer 의 `prisma migrate deploy`)용 — schema + migrations +
+# 의존성까지 갖춘 prisma CLI 설치본(별도 디렉터리, standalone node_modules 와 분리).
+# 실행: node prisma-cli/prisma/build/index.js migrate deploy
 COPY --from=build /app/prisma ./prisma
-COPY --from=build /app/node_modules/prisma ./node_modules/prisma
-COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=build /opt/prisma-cli/node_modules ./prisma-cli
 
 EXPOSE 3000
 
