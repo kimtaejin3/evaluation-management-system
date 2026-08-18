@@ -45,9 +45,12 @@ COPY --from=build /app/public ./public
 
 # 마이그레이션(initContainer 의 `prisma migrate deploy`)용 — schema + migrations +
 # 의존성까지 갖춘 prisma CLI 설치본(별도 디렉터리, standalone node_modules 와 분리).
-# 실행: node prisma-cli/prisma/build/index.js migrate deploy
+# ⚠️ 반드시 `node_modules` 라는 이름의 하위 디렉터리로 복사한다 — Node 의 모듈 탐색은
+#    그 이름의 폴더만 뒤지므로, 이름을 바꾸면 CLI 가 자기 의존성(@prisma/engines)을
+#    못 찾는다(초기 배포에서 실제 발생).
+# 실행: node prisma-cli/node_modules/prisma/build/index.js migrate deploy
 COPY --from=build /app/prisma ./prisma
-COPY --from=build /opt/prisma-cli/node_modules ./prisma-cli
+COPY --from=build /opt/prisma-cli/node_modules ./prisma-cli/node_modules
 
 EXPOSE 3000
 

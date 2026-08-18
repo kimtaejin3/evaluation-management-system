@@ -39,7 +39,7 @@ spec:
       initContainers:
         - name: migrate
           image: harbor.mipllab.com/evaluation-management-system/evaluation-management-system:latest
-          command: ["node", "prisma-cli/prisma/build/index.js", "migrate", "deploy"]
+          command: ["node", "prisma-cli/node_modules/prisma/build/index.js", "migrate", "deploy"]
           envFrom:
             - secretRef:
                 name: ems-secrets
