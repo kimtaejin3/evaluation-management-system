@@ -28,6 +28,7 @@ kubectl -n ems create secret generic ems-db-secret \\
   --from-literal=POSTGRES_DB=ems
 kubectl -n ems create secret generic ems-secrets \\
   --from-literal=DATABASE_URL='postgresql://ems:${DBPW}@ems-db:5432/ems' \\
+  --from-literal=DATABASE_URL_UNPOOLED='postgresql://ems:${DBPW}@ems-db:5432/ems' \\
   --from-literal=JWT_SECRET='${JWT}' \\
   --from-literal=R2_ACCOUNT_ID='${R2_ACCOUNT_ID}' \\
   --from-literal=R2_ACCESS_KEY_ID='${R2_ACCESS_KEY_ID}' \\
