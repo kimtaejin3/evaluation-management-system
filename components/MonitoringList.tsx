@@ -7,13 +7,14 @@ import { cellStatusLabel, type CellStatus } from '@/lib/submission'
 // 기업(대상) 중심 리스트 — 각 대상의 입력/제출 진행 현황 조회.
 // '자세히 보기'는 '평가 의견서' 탭으로 이동한다. 위원별 제출 승인/반려는 이 화면 하단의 검토 표(ReviewTable)에서.
 
+// 배경·테두리 없이 색 글씨로만 구분
 export const PILL: Record<CellStatus, string> = {
-  none: 'bg-slate-100 text-slate-500',
-  partial: 'bg-amber-50 text-amber-700',
-  entered: 'bg-indigo-50 text-indigo-700',
-  submitted: 'bg-violet-50 text-violet-700',
-  approved: 'bg-emerald-50 text-emerald-700',
-  rejected: 'bg-rose-50 text-rose-700',
+  none: 'text-slate-500',
+  partial: 'text-amber-600',
+  entered: 'text-indigo-600',
+  submitted: 'text-violet-600',
+  approved: 'text-emerald-600',
+  rejected: 'text-rose-600',
 }
 const isSubmitted = (st: CellStatus) => st === 'submitted' || st === 'approved'
 // 제출완료(승인 전)는 '미승인'으로 표기

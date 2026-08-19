@@ -236,9 +236,9 @@ export default function ChairSubjectClient({
                     </td>
                     <td className="px-4 py-3">
                       {e.submitted ? (
-                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">제출</span>
+                        <span className="text-xs font-medium text-emerald-600">제출</span>
                       ) : (
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">미제출</span>
+                        <span className="text-xs font-medium text-slate-500">미제출</span>
                       )}
                     </td>
                     {/* 위원장 본인 행에는 자기 의견을 보여주지 않는다(아래에서 직접 작성) */}

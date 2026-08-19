@@ -42,10 +42,11 @@ export default function ManageSessionsModal({
     startTx(async () => {
       for (const r of rows) {
         const fd = new FormData()
-        // 분과명은 단건일 때만 수정 — 일괄 모드에서는 기존 이름 유지
+        // 분과명은 단건일 때만 수정 — 일괄 모드에서는 기존 이름 유지.
+        // 날짜 빈 칸은 각 분과의 기존 값 유지(한쪽만 바꿔도 안전)
         fd.set('name', single ? name : r.name)
-        fd.set('startDate', start)
-        fd.set('endDate', end)
+        fd.set('startDate', single ? start : start || r.startDate)
+        fd.set('endDate', single ? end : end || r.endDate)
         const res = await updateSession(r.id, fd)
         if (!res.ok) {
           setError(`${r.name}: ${res.error ?? '저장에 실패했습니다.'}`)

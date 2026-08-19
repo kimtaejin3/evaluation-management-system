@@ -64,7 +64,7 @@ async function BreakdownContent({ id }: { id: string }) {
                 {evaluators.map((e) => (
                   <th key={e.id} className="px-4 py-3 text-right font-medium">
                     {e.name}
-                    {e.id === chairId && <span className="ml-1.5 rounded-full bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-700">위원장</span>}
+                    {e.id === chairId && <span className="ml-1.5 text-xs font-medium text-indigo-700">위원장</span>}
                   </th>
                 ))}
                 <th className="px-5 py-3 text-right font-medium">평균(최종)</th>

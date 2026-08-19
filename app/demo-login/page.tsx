@@ -5,9 +5,9 @@ import { demoLoginAs } from './actions'
 export const dynamic = 'force-dynamic'
 
 const statusLabel: Record<string, { text: string; cls: string }> = {
-  DRAFT: { text: '준비중', cls: 'bg-slate-100 text-slate-500' },
-  IN_PROGRESS: { text: '진행중', cls: 'bg-emerald-50 text-emerald-700' },
-  CLOSED: { text: '마감', cls: 'bg-slate-100 text-slate-500' },
+  DRAFT: { text: '준비중', cls: 'text-slate-500' },
+  IN_PROGRESS: { text: '진행중', cls: 'text-emerald-600' },
+  CLOSED: { text: '마감', cls: 'text-slate-500' },
 }
 
 // ⚠️ 데모/프로토타입 전용 화면 — 사업 > 분과를 골라 그 분과의 평가위원·위원장으로 즉시 로그인.
@@ -74,7 +74,7 @@ export default async function DemoLoginPage() {
                     <div key={s.id} className="rounded-xl border border-slate-200 bg-white p-4">
                       <div className="mb-3 flex items-center gap-2">
                         <span className="font-medium text-slate-800">{s.name}</span>
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${st.cls}`}>{st.text}</span>
+                        <span className={`text-xs font-medium ${st.cls}`}>{st.text}</span>
                         {s.status !== 'IN_PROGRESS' && (
                           <span className="text-xs text-slate-400">· 로그인 시 진행중으로 전환됨</span>
                         )}
@@ -93,7 +93,7 @@ export default async function DemoLoginPage() {
                                 }`}
                               >
                                 {a.user.name}
-                                {isChair && <span className="rounded-full bg-indigo-600 px-1.5 py-0.5 text-[10px] text-white">위원장</span>}
+                                {isChair && <span className="text-[10px] font-medium text-indigo-600">위원장</span>}
                                 <span className="text-xs text-slate-400">{a.user.username}</span>
                               </button>
                             </form>

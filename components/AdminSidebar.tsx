@@ -9,13 +9,11 @@ import { PROJECT_TABS } from "@/lib/project-nav";
 
 const APP_VERSION = "0.1.0";
 
+// 상태는 배경·테두리 없이 색 글씨로만 구분
 const STATUS: Record<string, { label: string; cls: string }> = {
-  DRAFT: { label: "준비", cls: "bg-slate-100 text-slate-600 ring-slate-200" },
-  IN_PROGRESS: {
-    label: "진행중",
-    cls: "bg-indigo-50 text-indigo-700 ring-indigo-200",
-  },
-  CLOSED: { label: "완료", cls: "bg-slate-200 text-slate-600 ring-slate-300" },
+  DRAFT: { label: "준비", cls: "text-slate-500" },
+  IN_PROGRESS: { label: "진행중", cls: "text-indigo-600" },
+  CLOSED: { label: "완료", cls: "text-slate-500" },
 };
 
 // 사이드바(어두운 배경)에서 분과 이름 옆 진행상태 텍스트 색상
@@ -122,10 +120,7 @@ function SessionSwitcher({
           </div>
           {sessions.map((s) => {
             const active = s.id === currentId;
-            const st = STATUS[s.status] ?? {
-              label: s.status,
-              cls: "bg-slate-100 text-slate-600 ring-slate-200",
-            };
+            const st = STATUS[s.status] ?? { label: s.status, cls: "text-slate-500" };
             return (
               <button
                 key={s.id}
@@ -140,11 +135,7 @@ function SessionSwitcher({
                 >
                   {s.name}
                 </span>
-                <span
-                  className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${st.cls}`}
-                >
-                  {st.label}
-                </span>
+                <span className={`shrink-0 text-[11px] font-medium ${st.cls}`}>{st.label}</span>
               </button>
             );
           })}

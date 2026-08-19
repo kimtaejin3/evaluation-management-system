@@ -265,9 +265,7 @@ export default function ScoreForm({
             <span className="font-semibold text-slate-800">{subjectName}</span>
           )}
           {isChair && (
-            <span className="rounded-full bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700">
-              위원장
-            </span>
+            <span className="text-xs font-medium text-indigo-700">위원장</span>
           )}
           {deadline && (
             <span className="ml-auto text-xs text-slate-400">

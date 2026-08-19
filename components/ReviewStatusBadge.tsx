@@ -17,18 +17,17 @@ export default function ReviewStatusBadge({
 }
 
 // 관리자 승인 상태 배지 — '승인 상태' 컬럼용. 제출 전(DRAFT)은 대시로 표시.
+// 배경·테두리 없이 색 글씨로만 구분
 const APPROVAL: Record<string, { label: string; cls: string }> = {
-  SUBMITTED: { label: "대기", cls: "bg-amber-100 text-amber-800 ring-amber-300" },
-  APPROVED: { label: "승인", cls: "bg-emerald-100 text-emerald-800 ring-emerald-300" },
-  REJECTED: { label: "반려", cls: "bg-rose-100 text-rose-800 ring-rose-300" },
+  SUBMITTED: { label: "대기", cls: "text-amber-600" },
+  APPROVED: { label: "승인", cls: "text-emerald-600" },
+  REJECTED: { label: "반려", cls: "text-rose-600" },
 };
 
 export function ApprovalBadge({ status }: { status: string }) {
   const s = APPROVAL[status];
   if (!s) return <span className="text-slate-300">—</span>;
   return (
-    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ring-1 ring-inset ${s.cls}`}>
-      {s.label}
-    </span>
+    <span className={`text-sm font-medium whitespace-nowrap ${s.cls}`}>{s.label}</span>
   );
 }

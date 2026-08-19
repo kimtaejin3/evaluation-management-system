@@ -165,17 +165,11 @@ export default function EvaluateHomeClient({
                     {/* 최소 너비만 잡아 행 오른쪽 끝을 맞추고, 내용이 늘어나면 넘치지 않게 확장 */}
                     <div className="flex min-w-36 shrink-0 items-center justify-end gap-2.5">
                       {sub.status === "complete" ? (
-                        <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
-                          ✓ 완료
-                        </span>
+                        <span className="shrink-0 whitespace-nowrap text-xs font-medium text-emerald-600">✓ 완료</span>
                       ) : sub.status === "inProgress" ? (
-                        <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
-                          평가 중
-                        </span>
+                        <span className="shrink-0 whitespace-nowrap text-xs font-medium text-amber-600">평가 중</span>
                       ) : (
-                        <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">
-                          미평가
-                        </span>
+                        <span className="shrink-0 whitespace-nowrap text-xs font-medium text-slate-500">미평가</span>
                       )}
                       <Link
                         href={`/evaluate/${s.sessionId}/${sub.id}`}

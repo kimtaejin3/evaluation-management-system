@@ -161,7 +161,7 @@ async function EvaluatorsContent({ id }: { id: string }) {
                   <td className="px-5 py-3 font-medium text-slate-800">
                     {a.user.name}
                     {isChair && (
-                      <span className="ml-2 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                      <span className="ml-2 text-xs font-medium text-indigo-700">
                         위원장
                       </span>
                     )}

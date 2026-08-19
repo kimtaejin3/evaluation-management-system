@@ -6,10 +6,11 @@ import { canCloseSession } from '@/lib/session-rules'
 
 type Status = 'DRAFT' | 'IN_PROGRESS' | 'CLOSED'
 
+// 상태는 배경·테두리 없이 색 글씨로만 구분
 const MAP: Record<Status, { label: string; cls: string }> = {
-  DRAFT: { label: '준비', cls: 'bg-slate-200 text-slate-700 ring-slate-300 hover:bg-slate-300' },
-  IN_PROGRESS: { label: '진행중', cls: 'bg-blue-100 text-blue-800 ring-blue-300 hover:bg-blue-200' },
-  CLOSED: { label: '완료', cls: 'bg-emerald-100 text-emerald-800 ring-emerald-300 hover:bg-emerald-200' },
+  DRAFT: { label: '준비', cls: 'text-slate-500' },
+  IN_PROGRESS: { label: '진행중', cls: 'text-blue-600' },
+  CLOSED: { label: '완료', cls: 'text-emerald-600' },
 }
 
 const FLOW: { key: Status; label: string; desc: string }[] = [
@@ -55,11 +56,7 @@ export default function SessionStatusControl({
   if (readOnly) {
     return (
       <span className="inline-flex items-center gap-2">
-        <span
-          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${badge.cls.replace(/ hover:[^ ]+/g, '')}`}
-        >
-          {badge.label}
-        </span>
+        <span className={`text-sm font-medium whitespace-nowrap ${badge.cls}`}>{badge.label}</span>
         {status === 'DRAFT' && (
           <button
             type="button"
@@ -89,7 +86,7 @@ export default function SessionStatusControl({
       <button
         type="button"
         onClick={openModal}
-        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset transition ${badge.cls}`}
+        className={`inline-flex items-center gap-1 text-sm font-medium whitespace-nowrap transition hover:opacity-70 ${badge.cls}`}
         title="클릭하여 진행 상태 변경"
       >
         {badge.label}
@@ -127,7 +124,7 @@ export default function SessionStatusControl({
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-1.5">
                         <span className={`text-sm font-medium ${isSel ? 'text-indigo-700' : 'text-slate-700'}`}>{f.label}</span>
-                        {isCur && <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-500">현재</span>}
+                        {isCur && <span className="text-xs font-medium text-slate-400">현재</span>}
                       </span>
                       <span className="mt-0.5 block text-xs text-slate-400">{f.desc}</span>
                     </span>

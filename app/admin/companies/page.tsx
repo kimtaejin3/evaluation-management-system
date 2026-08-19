@@ -8,9 +8,9 @@ const inputCls =
   "rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
-  DRAFT: { label: "초안", cls: "bg-slate-100 text-slate-600" },
-  IN_PROGRESS: { label: "진행중", cls: "bg-indigo-50 text-indigo-700" },
-  CLOSED: { label: "마감", cls: "bg-slate-200 text-slate-600" },
+  DRAFT: { label: "초안", cls: "text-slate-500" },
+  IN_PROGRESS: { label: "진행중", cls: "text-indigo-600" },
+  CLOSED: { label: "마감", cls: "text-slate-500" },
 };
 
 export default function CompaniesPage() {
@@ -93,7 +93,7 @@ async function CompanyList() {
                       return (
                         <span key={s.id} className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-sm text-slate-700">
                           {s.name}
-                          <span className={`rounded-full px-1.5 py-0.5 text-xs font-medium ${st.cls}`}>{st.label}</span>
+                          <span className={`text-xs font-medium ${st.cls}`}>{st.label}</span>
                         </span>
                       );
                     })}
