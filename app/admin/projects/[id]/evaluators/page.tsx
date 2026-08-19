@@ -2,14 +2,12 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { assertProjectAccess } from "@/lib/authz";
-import ReviewStatusBadge from "@/components/ReviewStatusBadge";
-import ReviewDecisionButtons from "@/components/ReviewDecisionButtons";
 import PasswordCell from "@/components/PasswordCell";
 import ExcelExportButton from "@/components/ExcelExportButton";
 import { SkeletonTable } from "@/components/Skeletons";
 
-// 사업 평가위원 선정현황 — 분과별 위원 배정을 테이블 뷰로 한눈에.
-// 배정·위원장 지정·승인/반려 등 상세 작업은 분과의 평가 위원 페이지에서 한다.
+// 사업 평가위원 선정현황 — 분과별 위원 배정을 테이블 뷰로 한눈에(조회 전용).
+// 담당자가 세팅한 배정을 관리자가 확인하는 용도. 배정·위원장 지정은 분과의 평가 위원 페이지에서 한다.
 export default async function ProjectEvaluatorsPage({
   params,
 }: {
@@ -29,15 +27,14 @@ export default async function ProjectEvaluatorsPage({
         <Content id={id} />
       </Suspense>
       <p className="text-left text-xs text-slate-400">
-        분과별 위원 배정 현황입니다. 배정·승인/반려는 분과 페이지에서 진행합니다.
+        분과별 위원 배정 현황입니다. 배정·위원장 지정은 분과 페이지에서 진행합니다.
       </p>
     </div>
   );
 }
 
 async function Content({ id }: { id: string }) {
-  const { user } = await assertProjectAccess(id);
-  const isMaster = user.role === "MASTER";
+  await assertProjectAccess(id);
   const sessions = await prisma.evaluationSession.findMany({
     where: { projectId: id },
     orderBy: { createdAt: "asc" },
@@ -46,7 +43,6 @@ async function Content({ id }: { id: string }) {
       name: true,
       status: true,
       chairId: true,
-      evaluatorStatus: true,
       assignments: {
         orderBy: { createdAt: "asc" },
         select: {
@@ -60,7 +56,15 @@ async function Content({ id }: { id: string }) {
   });
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+    <div className="space-y-2">
+      {/* 범례 — 위원장 행 배경색 안내 */}
+      <div className="flex justify-end">
+        <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
+          <span className="h-3 w-3 rounded-sm border border-indigo-200 bg-indigo-50/70" aria-hidden />
+          위원장
+        </span>
+      </div>
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         {sessions.length === 0 ? (
           <p className="px-5 py-8 text-center text-sm text-slate-400">아직 분과가 없습니다.</p>
         ) : (
@@ -68,60 +72,25 @@ async function Content({ id }: { id: string }) {
             <thead className="text-left text-slate-500">
               <tr className="border-b border-slate-100 bg-slate-50/60">
                 <th className="px-5 py-3 font-medium">분과명</th>
-                <th className="px-5 py-3 font-medium">담당자 제출</th>
                 <th className="px-5 py-3 font-medium">위원명</th>
                 <th className="px-5 py-3 font-medium">아이디</th>
                 <th className="px-5 py-3 font-medium">비밀번호</th>
                 <th className="px-5 py-3 font-medium">연락처</th>
-                <th className="px-5 py-3 text-center font-medium">승인 상태</th>
               </tr>
             </thead>
             <tbody>
               {sessions.map((s) => {
-                // 분과 페이지와 동일 규칙 — 담당자 제출(SUBMITTED/APPROVED) 전에는 관리자가
-                // 배정 위원 명단을 볼 수 없다(마감된 분과는 예외적으로 공개).
-                const adminBlocked =
-                  isMaster &&
-                  s.status !== "CLOSED" &&
-                  s.evaluatorStatus !== "SUBMITTED" &&
-                  s.evaluatorStatus !== "APPROVED";
-                const rows = adminBlocked ? 1 : s.assignments.length || 1;
-                // 마지막 컬럼(분과 단위) — 승인 상태(배지 없이 승인/반려 버튼으로만 판단)
-                const tail = (
-                  <td rowSpan={rows} className="border-l border-slate-100 px-5 py-3 align-top">
-                    <div className="flex flex-wrap items-center justify-center gap-1.5">
-                      {isMaster && (
-                        <ReviewDecisionButtons sessionId={s.id} status={s.evaluatorStatus} kind="evaluators" />
-                      )}
-                    </div>
+                const rows = s.assignments.length || 1;
+                const head = (
+                  <td rowSpan={rows} className="border-r border-slate-100 px-5 py-3 align-top">
+                    <Link
+                      href={`/admin/sessions/${s.id}/evaluators`}
+                      className="font-medium text-slate-800 hover:text-indigo-700 hover:underline"
+                    >
+                      {s.name}
+                    </Link>
                   </td>
                 );
-                const head = (
-                  <>
-                    <td rowSpan={rows} className="border-r border-slate-100 px-5 py-3 align-top">
-                      <Link
-                        href={`/admin/sessions/${s.id}/evaluators`}
-                        className="font-medium text-slate-800 hover:text-indigo-700 hover:underline"
-                      >
-                        {s.name}
-                      </Link>
-                    </td>
-                    <td rowSpan={rows} className="border-r border-slate-100 px-5 py-3 align-top">
-                      <ReviewStatusBadge status={s.evaluatorStatus} />
-                    </td>
-                  </>
-                );
-                if (adminBlocked) {
-                  return (
-                    <tr key={s.id} className="border-b border-slate-50 last:border-0">
-                      {head}
-                      <td colSpan={4} className="px-5 py-3 text-sm text-slate-400">
-                        담당자 제출 전에는 배정 위원이 표시되지 않습니다.
-                      </td>
-                      {tail}
-                    </tr>
-                  );
-                }
                 if (s.assignments.length === 0) {
                   return (
                     <tr key={s.id} className="border-b border-slate-50 last:border-0">
@@ -129,28 +98,26 @@ async function Content({ id }: { id: string }) {
                       <td colSpan={4} className="px-5 py-3 text-sm text-slate-400">
                         배정된 위원 없음
                       </td>
-                      {tail}
                     </tr>
                   );
                 }
                 return s.assignments.map((a, i) => {
+                  const isChair = a.userId === s.chairId;
                   return (
-                    <tr key={a.id} className="border-b border-slate-50 last:border-0">
+                    <tr
+                      key={a.id}
+                      className={`border-b border-slate-50 last:border-0 ${isChair ? "bg-indigo-50/70" : ""}`}
+                      title={isChair ? "위원장" : undefined}
+                    >
                       {i === 0 && head}
-                      <td className="px-5 py-3 text-slate-800">
+                      <td className={`px-5 py-3 ${isChair ? "font-semibold text-slate-900" : "text-slate-800"}`}>
                         {a.user.name}
-                        {a.userId === s.chairId && (
-                          <span className="ml-1.5 rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-200">
-                            위원장
-                          </span>
-                        )}
                       </td>
                       <td className="px-5 py-3 text-slate-600">{a.user.username}</td>
                       <td className="px-5 py-3">
                         <PasswordCell value={a.user.tempPassword} />
                       </td>
                       <td className="px-5 py-3 text-slate-600">{a.user.phone ?? "—"}</td>
-                      {i === 0 && tail}
                     </tr>
                   );
                 });
@@ -158,6 +125,7 @@ async function Content({ id }: { id: string }) {
             </tbody>
           </table>
         )}
+      </div>
     </div>
   );
 }

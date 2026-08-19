@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import StatusBadge from '@/components/StatusBadge'
-import SortableTh from '@/components/SortableTh'
-import { deleteSessionFromProject, updateSession } from '@/app/admin/sessions/actions'
+import StatusBadge, { STATUS_LABEL } from '@/components/StatusBadge'
+import ManageSessionsModal from '@/components/ManageSessionsModal'
+import { useClientSort, SortTh } from '@/components/client-sort'
 
 export type MonitoringRow = {
   id: string
@@ -28,19 +28,31 @@ export default function MonitoringSessionsTable({
   projectId,
   rows,
   isMaster,
-  sort,
-  dir,
 }: {
   projectId: string
   rows: MonitoringRow[]
   isMaster: boolean
-  sort?: string
-  dir: 'asc' | 'desc'
 }) {
   const router = useRouter()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [manageOpen, setManageOpen] = useState(false)
-  const basePath = `/admin/projects/${projectId}/monitoring`
+
+  // 헤더 클릭 정렬 — 기간은 시작일 기준, 상태는 라벨 가나다순
+  const { sortKey, sortDir, toggleSort, sortRows } = useClientSort<
+    'name' | 'status' | 'period' | 'secretary' | 'subjects' | 'evaluators' | 'completed' | 'opinions'
+  >()
+  const sorted = sortRows(rows, (r, k) => {
+    switch (k) {
+      case 'name': return r.name
+      case 'status': return STATUS_LABEL[r.status] ?? r.status
+      case 'period': return r.startDate
+      case 'secretary': return r.secretaryName
+      case 'subjects': return r.subjectCount
+      case 'evaluators': return r.assignedCount
+      case 'completed': return r.completedEvaluators
+      case 'opinions': return r.written
+    }
+  })
 
   const toggle = (id: string) =>
     setSelected((prev) => {
@@ -71,19 +83,19 @@ export default function MonitoringSessionsTable({
                     </button>
                   </th>
                 )}
-                <SortableTh label="분과명" field="name" sort={sort} dir={dir} basePath={basePath} />
-                <th className="px-5 py-3 font-medium">평가 상태</th>
-                <SortableTh label="평가 기간" field="period" sort={sort} dir={dir} basePath={basePath} />
-                <th className="px-5 py-3 font-medium">담당자</th>
-                <th className="px-5 py-3 font-medium">평가 대상 수</th>
-                <th className="px-5 py-3 font-medium">평가위원 수</th>
-                <th className="px-5 py-3 font-medium">완료 위원</th>
-                <th className="px-5 py-3 font-medium">평가 의견서</th>
+                <SortTh label="분과명" field="name" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortTh label="평가 상태" field="status" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortTh label="평가 기간" field="period" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortTh label="담당자" field="secretary" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortTh label="평가 대상 수" field="subjects" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortTh label="평가위원 수" field="evaluators" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortTh label="완료 위원" field="completed" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortTh label="평가 의견서" field="opinions" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <th className="px-5 py-3 font-medium">상세 평가 진행 상황</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((s) => (
+              {sorted.map((s) => (
                 <tr
                   key={s.id}
                   onClick={isMaster ? () => toggle(s.id) : undefined}
@@ -162,127 +174,6 @@ export default function MonitoringSessionsTable({
     </div>
   )
 }
-
-// 분과 정보 변경 모달 — 1개 선택 시 분과명·평가 기간 수정 + 삭제, 여러 개면 삭제만.
-function ManageSessionsModal({
-  projectId,
-  rows,
-  onClose,
-  onDone,
-}: {
-  projectId: string
-  rows: MonitoringRow[]
-  onClose: () => void
-  onDone: () => void
-}) {
-  const single = rows.length === 1 ? rows[0] : null
-  const [name, setName] = useState(single?.name ?? '')
-  const [start, setStart] = useState(single?.startDate ?? '')
-  const [end, setEnd] = useState(single?.endDate ?? '')
-  const [error, setError] = useState('')
-  const [confirmDelete, setConfirmDelete] = useState(false)
-  const [pending, startTx] = useTransition()
-
-  const save = () => {
-    if (!single) return
-    setError('')
-    const fd = new FormData()
-    fd.set('name', name)
-    fd.set('startDate', start)
-    fd.set('endDate', end)
-    startTx(async () => {
-      const res = await updateSession(single.id, fd)
-      if (res.ok) onDone()
-      else setError(res.error ?? '저장에 실패했습니다.')
-    })
-  }
-  const remove = () => {
-    startTx(async () => {
-      for (const r of rows) await deleteSessionFromProject(projectId, r.id)
-      onDone()
-    })
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-auto bg-black/40 p-4">
-      <div onClick={(e) => e.stopPropagation()} className="my-8 w-full max-w-md space-y-4 rounded-2xl bg-white p-6 shadow-xl">
-        <h3 className="text-lg font-bold text-slate-900">분과 정보 변경</h3>
-
-        {single ? (
-          <div className="space-y-3">
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-slate-500">분과명</span>
-              <input value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-slate-500">시작일</span>
-                <input type="date" value={start} onChange={(e) => setStart(e.target.value)} className={inputCls} />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-slate-500">종료일</span>
-                <input type="date" value={end} onChange={(e) => setEnd(e.target.value)} className={inputCls} />
-              </label>
-            </div>
-          </div>
-        ) : (
-          <div>
-            <p className="text-sm text-slate-600">선택한 분과 {rows.length}개:</p>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {rows.map((r) => (
-                <span key={r.id} className="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-700">{r.name}</span>
-              ))}
-            </div>
-            <p className="mt-3 text-xs text-slate-400">여러 개는 삭제만 가능합니다. 정보 수정은 한 개씩 선택하세요.</p>
-          </div>
-        )}
-
-        {error && <p className="text-sm font-medium text-rose-600">{error}</p>}
-
-        <div className="flex items-center justify-between gap-2">
-          {confirmDelete ? (
-            <div className="flex w-full flex-col gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2">
-              <span className="text-sm text-rose-700">분과 {rows.length}개를 삭제합니다. 평가 항목·대상·점수·의견서가 함께 삭제되며 되돌릴 수 없습니다.</span>
-              <div className="flex justify-end gap-2">
-                <button type="button" onClick={() => setConfirmDelete(false)} className="rounded-md px-2 py-1 text-sm text-slate-500">취소</button>
-                <button type="button" onClick={remove} disabled={pending} className="rounded-md bg-rose-600 px-3 py-1 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-50">
-                  {pending ? '삭제 중…' : '삭제'}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={() => setConfirmDelete(true)}
-                disabled={pending}
-                className="rounded-lg border border-rose-300 bg-white px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50 disabled:opacity-50"
-              >
-                삭제
-              </button>
-              <div className="flex gap-2">
-                <button type="button" onClick={onClose} className="rounded-lg px-3 py-2 text-sm text-slate-500 hover:text-slate-700">닫기</button>
-                {single && (
-                  <button
-                    type="button"
-                    onClick={save}
-                    disabled={pending || !name.trim()}
-                    className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-                  >
-                    {pending ? '저장 중…' : '정보 저장'}
-                  </button>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-const inputCls =
-  'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500'
 
 function PrettyCheck({ checked }: { checked: boolean }) {
   return (

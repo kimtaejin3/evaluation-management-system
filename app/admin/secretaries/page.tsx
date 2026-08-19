@@ -55,18 +55,18 @@ async function SecretaryTable() {
         username: true,
         phone: true,
         tempPassword: true,
-        assignedProjects: { select: { id: true, name: true }, orderBy: { createdAt: "desc" } },
+        assignedProjects: { select: { id: true, name: true, startDate: true, endDate: true }, orderBy: { createdAt: "desc" } },
         // 참여 중인 분과 — 본인이 담당(secretaryId)인 분과들(고아 분과 제외). 사업 1개라도 분과는 여러 개 가능.
         secretariedSessions: {
           where: { projectId: { not: null } },
-          select: { id: true, name: true },
+          select: { id: true, name: true, status: true, endDate: true, project: { select: { name: true, endDate: true } } },
           orderBy: { createdAt: "desc" },
         },
       },
     }),
-    // 배정 대상 분과 — 사업이 있는(고아 아님) 미마감 분과만.
+    // 배정 대상 분과 — 사업이 있는(고아 아님) 분과. 종료된 분과도 상태 컬럼으로 구분해 보여준다.
     prisma.evaluationSession.findMany({
-      where: { projectId: { not: null }, status: { not: "CLOSED" } },
+      where: { projectId: { not: null } },
       orderBy: [{ project: { createdAt: "desc" } }, { createdAt: "desc" }],
       select: { id: true, name: true, projectId: true, project: { select: { name: true } } },
     }),
@@ -82,17 +82,42 @@ async function SecretaryTable() {
   }));
   const projectOptions = projects.map((p) => ({ id: p.id, label: p.name }));
 
-  const users = secretaries.map((u) => ({
-    id: u.id,
-    name: u.name,
-    username: u.username,
-    phone: u.phone,
-    tempPassword: u.tempPassword,
-    chips: u.assignedProjects.map((p) => ({ label: p.name, href: `/admin/projects/${p.id}` })),
-    chips2: u.secretariedSessions.map((s) => ({ label: s.name, href: `/admin/sessions/${s.id}` })),
-    assignedSessionIds: u.secretariedSessions.map((s) => s.id),
-    assignedProjectIds: u.assignedProjects.map((p) => p.id),
-  }));
+  // 평가 진행 상황 — 완료: 마감(CLOSED)·종료일 경과 / 시작 전: 초안(DRAFT)·시작일 도래 전 / 그 외 진행중.
+  const now = new Date();
+  const ended = (d: Date | null) => !!d && d < now;
+  const sessionProgress = (s: { status: string; endDate: Date | null; project: { endDate: Date | null } | null }) =>
+    s.status === "CLOSED" || ended(s.endDate) || ended(s.project?.endDate ?? null)
+      ? ("DONE" as const)
+      : s.status === "DRAFT"
+        ? ("BEFORE" as const)
+        : ("ONGOING" as const);
+  const projectProgress = (p: { startDate?: Date | null; endDate: Date | null }) =>
+    ended(p.endDate) ? ("DONE" as const) : p.startDate && p.startDate > now ? ("BEFORE" as const) : ("ONGOING" as const);
+  const users = secretaries.map((u) => {
+    // (사업, 분과) 짝 행 — 담당 분과는 소속 사업과 짝으로, 담당 분과 없는 참여 사업은 분과 없이 한 줄.
+    const pairs: { project: string | null; session: string | null; progress: "BEFORE" | "ONGOING" | "DONE" }[] = u.secretariedSessions.map((s) => ({
+      project: s.project?.name ?? null,
+      session: s.name,
+      progress: sessionProgress(s),
+    }));
+    const pairProjectNames = new Set(pairs.map((p) => p.project));
+    for (const p of u.assignedProjects) {
+      if (!pairProjectNames.has(p.name)) pairs.push({ project: p.name, session: null, progress: projectProgress(p) });
+    }
+    pairs.sort((a, b) => (a.project ?? "").localeCompare(b.project ?? "", "ko") || (a.session ?? "").localeCompare(b.session ?? "", "ko"));
+    return {
+      id: u.id,
+      name: u.name,
+      username: u.username,
+      phone: u.phone,
+      tempPassword: u.tempPassword,
+      chips: u.assignedProjects.map((p) => ({ label: p.name, href: `/admin/projects/${p.id}` })),
+      chips2: u.secretariedSessions.map((s) => ({ label: s.name, href: `/admin/sessions/${s.id}` })),
+      assignedSessionIds: u.secretariedSessions.map((s) => s.id),
+      assignedProjectIds: u.assignedProjects.map((p) => p.id),
+      pairs,
+    };
+  });
 
   return (
     <UserManagerTable
@@ -103,6 +128,7 @@ async function SecretaryTable() {
       chips2Header="참여 중인 분과"
       chips2EmptyLabel="배정 없음"
       showPassword
+      pairMode
       emptyLabel="등록된 담당자가 없습니다. 위의 ‘담당자 추가’로 시작하세요."
       deleteAction={deleteSecretaries}
       updateAction={updateUserInfo}

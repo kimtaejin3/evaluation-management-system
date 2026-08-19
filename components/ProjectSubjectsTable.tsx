@@ -4,10 +4,13 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import ReviewStatusBadge from './ReviewStatusBadge'
 import ReviewDecisionButtons from './ReviewDecisionButtons'
+import { useClientSort, SortTh } from '@/components/client-sort'
 
 export interface ProjectSubjectRow {
   sessionId: string
   name: string
+  // 마감(CLOSED)된 분과 — 승인/반려 불가(서버 액션도 차단)
+  closed: boolean
   secretaryName: string | null
   reviewStatus: string
   subjectCount: number
@@ -15,13 +18,10 @@ export interface ProjectSubjectRow {
   subjects: { id: string; name: string }[]
   // `${evaluatorId}:${subjectId}` → 총점(전 항목 입력 시에만 산출, 아니면 null)
   totals: Record<string, number | null>
-  // 담당자가 평가위원 배정을 제출하기 전 — 관리자에게 위원 명단(점수 매트릭스)을 숨긴다
-  evaluatorsHidden?: boolean
 }
 
 // 분과 통합 점수 = 기업(평가 대상)별 평균 총점의 평균. 점수가 하나도 없으면 null.
 function sessionAverage(row: ProjectSubjectRow): number | null {
-  if (row.evaluatorsHidden) return null
   const subjectAvgs: number[] = []
   for (const sub of row.subjects) {
     const done = row.evaluators
@@ -57,11 +57,7 @@ function ScoresModal({ row, onClose }: { row: ProjectSubjectRow; onClose: () => 
           </button>
         </div>
 
-        {row.evaluatorsHidden ? (
-          <p className="py-6 text-center text-sm text-slate-400">
-            담당자가 평가위원 배정을 제출하기 전에는 점수가 표시되지 않습니다.
-          </p>
-        ) : row.subjects.length === 0 || row.evaluators.length === 0 ? (
+        {row.subjects.length === 0 || row.evaluators.length === 0 ? (
           <p className="py-6 text-center text-sm text-slate-400">
             {row.subjects.length === 0 ? '등록된 평가 대상이 없습니다.' : '배정된 평가위원이 없습니다.'}
           </p>
@@ -111,6 +107,20 @@ export default function ProjectSubjectsTable({
   const [openId, setOpenId] = useState<string | null>(null)
   const openRow = rows.find((r) => r.sessionId === openId) ?? null
 
+  // 헤더 클릭 정렬 — 통합 점수는 산출값(sessionAverage) 기준, 미산출은 항상 뒤로
+  const { sortKey, sortDir, toggleSort, sortRows } = useClientSort<
+    'name' | 'secretary' | 'review' | 'subjects' | 'score'
+  >()
+  const sorted = sortRows(rows, (r, k) => {
+    switch (k) {
+      case 'name': return r.name
+      case 'secretary': return r.secretaryName
+      case 'review': return r.reviewStatus
+      case 'subjects': return r.subjectCount
+      case 'score': return sessionAverage(r)
+    }
+  })
+
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
       {rows.length === 0 ? (
@@ -119,16 +129,16 @@ export default function ProjectSubjectsTable({
         <table className="table-grid w-full text-sm">
           <thead className="text-left text-slate-500">
             <tr className="border-b border-slate-100 bg-slate-50/60">
-              <th className="px-5 py-3 font-medium">분과명</th>
-              <th className="px-5 py-3 font-medium">담당자</th>
-              <th className="px-5 py-3 font-medium">담당자 제출</th>
-              <th className="px-5 py-3 font-medium">평가 대상 현황</th>
-              <th className="px-5 py-3 font-medium">통합 점수</th>
+              <SortTh label="분과명" field="name" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+              <SortTh label="담당자" field="secretary" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+              <SortTh label="담당자 제출" field="review" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+              <SortTh label="평가 대상 현황" field="subjects" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+              <SortTh label="통합 점수" field="score" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               <th className="px-5 py-3 text-center font-medium">승인 상태</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
+            {sorted.map((r) => (
               <tr key={r.sessionId} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60">
                 <td className="px-5 py-3">
                   {/* 이동은 '자세히 보기'로 — 분과명은 일반 텍스트 */}
@@ -173,9 +183,12 @@ export default function ProjectSubjectsTable({
                 <td className="px-5 py-3">
                   <div className="flex flex-wrap items-center justify-center gap-1.5">
                     {/* 상태 배지는 표시하지 않음 — 승인/반려 버튼으로만 판단. 가운데 정렬(고객 요청) */}
-                    {isMaster && (
-                      <ReviewDecisionButtons sessionId={r.sessionId} status={r.reviewStatus} kind="subjects" />
-                    )}
+                    {isMaster &&
+                      (r.closed ? (
+                        <span className="text-xs whitespace-nowrap text-slate-400">마감</span>
+                      ) : (
+                        <ReviewDecisionButtons sessionId={r.sessionId} status={r.reviewStatus} kind="subjects" />
+                      ))}
                   </div>
                 </td>
               </tr>

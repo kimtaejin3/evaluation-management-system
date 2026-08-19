@@ -47,7 +47,6 @@ async function Content({ id }: { id: string }) {
       name: true,
       status: true,
       subjectReviewStatus: true,
-      evaluatorStatus: true,
       secretary: { select: { name: true } },
     },
   });
@@ -86,17 +85,10 @@ async function Content({ id }: { id: string }) {
 
   const rows: ProjectSubjectRow[] = sessions.map((s) => {
     const sessionSubjects = subjects.filter((sub) => sub.sessionId === s.id).map(({ id: sid, name }) => ({ id: sid, name }));
-    // 담당자가 평가위원 배정을 제출(SUBMITTED/APPROVED)하기 전에는 관리자에게 위원 명단을 숨긴다(마감 분과 예외)
-    const evaluatorsHidden =
-      isMaster &&
-      s.status !== "CLOSED" &&
-      s.evaluatorStatus !== "SUBMITTED" &&
-      s.evaluatorStatus !== "APPROVED";
-    const sessionEvaluators = evaluatorsHidden
-      ? []
-      : assignments
-          .filter((a) => a.sessionId === s.id)
-          .map((a) => ({ id: a.userId, name: a.user.name }));
+    // 평가위원 제출/승인 워크플로 제거 — 관리자도 배정 명단을 상시 확인
+    const sessionEvaluators = assignments
+      .filter((a) => a.sessionId === s.id)
+      .map((a) => ({ id: a.userId, name: a.user.name }));
     const totals: Record<string, number | null> = {};
     for (const e of sessionEvaluators) {
       for (const sub of sessionSubjects) {
@@ -110,11 +102,11 @@ async function Content({ id }: { id: string }) {
       name: s.name,
       secretaryName: s.secretary?.name ?? null,
       reviewStatus: s.subjectReviewStatus,
+      closed: s.status === "CLOSED",
       subjectCount: sessionSubjects.length,
       evaluators: sessionEvaluators,
       subjects: sessionSubjects,
       totals,
-      evaluatorsHidden,
     };
   });
 

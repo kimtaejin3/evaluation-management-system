@@ -2,22 +2,17 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { assertProjectAccess } from "@/lib/authz";
 import { fmtYmd } from "@/lib/dates";
-import StatusBadge from "@/components/StatusBadge";
-import ProjectInfoButton from "@/components/ProjectInfoButton";
 import SessionSecretaryCell from "@/components/SessionSecretaryCell";
-import SortableTh from "@/components/SortableTh";
-import { parseSessionSort, sortSessions } from "@/lib/session-sort";
+import ProjectSessionsTable, { type ProjectSessionRow } from "@/components/ProjectSessionsTable";
+import type { ReactNode } from "react";
 
 
 export default async function ProjectDetailPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ sort?: string; dir?: string }>;
 }) {
   const { id } = await params;
-  const { sort, dir } = parseSessionSort(await searchParams);
   const { user } = await assertProjectAccess(id);
   const isMaster = user.role === "MASTER";
 
@@ -36,12 +31,10 @@ export default async function ProjectDetailPage({
   if (!project) return null;
 
   // 담당자에게는 본인이 담당(secretaryId)인 분과만 노출(미배정·타 담당자 분과 숨김). 마스터는 전체.
-  // 분과명·평가 기간 헤더 클릭 정렬(?sort=&dir=) 적용.
-  const visibleSessions = sortSessions(
-    isMaster ? project.sessions : project.sessions.filter((s) => s.secretaryId === user.id),
-    sort,
-    dir,
-  );
+  // 정렬은 표(클라이언트) 헤더에서 처리.
+  const visibleSessions = isMaster
+    ? project.sessions
+    : project.sessions.filter((s) => s.secretaryId === user.id);
 
   // 전역 담당자 풀(담당자 관리) — 분과 설정에서 별도 '담당자 추가' 없이 그대로 보여주고,
   // 분과 배정도 이 풀에서 바로 선택한다(배정 시 사업에 자동 연결됨).
@@ -59,6 +52,43 @@ export default async function ProjectDetailPage({
         },
       })
     : [];
+  // 분과 표(클라이언트) 행 데이터 + 담당자 셀(서버에서 렌더해 노드로 전달)
+  const sessionRows: ProjectSessionRow[] = visibleSessions.map((s) => ({
+    id: s.id,
+    name: s.name,
+    status: s.status as ProjectSessionRow["status"],
+    periodLabel:
+      s.startDate || s.endDate
+        ? `${fmtYmd(s.startDate)} ~ ${fmtYmd(s.endDate)}`
+        : s.eventDate
+          ? fmtYmd(s.eventDate)
+          : "미정",
+    startDate: s.startDate ? s.startDate.toISOString().slice(0, 10) : "",
+    endDate: s.endDate ? s.endDate.toISOString().slice(0, 10) : "",
+    subjectCount: s._count.subjects,
+    assignmentCount: s._count.assignments,
+    secretaryName: s.secretary?.name ?? null,
+  }));
+  const secretaryCells: Record<string, ReactNode> = Object.fromEntries(
+    visibleSessions.map((s) => [
+      s.id,
+      isMaster ? (
+        <SessionSecretaryCell
+          key={s.id}
+          projectId={id}
+          sessionId={s.id}
+          sessionName={s.name}
+          secretaryName={s.secretary?.name ?? null}
+          secretaries={secretaries}
+        />
+      ) : s.secretary?.name ? (
+        <span className="text-slate-700">{s.secretary.name}</span>
+      ) : (
+        <span className="text-xs text-rose-600">미배정</span>
+      ),
+    ]),
+  );
+
   // 담당자별 이 사업 내 담당 분과
   const sessionsOfSecretary = new Map<string, string[]>();
   for (const s of project.sessions) {
@@ -99,81 +129,16 @@ export default async function ProjectDetailPage({
             + 분과 추가
           </Link>
         </div>
-        {/* 분과가 많아도 화면이 커지지 않도록 스크롤(고객 요청 — 설정 화면 축소) */}
-        <div className="max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-white">
-        {visibleSessions.length === 0 ? (
-          <p className="px-5 py-8 text-center text-sm text-slate-400">
-            {isMaster ? "아직 분과가 없습니다. ‘분과 추가’로 시작하세요." : "내가 만든 분과가 없습니다. ‘분과 추가’로 시작하세요."}
-          </p>
-        ) : (
-          <table className="table-grid w-full text-sm">
-            <thead className="text-left text-slate-500">
-              <tr className="sticky top-0 z-10 border-b border-slate-100 bg-slate-50">
-                <SortableTh label="분과명" field="name" sort={sort} dir={dir} basePath={`/admin/projects/${id}`} />
-                <th className="px-5 py-3 font-medium">평가 상태</th>
-                <SortableTh label="평가 기간" field="period" sort={sort} dir={dir} basePath={`/admin/projects/${id}`} />
-                <th className="px-5 py-3 font-medium">평가 대상 수</th>
-                <th className="px-5 py-3 font-medium">평가위원 수</th>
-                <th className="px-5 py-3 font-medium">담당자</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibleSessions.map((s) => (
-                <tr key={s.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60">
-                  <td className="px-5 py-3">
-                    <Link href={`/admin/sessions/${s.id}`} className="font-medium text-slate-800 hover:text-indigo-700 hover:underline">
-                      {s.name}
-                    </Link>
-                  </td>
-                  <td className="px-5 py-3">
-                    <StatusBadge status={s.status} />
-                  </td>
-                  <td className="px-5 py-3 text-slate-600">
-                    {s.startDate || s.endDate
-                      ? `${fmtYmd(s.startDate)} ~ ${fmtYmd(s.endDate)}`
-                      : s.eventDate
-                        ? fmtYmd(s.eventDate)
-                        : "미정"}
-                  </td>
-                  <td className="px-5 py-3 text-slate-600">{s._count.subjects}</td>
-                  <td className="px-5 py-3 text-slate-600">{s._count.assignments}</td>
-                  <td className="px-5 py-3">
-                    {isMaster ? (
-                      <SessionSecretaryCell
-                        projectId={id}
-                        sessionId={s.id}
-                        sessionName={s.name}
-                        secretaryName={s.secretary?.name ?? null}
-                        secretaries={secretaries}
-                      />
-                    ) : s.secretary?.name ? (
-                      <span className="text-slate-700">{s.secretary.name}</span>
-                    ) : (
-                      <span className="text-xs text-rose-600">미배정</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-        </div>
+        {/* 체크박스 상시 + 하단 우측 '분과 정보 변경'(수정·삭제 통합) — 담당자·관리자 공용 */}
+        <ProjectSessionsTable
+          projectId={id}
+          rows={sessionRows}
+          secretaryCells={secretaryCells}
+          emptyLabel={
+            isMaster ? "아직 분과가 없습니다. ‘분과 추가’로 시작하세요." : "내가 만든 분과가 없습니다. ‘분과 추가’로 시작하세요."
+          }
+        />
       </div>
-
-      {/* 맨 하단: 사업 정보 변경(수정·삭제 통합) — 사업 삭제 단독 버튼을 대체 */}
-      {isMaster && (
-        <div className="flex justify-end border-t border-slate-100 pt-4">
-          <ProjectInfoButton
-            projectId={id}
-            name={project.name}
-            description={project.description}
-            taskType={project.taskType}
-            startDate={project.startDate ? project.startDate.toISOString().slice(0, 10) : null}
-            endDate={project.endDate ? project.endDate.toISOString().slice(0, 10) : null}
-            sessionCount={project.sessions.length}
-          />
-        </div>
-      )}
 
       {/* 화면 맨 밑(사업 정보 변경 아래, 관리자 전용): 담당자 관리에 등록된 전역 담당자 풀 현황.
           별도 '담당자 추가' 없이, 위 분과 표의 '담당자' 셀에서 이 풀 중에서 배정한다. */}

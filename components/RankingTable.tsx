@@ -1,17 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { overallGrade } from '@/lib/scoring'
 import ResultCell from '@/components/ResultCell'
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1))
-const gradeBadge =
-  'inline-flex h-6 min-w-6 items-center justify-center rounded-md bg-[var(--gov-navy)] px-1.5 text-xs font-bold text-white print:bg-transparent print:text-black'
 
 export interface RankSubject {
   id: string
   name: string
-  // 점수 없는(검토 전) 대상은 null — 최종·등급을 '–'로 표시
+  // 점수 없는(검토 전) 대상은 null — 최종 점수를 '–'로 표시
   finalScore: number | null
   rank: number | null
 }
@@ -109,7 +106,7 @@ export default function RankingTable({
             <th className="w-px whitespace-nowrap px-4 py-2 text-right font-medium print:border print:border-black">
               최종<div className="text-xs font-normal text-slate-400 print:text-black">/{fmt(maxTotal)}</div>
             </th>
-            <th className="w-px whitespace-nowrap px-3 py-2 text-center font-medium print:border print:border-black">등급</th>
+
           </tr>
         </thead>
         <tbody>
@@ -139,9 +136,7 @@ export default function RankingTable({
                 <td className="px-4 py-2.5 text-right text-base font-bold text-slate-900 tabular-nums print:border print:border-black">
                   {fin != null ? fin.toFixed(2) : <span className="text-slate-300">–</span>}
                 </td>
-                <td className="px-3 py-2.5 text-center print:border print:border-black">
-                  {fin != null ? <span className={gradeBadge}>{overallGrade(fin, maxTotal)}</span> : <span className="text-slate-300">–</span>}
-                </td>
+
               </tr>
             )
           })}

@@ -22,10 +22,14 @@ export default function SessionStatusControl({
   sessionId,
   status,
   eventDate,
+  readOnly = false,
 }: {
   sessionId: string
   status: Status
   eventDate: string | null
+  // 담당자 모드 — 변경 모달 없이 배지 표시만. 단 준비(DRAFT)일 때는 '평가 시작' 버튼으로
+  // 진행중 전환만 허용(마감은 집계 결과 제출→관리자 검토 완료로 처리).
+  readOnly?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState<Status>(status)
@@ -47,6 +51,31 @@ export default function SessionStatusControl({
   }, [])
 
   const badge = MAP[status]
+
+  if (readOnly) {
+    return (
+      <span className="inline-flex items-center gap-2">
+        <span
+          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${badge.cls.replace(/ hover:[^ ]+/g, '')}`}
+        >
+          {badge.label}
+        </span>
+        {status === 'DRAFT' && (
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => {
+              if (!confirm('평가를 시작할까요? 분과가 진행중으로 바뀌고 평가위원이 점수를 입력할 수 있습니다.')) return
+              change('IN_PROGRESS')
+            }}
+            className="rounded-lg bg-indigo-600 px-3 py-1 text-xs font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50"
+          >
+            {pending ? '처리 중…' : '평가 시작'}
+          </button>
+        )}
+      </span>
+    )
+  }
 
   const change = (next: Status) => {
     startTransition(async () => {

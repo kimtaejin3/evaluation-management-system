@@ -50,20 +50,28 @@ async function EvaluatorTable() {
       orderBy: { createdAt: "asc" },
       include: {
         // 참여 사업 — 분과 배정과 별개로 저장되는 관계
-        evaluatingProjects: { select: { id: true, name: true }, orderBy: { createdAt: "desc" } },
+        evaluatingProjects: { select: { id: true, name: true, startDate: true, endDate: true }, orderBy: { createdAt: "desc" } },
         assignments: {
           // 사업이 삭제된 고아 분과(projectId=null)는 배정 칩에서 제외 — 삭제한 분과가 계속 뜨는 문제 방지.
           where: { session: { projectId: { not: null } } },
           include: {
-            session: { select: { id: true, name: true, status: true, project: { select: { name: true } } } },
+            session: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+                endDate: true,
+                project: { select: { name: true, endDate: true } },
+              },
+            },
           },
           orderBy: { session: { createdAt: "desc" } },
         },
       },
     }),
-    // 배정 대상 분과 — 사업이 있는(고아 아님) 미마감 분과만.
+    // 배정 대상 분과 — 사업이 있는(고아 아님) 분과. 종료된 분과도 상태 컬럼으로 구분해 보여준다.
     prisma.evaluationSession.findMany({
-      where: { projectId: { not: null }, status: { not: "CLOSED" } },
+      where: { projectId: { not: null } },
       orderBy: [{ project: { createdAt: "desc" } }, { createdAt: "desc" }],
       select: { id: true, name: true, projectId: true, project: { select: { name: true } } },
     }),
@@ -79,19 +87,44 @@ async function EvaluatorTable() {
   }));
   const projectOptions = projects.map((p) => ({ id: p.id, label: p.name }));
 
-  const users = evaluators.map((u) => ({
-    id: u.id,
-    name: u.name,
-    username: u.username,
-    phone: u.phone,
-    affiliation: u.affiliation,
-    position: u.position,
-    tempPassword: u.tempPassword,
-    chips: u.evaluatingProjects.map((p) => ({ label: p.name })),
-    chips2: u.assignments.map((a) => ({ label: a.session.name })),
-    assignedSessionIds: u.assignments.map((a) => a.session.id),
-    assignedProjectIds: u.evaluatingProjects.map((p) => p.id),
-  }));
+  // 평가 진행 상황 — 완료: 마감(CLOSED)·종료일 경과 / 시작 전: 초안(DRAFT)·시작일 도래 전 / 그 외 진행중.
+  const now = new Date();
+  const ended = (d: Date | null) => !!d && d < now;
+  const sessionProgress = (s: { status: string; endDate: Date | null; project: { endDate: Date | null } | null }) =>
+    s.status === "CLOSED" || ended(s.endDate) || ended(s.project?.endDate ?? null)
+      ? ("DONE" as const)
+      : s.status === "DRAFT"
+        ? ("BEFORE" as const)
+        : ("ONGOING" as const);
+  const projectProgress = (p: { startDate?: Date | null; endDate: Date | null }) =>
+    ended(p.endDate) ? ("DONE" as const) : p.startDate && p.startDate > now ? ("BEFORE" as const) : ("ONGOING" as const);
+  const users = evaluators.map((u) => {
+    // (사업, 분과) 짝 행 — 배정 분과는 소속 사업과 짝으로, 배정 없는 참여 사업은 분과 없이 한 줄.
+    const pairs: { project: string | null; session: string | null; progress: "BEFORE" | "ONGOING" | "DONE" }[] = u.assignments.map((a) => ({
+      project: a.session.project?.name ?? null,
+      session: a.session.name,
+      progress: sessionProgress(a.session),
+    }));
+    const assignedProjectNames = new Set(pairs.map((p) => p.project));
+    for (const p of u.evaluatingProjects) {
+      if (!assignedProjectNames.has(p.name)) pairs.push({ project: p.name, session: null, progress: projectProgress(p) });
+    }
+    pairs.sort((a, b) => (a.project ?? '').localeCompare(b.project ?? '', 'ko') || (a.session ?? '').localeCompare(b.session ?? '', 'ko'));
+    return {
+      id: u.id,
+      name: u.name,
+      username: u.username,
+      phone: u.phone,
+      affiliation: u.affiliation,
+      position: u.position,
+      tempPassword: u.tempPassword,
+      chips: u.evaluatingProjects.map((p) => ({ label: p.name })),
+      chips2: u.assignments.map((a) => ({ label: a.session.name })),
+      assignedSessionIds: u.assignments.map((a) => a.session.id),
+      assignedProjectIds: u.evaluatingProjects.map((p) => p.id),
+      pairs,
+    };
+  });
 
   return (
     <UserManagerTable
@@ -102,6 +135,7 @@ async function EvaluatorTable() {
       chips2Header="배정 분과"
       chips2EmptyLabel="미정"
       emptyLabel="등록된 평가위원이 없습니다."
+      pairMode
       deleteAction={deleteEvaluators}
       updateAction={updateUserInfo}
       resetPasswordAction={resetUserPassword}

@@ -119,6 +119,21 @@ export async function deleteProject(projectId: string) {
   redirect('/admin/projects')
 }
 
+// 사업 일괄 삭제(마스터) — 사업 관리 목록의 '사업 정보 변경'에서 호출.
+// deleteProject와 달리 목록에 머무르므로 redirect 없이 revalidate만 한다.
+export async function deleteProjects(projectIds: string[]): Promise<{ ok: boolean }> {
+  await assertMaster()
+  for (const projectId of projectIds) {
+    const sessions = await prisma.evaluationSession.findMany({ where: { projectId }, select: { id: true } })
+    for (const s of sessions) {
+      await purgeSession(s.id)
+    }
+    await prisma.project.delete({ where: { id: projectId } })
+  }
+  revalidatePath('/admin', 'layout')
+  return { ok: true }
+}
+
 // 사업 참여 담당자 추가(마스터) — 담당자 관리의 담당자 풀에서 골라 이 사업에 연결
 export async function addSecretaryToProject(projectId: string, formData: FormData) {
   await assertMaster()

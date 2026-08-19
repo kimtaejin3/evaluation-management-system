@@ -7,13 +7,12 @@ import { scoringUnitsForScope } from "@/lib/criteria-scope";
 import { scoreUnitId } from "@/lib/criteria-units";
 import ResultsReviewCell from "@/components/ResultsReviewCell";
 import ExcelExportButton from "@/components/ExcelExportButton";
-import SubjectScoresDetail from "@/components/SubjectScoresDetail";
-import DivisionScoresPager from "@/components/DivisionScoresPager";
+import OverallRankingTable from "@/components/OverallRankingTable";
 import { SkeletonTable } from "@/components/Skeletons";
 
 export const dynamic = "force-dynamic";
 
-// 사업 집계 결과 — ① 전체 1위(전 분과 통합) ② 분과별 평가 대상 점수(기업명/점수/평가의견)
+// 사업 집계 결과 — ① 전체 순위(전 분과 통합, 분과 필터+페이지네이션) ② 분과별 검토 현황
 // ③ 분과별 집계·검토 현황. 점수는 승인(APPROVED)된 (위원×대상) 제출만 집계한다.
 export default async function ProjectResultsPage({
   params,
@@ -34,7 +33,7 @@ export default async function ProjectResultsPage({
         <Content id={id} />
       </Suspense>
       <p className="text-left text-xs text-slate-400">
-        전 분과 통합 1위·전체 순위와 분과별 대상 점수·검토 현황입니다.
+        전 분과 통합 1위·전체 순위와 분과별 검토 현황입니다.
       </p>
     </div>
   );
@@ -152,30 +151,40 @@ async function Content({ id }: { id: string }) {
     return { name, text };
   };
 
-  // 분과별 평가 대상 점수(페이지네이션용) — 분과 안에서 점수순 순위 + 미집계는 순번 이어서
-  const divisions = sessions.map((s) => {
-    const subs = subjectsOf.get(s.id) ?? [];
-    const divScores = new Map<string, number>();
-    for (const sub of subs) if (finalScoreOf.has(sub.id)) divScores.set(sub.id, finalScoreOf.get(sub.id)!);
-    const rankedDiv = rankSubjects(divScores);
-    const scoredRows = rankedDiv.map((r) => ({
-      id: r.subjectId,
-      name: subjectName.get(r.subjectId) ?? "",
-      rank: r.rank,
-      score: r.finalScore as number | null,
-      evaluators: approvedEvaluatorsFor(s.id, r.subjectId),
-    }));
-    const unscoredRows = subs
-      .filter((sub) => !finalScoreOf.has(sub.id))
-      .map((sub, i) => ({
-        id: sub.id,
-        name: sub.name,
-        rank: scoredRows.length + i + 1,
-        score: null as number | null,
-        evaluators: approvedEvaluatorsFor(s.id, sub.id),
-      }));
-    return { sessionName: s.name, rows: [...scoredRows, ...unscoredRows] };
-  });
+  // 전체 순위 표(클라이언트) 행 데이터 — 미집계 대상은 순번을 이어받아 맨 아래
+  const secretaryOf = new Map(sessions.map((s) => [s.id, s.secretary?.name ?? null]));
+  const submittedOf = new Map(sessions.map((s) => [s.id, !!s.submittedForReviewAt]));
+  const overallRows = [
+    ...overallRanked.map((r) => {
+      const sessId = sessionOfSubject.get(r.subjectId)!;
+      return {
+        id: r.subjectId,
+        rank: r.rank as number,
+        name: subjectName.get(r.subjectId) ?? "",
+        sessionId: sessId,
+        sessionName: sessionNameOf.get(sessId) ?? "",
+        score: r.finalScore as number | null,
+        isTop: r.rank === 1,
+        secretaryName: secretaryOf.get(sessId) ?? null,
+        submitted: submittedOf.get(sessId) ?? false,
+        chairOpinion: chairOpinionFor(sessId, r.subjectId),
+        evaluators: approvedEvaluatorsFor(sessId, r.subjectId),
+      };
+    }),
+    ...unscored.map((sub, i) => ({
+      id: sub.id,
+      rank: overallRanked.length + i + 1,
+      name: sub.name,
+      sessionId: sub.sessionId,
+      sessionName: sessionNameOf.get(sub.sessionId) ?? "",
+      score: null as number | null,
+      isTop: false,
+      secretaryName: secretaryOf.get(sub.sessionId) ?? null,
+      submitted: submittedOf.get(sub.sessionId) ?? false,
+      chairOpinion: chairOpinionFor(sub.sessionId, sub.id),
+      evaluators: approvedEvaluatorsFor(sub.sessionId, sub.id),
+    })),
+  ];
 
   if (sessions.length === 0) {
     return (
@@ -187,94 +196,15 @@ async function Content({ id }: { id: string }) {
 
   return (
     <div className="space-y-8">
-      {/* ① 전체 순위 — 분과 구분 없이 전 대상 점수순(고정 높이 + 스크롤). 1위는 하이라이트. 미집계 대상은 맨 아래 */}
+      {/* ① 전체 순위 — 전 분과 통합 점수순. 분과 필터 + 5개씩 페이지네이션. 1위 하이라이트, 미집계는 맨 아래 */}
       <div className="space-y-2">
         <h2 className="text-sm font-semibold text-slate-700">
-          전체 순위 <span className="ml-0.5 text-xs font-normal text-slate-400">전 분과 통합 · {overallRanked.length + unscored.length}개 대상</span>
+          전체 순위 <span className="ml-0.5 text-xs font-normal text-slate-400">전 분과 통합 · {overallRows.length}개 대상</span>
         </h2>
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-          {overallRanked.length + unscored.length === 0 ? (
-            <p className="px-5 py-6 text-center text-sm text-slate-400">등록된 평가 대상이 없습니다.</p>
-          ) : (
-            <div className="max-h-96 overflow-y-auto">
-              <table className="table-grid w-full text-sm [&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-10">
-                <thead className="text-left text-slate-500">
-                  <tr className="border-b border-slate-100 bg-slate-50/60">
-                    <th className="w-20 px-5 py-2.5 font-medium">순위</th>
-                    <th className="px-5 py-2.5 font-medium">기업명</th>
-                    <th className="px-5 py-2.5 font-medium">분과</th>
-                    <th className="w-32 px-5 py-2.5 text-right font-medium">점수</th>
-                    <th className="w-36 px-5 py-2.5 font-medium">종합의견</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {overallRanked.map((r) => {
-                    const sessId = sessionOfSubject.get(r.subjectId)!;
-                    // 1위(공동 1위 포함) 행 하이라이트 — 은은한 인디고 배경 + 굵게
-                    const isTop = r.rank === 1;
-                    return (
-                      <tr
-                        key={r.subjectId}
-                        className={`border-b border-slate-50 last:border-0 ${isTop ? "bg-indigo-50/70 font-semibold" : "hover:bg-slate-50/60"}`}
-                      >
-                        <td className="px-5 py-2.5 tabular-nums">
-                          <span className={isTop ? "font-bold text-indigo-700" : "font-medium text-slate-700"}>{r.rank}</span>
-                        </td>
-                        <td className={`px-5 py-2.5 ${isTop ? "font-bold text-slate-900" : "font-medium text-slate-800"}`}>
-                          {subjectName.get(r.subjectId)}
-                        </td>
-                        <td className="px-5 py-2.5 text-slate-600">{sessionNameOf.get(sessId)}</td>
-                        <td className={`px-5 py-2.5 text-right tabular-nums ${isTop ? "font-bold text-indigo-700" : "font-medium text-slate-800"}`}>
-                          {r.finalScore.toFixed(2)}
-                        </td>
-                        <td className="px-5 py-2.5">
-                          <SubjectScoresDetail
-                            subjectName={subjectName.get(r.subjectId) ?? ""}
-                            buttonLabel="종합의견"
-                            chairOpinion
-                            note="평가위원장이 작성한 종합의견입니다."
-                            emptyMessage="평가위원장 종합의견이 없습니다."
-                            chairOpinionOf={chairOpinionFor(sessId, r.subjectId)}
-                            evaluators={approvedEvaluatorsFor(sessId, r.subjectId)}
-                          />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {unscored.map((sub, i) => (
-                    <tr key={sub.id} className="border-b border-slate-50 last:border-0">
-                      {/* 미집계 대상도 순번은 이어서 표시(점수만 —) */}
-                      <td className="px-5 py-2.5 font-medium tabular-nums text-slate-500">{overallRanked.length + i + 1}</td>
-                      <td className="px-5 py-2.5 text-slate-500">{sub.name}</td>
-                      <td className="px-5 py-2.5 text-slate-500">{sessionNameOf.get(sub.sessionId)}</td>
-                      <td className="px-5 py-2.5 text-right text-slate-300">—</td>
-                      <td className="px-5 py-2.5">
-                        <SubjectScoresDetail
-                          subjectName={sub.name}
-                          buttonLabel="종합의견"
-                          chairOpinion
-                          note="평가위원장이 작성한 종합의견입니다."
-                          emptyMessage="평가위원장 종합의견이 없습니다."
-                          chairOpinionOf={chairOpinionFor(sub.sessionId, sub.id)}
-                          evaluators={approvedEvaluatorsFor(sub.sessionId, sub.id)}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        <OverallRankingTable rows={overallRows} sessions={sessions.map((s) => ({ id: s.id, name: s.name }))} />
       </div>
 
-      {/* ② 분과별 평가 대상 점수 — 순위·1위 하이라이트, 분과 단위 페이지네이션 */}
-      <div className="space-y-3">
-        <h2 className="text-sm font-semibold text-slate-700">분과별 평가 대상 점수</h2>
-        <DivisionScoresPager divisions={divisions} />
-      </div>
-
-      {/* ③ 분과별 집계·검토 현황(기존 테이블) */}
+      {/* ② 분과별 집계·검토 현황(기존 테이블) */}
       <div className="space-y-2">
         <h2 className="text-sm font-semibold text-slate-700">분과별 검토 현황</h2>
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
@@ -285,7 +215,7 @@ async function Content({ id }: { id: string }) {
                 <th className="px-5 py-3 font-medium">담당자</th>
                 <th className="px-5 py-3 font-medium">담당자 제출</th>
                 <th className="px-5 py-3 text-center font-medium">검토 상태</th>
-                <th className="px-5 py-3 font-medium">자세히 보기</th>
+                <th className="px-5 py-3 font-medium">분과 집계 결과</th>
               </tr>
             </thead>
             <tbody>
@@ -318,7 +248,7 @@ async function Content({ id }: { id: string }) {
                         href={`/admin/sessions/${s.id}/results`}
                         className="text-xs font-medium whitespace-nowrap text-slate-600 transition hover:text-indigo-700 hover:underline"
                       >
-                        자세히 보기
+                        분과 집계 결과
                       </Link>
                     </td>
                   </tr>

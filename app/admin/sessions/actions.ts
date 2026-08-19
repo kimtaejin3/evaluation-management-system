@@ -105,6 +105,7 @@ export async function updateSession(
   formData: FormData,
 ): Promise<{ ok: boolean; error?: string }> {
   await assertSessionAccess(sessionId)
+  if (!(await sessionOpen(sessionId))) return { ok: false, error: '마감된 분과는 수정할 수 없습니다.' }
   const name = String(formData.get('name') ?? '').trim()
   const startRaw = String(formData.get('startDate') ?? '').trim()
   const endRaw = String(formData.get('endDate') ?? '').trim()
@@ -320,6 +321,7 @@ export async function deleteCriterion(criterionId: string) {
 export async function ackCriteria(sessionId: string) {
   const { user, session } = await assertSessionAccess(sessionId)
   if (user.role === 'MASTER') return
+  if (!(await sessionOpen(sessionId))) return
   if (!session.projectId) return
   // 확인할 항목이 없으면 확인 불가
   const count = await prisma.criterion.count({ where: { projectId: session.projectId } })
@@ -473,10 +475,7 @@ export async function commitEvaluatorImport(
 ): Promise<EvaluatorImportResult> {
   const { user } = await assertSessionAccess(sessionId)
   if (user.role === 'MASTER') return { ok: false, error: '가져오기는 담당자만 가능합니다.' }
-  // 제출 완료(SUBMITTED)/승인(APPROVED) 상태에서는 배정을 변경할 수 없다.
-  const es = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { evaluatorStatus: true } })
-  if (!es || (es.evaluatorStatus !== 'DRAFT' && es.evaluatorStatus !== 'REJECTED'))
-    return { ok: false, error: '제출 완료 상태에서는 가져올 수 없습니다. 제출을 취소한 뒤 다시 시도하세요.' }
+  if (!(await sessionOpen(sessionId))) return { ok: false, error: '마감된 분과는 변경할 수 없습니다.' }
   const grid = payload.grid ?? []
   if (grid.length === 0) return { ok: false, error: '가져올 내용이 없습니다.' }
 
@@ -606,9 +605,20 @@ export async function commitSubjectImport(
 
 // 심사에 평가 대상(기업) 편입 — 신규 기업 정보(newName)를 직접 입력해 등록. 담당자 전용(관리자는 조회만).
 // 평가 대상은 검토 제출 전(DRAFT/REJECTED)에만 담당자가 수정할 수 있다(SUBMITTED/APPROVED는 잠금).
+// 마감(CLOSED) 분과 가드 — 마감되면 분과 대상 변경 액션을 전부 막는다.
+// 예외: 분과 재개(reopenSession)·상태 변경(setSessionStatus)·분과 삭제(정리 목적).
+async function sessionOpen(sessionId: string): Promise<boolean> {
+  const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { status: true } })
+  return !!s && s.status !== 'CLOSED'
+}
+
 async function subjectsEditable(sessionId: string): Promise<boolean> {
-  const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { subjectReviewStatus: true } })
-  return !!s && (s.subjectReviewStatus === 'DRAFT' || s.subjectReviewStatus === 'REJECTED')
+  const s = await prisma.evaluationSession.findUnique({
+    where: { id: sessionId },
+    select: { subjectReviewStatus: true, status: true },
+  })
+  if (!s || s.status === 'CLOSED') return false
+  return s.subjectReviewStatus === 'DRAFT' || s.subjectReviewStatus === 'REJECTED'
 }
 
 // 과제 서류 관리(업로드/삭제) 가능 여부.
@@ -792,10 +802,10 @@ export async function deleteSubjectDocument(sessionId: string, documentId: strin
 
 export async function removeEvaluator(sessionId: string, userId: string) {
   const { user } = await assertSessionAccess(sessionId)
-  if (user.role === 'MASTER') return // 관리자는 조회·승인만
-  const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { evaluatorStatus: true, chairId: true } })
-  // 제출(SUBMITTED)/승인(APPROVED) 상태에서는 배정을 변경할 수 없다(검토 중 잠금)
-  if (!s || (s.evaluatorStatus !== 'DRAFT' && s.evaluatorStatus !== 'REJECTED')) return
+  if (user.role === 'MASTER') return // 관리자는 조회 전용
+  if (!(await sessionOpen(sessionId))) return
+  const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { chairId: true } })
+  if (!s) return
   await prisma.assignment.delete({ where: { sessionId_userId: { sessionId, userId } } })
   // 배정 해제된 위원이 위원장이었다면 위원장 해제
   if (s.chairId === userId) {
@@ -807,6 +817,7 @@ export async function removeEvaluator(sessionId: string, userId: string) {
 // 평가위원장 지정/해제 — 배정된 위원 중 1인. userId 비우면 해제.
 export async function setChair(sessionId: string, formData: FormData) {
   await assertSessionAccess(sessionId)
+  if (!(await sessionOpen(sessionId))) return
   const userId = String(formData.get('userId') ?? '').trim()
   if (userId) {
     // 배정된 위원만 위원장이 될 수 있음
@@ -817,13 +828,11 @@ export async function setChair(sessionId: string, formData: FormData) {
   revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
 }
 
-// 전역 풀의 기존 위원을 이 분과에 배정(폼: userId). 담당자 전용, 배정중(DRAFT/REJECTED)에만. 배정은 PENDING.
+// 전역 풀의 기존 위원을 이 분과에 배정(폼: userId). 담당자 전용(마감 전 상시).
 export async function assignEvaluator(sessionId: string, formData: FormData) {
   const { user } = await assertSessionAccess(sessionId)
-  if (user.role === 'MASTER') return // 관리자는 배정하지 않음(승인만)
-  // 제출(SUBMITTED)/승인(APPROVED) 상태에서는 배정을 추가할 수 없다(검토 중 잠금)
-  const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { evaluatorStatus: true } })
-  if (!s || (s.evaluatorStatus !== 'DRAFT' && s.evaluatorStatus !== 'REJECTED')) return
+  if (user.role === 'MASTER') return // 관리자는 배정하지 않음(조회 전용)
+  if (!(await sessionOpen(sessionId))) return
   const userId = String(formData.get('userId') ?? '').trim()
   if (!userId) return
   const status = initialAssignmentStatus(user.role as 'MASTER' | 'SECRETARY')
@@ -839,6 +848,7 @@ export async function assignEvaluator(sessionId: string, formData: FormData) {
 // 담당자(+마스터)가 제출완료 평가를 승인
 export async function approveEvaluation(sessionId: string, subjectId: string, evaluatorId: string) {
   const { user } = await assertSessionAccess(sessionId)
+  if (!(await sessionOpen(sessionId))) return
   const sub = await prisma.submission.findUnique({
     where: { evaluatorId_subjectId: { evaluatorId, subjectId } },
     select: { status: true, sessionId: true },
@@ -855,6 +865,7 @@ export async function approveEvaluation(sessionId: string, subjectId: string, ev
 // 담당자(+마스터)가 제출완료 평가를 반려(위원 편집 재개)
 export async function rejectEvaluation(sessionId: string, subjectId: string, evaluatorId: string) {
   const { user } = await assertSessionAccess(sessionId)
+  if (!(await sessionOpen(sessionId))) return
   const sub = await prisma.submission.findUnique({
     where: { evaluatorId_subjectId: { evaluatorId, subjectId } },
     select: { status: true, sessionId: true },
@@ -872,6 +883,7 @@ export async function rejectEvaluation(sessionId: string, subjectId: string, eva
 
 export async function approveAssignment(sessionId: string, userId: string) {
   await assertMaster()
+  if (!(await sessionOpen(sessionId))) return
   // updateMany: 대상 배정이 이미 삭제됐거나(레이스) 없으면 조용히 무시(P2025 방지)
   await prisma.assignment.updateMany({
     where: { sessionId, userId },
@@ -882,6 +894,7 @@ export async function approveAssignment(sessionId: string, userId: string) {
 
 export async function rejectAssignment(sessionId: string, userId: string) {
   await assertMaster()
+  if (!(await sessionOpen(sessionId))) return
   // updateMany: 대상 배정이 이미 삭제됐거나(레이스) 없으면 조용히 무시(P2025 방지)
   await prisma.assignment.updateMany({
     where: { sessionId, userId },
@@ -897,6 +910,7 @@ export async function rejectAssignment(sessionId: string, userId: string) {
 
 export async function approveAllAssignments(sessionId: string) {
   await assertMaster()
+  if (!(await sessionOpen(sessionId))) return
   await prisma.assignment.updateMany({
     where: { sessionId, status: 'PENDING' },
     data: { status: 'APPROVED', decidedAt: new Date() },
@@ -907,6 +921,7 @@ export async function approveAllAssignments(sessionId: string) {
 // 이 분과의 배정 위원 전체 반려(사유 필수) — 상단 관리자 검토 패널(마스터 전용)
 export async function rejectAllAssignments(sessionId: string, reason: string) {
   await assertMaster()
+  if (!(await sessionOpen(sessionId))) return
   const trimmed = reason.trim()
   if (!trimmed) return
   await prisma.assignment.updateMany({
@@ -926,6 +941,7 @@ export async function rejectAllAssignments(sessionId: string, reason: string) {
 export async function submitEvaluators(sessionId: string) {
   const { user } = await assertSessionAccess(sessionId)
   if (user.role === 'MASTER') return
+  if (!(await sessionOpen(sessionId))) return
   const count = await prisma.assignment.count({ where: { sessionId } })
   if (count === 0) return
   await prisma.evaluationSession.update({
@@ -940,6 +956,7 @@ export async function submitEvaluators(sessionId: string) {
 export async function cancelSubmitEvaluators(sessionId: string) {
   const { user } = await assertSessionAccess(sessionId)
   if (user.role === 'MASTER') return
+  if (!(await sessionOpen(sessionId))) return
   const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { evaluatorStatus: true } })
   if (!s || s.evaluatorStatus !== 'SUBMITTED') return
   await prisma.evaluationSession.update({ where: { id: sessionId }, data: { evaluatorStatus: 'DRAFT' } })
@@ -950,6 +967,7 @@ export async function cancelSubmitEvaluators(sessionId: string) {
 // 관리자 배정 승인(SUBMITTED → APPROVED). 배정 위원 전체를 활성화(APPROVED)해 평가에 참여시킨다. 마스터 전용.
 export async function approveEvaluators(sessionId: string) {
   await assertMaster()
+  if (!(await sessionOpen(sessionId))) return
   const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { evaluatorStatus: true } })
   if (!s || s.evaluatorStatus !== 'SUBMITTED') return
   await prisma.$transaction([
@@ -969,6 +987,7 @@ export async function approveEvaluators(sessionId: string) {
 // 관리자 배정 반려(SUBMITTED → REJECTED) + 사유. 담당자가 위원을 조정 후 재제출. 마스터 전용.
 export async function rejectEvaluators(sessionId: string, reason: string) {
   await assertMaster()
+  if (!(await sessionOpen(sessionId))) return
   const trimmed = (reason ?? '').trim()
   if (!trimmed) return
   // 승인(APPROVED) 이후에도 반려 가능. 승인으로 활성화됐던 배정은 다시 대기(PENDING)로 되돌려 비활성화한다.
@@ -987,6 +1006,7 @@ export async function rejectEvaluators(sessionId: string, reason: string) {
 
 // 담당자(담당) 집계결과 '제출 완료' → 관리자 검토 대기. 관리자는 조회만이므로 MASTER는 차단.
 export async function submitSessionForReview(sessionId: string): Promise<{ ok: boolean; error?: string }> {
+  if (!(await sessionOpen(sessionId))) return { ok: false, error: '마감된 분과입니다.' }
   const { user } = await assertSessionAccess(sessionId)
   if (user.role === 'MASTER') return { ok: false, error: '담당자만 제출할 수 있습니다.' }
   // 위원장 검토 완료 게이트 — 위원(위원장 제외)이 제출한 평가 중 위원장이 아직 검토(확인)하지 않은
@@ -1032,6 +1052,18 @@ export async function cancelSubmitSessionForReview(sessionId: string) {
 
 // 관리자 검토 완료 → 분과 완료(CLOSED). 사전 조건: 담당자가 '제출 완료'했어야 함(submittedForReviewAt).
 // eventDate 마감 가드(canCloseSession)는 의도적으로 건너뛴다(스펙상 검토 완료엔 사전 마감조건 없음).
+// 분과 재개(관리자) — 검토 완료로 마감(CLOSED)된 분과를 다시 진행(IN_PROGRESS)으로 되돌린다.
+// 점수 잠금이 풀리고 담당자·위원이 다시 작업할 수 있다. 제출 이력(submittedForReviewAt)은 유지.
+export async function reopenSession(sessionId: string) {
+  const { user } = await assertSessionAccess(sessionId)
+  if (user.role !== 'MASTER') return
+  const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { status: true } })
+  if (!s || s.status !== 'CLOSED') return
+  await prisma.evaluationSession.update({ where: { id: sessionId }, data: { status: 'IN_PROGRESS' } })
+  revalidatePath('/admin', 'layout')
+  revalidatePath(`/admin/sessions/${sessionId}`)
+}
+
 export async function completeReview(sessionId: string) {
   await assertMaster()
   const s = await prisma.evaluationSession.findUnique({
@@ -1049,6 +1081,7 @@ export async function completeReview(sessionId: string) {
 
 export async function approveSubjects(sessionId: string) {
   await assertMaster()
+  if (!(await sessionOpen(sessionId))) return
   await prisma.subject.updateMany({
     where: { sessionId },
     data: { status: 'APPROVED', decidedAt: new Date(), rejectionReason: null },
@@ -1058,6 +1091,7 @@ export async function approveSubjects(sessionId: string) {
 
 export async function rejectSubjects(sessionId: string, reason: string) {
   await assertMaster()
+  if (!(await sessionOpen(sessionId))) return
   const trimmed = reason.trim()
   if (!trimmed) return
   await prisma.subject.updateMany({
@@ -1071,6 +1105,7 @@ export async function rejectSubjects(sessionId: string, reason: string) {
 export async function submitSubjectReview(sessionId: string) {
   const { user } = await assertSessionAccess(sessionId)
   if (user.role === 'MASTER') return
+  if (!(await sessionOpen(sessionId))) return
   const count = await prisma.subject.count({ where: { sessionId } })
   if (count === 0) return
   await prisma.evaluationSession.update({
@@ -1084,6 +1119,7 @@ export async function submitSubjectReview(sessionId: string) {
 export async function cancelSubmitSubjectReview(sessionId: string) {
   const { user } = await assertSessionAccess(sessionId)
   if (user.role === 'MASTER') return
+  if (!(await sessionOpen(sessionId))) return
   const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { subjectReviewStatus: true } })
   if (!s || s.subjectReviewStatus !== 'SUBMITTED') return
   await prisma.evaluationSession.update({ where: { id: sessionId }, data: { subjectReviewStatus: 'DRAFT' } })
@@ -1093,8 +1129,12 @@ export async function cancelSubmitSubjectReview(sessionId: string) {
 
 export async function approveSubjectReview(sessionId: string) {
   await assertMaster()
-  const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { subjectReviewStatus: true } })
-  if (!s || s.subjectReviewStatus !== 'SUBMITTED') return
+  const s = await prisma.evaluationSession.findUnique({
+    where: { id: sessionId },
+    select: { subjectReviewStatus: true, status: true },
+  })
+  // 마감(CLOSED)된 분과는 평가 대상 검토 상태를 바꿀 수 없다
+  if (!s || s.status === 'CLOSED' || s.subjectReviewStatus !== 'SUBMITTED') return
   await prisma.$transaction([
     prisma.subject.updateMany({ where: { sessionId }, data: { status: 'APPROVED', decidedAt: new Date(), rejectionReason: null } }),
     prisma.evaluationSession.update({ where: { id: sessionId }, data: { subjectReviewStatus: 'APPROVED', subjectReviewRejectionReason: null } }),
@@ -1108,8 +1148,12 @@ export async function rejectSubjectReview(sessionId: string, reason: string) {
   const trimmed = (reason ?? '').trim()
   if (!trimmed) return
   // 승인(APPROVED) 이후에도 반려 가능. 승인 표시됐던 대상은 대기(PENDING)로 되돌린다.
-  const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { subjectReviewStatus: true } })
-  if (!s || (s.subjectReviewStatus !== 'SUBMITTED' && s.subjectReviewStatus !== 'APPROVED')) return
+  // 단 마감(CLOSED)된 분과는 되돌릴 수 없다.
+  const s = await prisma.evaluationSession.findUnique({
+    where: { id: sessionId },
+    select: { subjectReviewStatus: true, status: true },
+  })
+  if (!s || s.status === 'CLOSED' || (s.subjectReviewStatus !== 'SUBMITTED' && s.subjectReviewStatus !== 'APPROVED')) return
   await prisma.$transaction([
     prisma.subject.updateMany({ where: { sessionId, status: 'APPROVED' }, data: { status: 'PENDING', decidedAt: null } }),
     prisma.evaluationSession.update({
@@ -1156,6 +1200,7 @@ export async function opinionReviewBlockers(sessionId: string): Promise<string[]
 export async function submitOpinions(sessionId: string) {
   const { user } = await assertSessionAccess(sessionId)
   if (user.role === 'MASTER') return
+  if (!(await sessionOpen(sessionId))) return
   const count = await prisma.opinion.count({ where: { sessionId, text: { not: '' } } })
   if (count === 0) return
   // 위원장 검토가 끝나지 않은 분과는 검토 완료 불가(비정상 흐름 차단) — 사유는 화면 라벨로 안내
@@ -1171,6 +1216,7 @@ export async function submitOpinions(sessionId: string) {
 export async function cancelSubmitOpinions(sessionId: string) {
   const { user } = await assertSessionAccess(sessionId)
   if (user.role === 'MASTER') return
+  if (!(await sessionOpen(sessionId))) return
   const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { opinionStatus: true } })
   if (!s || s.opinionStatus !== 'SUBMITTED') return
   await prisma.evaluationSession.update({ where: { id: sessionId }, data: { opinionStatus: 'DRAFT' } })
@@ -1180,6 +1226,7 @@ export async function cancelSubmitOpinions(sessionId: string) {
 
 export async function approveOpinions(sessionId: string) {
   await assertMaster()
+  if (!(await sessionOpen(sessionId))) return
   const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { opinionStatus: true } })
   if (!s || s.opinionStatus !== 'SUBMITTED') return
   await prisma.evaluationSession.update({

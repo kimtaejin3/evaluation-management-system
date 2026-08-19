@@ -1,5 +1,4 @@
 import RankingTable, { type RankSubject, type RankCriterion, type RankEvaluator } from "@/components/RankingTable";
-import { overallGrade } from "@/lib/scoring";
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
@@ -35,7 +34,7 @@ export default function ResultsView({
                 </span>
                 <span className="text-2xl font-bold text-slate-900">{w.name}</span>
                 <span className="text-sm text-slate-500">
-                  최종 {fmt(w.finalScore)} / {fmt(maxTotal)} · {overallGrade(w.finalScore, maxTotal)}등급
+                  최종 {fmt(w.finalScore)} / {fmt(maxTotal)}
                 </span>
               </div>
             ))}

@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { requireAdminUser } from "@/lib/authz";
 import { fmtYmd } from "@/lib/dates";
 import { getSessionProgress } from "@/lib/progress";
 import MonitoringList from "@/components/MonitoringList";
@@ -41,6 +42,7 @@ export default async function SessionDetail({
 
 // 분과 정보 카드 (단일 쿼리)
 async function SessionInfo({ id }: { id: string }) {
+  const me = await requireAdminUser();
   const session = await prisma.evaluationSession.findUnique({
     where: { id },
     include: {
@@ -74,10 +76,12 @@ async function SessionInfo({ id }: { id: string }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-end">
+        {/* 진행 상태 — 관리자만 변경 모달, 담당자는 표시만 */}
         <SessionStatusControl
           sessionId={session.id}
           status={session.status}
           eventDate={session.eventDate ? session.eventDate.toISOString() : null}
+          readOnly={me.role !== "MASTER"}
         />
       </div>
       {/* 분과 정보 — 라벨을 헤더로, 값을 한 행으로 하는 테이블 */}

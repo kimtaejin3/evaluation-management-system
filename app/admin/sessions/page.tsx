@@ -4,8 +4,7 @@ import { prisma } from "@/lib/db";
 import { fmtYmd } from "@/lib/dates";
 import type { Prisma } from "@prisma/client";
 import { requireAdminUser } from "@/lib/authz";
-import StatusBadge from "@/components/StatusBadge";
-import DeleteSessionButton from "@/components/DeleteSessionButton";
+import SessionListTable, { type SessionListRow } from "@/components/SessionListTable";
 import { SkeletonTable } from "@/components/Skeletons";
 
 const STATUS_OPTIONS = [
@@ -88,6 +87,22 @@ async function SessionList({
     ? all.filter((s) => String(sessionYear(s)) === year)
     : all;
 
+  const rows: SessionListRow[] = sessions.map((s) => ({
+    id: s.id,
+    name: s.name,
+    status: s.status,
+    criterionCount: s.projectId ? (critByProject.get(s.projectId) ?? 0) : 0,
+    subjectCount: s._count.subjects,
+    assignmentCount: s._count.assignments,
+    periodLabel:
+      s.startDate || s.endDate
+        ? `${fmtYmd(s.startDate)} ~ ${fmtYmd(s.endDate)}`
+        : s.eventDate
+          ? fmtYmd(s.eventDate)
+          : "",
+    startDate: s.startDate ? s.startDate.toISOString().slice(0, 10) : "",
+  }));
+
   return (
     <>
       <form method="get" className="mb-5 flex flex-wrap items-center gap-2">
@@ -119,75 +134,7 @@ async function SessionList({
         </button>
       </form>
 
-      <div className="overflow-hidden rounded-md border border-slate-200 bg-white">
-        <table className="table-grid w-full text-sm">
-          <thead className="bg-slate-50 text-left text-slate-600">
-            <tr className="border-b border-slate-200">
-              <th className="px-5 py-3 font-semibold">분과명</th>
-              <th className="px-5 py-3 font-semibold">상태</th>
-              <th className="px-5 py-3 font-semibold">항목</th>
-              <th className="px-5 py-3 font-semibold">대상</th>
-              <th className="px-5 py-3 font-semibold">위원</th>
-              <th className="px-5 py-3 font-semibold">평가 기간</th>
-              <th className="px-5 py-3 font-semibold">동작</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sessions.map((s) => (
-              <tr
-                key={s.id}
-                className="relative border-b border-slate-100 last:border-0 hover:bg-slate-50"
-              >
-                <td className="px-5 py-3 font-medium text-slate-800">
-                  {/* 행 전체 클릭 → 관리 진입 */}
-                  <Link href={`/admin/sessions/${s.id}`} aria-label={`${s.name} 관리`} className="absolute inset-0" />
-                  {s.name}
-                </td>
-                <td className="px-5 py-3">
-                  <StatusBadge status={s.status} />
-                </td>
-                <td className="px-5 py-3 text-slate-600">
-                  {s.projectId ? (critByProject.get(s.projectId) ?? 0) : 0}
-                </td>
-                <td className="px-5 py-3 text-slate-600">
-                  {s._count.subjects}
-                </td>
-                <td className="px-5 py-3 text-slate-600">
-                  {s._count.assignments}
-                </td>
-                <td className="px-5 py-3 text-slate-500">
-                  {s.startDate || s.endDate
-                    ? `${fmtYmd(s.startDate)} ~ ${fmtYmd(s.endDate)}`
-                    : s.eventDate
-                      ? fmtYmd(s.eventDate)
-                      : "—"}
-                </td>
-                <td className="px-5 py-3">
-                  <div className="relative z-10 flex items-center gap-3">
-                    <Link
-                      href={`/admin/sessions/${s.id}`}
-                      className="text-[var(--gov-primary)] hover:underline"
-                    >
-                      관리
-                    </Link>
-                    <DeleteSessionButton sessionId={s.id} sessionName={s.name} />
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {sessions.length === 0 && (
-              <tr>
-                <td
-                  colSpan={7}
-                  className="px-5 py-12 text-center text-slate-400"
-                >
-                  조회된 분과가 없습니다.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <SessionListTable rows={rows} />
     </>
   );
 }

@@ -21,7 +21,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       status: true,
       chairId: true,
       secretaryId: true,
-      evaluatorStatus: true,
       assignments: {
         orderBy: { createdAt: 'asc' },
         select: { userId: true, user: { select: { name: true, username: true, phone: true } } },
@@ -29,11 +28,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     },
   })
 
-  const visible = sessions.filter((s) =>
-    token.role === 'MASTER'
-      ? s.status === 'CLOSED' || s.evaluatorStatus === 'SUBMITTED' || s.evaluatorStatus === 'APPROVED'
-      : s.secretaryId === token.userId,
-  )
+  // 제출/승인 워크플로 제거 — 관리자는 전 분과, 담당자는 본인 분과만
+  const visible = sessions.filter((s) => (token.role === 'MASTER' ? true : s.secretaryId === token.userId))
 
   const rows = visible.flatMap((s) =>
     s.assignments.map((a) => ({

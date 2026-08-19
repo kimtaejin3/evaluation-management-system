@@ -3,12 +3,7 @@ import { prisma } from "@/lib/db";
 import { assertMaster } from "@/lib/authz";
 import { deriveProjectStatus } from "@/lib/project-status";
 import { fmtYmd } from "@/lib/dates";
-
-const STATUS: Record<string, { label: string; cls: string }> = {
-  DRAFT: { label: "준비중", cls: "bg-slate-200 text-slate-700 ring-slate-300" },
-  IN_PROGRESS: { label: "진행중", cls: "bg-blue-100 text-blue-800 ring-blue-300" },
-  CLOSED: { label: "마감", cls: "bg-emerald-100 text-emerald-800 ring-emerald-300" },
-};
+import ProjectManagerTable, { type ManagedProject } from "@/components/ProjectManagerTable";
 
 export default async function ProjectsPage() {
   await assertMaster();
@@ -19,6 +14,20 @@ export default async function ProjectsPage() {
       sessions: { select: { status: true } },
     },
   });
+
+  const rows: ManagedProject[] = projects.map((p) => ({
+    id: p.id,
+    name: p.name,
+    description: p.description,
+    taskType: p.taskType,
+    startDate: p.startDate ? p.startDate.toISOString().slice(0, 10) : "",
+    endDate: p.endDate ? p.endDate.toISOString().slice(0, 10) : "",
+    periodLabel: p.startDate || p.endDate ? `${fmtYmd(p.startDate)} ~ ${fmtYmd(p.endDate)}` : "미정",
+    status: deriveProjectStatus(p.sessions.map((s) => s.status)),
+    sessionCount: p.sessions.length,
+    inProgressCount: p.sessions.filter((s) => s.status === "IN_PROGRESS").length,
+    secretaryNames: p.secretaries.map((s) => s.name),
+  }));
 
   return (
     <div className="space-y-5">
@@ -37,45 +46,7 @@ export default async function ProjectsPage() {
         </Link>
       </div>
 
-      {projects.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-400">
-          등록된 사업이 없습니다. 위에서 사업 등록를 만드세요.
-        </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {projects.map((p) => {
-            const total = p.sessions.length;
-            const inProgress = p.sessions.filter((s) => s.status === "IN_PROGRESS").length;
-            const st = STATUS[deriveProjectStatus(p.sessions.map((s) => s.status))];
-            return (
-              <Link
-                key={p.id}
-                href={`/admin/projects/${p.id}`}
-                className="rounded-xl border border-slate-200 bg-white p-5 transition hover:border-indigo-300 hover:shadow-sm"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="font-semibold text-slate-800">{p.name}</div>
-                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${st.cls}`}>
-                    {st.label}
-                  </span>
-                </div>
-                {p.description && <p className="mt-1 line-clamp-2 text-sm text-slate-500">{p.description}</p>}
-                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                  {(p.startDate || p.endDate) && (
-                    <span className="rounded-md bg-slate-100 px-2 py-0.5">
-                      {fmtYmd(p.startDate)} ~ {fmtYmd(p.endDate)}
-                    </span>
-                  )}
-                  <span className="rounded-md bg-slate-100 px-2 py-0.5">분과 {total}개{inProgress > 0 ? ` · 진행중 ${inProgress}` : ""}</span>
-                  <span className="rounded-md bg-slate-100 px-2 py-0.5">
-                    담당자 {p.secretaries.length === 0 ? "미배정" : p.secretaries.map((s) => s.name).join(", ")}
-                  </span>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      )}
+      <ProjectManagerTable projects={rows} />
     </div>
   );
 }

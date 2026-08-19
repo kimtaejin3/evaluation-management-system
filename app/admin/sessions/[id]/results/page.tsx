@@ -4,7 +4,6 @@ import { criteriaScopeForSession, scoringUnitsForScope } from "@/lib/criteria-sc
 import { scoreUnitId } from "@/lib/criteria-units";
 import { fmtYmd } from "@/lib/dates";
 import { computeFinalScores, rankSubjects } from "@/lib/scoring";
-import { getSessionInsights } from "@/lib/progress";
 import { TOTAL_SCORE } from "@/lib/criteria";
 import ResultsView from "./ResultsView";
 import CompleteReviewButton from "./CompleteReviewButton";
@@ -14,7 +13,6 @@ import ResultsPrintButton from "@/components/ResultsPrintButton";
 import { requireAdminUser } from "@/lib/authz";
 import { SkeletonCard, SkeletonTable } from "@/components/Skeletons";
 
-const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
 const fmtDate = (d: Date | null) =>
   d ? new Date(d).toLocaleString("ko-KR", { dateStyle: "long", timeStyle: "short" }) : "미정";
@@ -42,13 +40,12 @@ export default async function ResultsPage({
 
 async function ResultsContent({ id }: { id: string }) {
   const me = await requireAdminUser();
-  const [session, subjects, units, scores, assignments, insights, approvedSubs] = await Promise.all([
+  const [session, subjects, units, scores, assignments, approvedSubs] = await Promise.all([
     prisma.evaluationSession.findUnique({ where: { id }, include: { project: { select: { startDate: true, endDate: true } } } }),
     prisma.subject.findMany({ where: { sessionId: id } }),
     scoringUnitsForScope(await criteriaScopeForSession(id)),
     prisma.score.findMany({ where: { sessionId: id } }),
     prisma.assignment.findMany({ where: { sessionId: id }, include: { user: { select: { id: true, name: true } } } }),
-    getSessionInsights(id),
     prisma.submission.findMany({ where: { sessionId: id, status: { in: ["SUBMITTED", "APPROVED"] } }, select: { evaluatorId: true, subjectId: true } }),
   ]);
 
@@ -74,7 +71,6 @@ async function ResultsContent({ id }: { id: string }) {
   const orderedCriteria = units;
   // 환산·등급 기준 만점 = 분과 설정값(기본 100). 가점이 있으면 100 초과 점수 가능.
   const maxTotal = session?.maxScore ?? TOTAL_SCORE;
-  const divergent = insights.rows.filter((r) => r.spread !== null && r.spread >= 10);
   // (위원:대상:항목) → 점수 (RankingTable에 전달, 클라이언트에서 평균·위원별 계산)
   const scoreVal = new Map<string, number>();
   for (const s of approvedScores) scoreVal.set(`${s.evaluatorId}:${s.subjectId}:${scoreUnitId(s)}`, s.value);
@@ -172,35 +168,6 @@ async function ResultsContent({ id }: { id: string }) {
         />
       )}
 
-      {/* 합산 공식 + 위원 간 편차 정보 (화면 전용) — 담당자에게는 숨김, 관리자만 표시 */}
-      {me.role === "MASTER" && (
-        <div className="grid gap-4 print:hidden lg:grid-cols-2">
-          <div className="rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-500">
-            <div className="mb-1.5 font-semibold text-slate-600">합산 공식</div>
-            <ul className="space-y-1">
-              <li>· 위원 점수 = Σ(항목 점수) · 총배점 100점</li>
-              <li>· 최종 점수 = 배정 위원 점수의 평균 (만점 {fmt(maxTotal)}점)</li>
-              <li>· 등급 = 최종 90↑ S · 80↑ A · 70↑ B · 60↑ C · 그 외 D</li>
-            </ul>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-500">
-            <div className="mb-1.5 font-semibold text-slate-600">위원 간 편차 정보</div>
-            {divergent.length === 0 ? (
-              <p className="text-slate-400">편차가 큰(±10 이상) 대상이 없습니다.</p>
-            ) : (
-              <ul className="space-y-1">
-                {divergent.map((r) => (
-                  <li key={r.subjectId} className="flex items-center justify-between">
-                    <span className="text-slate-600">{r.name}</span>
-                    <span className="font-medium text-amber-700">편차 ±{fmt(r.spread!)} · 재검토 권장</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <p className="mt-2 text-slate-400">완료 위원 2명 이상인 대상 기준 · 최고-최저 차이</p>
-          </div>
-        </div>
-      )}
 
       {/* 분과 확정 (화면 전용, 최하단) — 담당자: 제출 완료 / 관리자: 검토 완료 */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-5 print:hidden">

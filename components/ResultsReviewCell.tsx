@@ -2,7 +2,7 @@
 
 import { useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { completeReview } from '@/app/admin/sessions/actions'
+import { completeReview, reopenSession } from '@/app/admin/sessions/actions'
 
 // 사업 집계 결과 테이블의 '검토 상태' 컬럼 — 다른 테이블 '승인 상태'처럼 배지 없이 버튼 상태로만 표시.
 // 미제출: 흰 배경·비활성 / 담당자 제출: 활성 + 안내 / 검토 완료(closed): primary 채움(선택). 관리자 전용.
@@ -47,6 +47,23 @@ export default function ResultsReviewCell({
       </button>
       {submitted && !closed && (
         <span className="text-xs whitespace-nowrap text-slate-500">담당자가 제출하였습니다. 검토 완료하세요.</span>
+      )}
+      {/* 마감(완료) 후에도 되돌릴 수 있게 — 분과 재개(점수 잠금 해제, 다시 진행 상태로) */}
+      {closed && (
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => {
+            if (!confirm('이 분과를 다시 진행 상태로 되돌릴까요? 점수 잠금이 풀리고 담당자·위원이 다시 작업할 수 있습니다.')) return
+            start(async () => {
+              await reopenSession(sessionId)
+              router.refresh()
+            })
+          }}
+          className={`${base} border border-slate-300 bg-white text-slate-700 hover:bg-slate-50`}
+        >
+          {pending ? '처리 중…' : '분과 재개'}
+        </button>
       )}
     </div>
   )

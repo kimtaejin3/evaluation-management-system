@@ -15,7 +15,7 @@ const ROWS: MonitoringRow[] = [
 ]
 
 const renderTable = (isMaster = true) =>
-  render(<MonitoringSessionsTable projectId="p1" rows={ROWS} isMaster={isMaster} dir="asc" />)
+  render(<MonitoringSessionsTable projectId="p1" rows={ROWS} isMaster={isMaster} />)
 
 describe('MonitoringSessionsTable', () => {
   afterEach(() => cleanup())
@@ -40,14 +40,16 @@ describe('MonitoringSessionsTable', () => {
     expect(screen.getByRole('button', { name: '삭제' })).toBeInTheDocument()
   })
 
-  it('2개 선택 후 정보 변경 → 삭제만(수정 폼 없음)', async () => {
+  it('2개 선택 후 정보 변경 → 기간 일괄 수정 + 삭제(이름 수정 없음)', async () => {
     const user = userEvent.setup()
     renderTable(true)
     await user.click(screen.getByText('A분과'))
     await user.click(screen.getByText('B분과'))
     await user.click(screen.getByRole('button', { name: '분과 정보 변경' }))
-    expect(screen.getByText(/삭제만 가능합니다/)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: '정보 저장' })).not.toBeInTheDocument()
+    // 다건 모드 — 기간 일괄 수정 폼(이름 입력 없음) + 삭제 버튼
+    expect(screen.getByText(/평가 기간이 선택한 분과 전체에 일괄 적용됩니다/)).toBeInTheDocument()
+    expect(screen.getByText('시작일 (일괄)')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '정보 저장' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '삭제' })).toBeInTheDocument()
   })
 

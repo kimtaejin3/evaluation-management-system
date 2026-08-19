@@ -294,7 +294,8 @@ export default function AdminSidebar({
               </div>
               <div className="text-[11px] text-slate-400">분과 메뉴</div>
             </div>
-            <div className="space-y-0.5">
+            {/* 하위 메뉴임이 보이도록 들여쓰기 + 왼쪽 세로선 — 사업→분과 트리와 같은 시각 언어 */}
+            <div className="ml-4 space-y-0.5 border-l border-white/15 pl-2">
               {SUB_ITEMS.map((it) => {
                 const active = leafActive(it.suffix);
                 return (

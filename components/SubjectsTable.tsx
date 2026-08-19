@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { editSubject, deleteSubject, deleteSubjectDocument } from "@/app/admin/sessions/actions";
 import SubjectUploadForm from "@/components/SubjectUploadForm";
+import { useClientSort, SortTh } from "@/components/client-sort";
 
 export type SubjectRow = {
   id: string;
@@ -68,6 +69,12 @@ export default function SubjectsTable({
   const selectedSubjects = subjects.filter((s) => selected.has(s.id));
   const curDoc = docRow ? subjects.find((s) => s.id === docRow.id) ?? docRow : null;
 
+  // 헤더 클릭 정렬 — 번호는 정렬된 순서 기준으로 다시 매긴다
+  const { sortKey, sortDir, toggleSort, sortRows } = useClientSort<
+    "name" | "businessNo" | "region" | "leadResearcher" | "documents"
+  >();
+  const sorted = sortRows(subjects, (r, k) => (k === "documents" ? r.documents.length : r[k] ?? ""));
+
   return (
     <div className="space-y-3">
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
@@ -87,15 +94,15 @@ export default function SubjectsTable({
                   </th>
                 )}
                 <th className="w-12 px-5 py-2.5 font-medium">번호</th>
-                <th className="px-5 py-2.5 font-medium">기업명</th>
-                <th className="px-5 py-2.5 font-medium">사업자번호</th>
-                <th className="px-5 py-2.5 font-medium">지역</th>
-                <th className="px-5 py-2.5 font-medium">연구책임자</th>
-                <th className="px-5 py-2.5 font-medium">서류</th>
+                <SortTh label="기업명" field="name" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="px-5 py-2.5 font-medium" />
+                <SortTh label="사업자번호" field="businessNo" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="px-5 py-2.5 font-medium" />
+                <SortTh label="지역" field="region" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="px-5 py-2.5 font-medium" />
+                <SortTh label="연구책임자" field="leadResearcher" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="px-5 py-2.5 font-medium" />
+                <SortTh label="서류" field="documents" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="px-5 py-2.5 font-medium" />
               </tr>
             </thead>
             <tbody>
-              {subjects.map((s, i) => (
+              {sorted.map((s, i) => (
                 <tr
                   key={s.id}
                   onClick={canEdit ? () => toggle(s.id) : undefined}

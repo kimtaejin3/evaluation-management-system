@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import {
@@ -11,7 +10,6 @@ import { requireAdminUser } from "@/lib/authz";
 import { SkeletonCard, SkeletonTable } from "@/components/Skeletons";
 import PasswordCell from "@/components/PasswordCell";
 import ExcelExportButton from "@/components/ExcelExportButton";
-import EvaluatorReviewPanel, { type EvaluatorStatus } from "@/components/EvaluatorReviewPanel";
 
 const inputCls =
   "rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500";
@@ -47,13 +45,8 @@ async function EvaluatorsContent({ id }: { id: string }) {
     }),
   ]);
   const locked = session?.status === "CLOSED";
-  const es = (session?.evaluatorStatus ?? "DRAFT") as EvaluatorStatus;
-  // 담당자 제출(SUBMITTED) 이후에만 관리자가 배정을 볼 수 있다. 제출 전(DRAFT/REJECTED)은 '배정중'.
-  const adminCanView = es === "SUBMITTED" || es === "APPROVED";
-  // 배정 추가·해제·계정관리는 담당자만, 제출 전(DRAFT/REJECTED)에만. 관리자는 조회·승인만.
-  const canEdit = !locked && !isMaster && (es === "DRAFT" || es === "REJECTED");
-  // 관리자가 아직 배정을 볼 수 없는 상태(배정중/반려·미마감)
-  const adminBlocked = isMaster && !locked && !adminCanView;
+  // 배정 추가·해제·계정관리는 담당자만(마감 전 상시). 관리자는 조회 전용 — 제출/승인 워크플로 없음.
+  const canEdit = !locked && !isMaster;
   // 위원장을 항상 리스트 맨 앞에
   const chairId = session?.chairId ?? null;
   const orderedAssignments = [...assignments].sort(
@@ -72,16 +65,6 @@ async function EvaluatorsContent({ id }: { id: string }) {
         </h2>
         <ExcelExportButton href={`/api/sessions/${id}/export/evaluators`} />
       </div>
-
-      {/* 배정 검토 워크플로 배너 — 담당자: 제출/제출취소, 관리자: 승인/반려 */}
-      {!locked && (
-        <EvaluatorReviewPanel
-          sessionId={id}
-          isMaster={isMaster}
-          status={es}
-          rejectionReason={session?.evaluatorRejectionReason ?? null}
-        />
-      )}
 
       {/* 평가위원 배정은 관리자가 '평가위원 관리'에서 분과별로 수행. 담당자는 위원장 지정만 한다. */}
       {locked && (
@@ -152,8 +135,7 @@ async function EvaluatorsContent({ id }: { id: string }) {
         </div>
       )}
 
-      {/* 배정된 평가위원 — 관리자는 담당자 제출 후에만 조회 가능(배정중이면 숨김) */}
-      {adminBlocked ? null : (
+      {/* 배정된 평가위원 — 관리자·담당자 모두 상시 조회(제출/승인 워크플로 제거) */}
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 font-semibold">
           <span>배정된 평가위원 ({assignments.length})</span>
@@ -237,7 +219,6 @@ async function EvaluatorsContent({ id }: { id: string }) {
           </tbody>
         </table>
       </div>
-      )}
     </div>
   );
 }
