@@ -1,6 +1,7 @@
 'use client'
 
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState, useTransition, type ReactNode } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useClientSort, SortTh } from '@/components/client-sort'
 import ConfirmModalButton from '@/components/ConfirmModalButton'
@@ -240,6 +241,7 @@ export default function UserManagerTable({
   // 사업·분과를 칩 나열 대신 짝 행(엑셀 병합 스타일)으로 — 평가위원 관리에서 사용
   pairMode?: boolean
 }) {
+  const router = useRouter()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [open, setOpen] = useState(false)
   // 여러 명 선택 시 '정보 변경' 대신 뜨는 '사업 및 분과 일괄 설정' 모달
@@ -298,31 +300,153 @@ export default function UserManagerTable({
     })()
   }
 
-  // 짝 행 드롭다운 — 그 줄의 사업/분과를 바꾸면 즉시 저장 후 리로드
+  // ── 사업·분과 설정의 낙관적 업데이트 ──
+  // 설정 직후 서버 재조회(refresh)가 끝나기 전까지 로컬 오버라이드를 화면 데이터로 사용한다.
+  // 전체 리로드를 없애 정렬·필터·페이지 상태가 유지되고, 행 순서가 절대 바뀌지 않는다.
   const [assignPending, startAssignTx] = useTransition()
+  const [assignOverrides, setAssignOverrides] = useState<
+    Record<string, { projectIds: string[]; sessionIds: string[] }>
+  >({})
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set())
+  const [assignError, setAssignError] = useState('')
+
   const replaceId = (list: string[] | undefined, oldId: string | null | undefined, newId: string) => {
     const next = (list ?? []).filter((id) => id && id !== (oldId ?? ''))
     if (newId) next.push(newId)
     return [...new Set(next)]
   }
+
+  // 오버라이드된 배정으로 짝 행을 로컬 재계산 — 서버(pairs 생성)와 같은 정렬(사업명→분과명)
+  const computePairs = (u: ManagedUser, projectIds: string[], sessionIds: string[]): ManagedUser['pairs'] => {
+    const sessById = new Map((sessionOptions ?? []).map((o) => [o.id, o]))
+    const projById = new Map((projectOptions ?? []).map((o) => [o.id, o]))
+    // 기존 진행 상황은 유지(새로 배정된 짝만 미정) — refresh 후 서버 값으로 채워진다
+    const prevProgress = new Map(
+      (u.pairs ?? []).map((pr) => [pr.sessionId ?? `proj:${pr.projectId}`, pr.progress]),
+    )
+    const pairs: NonNullable<ManagedUser['pairs']> = sessionIds.flatMap((sid) => {
+      const o = sessById.get(sid)
+      if (!o) {
+        // 옵션에 없는 배정(고아 등)은 기존 짝 정보를 유지
+        const prev = (u.pairs ?? []).find((pr) => pr.sessionId === sid)
+        return prev ? [prev] : []
+      }
+      return [
+        {
+          project: o.projectId ? (projById.get(o.projectId)?.label ?? o.group ?? null) : (o.group ?? null),
+          projectId: o.projectId ?? null,
+          session: o.label,
+          sessionId: sid,
+          progress: prevProgress.get(sid),
+        },
+      ]
+    })
+    const covered = new Set(pairs.map((pr) => pr.projectId))
+    for (const pid of projectIds) {
+      if (covered.has(pid)) continue
+      const po = projById.get(pid)
+      if (po)
+        pairs.push({
+          project: po.label,
+          projectId: pid,
+          session: null,
+          sessionId: null,
+          progress: prevProgress.get(`proj:${pid}`),
+        })
+    }
+    pairs.sort(
+      (a, b) =>
+        (a.project ?? '').localeCompare(b.project ?? '', 'ko') ||
+        (a.session ?? '').localeCompare(b.session ?? '', 'ko'),
+    )
+    return pairs
+  }
+
+  const applyOverride = (u: ManagedUser, projectIds: string[], sessionIds: string[]) =>
+    setAssignOverrides((prev) => ({ ...prev, [u.id]: { projectIds, sessionIds } }))
+
+  const effective = (u: ManagedUser): ManagedUser => {
+    const o = assignOverrides[u.id]
+    if (!o) return u
+    return {
+      ...u,
+      assignedProjectIds: o.projectIds,
+      assignedSessionIds: o.sessionIds,
+      pairs: computePairs(u, o.projectIds, o.sessionIds),
+    }
+  }
+
+  // 서버 데이터가 오버라이드를 따라잡으면 정리(불일치 시에는 낙관 값 유지)
+  const eqIds = (a: string[] | undefined, b: string[]) => {
+    const sa = new Set(a ?? [])
+    return sa.size === b.length && b.every((id) => sa.has(id))
+  }
+  // props 변경 시 렌더 중 조정(React 공식 패턴) — 이펙트 setState로 인한 연쇄 렌더 방지
+  const [prevUsers, setPrevUsers] = useState(users)
+  if (prevUsers !== users) {
+    setPrevUsers(users)
+    setAssignOverrides((prev) => {
+      let changed = false
+      const next = { ...prev }
+      for (const [id, o] of Object.entries(prev)) {
+        const u = users.find((x) => x.id === id)
+        if (!u || (eqIds(u.assignedProjectIds, o.projectIds) && eqIds(u.assignedSessionIds, o.sessionIds))) {
+          delete next[id]
+          changed = true
+        }
+      }
+      return changed ? next : prev
+    })
+    setDeletedIds((prev) => {
+      const next = new Set([...prev].filter((id) => users.some((u) => u.id === id)))
+      return next.size === prev.size ? prev : next
+    })
+  }
+
   const changePairProject = (u: ManagedUser, oldId: string | null | undefined, newId: string) => {
     if (!setProjectsAction) return
+    const nextIds = replaceId(u.assignedProjectIds, oldId, newId)
+    const prevSessions = u.assignedSessionIds ?? []
+    applyOverride(u, nextIds, prevSessions) // 낙관 반영 — 행 순서·정렬은 그대로
+    setAssignError('')
     startAssignTx(async () => {
-      await setProjectsAction(u.id, replaceId(u.assignedProjectIds, oldId, newId))
-      window.location.reload()
+      const res = await setProjectsAction(u.id, nextIds)
+      if (!res.ok) {
+        setAssignOverrides((prev) => {
+          const next = { ...prev }
+          delete next[u.id]
+          return next
+        })
+        setAssignError(`${u.name}: ${res.error ?? '사업 설정에 실패했습니다.'}`)
+      }
+      router.refresh()
     })
   }
   const changePairSession = (u: ManagedUser, oldId: string | null | undefined, newId: string) => {
     if (!setSessionsAction) return
+    const nextIds = replaceId(u.assignedSessionIds, oldId, newId)
+    const prevProjects = u.assignedProjectIds ?? []
+    applyOverride(u, prevProjects, nextIds)
+    setAssignError('')
     startAssignTx(async () => {
-      await setSessionsAction(u.id, replaceId(u.assignedSessionIds, oldId, newId))
-      window.location.reload()
+      const res = await setSessionsAction(u.id, nextIds)
+      if (!res.ok) {
+        setAssignOverrides((prev) => {
+          const next = { ...prev }
+          delete next[u.id]
+          return next
+        })
+        setAssignError(`${u.name}: ${res.error ?? '분과 설정에 실패했습니다.'}`)
+      }
+      router.refresh()
     })
   }
 
-  // 검색어(이름·아이디·연락처·소속·직급·칩 라벨) + 사업 필터 적용 후 정렬
+  // 검색어(이름·아이디·연락처·소속·직급·칩 라벨) + 사업 필터 적용 후 정렬.
+  // 낙관 오버라이드/삭제를 먼저 반영해 설정 직후에도 화면과 데이터가 일치한다.
   const q = query.trim().toLowerCase()
-  const filteredUsers = users.filter((u) => {
+  const baseUsers = users.filter((u) => !deletedIds.has(u.id)).map(effective)
+  const filteredUsers = baseUsers.filter((u) => {
     const projectIds = u.assignedProjectIds ?? []
     if (projectFilter === NONE_FILTER) {
       if (projectIds.length > 0) return false
@@ -366,7 +490,7 @@ export default function UserManagerTable({
       return next
     })
 
-  const selectedUsers = users.filter((u) => selected.has(u.id))
+  const selectedUsers = baseUsers.filter((u) => selected.has(u.id))
   // 이름/아이디/연락처 + (비밀번호) + (소속/직급) + chips + (chips2) + (진행 상황) + 체크박스
   const cols = 4 + (showPassword ? 1 : 0) + (showAffiliation ? 2 : 0) + (chips2Header ? 1 : 0) + (pairMode ? 1 : 0) + 1
 
@@ -426,6 +550,7 @@ export default function UserManagerTable({
             ))}
           </FilterSelect>
         )}
+        {assignError && <span className="text-xs font-medium text-rose-600">{assignError}</span>}
         {/* 인라인 편집 안내 — 셀이 입력창임을 알려준다 */}
         <span className="ml-auto inline-flex items-center gap-1 text-xs text-slate-400">
           <span aria-hidden>✎</span> 이름·아이디 등은 셀을 클릭해 바로 수정할 수 있습니다
@@ -692,8 +817,12 @@ export default function UserManagerTable({
           confirmLabel="삭제"
           onConfirm={() =>
             startDelete(async () => {
-              await deleteAction([...selected])
-              window.location.reload()
+              const ids = [...selected]
+              await deleteAction(ids)
+              // 낙관 반영 — 정렬·필터 유지한 채 행만 사라진다
+              setDeletedIds((prev) => new Set([...prev, ...ids]))
+              setSelected(new Set())
+              router.refresh()
             })
           }
           className="rounded-lg border border-rose-300 bg-white px-3 py-1.5 text-sm font-medium whitespace-nowrap text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
@@ -725,11 +854,15 @@ export default function UserManagerTable({
           setProjectsAction={setProjectsAction!}
           sessionOptions={sessionOptions!}
           setSessionsAction={setSessionsAction!}
+          onApplied={(userId, projectIds, sessionIds) => {
+            const u = users.find((x) => x.id === userId)
+            if (u) applyOverride(u, projectIds, sessionIds)
+          }}
           onClose={() => setBulkOpen(false)}
           onDone={() => {
             setBulkOpen(false)
             setSelected(new Set())
-            window.location.reload()
+            router.refresh()
           }}
         />
       )}
@@ -749,14 +882,14 @@ export default function UserManagerTable({
           onDone={() => {
             setOpen(false)
             setSelected(new Set())
-            window.location.reload()
+            router.refresh()
           }}
         />
       )}
 
       {projectUser && canSetProjects && (
         <ProjectAssignModal
-          user={projectUser}
+          user={effective(projectUser)}
           roleLabel={roleLabel}
           projectOptions={projectOptions!}
           setProjectsAction={setProjectsAction!}
@@ -764,15 +897,16 @@ export default function UserManagerTable({
           onDone={(savedIds) => {
             // refresh가 끝나기 전에 '분과 설정'을 열어도 최신 참여 사업이 보이도록 오버라이드
             setProjectOverrides((prev) => ({ ...prev, [projectUser.id]: savedIds }))
+            applyOverride(projectUser, savedIds, effective(projectUser).assignedSessionIds ?? [])
             setProjectUser(null)
-            window.location.reload()
+            router.refresh()
           }}
         />
       )}
 
       {sessionUser && canAssign && (
         <SessionAssignModal
-          user={sessionUser}
+          user={effective(sessionUser)}
           roleLabel={roleLabel}
           sessionOptions={sessionOptions!}
           // 담당자(사업 참여 개념 있음)는 참여 사업의 분과만 고르게 제한. 평가위원은 전체.
@@ -782,9 +916,10 @@ export default function UserManagerTable({
           }
           setSessionsAction={setSessionsAction!}
           onClose={() => setSessionUser(null)}
-          onDone={() => {
+          onDone={(savedIds) => {
+            applyOverride(sessionUser, effective(sessionUser).assignedProjectIds ?? [], savedIds)
             setSessionUser(null)
-            window.location.reload()
+            router.refresh()
           }}
         />
       )}
@@ -800,6 +935,7 @@ function BulkAssignModal({
   setProjectsAction,
   sessionOptions,
   setSessionsAction,
+  onApplied,
   onClose,
   onDone,
 }: {
@@ -808,6 +944,8 @@ function BulkAssignModal({
   setProjectsAction: (userId: string, projectIds: string[]) => Promise<{ ok: boolean; error?: string }>
   sessionOptions: { id: string; label: string; group?: string; projectId?: string }[]
   setSessionsAction: (userId: string, sessionIds: string[]) => Promise<{ ok: boolean; error?: string }>
+  // 사용자별 저장 성공 직후 최종 배정(낙관 반영용)
+  onApplied?: (userId: string, projectIds: string[], sessionIds: string[]) => void
   onClose: () => void
   onDone: () => void
 }) {
@@ -828,14 +966,16 @@ function BulkAssignModal({
           setError(`${u.name}: ${res.error ?? '사업 설정에 실패했습니다.'}`)
           return
         }
+        let sessions = u.assignedSessionIds ?? []
         if (sessionId) {
-          const sessions = [...new Set([...(u.assignedSessionIds ?? []), sessionId])]
+          sessions = [...new Set([...sessions, sessionId])]
           const res2 = await setSessionsAction(u.id, sessions)
           if (!res2.ok) {
             setError(`${u.name}: ${res2.error ?? '분과 설정에 실패했습니다.'}`)
             return
           }
         }
+        onApplied?.(u.id, projects, sessions)
       }
       onDone()
     })
@@ -1012,7 +1152,8 @@ function SessionAssignModal({
   restrictProjectIds: string[] | null
   setSessionsAction: (userId: string, sessionIds: string[]) => Promise<{ ok: boolean; error?: string }>
   onClose: () => void
-  onDone: () => void
+  // 저장 성공 시 체크된 분과 id를 부모에 전달(낙관 반영용)
+  onDone: (savedIds: string[]) => void
 }) {
   const [checked, setChecked] = useState<Set<string>>(new Set(user.assignedSessionIds ?? []))
   const [error, setError] = useState('')
@@ -1038,8 +1179,9 @@ function SessionAssignModal({
   const save = () => {
     setError('')
     start(async () => {
-      const res = await setSessionsAction(user.id, [...checked])
-      if (res.ok) onDone()
+      const ids = [...checked]
+      const res = await setSessionsAction(user.id, ids)
+      if (res.ok) onDone(ids)
       else setError(res.error ?? '배정에 실패했습니다.')
     })
   }

@@ -309,3 +309,84 @@ describe('페이지네이션', () => {
     expect(screen.getByLabelText('사람11 이름')).toBeInTheDocument()
   })
 })
+
+describe('낙관적 업데이트 — 설정 시 순서 불변·즉시 반영', () => {
+  afterEach(() => cleanup())
+
+  const props = () => ({
+    pairMode: true,
+    chips2Header: '배정 분과',
+    users: [
+      {
+        ...USERS[0], // 이평가
+        assignedProjectIds: ['p1'],
+        assignedSessionIds: ['s1'],
+        pairs: [{ project: '신규사업1', projectId: 'p1', session: 'A유형', sessionId: 's1' }],
+      },
+      {
+        ...USERS[1], // 박심사
+        assignedProjectIds: ['p1'],
+        assignedSessionIds: ['s2'],
+        pairs: [{ project: '신규사업1', projectId: 'p1', session: 'B유형', sessionId: 's2' }],
+      },
+    ],
+    projectOptions: [
+      { id: 'p1', label: '신규사업1' },
+      { id: 'p2', label: '신규사업2' },
+    ],
+    setProjectsAction: vi.fn().mockResolvedValue({ ok: true }),
+    sessionOptions: [
+      { id: 's1', label: 'A유형', group: '신규사업1', projectId: 'p1' },
+      { id: 's2', label: 'B유형', group: '신규사업1', projectId: 'p1' },
+      { id: 's3', label: 'C유형', group: '신규사업2', projectId: 'p2' },
+    ],
+    setSessionsAction: vi.fn().mockResolvedValue({ ok: true }),
+  })
+
+  const rowNames = () =>
+    screen
+      .getAllByRole('row')
+      .slice(1)
+      .map((r) => (within(r).queryByLabelText(/이름$/) as HTMLInputElement | null)?.value)
+      .filter(Boolean)
+
+  it('이름 정렬 상태에서 분과를 바꿔도 행 순서가 그대로고, 값이 즉시 바뀐다', async () => {
+    const user = userEvent.setup()
+    renderTable(props())
+    // 이름 오름차순 정렬: 박심사, 이평가
+    await user.click(screen.getByRole('button', { name: /이름/ }))
+    expect(rowNames()).toEqual(['박심사', '이평가'])
+    // 이평가의 분과를 A유형(s1) → B유형(s2)으로 변경
+    const sel = screen.getByLabelText('이평가 분과 선택') as HTMLSelectElement
+    await user.selectOptions(sel, 's2')
+    // 즉시(낙관) 반영 — 리로드 없이 값이 바뀌고
+    expect((screen.getByLabelText('이평가 분과 선택') as HTMLSelectElement).value).toBe('s2')
+    // 행 순서는 절대 바뀌지 않는다
+    expect(rowNames()).toEqual(['박심사', '이평가'])
+  })
+
+  it('사업을 바꾸면 짝 행이 즉시 갱신되고(새 사업 빈 짝 추가) 순서는 유지된다', async () => {
+    const user = userEvent.setup()
+    renderTable(props())
+    await user.click(screen.getByRole('button', { name: /이름/ }))
+    const before = rowNames()
+    const sel = screen.getByLabelText('박심사 사업 선택') as HTMLSelectElement
+    await user.selectOptions(sel, 'p2')
+    // 낙관 반영: 분과(B유형)는 원 사업(p1) 소속으로 남고, 새 사업(p2)의 빈 짝 행이 즉시 추가된다
+    const sels = screen.getAllByLabelText('박심사 사업 선택') as HTMLSelectElement[]
+    expect(sels.map((x) => x.value).sort()).toEqual(['p1', 'p2'])
+    expect(rowNames()).toEqual(before)
+  })
+
+  it('저장 실패 시 롤백되고 오류가 표시된다', async () => {
+    const user = userEvent.setup()
+    const p = props()
+    p.setSessionsAction = vi.fn().mockResolvedValue({ ok: false, error: '마감된 분과입니다.' })
+    renderTable(p)
+    const sel = screen.getByLabelText('이평가 분과 선택') as HTMLSelectElement
+    await user.selectOptions(sel, 's2')
+    // 실패 → 원래 값으로 롤백 + 오류 문구
+    expect(await screen.findByText(/마감된 분과입니다/)).toBeInTheDocument()
+    expect((screen.getByLabelText('이평가 분과 선택') as HTMLSelectElement).value).toBe('s1')
+  })
+})
