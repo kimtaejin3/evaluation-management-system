@@ -1,15 +1,8 @@
 import { Suspense } from "react";
 import { prisma } from "@/lib/db";
-import {
-  addSubject,
-  submitSubjectReview,
-  cancelSubmitSubjectReview,
-  approveSubjectReview,
-  rejectSubjectReview,
-} from "../../actions";
+import { addSubject } from "../../actions";
 import ExcelExportButton from "@/components/ExcelExportButton";
 import ExcelImportButton from "@/components/ExcelImportButton";
-import ReviewWorkflowPanel, { type ReviewStatus } from "@/components/ReviewWorkflowPanel";
 import SubjectsTable, { type SubjectRow } from "@/components/SubjectsTable";
 import { SkeletonCard, SkeletonCardGrid } from "@/components/Skeletons";
 import { requireAdminUser } from "@/lib/authz";
@@ -38,8 +31,7 @@ export default async function SubjectsPage({
 }
 
 async function SubjectsContent({ id }: { id: string }) {
-  const me = await requireAdminUser();
-  const isMaster = me.role === "MASTER";
+  await requireAdminUser();
   const [session, subjects] = await Promise.all([
     prisma.evaluationSession.findUnique({ where: { id } }),
     prisma.subject.findMany({
@@ -59,12 +51,8 @@ async function SubjectsContent({ id }: { id: string }) {
     }),
   ]);
   const locked = session?.status === "CLOSED";
-  const sr = (session?.subjectReviewStatus ?? "DRAFT") as ReviewStatus;
-  // 담당자 제출(SUBMITTED) 이후에만 관리자가 평가 대상을 볼 수 있다.
-  const adminCanView = sr === "SUBMITTED" || sr === "APPROVED";
-  // 추가·수정·삭제·업로드는 담당자만, 제출 전(DRAFT/REJECTED)에만.
-  const canEdit = !locked && !isMaster && (sr === "DRAFT" || sr === "REJECTED");
-  const adminBlocked = isMaster && !locked && !adminCanView;
+  // 제출/검토 흐름 제거 — 마감 전이면 관리자·담당자 모두 추가·수정·삭제·업로드 가능
+  const canEdit = !locked;
 
   return (
     <div className="space-y-6">
@@ -75,7 +63,7 @@ async function SubjectsContent({ id }: { id: string }) {
         </h2>
         <div className="flex items-center gap-2">
           <ExcelExportButton href={`/api/sessions/${id}/export/subjects`} />
-          {!locked && !isMaster && canEdit && (
+          {canEdit && (
             <>
               <ExcelExportButton href="/api/subjects-template" label="양식 다운로드" />
               <ExcelImportButton scopeId={id} kind="subjects" />
@@ -83,36 +71,16 @@ async function SubjectsContent({ id }: { id: string }) {
           )}
         </div>
       </div>
-      {!locked && !isMaster && canEdit && (
+      {canEdit && (
         <p className="-mt-4 text-right text-xs text-slate-400">
           한글(HWP)은 이 엑셀 양식을 한글에서 열어 표를 채운 뒤, 표를 복사해 ‘가져오기’ 창에 붙여넣으세요. (한글 파일 업로드는 지원하지 않습니다)
         </p>
       )}
 
-      {/* 검토 워크플로 배너 — 담당자: 제출/취소, 관리자: 승인/반려 */}
-      {!locked && (
-        <ReviewWorkflowPanel
-          sessionId={id}
-          isMaster={isMaster}
-          status={sr}
-          rejectionReason={session?.subjectReviewRejectionReason ?? null}
-          draftBadge="작성중"
-          approveConfirmBody="이 분과의 평가 대상 구성을 승인할까요? 승인하면 담당자 제출본이 확정됩니다."
-          onSubmit={submitSubjectReview}
-          onCancelSubmit={cancelSubmitSubjectReview}
-          onApprove={approveSubjectReview}
-          onReject={rejectSubjectReview}
-        />
-      )}
-
-      {/* 대상 추가 (상단, 담당자 전용, 제출 전) */}
+      {/* 대상 추가 (상단) — 관리자·담당자 공통 */}
       {locked ? (
         <p className="text-sm text-slate-400">
           마감된 분과는 평가 대상을 수정할 수 없습니다.
-        </p>
-      ) : isMaster ? null : !canEdit ? (
-        <p className="text-sm text-slate-400">
-          제출 완료 상태에서는 평가 대상을 수정할 수 없습니다. 수정하려면 상단에서 제출을 취소하세요.
         </p>
       ) : (
         <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-5">
@@ -134,18 +102,15 @@ async function SubjectsContent({ id }: { id: string }) {
             </button>
           </form>
 
-          <p className="text-xs text-slate-400">
-            지역·연구책임자는 인쇄 평가표 헤더에 사용됩니다. 등록된 평가 대상은 관리자 승인 후 확정됩니다.
-          </p>
+          <p className="text-xs text-slate-400">지역·연구책임자는 인쇄 평가표 헤더에 사용됩니다.</p>
         </div>
       )}
 
-      {/* 평가 대상 목록 — 테이블 UI(수정/서류 관리는 모달). 관리자는 담당자 제출 후에만 조회. */}
-      {!adminBlocked && (
-        <SubjectsTable
+      {/* 평가 대상 목록 — 테이블 UI(수정/서류 관리는 모달). 관리자·담당자 공통 편집. */}
+      <SubjectsTable
           sessionId={id}
           canEdit={canEdit}
-          canManageDocs={canEdit || (isMaster && !locked)}
+          canManageDocs={canEdit}
           subjects={subjects.map(
             (s): SubjectRow => ({
               id: s.id,
@@ -161,7 +126,6 @@ async function SubjectsContent({ id }: { id: string }) {
             }),
           )}
         />
-      )}
     </div>
   );
 }

@@ -83,7 +83,7 @@ export default async function NewSessionPage({
           </div>
           <div>
             <label className={labelCls}>분과명 <span className="text-rose-500">*</span></label>
-            <input name="name" required className={inputCls} placeholder="예) 2026년 상반기 사업 평가" />
+            <input name="name" required className={inputCls} placeholder="예) 제1분과" />
           </div>
           <div>
             <label className={labelCls}>설명</label>

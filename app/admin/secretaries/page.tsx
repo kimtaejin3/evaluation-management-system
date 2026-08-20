@@ -95,14 +95,24 @@ async function SecretaryTable() {
     ended(p.endDate) ? ("DONE" as const) : p.startDate && p.startDate > now ? ("BEFORE" as const) : ("ONGOING" as const);
   const users = secretaries.map((u) => {
     // (사업, 분과) 짝 행 — 담당 분과는 소속 사업과 짝으로, 담당 분과 없는 참여 사업은 분과 없이 한 줄.
-    const pairs: { project: string | null; session: string | null; progress: "BEFORE" | "ONGOING" | "DONE" }[] = u.secretariedSessions.map((s) => ({
+    const projectIdByName = new Map(projects.map((p) => [p.name, p.id]));
+    const pairs: {
+      project: string | null;
+      projectId: string | null;
+      session: string | null;
+      sessionId: string | null;
+      progress: "BEFORE" | "ONGOING" | "DONE";
+    }[] = u.secretariedSessions.map((s) => ({
       project: s.project?.name ?? null,
+      projectId: s.project?.name ? (projectIdByName.get(s.project.name) ?? null) : null,
       session: s.name,
+      sessionId: s.id,
       progress: sessionProgress(s),
     }));
     const pairProjectNames = new Set(pairs.map((p) => p.project));
     for (const p of u.assignedProjects) {
-      if (!pairProjectNames.has(p.name)) pairs.push({ project: p.name, session: null, progress: projectProgress(p) });
+      if (!pairProjectNames.has(p.name))
+        pairs.push({ project: p.name, projectId: p.id, session: null, sessionId: null, progress: projectProgress(p) });
     }
     pairs.sort((a, b) => (a.project ?? "").localeCompare(b.project ?? "", "ko") || (a.session ?? "").localeCompare(b.session ?? "", "ko"));
     return {

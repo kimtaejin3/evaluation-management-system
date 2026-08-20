@@ -27,17 +27,22 @@ function renderTable(props: Partial<React.ComponentProps<typeof UserManagerTable
   )
 }
 
+// 셀이 전부 인풋이 된 뒤로 행 선택은 체크박스 셀 클릭으로 한다
+const clickRowOf = async (user: ReturnType<typeof userEvent.setup>, name: string) => {
+  const row = screen.getByLabelText(`${name} 이름`).closest('tr')!
+  await user.click(within(row).getAllByRole('cell')[0])
+}
+
 describe('UserManagerTable', () => {
   afterEach(() => cleanup())
 
   it('체크박스가 선택 모드 없이 항상 보이고, 소속/직급 열을 표시한다', () => {
     renderTable()
-    // 머리글에 소속·직급
-    expect(screen.getByText('소속')).toBeInTheDocument()
-    expect(screen.getByText('직급')).toBeInTheDocument()
-    // 각 행에 체크박스(전체선택 포함) — 클릭 전에도 존재
-    expect(screen.getByText('이평가')).toBeInTheDocument()
-    expect(screen.getByText('기평원')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /소속/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /직급/ })).toBeInTheDocument()
+    // 이름·소속은 인라인 인풋으로 표시
+    expect(screen.getByDisplayValue('이평가')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('기평원')).toBeInTheDocument()
   })
 
   it("선택 전에는 '정보 변경'이 비활성, 1명 선택하면 활성화된다", async () => {
@@ -45,60 +50,58 @@ describe('UserManagerTable', () => {
     renderTable()
     const manageBtn = screen.getByRole('button', { name: '위원 정보 변경' })
     expect(manageBtn).toBeDisabled()
-    await user.click(screen.getByText('이평가'))
+    await clickRowOf(user, '이평가')
     expect(screen.getByText('1명 선택됨')).toBeInTheDocument()
     expect(manageBtn).toBeEnabled()
   })
 
-  it('1명 선택 후 정보 변경 → 수정 폼(이름·소속·직급)과 재발급/저장이 뜬다(삭제 없음)', async () => {
+  it('1명 선택 후 정보 변경 → 수정 폼과 재발급/저장이 뜬다(삭제 없음)', async () => {
     const user = userEvent.setup()
     renderTable()
-    await user.click(screen.getByText('이평가'))
+    await clickRowOf(user, '이평가')
     await user.click(screen.getByRole('button', { name: '위원 정보 변경' }))
     const dialog = screen.getByRole('heading', { name: '위원 정보 변경' }).closest('div')!.parentElement!
     expect(within(dialog).getByDisplayValue('이평가')).toBeInTheDocument()
-    expect(within(dialog).getByDisplayValue('기평원')).toBeInTheDocument()
-    expect(within(dialog).getByDisplayValue('책임')).toBeInTheDocument()
     expect(within(dialog).getByRole('button', { name: '저장' })).toBeInTheDocument()
     expect(within(dialog).getByRole('button', { name: '재발급' })).toBeInTheDocument()
-    // 삭제는 모달 밖(표 하단 버튼·행 아이콘)에서만
+    // 삭제는 모달 밖(표 하단 버튼)에서만
     expect(within(dialog).queryByRole('button', { name: '삭제' })).not.toBeInTheDocument()
   })
 
-  it('2명 선택 후 정보 변경 → 각자 수정(저장) 가능, 모달에 삭제 없음', async () => {
-    const user = userEvent.setup()
-    renderTable()
-    await user.click(screen.getByText('이평가'))
-    await user.click(screen.getByText('박심사'))
-    await user.click(screen.getByRole('button', { name: '위원 정보 변경' }))
-    // 여러 명이어도 수정 폼(저장 버튼)이 있고, 모달 안에는 삭제가 없다
-    expect(screen.getByRole('button', { name: '저장' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: '2명 삭제' })).not.toBeInTheDocument()
-    // 이름 칩으로 활성 사용자를 전환할 수 있다
-    expect(screen.getByRole('button', { name: /박심사/ })).toBeInTheDocument()
-  })
-
   it('담당자 모드(showAffiliation=false)에서는 소속/직급 열이 없다', () => {
-    renderTable({ showAffiliation: false, roleLabel: '담당자', chipsHeader: '참여 사업' })
-    expect(screen.queryByText('소속')).not.toBeInTheDocument()
-    expect(screen.queryByText('직급')).not.toBeInTheDocument()
+    renderTable({ showAffiliation: false })
+    expect(screen.queryByRole('button', { name: /소속/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /직급/ })).not.toBeInTheDocument()
+  })
+})
+
+describe('인라인 편집', () => {
+  afterEach(() => cleanup())
+
+  it('이름 셀을 고쳐 블러하면 updateAction이 4개 필드로 호출된다', async () => {
+    const user = userEvent.setup()
+    const updateAction = vi.fn().mockResolvedValue({ ok: true })
+    renderTable({ updateAction })
+    const nameInput = screen.getByDisplayValue('이평가')
+    await user.clear(nameInput)
+    await user.type(nameInput, '이평가2')
+    await user.tab() // 블러 → 저장
+    expect(updateAction).toHaveBeenCalledTimes(1)
+    const [id, fd] = updateAction.mock.calls[0]
+    expect(id).toBe('u1')
+    expect((fd as FormData).get('name')).toBe('이평가2')
+    expect((fd as FormData).get('phone')).toBe('01011112222')
+    expect((fd as FormData).get('affiliation')).toBe('기평원')
+    expect((fd as FormData).get('position')).toBe('책임')
   })
 
-  it('showPassword=true면 비밀번호 열에 임시 비밀번호를 평문 표시한다', () => {
-    renderTable({ showAffiliation: false, showPassword: true })
-    expect(screen.getByText('비밀번호')).toBeInTheDocument()
-    expect(screen.getByText('abcd1234')).toBeInTheDocument()
-  })
-
-  it('chips2Header가 있으면 두 번째 칩 열(참여 분과)을 렌더한다', () => {
-    const withSessions = [
-      { ...USERS[0], chips2: [{ label: 'A분과' }, { label: 'B분과' }] },
-      { ...USERS[1], chips2: [] },
-    ]
-    renderTable({ showAffiliation: false, chips2Header: '참여 중인 분과', chips2EmptyLabel: '배정 없음', users: withSessions })
-    expect(screen.getByText('참여 중인 분과')).toBeInTheDocument()
-    expect(screen.getByText('B분과')).toBeInTheDocument()
-    expect(screen.getByText('배정 없음')).toBeInTheDocument()
+  it('값을 바꾸지 않고 블러하면 저장하지 않는다', async () => {
+    const user = userEvent.setup()
+    const updateAction = vi.fn().mockResolvedValue({ ok: true })
+    renderTable({ updateAction })
+    await user.click(screen.getByDisplayValue('이평가'))
+    await user.tab()
+    expect(updateAction).not.toHaveBeenCalled()
   })
 })
 
@@ -109,11 +112,11 @@ describe('UserManagerTable 필터·정렬', () => {
     const user = userEvent.setup()
     renderTable()
     await user.type(screen.getByPlaceholderText('이름·아이디·연락처 검색'), '이평가')
-    expect(screen.getByText('이평가')).toBeInTheDocument()
-    expect(screen.queryByText('박심사')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('이평가 이름')).toBeInTheDocument()
+    expect(screen.queryByLabelText('박심사 이름')).not.toBeInTheDocument()
     expect(screen.getByText(/1명 표시/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '초기화' }))
-    expect(screen.getByText('박심사')).toBeInTheDocument()
+    expect(screen.getByLabelText('박심사 이름')).toBeInTheDocument()
   })
 
   it('일치하는 행이 없으면 "검색 결과가 없습니다."를 보여준다', async () => {
@@ -126,13 +129,17 @@ describe('UserManagerTable 필터·정렬', () => {
   it('이름 헤더 클릭으로 오름/내림차순 정렬을 토글한다', async () => {
     const user = userEvent.setup()
     renderTable()
-    const nameHeader = screen.getByRole('button', { name: /이름 정렬|이름/ })
-    const rowNames = () =>
-      screen.getAllByRole('row').slice(1).map((r) => within(r).getAllByRole('cell')[1].textContent)
-    await user.click(nameHeader) // 오름차순: 박심사 < 이평가
-    expect(rowNames()).toEqual(['박심사', '이평가'])
-    await user.click(nameHeader) // 내림차순
-    expect(rowNames()).toEqual(['이평가', '박심사'])
+    const nameHeader = screen.getByRole('button', { name: /이름/ })
+    // 아이디 인풋 값으로 순서 확인 — 박심사=wiwon2 < 이평가=wiwon1
+    const rowUsernames = () =>
+      screen
+        .getAllByRole('row')
+        .slice(1)
+        .map((r) => (within(r).getByLabelText(/아이디$/) as HTMLInputElement).value)
+    await user.click(nameHeader)
+    expect(rowUsernames()).toEqual(['wiwon2', 'wiwon1'])
+    await user.click(nameHeader)
+    expect(rowUsernames()).toEqual(['wiwon1', 'wiwon2'])
   })
 
   it('사업 필터 셀렉트로 참여 사업 기준 필터한다', async () => {
@@ -146,45 +153,68 @@ describe('UserManagerTable 필터·정렬', () => {
       setProjectsAction: vi.fn().mockResolvedValue({ ok: true }),
     })
     await user.selectOptions(screen.getByLabelText('사업 필터'), 'p1')
-    expect(screen.getByText('이평가')).toBeInTheDocument()
-    expect(screen.queryByText('박심사')).not.toBeInTheDocument()
+    expect(screen.getByDisplayValue('이평가')).toBeInTheDocument()
+    expect(screen.queryByDisplayValue('박심사')).not.toBeInTheDocument()
   })
 })
 
-describe('UserManagerTable 미참여·분과 필터', () => {
+describe('pairMode — 사업×분과 짝 행 + 셀 드롭다운', () => {
   afterEach(() => cleanup())
 
-  const usersWithAssign: ManagedUser[] = [
-    { ...USERS[0], assignedProjectIds: ['p1'], assignedSessionIds: ['s1'], chips2: [{ label: 'A분과' }] },
-    { ...USERS[1], assignedProjectIds: [], assignedSessionIds: [], chips2: [] },
-  ]
-  const assignProps = {
-    users: usersWithAssign,
+  const pairProps = () => ({
+    pairMode: true,
     chips2Header: '배정 분과',
-    projectOptions: [{ id: 'p1', label: '2027 시범사업' }],
+    users: [
+      {
+        ...USERS[0],
+        assignedProjectIds: ['p1'],
+        assignedSessionIds: ['s1', 's2'],
+        pairs: [
+          { project: '신규사업1', projectId: 'p1', session: 'A유형', sessionId: 's1' },
+          { project: '신규사업1', projectId: 'p1', session: 'B유형', sessionId: 's2' },
+        ],
+      },
+      { ...USERS[1], assignedProjectIds: [], assignedSessionIds: [], pairs: [] },
+    ],
+    projectOptions: [
+      { id: 'p1', label: '신규사업1' },
+      { id: 'p2', label: '신규사업2' },
+    ],
     setProjectsAction: vi.fn().mockResolvedValue({ ok: true }),
-    sessionOptions: [{ id: 's1', label: 'A분과', group: '2027 시범사업', projectId: 'p1' }],
+    sessionOptions: [
+      { id: 's1', label: 'A유형', group: '신규사업1', projectId: 'p1' },
+      { id: 's2', label: 'B유형', group: '신규사업1', projectId: 'p1' },
+      { id: 's3', label: 'C유형', group: '신규사업2', projectId: 'p2' },
+    ],
     setSessionsAction: vi.fn().mockResolvedValue({ ok: true }),
-  }
-
-  it("사업 필터의 '참여 없음' 옵션으로 미참여자만 남긴다", async () => {
-    const user = userEvent.setup()
-    renderTable(assignProps)
-    await user.selectOptions(screen.getByLabelText('사업 필터'), '__none__')
-    expect(screen.queryByText('이평가')).not.toBeInTheDocument()
-    expect(screen.getByText('박심사')).toBeInTheDocument()
   })
 
-  it('분과 필터로 특정 분과 배정자만, 미배정 옵션으로 미배정자만 남긴다', async () => {
+  it('배정 분과마다 한 줄씩, 사람 정보는 rowSpan으로 병합되고 셀은 드롭다운이다', () => {
+    renderTable(pairProps())
+    expect(screen.getAllByDisplayValue('이평가')).toHaveLength(1)
+    // 짝 행 드롭다운 — 이평가의 분과 셀 2개(A유형/B유형 선택됨)
+    const sessionSelects = screen.getAllByLabelText('이평가 분과 선택') as HTMLSelectElement[]
+    expect(sessionSelects).toHaveLength(2)
+    expect(sessionSelects.map((s) => s.value)).toEqual(['s1', 's2'])
+    // 헤더 제외 행 수 = 이평가 2 + 박심사 1
+    expect(screen.getAllByRole('row')).toHaveLength(1 + 3)
+  })
+
+  it('분과 드롭다운을 바꾸면 그 줄의 분과만 교체해 저장한다', async () => {
     const user = userEvent.setup()
-    renderTable(assignProps)
-    const sel = screen.getByLabelText('분과 필터')
-    await user.selectOptions(sel, 's1')
-    expect(screen.getByText('이평가')).toBeInTheDocument()
-    expect(screen.queryByText('박심사')).not.toBeInTheDocument()
-    await user.selectOptions(sel, '__none__')
-    expect(screen.queryByText('이평가')).not.toBeInTheDocument()
-    expect(screen.getByText('박심사')).toBeInTheDocument()
+    const props = pairProps()
+    renderTable(props)
+    const [first] = screen.getAllByLabelText('이평가 분과 선택')
+    await user.selectOptions(first, 's2') // A유형(s1) → B유형(s2)
+    expect(props.setSessionsAction).toHaveBeenCalledWith('u1', ['s2'])
+  })
+
+  it('빈 행의 사업 드롭다운으로 사업을 배정한다', async () => {
+    const user = userEvent.setup()
+    const props = pairProps()
+    renderTable(props)
+    await user.selectOptions(screen.getByLabelText('박심사 사업 선택'), 'p2')
+    expect(props.setProjectsAction).toHaveBeenCalledWith('u2', ['p2'])
   })
 })
 
@@ -192,19 +222,19 @@ describe('사업 및 분과 일괄 설정', () => {
   afterEach(() => cleanup())
 
   const bulkProps = () => ({
+    chips2Header: '배정 분과',
     users: [
       { ...USERS[0], assignedProjectIds: ['p1'], assignedSessionIds: ['s1'] },
       { ...USERS[1], assignedProjectIds: [], assignedSessionIds: [] },
     ],
-    chips2Header: '배정 분과',
     projectOptions: [
-      { id: 'p1', label: '2027 시범사업' },
-      { id: 'p2', label: '2028 본사업' },
+      { id: 'p1', label: '신규사업1' },
+      { id: 'p2', label: '신규사업2' },
     ],
     setProjectsAction: vi.fn().mockResolvedValue({ ok: true }),
     sessionOptions: [
-      { id: 's1', label: 'A분과', group: '2027 시범사업', projectId: 'p1' },
-      { id: 's2', label: 'B분과', group: '2028 본사업', projectId: 'p2' },
+      { id: 's1', label: 'A유형', group: '신규사업1', projectId: 'p1' },
+      { id: 's3', label: 'C유형', group: '신규사업2', projectId: 'p2' },
     ],
     setSessionsAction: vi.fn().mockResolvedValue({ ok: true }),
   })
@@ -212,86 +242,28 @@ describe('사업 및 분과 일괄 설정', () => {
   it("2명 선택하면 '정보 변경' 대신 '사업 및 분과 일괄 설정' 버튼이 뜬다", async () => {
     const user = userEvent.setup()
     renderTable(bulkProps())
-    await user.click(screen.getByText('이평가'))
+    await clickRowOf(user, '이평가')
     expect(screen.getByRole('button', { name: '위원 정보 변경' })).toBeInTheDocument()
-    await user.click(screen.getByText('박심사'))
+    await clickRowOf(user, '박심사')
     expect(screen.queryByRole('button', { name: '위원 정보 변경' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: '사업 및 분과 일괄 설정' })).toBeInTheDocument()
   })
 
-  it('모달: 사업은 일괄 체크(합집합 초기값), 사람별 분과 드롭다운이 뜬다', async () => {
-    const user = userEvent.setup()
-    renderTable(bulkProps())
-    await user.click(screen.getByText('이평가'))
-    await user.click(screen.getByText('박심사'))
-    await user.click(screen.getByRole('button', { name: '사업 및 분과 일괄 설정' }))
-    // 사업 합집합(p1)이 미리 체크됨
-    expect(screen.getByRole('checkbox', { name: '2027 시범사업' })).toBeChecked()
-    expect(screen.getByRole('checkbox', { name: '2028 본사업' })).not.toBeChecked()
-    // 사람별 드롭다운
-    expect(screen.getByLabelText('이평가 분과 선택')).toHaveValue('s1')
-    expect(screen.getByLabelText('박심사 분과 선택')).toHaveValue('')
-  })
-
-  it('저장 시 전원 사업 일괄 적용 + 분과는 바꾼 사람만 저장된다', async () => {
+  it('같은 사업·같은 분과를 선택한 전원에게 추가로 배정한다', async () => {
     const user = userEvent.setup()
     const props = bulkProps()
     renderTable(props)
-    await user.click(screen.getByText('이평가'))
-    await user.click(screen.getByText('박심사'))
+    await clickRowOf(user, '이평가')
+    await clickRowOf(user, '박심사')
     await user.click(screen.getByRole('button', { name: '사업 및 분과 일괄 설정' }))
-    // 사업 하나 더 체크 + 박심사에게 분과 배정
-    await user.click(screen.getByRole('checkbox', { name: '2028 본사업' }))
-    await user.selectOptions(screen.getByLabelText('박심사 분과 선택'), 's2')
-    await user.click(screen.getByRole('button', { name: '저장' }))
-    // 사업: 두 사람 모두 p1+p2
-    expect(props.setProjectsAction).toHaveBeenCalledWith('u1', expect.arrayContaining(['p1', 'p2']))
-    expect(props.setProjectsAction).toHaveBeenCalledWith('u2', expect.arrayContaining(['p1', 'p2']))
-    // 분과: 바꾼 박심사만 호출, 이평가는 그대로라 호출 없음
-    expect(props.setSessionsAction).toHaveBeenCalledTimes(1)
-    expect(props.setSessionsAction).toHaveBeenCalledWith('u2', ['s2'])
-  })
-})
-
-describe('pairMode(평가위원) — 사업×분과 짝 행', () => {
-  afterEach(() => cleanup())
-
-  it('배정 분과마다 한 줄씩, 사람 정보는 rowSpan으로 병합된다', () => {
-    renderTable({
-      pairMode: true,
-      chips2Header: '배정 분과',
-      users: [
-        {
-          ...USERS[0],
-          pairs: [
-            { project: '신규사업1', session: 'A유형' },
-            { project: '신규사업1', session: 'B유형' },
-            { project: '신규사업2', session: null },
-          ],
-        },
-      ],
-    })
-    // 3개 짝 행이지만 이름 셀은 1개(rowSpan)
-    expect(screen.getAllByText('이평가')).toHaveLength(1)
-    expect(screen.getByText('A유형')).toBeInTheDocument()
-    expect(screen.getByText('B유형')).toBeInTheDocument()
-    expect(screen.getAllByText('신규사업1')).toHaveLength(2)
-    expect(screen.getByText('신규사업2')).toBeInTheDocument()
-    // 헤더 제외 데이터 행 수 = 3
-    expect(screen.getAllByRole('row')).toHaveLength(1 + 3)
-  })
-
-  it('짝 행 어느 줄을 클릭해도 그 사람이 선택된다', async () => {
-    const user = userEvent.setup()
-    renderTable({
-      pairMode: true,
-      chips2Header: '배정 분과',
-      users: [
-        { ...USERS[0], pairs: [{ project: '신규사업1', session: 'A유형' }, { project: '신규사업1', session: 'B유형' }] },
-      ],
-    })
-    await user.click(screen.getByText('B유형'))
-    expect(screen.getByText('1명 선택됨')).toBeInTheDocument()
+    await user.selectOptions(screen.getByLabelText('일괄 배정 사업'), 'p2')
+    await user.selectOptions(screen.getByLabelText('일괄 배정 분과'), 's3')
+    await user.click(screen.getByRole('button', { name: '일괄 적용' }))
+    // 기존 배정 유지 + 선택 항목 추가(합집합)
+    expect(props.setProjectsAction).toHaveBeenCalledWith('u1', ['p1', 'p2'])
+    expect(props.setProjectsAction).toHaveBeenCalledWith('u2', ['p2'])
+    expect(props.setSessionsAction).toHaveBeenCalledWith('u1', ['s1', 's3'])
+    expect(props.setSessionsAction).toHaveBeenCalledWith('u2', ['s3'])
   })
 })
 
@@ -302,15 +274,13 @@ describe('하단 삭제 버튼', () => {
     const user = userEvent.setup()
     const deleteAction = vi.fn().mockResolvedValue(undefined)
     renderTable({ deleteAction })
-    // 행 아이콘(삭제)와 구분 — 하단 일괄 삭제 버튼은 rose 테두리 스타일
     const delBtn = screen
       .getAllByRole('button', { name: '삭제' })
       .find((b) => b.className.includes('border-rose-300') || b.className.includes('border-slate-200'))!
     expect(delBtn).toBeDisabled()
-    await user.click(screen.getByText('이평가'))
+    await clickRowOf(user, '이평가')
     expect(delBtn).toBeEnabled()
     await user.click(delBtn)
-    // 확인 모달
     expect(screen.getByRole('heading', { name: '위원 삭제' })).toBeInTheDocument()
     expect(screen.getByText(/이평가.*삭제합니다/)).toBeInTheDocument()
     const confirmBtn = screen
@@ -321,25 +291,21 @@ describe('하단 삭제 버튼', () => {
   })
 })
 
-describe('행 수정·삭제 아이콘', () => {
+describe('페이지네이션', () => {
   afterEach(() => cleanup())
 
-  it('수정 아이콘 → 그 사람의 정보 변경 모달, 삭제 아이콘 → 확인 후 해당 1명 삭제', async () => {
+  it('10명 초과면 페이지가 나뉘고, 2페이지에 나머지가 보인다', async () => {
     const user = userEvent.setup()
-    const deleteAction = vi.fn().mockResolvedValue(undefined)
-    renderTable({ deleteAction })
-    // 수정 아이콘
-    await user.click(screen.getAllByRole('button', { name: '수정' })[0])
-    expect(screen.getByRole('heading', { name: '위원 정보 변경' })).toBeInTheDocument()
-    expect(screen.getByDisplayValue('이평가')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: '닫기' }))
-    // 삭제 아이콘 → 확인 모달
-    await user.click(screen.getAllByRole('button', { name: '삭제' })[0])
-    expect(screen.getByRole('heading', { name: '위원 삭제' })).toBeInTheDocument()
-    const confirmBtn = screen
-      .getAllByRole('button', { name: /삭제/ })
-      .find((b) => b.className.includes('bg-rose-600'))!
-    await user.click(confirmBtn)
-    expect(deleteAction).toHaveBeenCalledWith(['u1'])
+    const many: ManagedUser[] = Array.from({ length: 12 }, (_, i) => ({
+      id: `u${i}`, name: `사람${String(i).padStart(2, '0')}`, username: `user${i}`,
+      phone: null, affiliation: null, position: null, tempPassword: null, chips: [],
+    }))
+    renderTable({ users: many })
+    // 1페이지: 10명
+    expect(screen.getAllByRole('row')).toHaveLength(1 + 10)
+    expect(screen.getByText(/12명 중 1–10 표시/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '2' }))
+    expect(screen.getAllByRole('row')).toHaveLength(1 + 2)
+    expect(screen.getByLabelText('사람11 이름')).toBeInTheDocument()
   })
 })

@@ -52,8 +52,7 @@ const fmtPeriod = (s: { startDate: Date | null; endDate: Date | null; eventDate:
       : "미정";
 
 async function Content({ id }: { id: string }) {
-  const { user } = await assertProjectAccess(id);
-  const isMaster = user.role === "MASTER";
+  await assertProjectAccess(id);
   const fetched = await prisma.evaluationSession.findMany({
     where: { projectId: id },
     orderBy: { createdAt: "asc" },
@@ -72,14 +71,6 @@ async function Content({ id }: { id: string }) {
 
   const progress = await Promise.all(sessions.map((s) => getSessionProgress(s.id)));
 
-  // 분과별 작성된 평가 의견서 수
-  const opinionCounts = await prisma.opinion.groupBy({
-    by: ["sessionId"],
-    where: { sessionId: { in: sessions.map((s) => s.id) } },
-    _count: { _all: true },
-  });
-  const opinionOf = new Map(opinionCounts.map((o) => [o.sessionId, o._count._all]));
-
   const rows = sessions.map((s, i) => {
     const p = progress[i];
     return {
@@ -93,10 +84,8 @@ async function Content({ id }: { id: string }) {
       subjectCount: p.subjects.length,
       assignedCount: p.assignedCount,
       completedEvaluators: p.completedEvaluators,
-      written: opinionOf.get(s.id) ?? 0,
-      expected: p.assignedCount * p.subjects.length,
     };
   });
 
-  return <MonitoringSessionsTable projectId={id} rows={rows} isMaster={isMaster} />;
+  return <MonitoringSessionsTable rows={rows} />;
 }

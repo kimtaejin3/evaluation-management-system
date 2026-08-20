@@ -243,7 +243,32 @@ export async function updateUserInfo(userId: string, formData: FormData): Promis
   const affiliation = String(formData.get('affiliation') ?? '').trim() || null
   const position = String(formData.get('position') ?? '').trim() || null
   if (!name) return { ok: false, error: '이름은 필수입니다.' }
-  await prisma.user.update({ where: { id: userId }, data: { name, phone, affiliation, position } })
+  const data: {
+    name: string
+    phone: string | null
+    affiliation: string | null
+    position: string | null
+    username?: string
+    passwordHash?: string
+    tempPassword?: string
+  } = { name, phone, affiliation, position }
+  // 아이디 변경(폼에 있을 때만) — 중복 검사
+  const username = formData.get('username')
+  if (username !== null) {
+    const uname = String(username).trim()
+    if (!uname) return { ok: false, error: '아이디는 필수입니다.' }
+    const dup = await prisma.user.findFirst({ where: { username: uname, id: { not: userId } }, select: { id: true } })
+    if (dup) return { ok: false, error: '이미 사용 중인 아이디입니다.' }
+    data.username = uname
+  }
+  // 비밀번호 직접 지정(폼에 있고 비어있지 않을 때만) — 해시 저장 + 표시용 임시 비번 갱신
+  const password = String(formData.get('password') ?? '').trim()
+  if (password) {
+    if (password.length < 4) return { ok: false, error: '비밀번호는 4자 이상이어야 합니다.' }
+    data.passwordHash = await hashPassword(password)
+    data.tempPassword = password
+  }
+  await prisma.user.update({ where: { id: userId }, data })
   revalidatePath('/admin', 'layout')
   revalidatePath('/admin/evaluators')
   revalidatePath('/admin/secretaries')

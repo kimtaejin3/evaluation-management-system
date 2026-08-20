@@ -95,11 +95,11 @@ export default function ProjectSessionsTable({
                   </button>
                 </th>
                 <SortTh label="분과명" field="name" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                <SortTh label="평가 상태" field="status" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortTh label="담당자" field="secretary" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <SortTh label="평가 기간" field="period" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <SortTh label="평가 대상 수" field="subjects" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <SortTh label="평가위원 수" field="evaluators" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                <SortTh label="담당자" field="secretary" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortTh label="평가 상태" field="status" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               </tr>
             </thead>
             <tbody>
@@ -123,15 +123,15 @@ export default function ProjectSessionsTable({
                       {s.name}
                     </Link>
                   </td>
-                  <td className="px-5 py-3">
-                    <StatusBadge status={s.status} />
+                  {/* 담당자 셀 내부의 배정 UI 클릭이 행 선택으로 번지지 않게 차단 */}
+                  <td className="px-5 py-3" onClick={(e) => e.stopPropagation()}>
+                    {secretaryCells[s.id]}
                   </td>
                   <td className="px-5 py-3 text-slate-600">{s.periodLabel}</td>
                   <td className="px-5 py-3 text-slate-600">{s.subjectCount}</td>
                   <td className="px-5 py-3 text-slate-600">{s.assignmentCount}</td>
-                  {/* 담당자 셀 내부의 배정 UI 클릭이 행 선택으로 번지지 않게 차단 */}
-                  <td className="px-5 py-3" onClick={(e) => e.stopPropagation()}>
-                    {secretaryCells[s.id]}
+                  <td className="px-5 py-3">
+                    <StatusBadge status={s.status} />
                   </td>
                 </tr>
               ))}

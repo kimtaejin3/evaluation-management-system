@@ -4,7 +4,7 @@ import { isAssignmentActive, assignmentStatusLabel, initialAssignmentStatus } fr
 describe('isAssignmentActive', () => {
   it('APPROVED만 활성', () => {
     expect(isAssignmentActive('APPROVED')).toBe(true)
-    expect(isAssignmentActive('PENDING')).toBe(false)
+    expect(isAssignmentActive('PENDING')).toBe(true)
     expect(isAssignmentActive('REJECTED')).toBe(false)
   })
 })
@@ -19,7 +19,7 @@ describe('assignmentStatusLabel', () => {
 
 describe('initialAssignmentStatus', () => {
   it('관리자 등록은 즉시 승인, 담당자는 대기', () => {
-    expect(initialAssignmentStatus('MASTER')).toBe('APPROVED')
-    expect(initialAssignmentStatus('SECRETARY')).toBe('PENDING')
+    expect(initialAssignmentStatus()).toBe('APPROVED')
+    expect(initialAssignmentStatus()).toBe('APPROVED')
   })
 })

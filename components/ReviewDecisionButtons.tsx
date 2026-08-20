@@ -2,20 +2,12 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import {
-  approveSubjectReview,
-  rejectSubjectReview,
-  approveEvaluators,
-  rejectEvaluators,
-  approveOpinions,
-  rejectOpinions,
-} from '@/app/admin/sessions/actions'
+import { approveOpinions, rejectOpinions } from '@/app/admin/sessions/actions'
 
-type Kind = 'subjects' | 'evaluators' | 'opinions'
+// 평가위원·평가대상의 제출/승인 흐름이 제거되어 현재는 의견서(opinions)에서만 쓴다
+type Kind = 'opinions'
 
 const ACTIONS: Record<Kind, { approve: (id: string) => Promise<void>; reject: (id: string, reason: string) => Promise<void> }> = {
-  subjects: { approve: approveSubjectReview, reject: rejectSubjectReview },
-  evaluators: { approve: approveEvaluators, reject: rejectEvaluators },
   opinions: { approve: approveOpinions, reject: rejectOpinions },
 }
 

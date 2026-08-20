@@ -1,10 +1,7 @@
 import { Suspense } from "react";
 import { prisma } from "@/lib/db";
 import { assertProjectAccess } from "@/lib/authz";
-import { computeWeightedScore } from "@/lib/scoring";
-import { scoringUnitsForScope } from "@/lib/criteria-scope";
-import { scoreUnitId } from "@/lib/criteria-units";
-import ProjectSubjectsTable, { type ProjectSubjectRow } from "@/components/ProjectSubjectsTable";
+import ProjectSubjectsBrowser, { type BrowserSession } from "@/components/ProjectSubjectsBrowser";
 import ExcelExportButton from "@/components/ExcelExportButton";
 import { SkeletonTable } from "@/components/Skeletons";
 
@@ -31,84 +28,70 @@ export default async function ProjectSubjectsPage({
         <Content id={id} />
       </Suspense>
       <p className="text-left text-xs text-slate-400">
-        분과별 평가 대상 현황입니다. ‘자세히 보기’로 기업 자료 제출 현황을 조회합니다.
+        분과 탭을 선택하면 그 분과의 평가 대상(기업)을 이 화면에서 바로 보고 추가·수정·삭제·서류 관리까지 할 수 있습니다.
       </p>
     </div>
   );
 }
 
 async function Content({ id }: { id: string }) {
-  const { user } = await assertProjectAccess(id);
+  await assertProjectAccess(id);
   const sessions = await prisma.evaluationSession.findMany({
     where: { projectId: id },
     orderBy: { createdAt: "asc" },
     select: {
       id: true,
       name: true,
-      status: true,
-      subjectReviewStatus: true,
       secretary: { select: { name: true } },
+      status: true,
+      // 분과별 평가 대상 + 기업 정보 + 제출 자료(분과 전용 + 공통)를 한 번에
+      subjects: {
+        orderBy: { order: "asc" },
+        select: {
+          id: true,
+          name: true,
+          sessionId: true,
+          companyId: true,
+          status: true,
+          rejectionReason: true,
+          company: {
+            select: {
+              businessNo: true,
+              region: true,
+              leadResearcher: true,
+              description: true,
+              documents: {
+                orderBy: { createdAt: "asc" },
+                select: { id: true, originalName: true, size: true, sessionId: true },
+              },
+            },
+          },
+        },
+      },
     },
   });
-  const isMaster = user.role === "MASTER";
-  const sessionIds = sessions.map((s) => s.id);
 
-  // 위원별 점수 매트릭스 — 배정 상태와 무관하게, 전 항목을 입력한 (위원×대상)만 총점 산출.
-  // 평가항목은 사업 단위 공통이므로 한 번만 읽는다.
-  const [units, subjects, assignments, scores] = await Promise.all([
-    scoringUnitsForScope({ projectId: id }),
-    prisma.subject.findMany({
-      where: { sessionId: { in: sessionIds } },
-      orderBy: { order: "asc" },
-      select: { id: true, name: true, sessionId: true },
-    }),
-    prisma.assignment.findMany({
-      where: { sessionId: { in: sessionIds } },
-      orderBy: { createdAt: "asc" },
-      select: { sessionId: true, userId: true, user: { select: { name: true } } },
-    }),
-    prisma.score.findMany({
-      where: { sessionId: { in: sessionIds } },
-      select: { sessionId: true, evaluatorId: true, subjectId: true, criterionId: true, subitemId: true, value: true },
-    }),
-  ]);
-  const totalCriteria = units.length;
-  const weights = units.map((u) => ({ id: u.unitId, weight: u.weight }));
+  const data: BrowserSession[] = sessions.map((s) => ({
+    id: s.id,
+    name: s.name,
+    secretaryName: s.secretary?.name ?? null,
+    locked: s.status === "CLOSED",
+    subjects: s.subjects.map((sub) => ({
+      id: sub.id,
+      companyId: sub.companyId,
+      name: sub.name,
+      status: sub.status as BrowserSession["subjects"][number]["status"],
+      rejectionReason: sub.rejectionReason,
+      businessNo: sub.company.businessNo,
+      region: sub.company.region,
+      leadResearcher: sub.company.leadResearcher,
+      description: sub.company.description,
+      // 이 분과 전용 자료 + 공통(sessionId=null) 자료만
+      documents: sub.company.documents
+        .filter((d) => d.sessionId === sub.sessionId || d.sessionId === null)
+        .map((d) => ({ id: d.id, originalName: d.originalName, size: d.size })),
+    })),
+  }));
 
-  // (위원:대상)별 입력 점수 묶음(채점 단위 기준)
-  const scoreRows = new Map<string, { criterionId: string; value: number }[]>();
-  for (const sc of scores) {
-    const k = `${sc.evaluatorId}:${sc.subjectId}`;
-    if (!scoreRows.has(k)) scoreRows.set(k, []);
-    scoreRows.get(k)!.push({ criterionId: scoreUnitId(sc), value: sc.value });
-  }
-
-  const rows: ProjectSubjectRow[] = sessions.map((s) => {
-    const sessionSubjects = subjects.filter((sub) => sub.sessionId === s.id).map(({ id: sid, name }) => ({ id: sid, name }));
-    // 평가위원 제출/승인 워크플로 제거 — 관리자도 배정 명단을 상시 확인
-    const sessionEvaluators = assignments
-      .filter((a) => a.sessionId === s.id)
-      .map((a) => ({ id: a.userId, name: a.user.name }));
-    const totals: Record<string, number | null> = {};
-    for (const e of sessionEvaluators) {
-      for (const sub of sessionSubjects) {
-        const rows0 = scoreRows.get(`${e.id}:${sub.id}`) ?? [];
-        totals[`${e.id}:${sub.id}`] =
-          totalCriteria > 0 && rows0.length >= totalCriteria ? computeWeightedScore(rows0, weights) : null;
-      }
-    }
-    return {
-      sessionId: s.id,
-      name: s.name,
-      secretaryName: s.secretary?.name ?? null,
-      reviewStatus: s.subjectReviewStatus,
-      closed: s.status === "CLOSED",
-      subjectCount: sessionSubjects.length,
-      evaluators: sessionEvaluators,
-      subjects: sessionSubjects,
-      totals,
-    };
-  });
-
-  return <ProjectSubjectsTable rows={rows} isMaster={isMaster} />;
+  return <ProjectSubjectsBrowser sessions={data} />;
 }

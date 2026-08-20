@@ -550,10 +550,8 @@ export async function commitSubjectImport(
   sessionId: string,
   payload: SubjectImportPayload,
 ): Promise<SubjectImportResult> {
-  const { user } = await assertSessionAccess(sessionId)
-  if (user.role === 'MASTER') return { ok: false, error: '가져오기는 담당자만 가능합니다.' }
-  if (!(await subjectsEditable(sessionId)))
-    return { ok: false, error: '제출 완료 상태에서는 가져올 수 없습니다. 제출을 취소한 뒤 다시 시도하세요.' }
+  await assertSessionAccess(sessionId)
+  if (!(await subjectsEditable(sessionId))) return { ok: false, error: '마감된 분과는 가져올 수 없습니다.' }
   const grid = payload.grid ?? []
   if (grid.length === 0) return { ok: false, error: '가져올 내용이 없습니다.' }
 
@@ -612,30 +610,20 @@ async function sessionOpen(sessionId: string): Promise<boolean> {
   return !!s && s.status !== 'CLOSED'
 }
 
+// 평가 대상 편집 가능 여부 — 제출/검토 흐름 제거: 마감(CLOSED) 전이면 관리자·담당자 모두 가능
 async function subjectsEditable(sessionId: string): Promise<boolean> {
-  const s = await prisma.evaluationSession.findUnique({
-    where: { id: sessionId },
-    select: { subjectReviewStatus: true, status: true },
-  })
-  if (!s || s.status === 'CLOSED') return false
-  return s.subjectReviewStatus === 'DRAFT' || s.subjectReviewStatus === 'REJECTED'
+  const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { status: true } })
+  return !!s && s.status !== 'CLOSED'
 }
 
-// 과제 서류 관리(업로드/삭제) 가능 여부.
-// 관리자(MASTER)는 마감만 아니면 항상 가능(제출 상태와 무관). 담당자는 작성/반려(제출 전)일 때만.
-async function docsManageable(sessionId: string, role: string): Promise<boolean> {
-  const s = await prisma.evaluationSession.findUnique({
-    where: { id: sessionId },
-    select: { status: true, subjectReviewStatus: true },
-  })
-  if (!s || s.status === 'CLOSED') return false
-  if (role === 'MASTER') return true
-  return s.subjectReviewStatus === 'DRAFT' || s.subjectReviewStatus === 'REJECTED'
+// 과제 서류 관리(업로드/삭제) 가능 여부 — 마감(CLOSED) 전이면 관리자·담당자 모두 가능
+async function docsManageable(sessionId: string): Promise<boolean> {
+  const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { status: true } })
+  return !!s && s.status !== 'CLOSED'
 }
 
 export async function addSubject(sessionId: string, formData: FormData) {
-  const { user } = await assertSessionAccess(sessionId)
-  if (user.role === 'MASTER') return
+  await assertSessionAccess(sessionId)
   if (!(await subjectsEditable(sessionId))) return
   const newName = String(formData.get('newName') ?? '').trim()
   if (!newName) return
@@ -661,6 +649,9 @@ export async function addSubject(sessionId: string, formData: FormData) {
       data: { status: 'PENDING', rejectionReason: null, decidedAt: null },
     })
     revalidatePath(`/admin/sessions/${sessionId}/subjects`)
+  // 사업 평가대상(분과 탭 브라우저)에서도 폼 액션만으로 바로 반영되도록
+  const sess = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { projectId: true } })
+  if (sess?.projectId) revalidatePath(`/admin/projects/${sess.projectId}/subjects`)
     return
   }
 
@@ -680,8 +671,7 @@ export async function addSubject(sessionId: string, formData: FormData) {
 
 // 반려된(또는 기존) 평가 대상의 기업 정보 수정 — 담당자 전용. 수정 시 재검토를 위해 PENDING으로 되돌림.
 export async function editSubject(sessionId: string, subjectId: string, formData: FormData) {
-  const { user } = await assertSessionAccess(sessionId)
-  if (user.role === 'MASTER') return
+  await assertSessionAccess(sessionId)
   if (!(await subjectsEditable(sessionId))) return
   const subject = await prisma.subject.findUnique({ where: { id: subjectId } })
   if (!subject || subject.sessionId !== sessionId) return
@@ -703,8 +693,7 @@ export async function editSubject(sessionId: string, subjectId: string, formData
 }
 
 export async function deleteSubject(sessionId: string, subjectId: string) {
-  const { user } = await assertSessionAccess(sessionId)
-  if (user.role === 'MASTER') return // 관리자는 조회만
+  await assertSessionAccess(sessionId)
   if (!(await subjectsEditable(sessionId))) return
   await prisma.subject.delete({ where: { id: subjectId } })
   revalidatePath(`/admin/sessions/${sessionId}/subjects`)
@@ -712,8 +701,8 @@ export async function deleteSubject(sessionId: string, subjectId: string) {
 
 // 평가 대상(기업) 자료 업로드 — 이 심사 전용(sessionId)으로 저장. 사업계획/현장실태조사서/사전검토표 등. 담당자·관리자.
 export async function uploadSubjectDocument(sessionId: string, companyId: string, formData: FormData) {
-  const { user } = await assertSessionAccess(sessionId)
-  if (!(await docsManageable(sessionId, user.role))) return
+  await assertSessionAccess(sessionId)
+  if (!(await docsManageable(sessionId))) return
   // PDF만 허용
   const files = formData.getAll('file').filter((f): f is File => f instanceof File && f.size > 0 && isPdf(f))
   if (files.length === 0) return
@@ -749,8 +738,8 @@ export async function presignSubjectUpload(
   fileSize: number,
   fileType: string,
 ): Promise<PresignResult> {
-  const { user } = await assertSessionAccess(sessionId)
-  if (!(await docsManageable(sessionId, user.role))) return { error: '지금은 자료를 업로드할 수 없습니다.' }
+  await assertSessionAccess(sessionId)
+  if (!(await docsManageable(sessionId))) return { error: '지금은 자료를 업로드할 수 없습니다.' }
   if (!fileName.toLowerCase().endsWith('.pdf') && fileType !== 'application/pdf')
     return { error: 'PDF만 업로드할 수 있습니다.' }
   if (fileSize > MAX_UPLOAD_BYTES) return { error: `파일이 너무 큽니다. 최대 ${MAX_UPLOAD_MB}MB까지 업로드할 수 있습니다.` }
@@ -764,8 +753,8 @@ export async function registerSubjectDocument(
   companyId: string,
   meta: { storedName: string; url: string; originalName: string; mimeType: string },
 ): Promise<{ ok: true } | { error: string }> {
-  const { user } = await assertSessionAccess(sessionId)
-  if (!(await docsManageable(sessionId, user.role))) return { error: '지금은 자료를 업로드할 수 없습니다.' }
+  await assertSessionAccess(sessionId)
+  if (!(await docsManageable(sessionId))) return { error: '지금은 자료를 업로드할 수 없습니다.' }
   // presign에서 발급한 키 형식만 허용(임의 키 등록 방지)
   if (meta.url !== `r2:documents/${meta.storedName}` || !/^[0-9a-f-]{36}\.[a-z0-9]+$/i.test(meta.storedName))
     return { error: '잘못된 업로드 정보입니다.' }
@@ -791,8 +780,8 @@ export async function registerSubjectDocument(
 }
 
 export async function deleteSubjectDocument(sessionId: string, documentId: string) {
-  const { user } = await assertSessionAccess(sessionId)
-  if (!(await docsManageable(sessionId, user.role))) return
+  await assertSessionAccess(sessionId)
+  if (!(await docsManageable(sessionId))) return
   const doc = await prisma.document.findUnique({ where: { id: documentId } })
   if (!doc) return
   await prisma.document.delete({ where: { id: documentId } })
@@ -800,9 +789,9 @@ export async function deleteSubjectDocument(sessionId: string, documentId: strin
   revalidatePath(`/admin/sessions/${sessionId}/subjects`)
 }
 
+// 배정 해제 — 담당자(분과 화면)·관리자(평가위원 선정현황) 공용
 export async function removeEvaluator(sessionId: string, userId: string) {
-  const { user } = await assertSessionAccess(sessionId)
-  if (user.role === 'MASTER') return // 관리자는 조회 전용
+  await assertSessionAccess(sessionId)
   if (!(await sessionOpen(sessionId))) return
   const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { chairId: true } })
   if (!s) return
@@ -828,14 +817,13 @@ export async function setChair(sessionId: string, formData: FormData) {
   revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
 }
 
-// 전역 풀의 기존 위원을 이 분과에 배정(폼: userId). 담당자 전용(마감 전 상시).
+// 전역 풀의 기존 위원을 이 분과에 배정(폼: userId). 담당자·관리자 공용(마감 전 상시).
 export async function assignEvaluator(sessionId: string, formData: FormData) {
   const { user } = await assertSessionAccess(sessionId)
-  if (user.role === 'MASTER') return // 관리자는 배정하지 않음(조회 전용)
   if (!(await sessionOpen(sessionId))) return
   const userId = String(formData.get('userId') ?? '').trim()
   if (!userId) return
-  const status = initialAssignmentStatus(user.role as 'MASTER' | 'SECRETARY')
+  const status = initialAssignmentStatus()
   await prisma.assignment.upsert({
     where: { sessionId_userId: { sessionId, userId } },
     update: { status, createdById: user.id, decidedAt: status === 'APPROVED' ? new Date() : null },
@@ -936,74 +924,6 @@ export async function rejectAllAssignments(sessionId: string, reason: string) {
   revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
 }
 
-// ── 평가위원 배정 검토 워크플로: 담당자 제출 → 관리자 승인/반려 ──
-// 담당자 제출 → 관리자 검토 대기(SUBMITTED). 관리자는 조회만이므로 MASTER는 차단. 배정이 없으면 제출 불가.
-export async function submitEvaluators(sessionId: string) {
-  const { user } = await assertSessionAccess(sessionId)
-  if (user.role === 'MASTER') return
-  if (!(await sessionOpen(sessionId))) return
-  const count = await prisma.assignment.count({ where: { sessionId } })
-  if (count === 0) return
-  await prisma.evaluationSession.update({
-    where: { id: sessionId },
-    data: { evaluatorStatus: 'SUBMITTED', evaluatorRejectionReason: null },
-  })
-  revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
-  revalidatePath(`/admin/sessions/${sessionId}`)
-}
-
-// 담당자 제출 취소 → 다시 배정중(DRAFT). 관리자 승인/반려 전(SUBMITTED)에만 가능.
-export async function cancelSubmitEvaluators(sessionId: string) {
-  const { user } = await assertSessionAccess(sessionId)
-  if (user.role === 'MASTER') return
-  if (!(await sessionOpen(sessionId))) return
-  const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { evaluatorStatus: true } })
-  if (!s || s.evaluatorStatus !== 'SUBMITTED') return
-  await prisma.evaluationSession.update({ where: { id: sessionId }, data: { evaluatorStatus: 'DRAFT' } })
-  revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
-  revalidatePath(`/admin/sessions/${sessionId}`)
-}
-
-// 관리자 배정 승인(SUBMITTED → APPROVED). 배정 위원 전체를 활성화(APPROVED)해 평가에 참여시킨다. 마스터 전용.
-export async function approveEvaluators(sessionId: string) {
-  await assertMaster()
-  if (!(await sessionOpen(sessionId))) return
-  const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { evaluatorStatus: true } })
-  if (!s || s.evaluatorStatus !== 'SUBMITTED') return
-  await prisma.$transaction([
-    prisma.assignment.updateMany({
-      where: { sessionId },
-      data: { status: 'APPROVED', rejectionReason: null, decidedAt: new Date() },
-    }),
-    prisma.evaluationSession.update({
-      where: { id: sessionId },
-      data: { evaluatorStatus: 'APPROVED', evaluatorRejectionReason: null },
-    }),
-  ])
-  revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
-  revalidatePath(`/admin/sessions/${sessionId}`)
-}
-
-// 관리자 배정 반려(SUBMITTED → REJECTED) + 사유. 담당자가 위원을 조정 후 재제출. 마스터 전용.
-export async function rejectEvaluators(sessionId: string, reason: string) {
-  await assertMaster()
-  if (!(await sessionOpen(sessionId))) return
-  const trimmed = (reason ?? '').trim()
-  if (!trimmed) return
-  // 승인(APPROVED) 이후에도 반려 가능. 승인으로 활성화됐던 배정은 다시 대기(PENDING)로 되돌려 비활성화한다.
-  const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { evaluatorStatus: true } })
-  if (!s || (s.evaluatorStatus !== 'SUBMITTED' && s.evaluatorStatus !== 'APPROVED')) return
-  await prisma.$transaction([
-    prisma.assignment.updateMany({ where: { sessionId, status: 'APPROVED' }, data: { status: 'PENDING', decidedAt: null } }),
-    prisma.evaluationSession.update({
-      where: { id: sessionId },
-      data: { evaluatorStatus: 'REJECTED', evaluatorRejectionReason: trimmed },
-    }),
-  ])
-  revalidatePath(`/admin/sessions/${sessionId}/evaluators`)
-  revalidatePath(`/admin/sessions/${sessionId}`)
-}
-
 // 담당자(담당) 집계결과 '제출 완료' → 관리자 검토 대기. 관리자는 조회만이므로 MASTER는 차단.
 export async function submitSessionForReview(sessionId: string): Promise<{ ok: boolean; error?: string }> {
   if (!(await sessionOpen(sessionId))) return { ok: false, error: '마감된 분과입니다.' }
@@ -1078,92 +998,6 @@ export async function completeReview(sessionId: string) {
 }
 
 // ── 관리자: 평가 대상(기업) 일괄 승인/반려 (MASTER 전용) ──
-
-export async function approveSubjects(sessionId: string) {
-  await assertMaster()
-  if (!(await sessionOpen(sessionId))) return
-  await prisma.subject.updateMany({
-    where: { sessionId },
-    data: { status: 'APPROVED', decidedAt: new Date(), rejectionReason: null },
-  })
-  revalidatePath(`/admin/sessions/${sessionId}/subjects`)
-}
-
-export async function rejectSubjects(sessionId: string, reason: string) {
-  await assertMaster()
-  if (!(await sessionOpen(sessionId))) return
-  const trimmed = reason.trim()
-  if (!trimmed) return
-  await prisma.subject.updateMany({
-    where: { sessionId },
-    data: { status: 'REJECTED', rejectionReason: trimmed, decidedAt: new Date() },
-  })
-  revalidatePath(`/admin/sessions/${sessionId}/subjects`)
-}
-
-// ── 평가 대상 검토 워크플로: 담당자 제출 → 관리자 승인/반려 (세션 단위) ──
-export async function submitSubjectReview(sessionId: string) {
-  const { user } = await assertSessionAccess(sessionId)
-  if (user.role === 'MASTER') return
-  if (!(await sessionOpen(sessionId))) return
-  const count = await prisma.subject.count({ where: { sessionId } })
-  if (count === 0) return
-  await prisma.evaluationSession.update({
-    where: { id: sessionId },
-    data: { subjectReviewStatus: 'SUBMITTED', subjectReviewRejectionReason: null },
-  })
-  revalidatePath(`/admin/sessions/${sessionId}/subjects`)
-  revalidatePath(`/admin/sessions/${sessionId}`)
-}
-
-export async function cancelSubmitSubjectReview(sessionId: string) {
-  const { user } = await assertSessionAccess(sessionId)
-  if (user.role === 'MASTER') return
-  if (!(await sessionOpen(sessionId))) return
-  const s = await prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { subjectReviewStatus: true } })
-  if (!s || s.subjectReviewStatus !== 'SUBMITTED') return
-  await prisma.evaluationSession.update({ where: { id: sessionId }, data: { subjectReviewStatus: 'DRAFT' } })
-  revalidatePath(`/admin/sessions/${sessionId}/subjects`)
-  revalidatePath(`/admin/sessions/${sessionId}`)
-}
-
-export async function approveSubjectReview(sessionId: string) {
-  await assertMaster()
-  const s = await prisma.evaluationSession.findUnique({
-    where: { id: sessionId },
-    select: { subjectReviewStatus: true, status: true },
-  })
-  // 마감(CLOSED)된 분과는 평가 대상 검토 상태를 바꿀 수 없다
-  if (!s || s.status === 'CLOSED' || s.subjectReviewStatus !== 'SUBMITTED') return
-  await prisma.$transaction([
-    prisma.subject.updateMany({ where: { sessionId }, data: { status: 'APPROVED', decidedAt: new Date(), rejectionReason: null } }),
-    prisma.evaluationSession.update({ where: { id: sessionId }, data: { subjectReviewStatus: 'APPROVED', subjectReviewRejectionReason: null } }),
-  ])
-  revalidatePath(`/admin/sessions/${sessionId}/subjects`)
-  revalidatePath(`/admin/sessions/${sessionId}`)
-}
-
-export async function rejectSubjectReview(sessionId: string, reason: string) {
-  await assertMaster()
-  const trimmed = (reason ?? '').trim()
-  if (!trimmed) return
-  // 승인(APPROVED) 이후에도 반려 가능. 승인 표시됐던 대상은 대기(PENDING)로 되돌린다.
-  // 단 마감(CLOSED)된 분과는 되돌릴 수 없다.
-  const s = await prisma.evaluationSession.findUnique({
-    where: { id: sessionId },
-    select: { subjectReviewStatus: true, status: true },
-  })
-  if (!s || s.status === 'CLOSED' || (s.subjectReviewStatus !== 'SUBMITTED' && s.subjectReviewStatus !== 'APPROVED')) return
-  await prisma.$transaction([
-    prisma.subject.updateMany({ where: { sessionId, status: 'APPROVED' }, data: { status: 'PENDING', decidedAt: null } }),
-    prisma.evaluationSession.update({
-      where: { id: sessionId },
-      data: { subjectReviewStatus: 'REJECTED', subjectReviewRejectionReason: trimmed },
-    }),
-  ])
-  revalidatePath(`/admin/sessions/${sessionId}/subjects`)
-  revalidatePath(`/admin/sessions/${sessionId}`)
-}
 
 // ── 평가 의견서 검토 워크플로: 담당자 제출 → 관리자 승인/반려 (세션 단위) ──
 // 담당자 '검토 완료' 사전 조건 — 위원장 검토가 끝나야 담당자가 검토를 완료할 수 있다.

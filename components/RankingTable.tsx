@@ -98,9 +98,14 @@ export default function RankingTable({
           <tr className="border-b border-slate-200 bg-slate-50 print:border-black print:bg-transparent">
             <th className="w-px whitespace-nowrap px-3 py-2 text-center font-medium print:border print:border-black">순위</th>
             <th className="px-3 py-2 text-left font-medium print:border print:border-black">기업</th>
+            {/* 세부 항목 이름으로 표기(회의 결정) — 번호는 툴팁으로 유지 */}
             {criteria.map((c) => (
-              <th key={c.id} className="w-px whitespace-nowrap px-3 py-2 text-center font-medium tabular-nums print:border print:border-black" title={c.name}>
-                {c.code}
+              <th
+                key={c.id}
+                className="max-w-28 px-2 py-2 text-center align-bottom text-xs font-medium break-keep whitespace-normal print:border print:border-black"
+                title={c.code ? `${c.code} · ${c.name}` : c.name}
+              >
+                {c.name}
               </th>
             ))}
             <th className="w-px whitespace-nowrap px-4 py-2 text-right font-medium print:border print:border-black">

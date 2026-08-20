@@ -22,7 +22,13 @@ export type ManagedUser = {
   assignedProjectIds?: string[]
   // 사업×분과 짝 행(pairMode) — 한 짝이 한 줄, 사람 정보는 rowSpan 으로 병합.
   // progress: 시작 전(BEFORE)/진행중(ONGOING)/완료(DONE)
-  pairs?: { project: string | null; session: string | null; progress?: PairProgress }[]
+  pairs?: {
+    project: string | null
+    projectId?: string | null
+    session: string | null
+    sessionId?: string | null
+    progress?: PairProgress
+  }[]
 }
 
 // 정렬 가능한 텍스트 컬럼
@@ -34,6 +40,115 @@ const PROGRESS_LABEL: Record<PairProgress, { label: string; cls: string }> = {
   BEFORE: { label: '시작 전', cls: 'text-slate-400' },
   ONGOING: { label: '진행중', cls: 'text-blue-600' },
   DONE: { label: '완료', cls: 'text-emerald-600' },
+}
+
+// 셀 인라인 입력 — 평소엔 테두리 없이 텍스트처럼, 호버/포커스 시 입력창으로.
+// 블러·Enter 에서 변경분만 저장하고 저장 상태를 오른쪽에 점(·체크)으로 표시한다.
+function InlineTd({
+  rowSpan,
+  value,
+  state,
+  bold = false,
+  mono = false,
+  placeholder = '—',
+  onChange,
+  onCommit,
+  ariaLabel,
+}: {
+  rowSpan: number
+  value: string
+  state?: 'saving' | 'saved' | 'error'
+  bold?: boolean
+  mono?: boolean
+  placeholder?: string
+  onChange: (v: string) => void
+  onCommit: () => void
+  ariaLabel: string
+}) {
+  return (
+    <td rowSpan={rowSpan} className="border-b border-slate-100 px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
+      <span className="relative block">
+        {/* 편집 가능함이 보이도록: 항상 점선 밑줄, 호버 시 실선+연필, 포커스 시 입력창 스타일 */}
+        <input
+          value={value}
+          aria-label={ariaLabel}
+          title="클릭해서 바로 수정"
+          placeholder={placeholder}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={onCommit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+          }}
+          className={`peer w-full rounded-md border border-transparent border-b-slate-300 bg-transparent px-2 py-1 text-sm transition [border-bottom-style:dashed] placeholder:text-slate-300 hover:border-b-slate-400 focus:rounded-md focus:border-indigo-400 focus:bg-white focus:outline-none focus:[border-bottom-style:solid] ${
+            bold ? 'font-medium text-slate-800' : 'text-slate-600'
+          } ${mono ? 'font-mono tabular-nums' : ''} ${state === 'error' ? 'border-rose-300' : ''}`}
+        />
+        {!state && (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute top-1/2 -right-1 -translate-y-1/2 text-[10px] text-slate-300 opacity-0 transition peer-hover:opacity-100 peer-focus:opacity-0"
+          >
+            ✎
+          </span>
+        )}
+        {state && (
+          <span
+            aria-hidden
+            className={`pointer-events-none absolute top-1/2 -right-1 -translate-y-1/2 text-[10px] ${
+              state === 'saved' ? 'text-emerald-500' : state === 'error' ? 'text-rose-500' : 'text-slate-400'
+            }`}
+          >
+            {state === 'saving' ? '…' : state === 'saved' ? '✓' : '!'}
+          </span>
+        )}
+      </span>
+    </td>
+  )
+}
+
+// 짝 행 셀 드롭다운 — 배정된 사업/분과를 셀에서 바로 바꾼다. 값 없으면 회색 플레이스홀더.
+function PairSelect({
+  value,
+  options,
+  placeholder,
+  disabled = false,
+  title,
+  ariaLabel,
+  onChange,
+}: {
+  value: string
+  options: { id: string; label: string }[]
+  placeholder: string
+  disabled?: boolean
+  title?: string
+  ariaLabel: string
+  onChange: (v: string) => void
+}) {
+  return (
+    <span className="relative inline-block max-w-full" onClick={(e) => e.stopPropagation()} title={title}>
+      <select
+        value={value}
+        disabled={disabled}
+        aria-label={ariaLabel}
+        onChange={(e) => onChange(e.target.value)}
+        className={`h-8 max-w-44 appearance-none truncate rounded-lg border py-0 pr-7 pl-2.5 text-xs transition focus:outline-none ${
+          value
+            ? 'border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 focus:border-indigo-400'
+            : 'border-dashed border-slate-300 bg-white text-slate-400 hover:border-slate-400 focus:border-indigo-400'
+        } disabled:cursor-not-allowed disabled:opacity-50`}
+      >
+        <option value="">{placeholder}</option>
+        {options.map((o) => (
+          <option key={o.id} value={o.id}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <span aria-hidden className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-[10px] text-slate-400">
+        ▾
+      </span>
+    </span>
+  )
 }
 
 // 필터 셀렉트에서 '미참여/미배정'을 뜻하는 특수 값 — id 와 충돌하지 않는 문자열
@@ -131,15 +246,15 @@ export default function UserManagerTable({
   const [bulkOpen, setBulkOpen] = useState(false)
   // 하단 '삭제' 버튼 — 선택된 사람 일괄 삭제(확인은 모달)
   const [deleting, startDelete] = useTransition()
-  // 행 아이콘 버튼 — 해당 1명 수정 모달 / 삭제 확인
-  const [editUser, setEditUser] = useState<ManagedUser | null>(null)
-  const [deleteUser, setDeleteUser] = useState<ManagedUser | null>(null)
   // 필터·정렬 — 클라이언트에서만 처리(원본 순서는 서버의 등록순 유지)
   const [query, setQuery] = useState('')
   // '' = 전체, NONE_FILTER = 미참여/미배정, 그 외 = 해당 id
   const [projectFilter, setProjectFilter] = useState('')
   const [sessionFilter, setSessionFilter] = useState('')
   const { sortKey, sortDir, toggleSort, sortRows } = useClientSort<SortKey>()
+  // 페이지네이션 — 한 페이지 10명(회의 결정: 5~10명)
+  const PAGE_SIZE = 10
+  const [page, setPage] = useState(0)
   // 칩 셀의 '설정'으로 여는 개별 배정 모달 대상 사용자
   const [sessionUser, setSessionUser] = useState<ManagedUser | null>(null)
   const [projectUser, setProjectUser] = useState<ManagedUser | null>(null)
@@ -147,6 +262,63 @@ export default function UserManagerTable({
   const [projectOverrides, setProjectOverrides] = useState<Record<string, string[]>>({})
   const canAssign = !!(sessionOptions && setSessionsAction)
   const canSetProjects = !!(projectOptions && setProjectsAction)
+
+  // 셀 인라인 편집 드래프트 — 블러/Enter 시 변경된 사용자만 저장(updateAction은 4필드 전체를 받는다)
+  type Draft = { name: string; username: string; password: string; phone: string; affiliation: string; position: string }
+  const [drafts, setDrafts] = useState<Record<string, Draft>>({})
+  const [fieldState, setFieldState] = useState<Record<string, 'saving' | 'saved' | 'error'>>({})
+  const baseDraft = (u: ManagedUser): Draft => ({
+    name: u.name,
+    username: u.username,
+    password: u.tempPassword ?? '',
+    phone: u.phone ?? '',
+    affiliation: u.affiliation ?? '',
+    position: u.position ?? '',
+  })
+  const draftOf = (u: ManagedUser): Draft => drafts[u.id] ?? baseDraft(u)
+  const setField = (u: ManagedUser, field: keyof Draft, v: string) =>
+    setDrafts((prev) => ({ ...prev, [u.id]: { ...(prev[u.id] ?? baseDraft(u)), [field]: v } }))
+  const commitField = (u: ManagedUser, field: keyof Draft) => {
+    const d = draftOf(u)
+    if (d[field].trim() === baseDraft(u)[field].trim()) return
+    const key = `${u.id}:${field}`
+    setFieldState((prev) => ({ ...prev, [key]: 'saving' }))
+    void (async () => {
+      const fd = new FormData()
+      fd.set('name', d.name.trim())
+      fd.set('username', d.username.trim())
+      fd.set('phone', d.phone.trim())
+      fd.set('affiliation', d.affiliation.trim())
+      fd.set('position', d.position.trim())
+      // 비밀번호는 실제로 바꿨을 때만 전송(빈 값·기존 값 그대로면 유지)
+      if (d.password.trim() && d.password.trim() !== (u.tempPassword ?? '')) fd.set('password', d.password.trim())
+      const res = await updateAction(u.id, fd)
+      setFieldState((prev) => ({ ...prev, [key]: res.ok ? 'saved' : 'error' }))
+      if (res.ok) setTimeout(() => setFieldState((prev) => ({ ...prev, [key]: undefined as never })), 1500)
+    })()
+  }
+
+  // 짝 행 드롭다운 — 그 줄의 사업/분과를 바꾸면 즉시 저장 후 리로드
+  const [assignPending, startAssignTx] = useTransition()
+  const replaceId = (list: string[] | undefined, oldId: string | null | undefined, newId: string) => {
+    const next = (list ?? []).filter((id) => id && id !== (oldId ?? ''))
+    if (newId) next.push(newId)
+    return [...new Set(next)]
+  }
+  const changePairProject = (u: ManagedUser, oldId: string | null | undefined, newId: string) => {
+    if (!setProjectsAction) return
+    startAssignTx(async () => {
+      await setProjectsAction(u.id, replaceId(u.assignedProjectIds, oldId, newId))
+      window.location.reload()
+    })
+  }
+  const changePairSession = (u: ManagedUser, oldId: string | null | undefined, newId: string) => {
+    if (!setSessionsAction) return
+    startAssignTx(async () => {
+      await setSessionsAction(u.id, replaceId(u.assignedSessionIds, oldId, newId))
+      window.location.reload()
+    })
+  }
 
   // 검색어(이름·아이디·연락처·소속·직급·칩 라벨) + 사업 필터 적용 후 정렬
   const q = query.trim().toLowerCase()
@@ -171,7 +343,10 @@ export default function UserManagerTable({
     ]
     return haystack.some((v) => v.toLowerCase().includes(q))
   })
-  const visibleUsers = sortRows(filteredUsers, (u, k) => u[k] ?? '')
+  const sortedUsers = sortRows(filteredUsers, (u, k) => u[k] ?? '')
+  const pageCount = Math.max(1, Math.ceil(sortedUsers.length / PAGE_SIZE))
+  const curPage = Math.min(page, pageCount - 1)
+  const visibleUsers = sortedUsers.slice(curPage * PAGE_SIZE, curPage * PAGE_SIZE + PAGE_SIZE)
 
   const toggle = (id: string) => {
     setSelected((prev) => {
@@ -192,8 +367,8 @@ export default function UserManagerTable({
     })
 
   const selectedUsers = users.filter((u) => selected.has(u.id))
-  // 이름/아이디/연락처 + (비밀번호) + (소속/직급) + chips + (chips2) + (진행 상황) + 관리 + 체크박스
-  const cols = 4 + (showPassword ? 1 : 0) + (showAffiliation ? 2 : 0) + (chips2Header ? 1 : 0) + (pairMode ? 1 : 0) + 2
+  // 이름/아이디/연락처 + (비밀번호) + (소속/직급) + chips + (chips2) + (진행 상황) + 체크박스
+  const cols = 4 + (showPassword ? 1 : 0) + (showAffiliation ? 2 : 0) + (chips2Header ? 1 : 0) + (pairMode ? 1 : 0) + 1
 
   return (
     <div className="space-y-3">
@@ -202,14 +377,20 @@ export default function UserManagerTable({
         <input
           type="search"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            setQuery(e.target.value)
+            setPage(0)
+          }}
           placeholder="이름·아이디·연락처 검색"
           className="h-9 w-64 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none"
         />
         {projectOptions && projectOptions.length > 0 && (
           <FilterSelect
             value={projectFilter}
-            onChange={setProjectFilter}
+            onChange={(v) => {
+              setProjectFilter(v)
+              setPage(0)
+            }}
             ariaLabel="사업 필터"
             allLabel="전체 사업"
             noneLabel={`사업 ${chipsEmptyLabel}`}
@@ -224,7 +405,10 @@ export default function UserManagerTable({
         {sessionOptions && sessionOptions.length > 0 && chips2Header && (
           <FilterSelect
             value={sessionFilter}
-            onChange={setSessionFilter}
+            onChange={(v) => {
+              setSessionFilter(v)
+              setPage(0)
+            }}
             ariaLabel="분과 필터"
             allLabel="전체 분과"
             noneLabel={`분과 ${chips2EmptyLabel}`}
@@ -242,9 +426,13 @@ export default function UserManagerTable({
             ))}
           </FilterSelect>
         )}
+        {/* 인라인 편집 안내 — 셀이 입력창임을 알려준다 */}
+        <span className="ml-auto inline-flex items-center gap-1 text-xs text-slate-400">
+          <span aria-hidden>✎</span> 이름·아이디 등은 셀을 클릭해 바로 수정할 수 있습니다
+        </span>
         {(query || projectFilter || sessionFilter) && (
           <span className="text-sm text-slate-500">
-            {visibleUsers.length}명 표시
+            {sortedUsers.length}명 표시
             <button
               type="button"
               onClick={() => {
@@ -282,7 +470,6 @@ export default function UserManagerTable({
               <th className="px-4 py-2.5 font-medium">{chipsHeader}</th>
               {chips2Header && <th className="px-4 py-2.5 font-medium">{chips2Header}</th>}
               {pairMode && <th className="px-4 py-2.5 font-medium">평가 진행 상황</th>}
-              <th className="w-20 px-4 py-2.5 font-medium text-center">관리</th>
             </tr>
           </thead>
           <tbody>
@@ -301,23 +488,62 @@ export default function UserManagerTable({
                   <td rowSpan={rowSpan} className="border-b border-slate-100 px-4 py-2.5">
                     <PrettyCheck checked={isSel} />
                   </td>
-                  <td rowSpan={rowSpan} className="border-b border-slate-100 px-4 py-2.5 font-medium text-slate-800">{u.name}</td>
-                  <td rowSpan={rowSpan} className="border-b border-slate-100 px-4 py-2.5 text-slate-600">{u.username}</td>
+                  <InlineTd
+                    rowSpan={rowSpan}
+                    value={draftOf(u).name}
+                    state={fieldState[`${u.id}:name`]}
+                    bold
+                    onChange={(v) => setField(u, 'name', v)}
+                    onCommit={() => commitField(u, 'name')}
+                    ariaLabel={`${u.name} 이름`}
+                  />
+                  <InlineTd
+                    rowSpan={rowSpan}
+                    value={draftOf(u).username}
+                    state={fieldState[`${u.id}:username`]}
+                    onChange={(v) => setField(u, 'username', v)}
+                    onCommit={() => commitField(u, 'username')}
+                    ariaLabel={`${u.name} 아이디`}
+                  />
                   {showPassword && (
-                    <td rowSpan={rowSpan} className="border-b border-slate-100 px-4 py-2.5">
-                      {u.tempPassword ? (
-                        <span className="font-mono text-sm tabular-nums text-slate-700">{u.tempPassword}</span>
-                      ) : (
-                        <span className="text-xs text-slate-400">재발급 필요</span>
-                      )}
-                    </td>
+                    <InlineTd
+                      rowSpan={rowSpan}
+                      value={draftOf(u).password}
+                      state={fieldState[`${u.id}:password`]}
+                      mono
+                      placeholder="재발급 필요"
+                      onChange={(v) => setField(u, 'password', v)}
+                      onCommit={() => commitField(u, 'password')}
+                      ariaLabel={`${u.name} 비밀번호`}
+                    />
                   )}
-                  <td rowSpan={rowSpan} className="border-b border-slate-100 px-4 py-2.5 text-slate-600">{u.phone ?? <span className="text-slate-300">—</span>}</td>
+                  <InlineTd
+                    rowSpan={rowSpan}
+                    value={draftOf(u).phone}
+                    state={fieldState[`${u.id}:phone`]}
+                    onChange={(v) => setField(u, 'phone', v)}
+                    onCommit={() => commitField(u, 'phone')}
+                    ariaLabel={`${u.name} 연락처`}
+                  />
                   {showAffiliation && (
-                    <td rowSpan={rowSpan} className="border-b border-slate-100 px-4 py-2.5 text-slate-600">{u.affiliation ?? <span className="text-slate-300">—</span>}</td>
+                    <InlineTd
+                      rowSpan={rowSpan}
+                      value={draftOf(u).affiliation}
+                      state={fieldState[`${u.id}:affiliation`]}
+                      onChange={(v) => setField(u, 'affiliation', v)}
+                      onCommit={() => commitField(u, 'affiliation')}
+                      ariaLabel={`${u.name} 소속`}
+                    />
                   )}
                   {showAffiliation && (
-                    <td rowSpan={rowSpan} className="border-b border-slate-100 px-4 py-2.5 text-slate-600">{u.position ?? <span className="text-slate-300">—</span>}</td>
+                    <InlineTd
+                      rowSpan={rowSpan}
+                      value={draftOf(u).position}
+                      state={fieldState[`${u.id}:position`]}
+                      onChange={(v) => setField(u, 'position', v)}
+                      onCommit={() => commitField(u, 'position')}
+                      ariaLabel={`${u.name} 직급`}
+                    />
                   )}
                 </>
               )
@@ -340,7 +566,6 @@ export default function UserManagerTable({
                         onSet={canAssign ? () => setSessionUser(u) : undefined}
                       />
                     )}
-                    <RowActionsCell rowSpan={1} onEdit={() => setEditUser(u)} onDelete={() => setDeleteUser(u)} />
                   </tr>
                 )
               }
@@ -356,10 +581,17 @@ export default function UserManagerTable({
                   <td
                     className={`px-4 py-1.5 text-center ${pi === pairs.length - 1 ? 'border-b border-slate-100' : 'border-b border-slate-50'}`}
                   >
-                    {pair.project ? (
+                    {canSetProjects ? (
+                      <PairSelect
+                        value={pair.projectId ?? ''}
+                        placeholder={chipsEmptyLabel}
+                        disabled={assignPending}
+                        ariaLabel={`${u.name} 사업 선택`}
+                        options={projectOptions!.map((p) => ({ id: p.id, label: p.label }))}
+                        onChange={(v) => changePairProject(u, pair.projectId, v)}
+                      />
+                    ) : pair.project ? (
                       <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{pair.project}</span>
-                    ) : canSetProjects && pi === 0 ? (
-                      <SetLink label="사업 설정" onClick={() => setProjectUser(u)} />
                     ) : (
                       <span className="text-xs text-slate-400">{chipsEmptyLabel}</span>
                     )}
@@ -368,10 +600,20 @@ export default function UserManagerTable({
                     <td
                       className={`px-4 py-1.5 text-center ${pi === pairs.length - 1 ? 'border-b border-slate-100' : 'border-b border-slate-50'}`}
                     >
-                      {pair.session ? (
+                      {canAssign ? (
+                        <PairSelect
+                          value={pair.sessionId ?? ''}
+                          placeholder={chips2EmptyLabel}
+                          disabled={assignPending || !pair.projectId}
+                          title={pair.projectId ? undefined : '사업을 먼저 선택하세요'}
+                          ariaLabel={`${u.name} 분과 선택`}
+                          options={sessionOptions!
+                            .filter((o) => !pair.projectId || o.projectId === pair.projectId)
+                            .map((o) => ({ id: o.id, label: o.label }))}
+                          onChange={(v) => changePairSession(u, pair.sessionId, v)}
+                        />
+                      ) : pair.session ? (
                         <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{pair.session}</span>
-                      ) : canAssign && pi === 0 ? (
-                        <SetLink label="분과 설정" onClick={() => setSessionUser(u)} />
                       ) : (
                         <span className="text-xs text-slate-400">{chips2EmptyLabel}</span>
                       )}
@@ -389,19 +631,51 @@ export default function UserManagerTable({
                       <span className="text-xs text-slate-300">—</span>
                     )}
                   </td>
-                  {pi === 0 && (
-                    <RowActionsCell
-                      rowSpan={pairs.length}
-                      onEdit={() => setEditUser(u)}
-                      onDelete={() => setDeleteUser(u)}
-                    />
-                  )}
                 </tr>
               ))
             })}
           </tbody>
         </table>
       </div>
+
+      {/* 페이지네이션 — 10명씩, 가운데 정렬 + 오른쪽 표시 범위 */}
+      {sortedUsers.length > 0 && (
+        <div className="relative flex items-center justify-center">
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={curPage === 0}
+              className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              ‹
+            </button>
+            {Array.from({ length: pageCount }, (_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setPage(i)}
+                className={`min-w-7 rounded-md px-2 py-1 text-xs font-medium transition ${
+                  i === curPage ? 'bg-indigo-600 text-white' : 'border border-slate-300 bg-white text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                {i + 1}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+              disabled={curPage === pageCount - 1}
+              className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              ›
+            </button>
+          </div>
+          <p className="absolute right-0 text-xs text-slate-400">
+            {sortedUsers.length}명 중 {curPage * PAGE_SIZE + 1}–{Math.min((curPage + 1) * PAGE_SIZE, sortedUsers.length)} 표시
+          </p>
+        </div>
+      )}
 
       {/* 표 밖 오른쪽: 삭제 + '정보 변경'(1명) / '일괄 설정'(여러 명) */}
       <div className="flex items-center justify-end gap-2">
@@ -451,7 +725,6 @@ export default function UserManagerTable({
           setProjectsAction={setProjectsAction!}
           sessionOptions={sessionOptions!}
           setSessionsAction={setSessionsAction!}
-          chips2EmptyLabel={chips2EmptyLabel}
           onClose={() => setBulkOpen(false)}
           onDone={() => {
             setBulkOpen(false)
@@ -479,56 +752,6 @@ export default function UserManagerTable({
             window.location.reload()
           }}
         />
-      )}
-
-      {/* 행 아이콘: 수정 — 해당 1명만 담은 정보 변경 모달 */}
-      {editUser && (
-        <ManageModal
-          roleLabel={roleLabel}
-          users={[editUser]}
-          showAffiliation={showAffiliation}
-          updateAction={updateAction}
-          resetPasswordAction={resetPasswordAction}
-          sessionOptions={canAssign ? sessionOptions : undefined}
-          setSessionsAction={canAssign ? setSessionsAction : undefined}
-          projectOptions={canSetProjects ? projectOptions : undefined}
-          setProjectsAction={canSetProjects ? setProjectsAction : undefined}
-          onClose={() => setEditUser(null)}
-          onDone={() => {
-            setEditUser(null)
-            window.location.reload()
-          }}
-        />
-      )}
-
-      {/* 행 아이콘: 삭제 — 해당 1명 확인 모달 */}
-      {deleteUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setDeleteUser(null)}>
-          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm space-y-4 rounded-2xl bg-white p-6 shadow-xl">
-            <h3 className="text-lg font-bold text-slate-900">{roleLabel} 삭제</h3>
-            <p className="text-sm text-slate-600">
-              <b className="text-slate-800">{deleteUser.name}</b>({deleteUser.username}) {roleLabel}을 삭제합니다. 되돌릴 수 없습니다.
-            </p>
-            <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => setDeleteUser(null)} className="rounded-lg px-3 py-2 text-sm text-slate-500 hover:text-slate-700">
-                취소
-              </button>
-              <button
-                type="button"
-                disabled={deleting}
-                onClick={() =>
-                  startDelete(async () => {
-                    await deleteAction([deleteUser.id])
-                    window.location.reload()
-                  })
-                }
-                className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-50"
-              >
-                {deleting ? '삭제 중…' : '삭제'}
-              </button>
-            </div>
-          </div>
-        </div>
       )}
 
       {projectUser && canSetProjects && (
@@ -570,15 +793,13 @@ export default function UserManagerTable({
 }
 
 // 사업 및 분과 일괄 설정 모달 — 여러 명 선택 시 '정보 변경' 대신 사용.
-// 위: 사업 참여를 전원에게 일괄 적용(체크된 사업 = 참여, 초기값은 선택자들의 합집합).
-// 아래: 사람마다 분과 드롭다운 — 체크된 사업의 분과만 고를 수 있고, 바꾼 사람만 저장된다.
+// 같은 사업의 같은 분과를 선택한 전원에게 일괄 배정한다(기존 배정에 추가, 덮어쓰지 않음).
 function BulkAssignModal({
   users,
   projectOptions,
   setProjectsAction,
   sessionOptions,
   setSessionsAction,
-  chips2EmptyLabel,
   onClose,
   onDone,
 }: {
@@ -587,49 +808,29 @@ function BulkAssignModal({
   setProjectsAction: (userId: string, projectIds: string[]) => Promise<{ ok: boolean; error?: string }>
   sessionOptions: { id: string; label: string; group?: string; projectId?: string }[]
   setSessionsAction: (userId: string, sessionIds: string[]) => Promise<{ ok: boolean; error?: string }>
-  chips2EmptyLabel: string
   onClose: () => void
   onDone: () => void
 }) {
-  // 사업 초기값: 선택된 사람들의 참여 사업 합집합 — 체크 해제 전까지는 누구의 참여도 사라지지 않는다
-  const [checkedProjects, setCheckedProjects] = useState<Set<string>>(
-    () => new Set(users.flatMap((u) => u.assignedProjectIds ?? []).filter((id) => projectOptions.some((p) => p.id === id))),
-  )
-  // 사람별 분과 초기값: 현재 배정 중 옵션에 있는 첫 분과
-  const initialSession = (u: ManagedUser) =>
-    (u.assignedSessionIds ?? []).find((id) => sessionOptions.some((s) => s.id === id)) ?? ''
-  const [sessionByUser, setSessionByUser] = useState<Record<string, string>>(() =>
-    Object.fromEntries(users.map((u) => [u.id, initialSession(u)])),
-  )
+  const [projectId, setProjectId] = useState('')
+  const [sessionId, setSessionId] = useState('')
   const [error, setError] = useState('')
   const [pending, start] = useTransition()
 
-  const toggleProject = (id: string) =>
-    setCheckedProjects((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-
-  // 드롭다운에는 체크된 사업의 분과만 — 사업 체크를 풀면 그 분과 선택도 무효화
-  const scopedSessions = sessionOptions.filter((s) => !s.projectId || checkedProjects.has(s.projectId))
-  const groups = [...new Set(scopedSessions.map((s) => s.group ?? '기타'))]
+  const scopedSessions = sessionOptions.filter((o) => o.projectId === projectId)
 
   const save = () => {
     setError('')
     start(async () => {
-      const projectIds = [...checkedProjects]
       for (const u of users) {
-        const res = await setProjectsAction(u.id, projectIds)
+        const projects = [...new Set([...(u.assignedProjectIds ?? []), projectId])]
+        const res = await setProjectsAction(u.id, projects)
         if (!res.ok) {
           setError(`${u.name}: ${res.error ?? '사업 설정에 실패했습니다.'}`)
           return
         }
-        // 분과는 바꾼 사람만 저장 — 여러 분과에 배정된 사람의 기존 배정을 실수로 지우지 않게
-        const chosen = scopedSessions.some((s) => s.id === sessionByUser[u.id]) ? sessionByUser[u.id] : ''
-        if (chosen !== initialSession(u)) {
-          const res2 = await setSessionsAction(u.id, chosen ? [chosen] : [])
+        if (sessionId) {
+          const sessions = [...new Set([...(u.assignedSessionIds ?? []), sessionId])]
+          const res2 = await setSessionsAction(u.id, sessions)
           if (!res2.ok) {
             setError(`${u.name}: ${res2.error ?? '분과 설정에 실패했습니다.'}`)
             return
@@ -640,68 +841,61 @@ function BulkAssignModal({
     })
   }
 
+  const selectCls =
+    'h-9 w-full appearance-none rounded-lg border border-slate-300 bg-white pr-8 pl-3 text-sm text-slate-700 focus:border-indigo-400 focus:outline-none disabled:bg-slate-50 disabled:text-slate-400'
+
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-auto bg-black/40 p-4" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="my-8 w-full max-w-lg space-y-4 rounded-2xl bg-white p-6 shadow-xl">
+      <div onClick={(e) => e.stopPropagation()} className="my-8 w-full max-w-md space-y-4 rounded-2xl bg-white p-6 shadow-xl">
         <h3 className="text-lg font-bold text-slate-900">사업 및 분과 일괄 설정</h3>
-        <p className="text-sm text-slate-500">{users.length}명 선택됨 — 사업은 전원에게 일괄 적용되고, 분과는 사람마다 지정합니다.</p>
+        <p className="text-sm text-slate-500">
+          선택한 {users.length}명({users.map((u) => u.name).join(', ')}) 모두에게 같은 사업·분과를 배정합니다. 기존 배정은
+          유지되고 선택한 항목이 추가됩니다.
+        </p>
 
-        <div>
-          <h4 className="mb-2 text-sm font-semibold text-slate-700">참여 사업 (일괄)</h4>
-          <div className="thin-scrollbar max-h-40 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
-            {projectOptions.map((p) => (
-              <label key={p.id} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-slate-50">
-                <input
-                  type="checkbox"
-                  checked={checkedProjects.has(p.id)}
-                  onChange={() => toggleProject(p.id)}
-                  className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                />
-                <span className="text-slate-700">{p.label}</span>
-              </label>
-            ))}
-          </div>
-        </div>
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-slate-500">사업</span>
+          <span className="relative block">
+            <select
+              value={projectId}
+              onChange={(e) => {
+                setProjectId(e.target.value)
+                setSessionId('')
+              }}
+              aria-label="일괄 배정 사업"
+              className={selectCls}
+            >
+              <option value="">사업 선택</option>
+              {projectOptions.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+            <span aria-hidden className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-xs text-slate-400">▾</span>
+          </span>
+        </label>
 
-        <div>
-          <h4 className="mb-2 text-sm font-semibold text-slate-700">배정 분과 (사람별)</h4>
-          <div className="thin-scrollbar max-h-56 space-y-2 overflow-y-auto rounded-lg border border-slate-200 p-2">
-            {users.map((u) => {
-              const value = scopedSessions.some((s) => s.id === sessionByUser[u.id]) ? sessionByUser[u.id] : ''
-              return (
-                <div key={u.id} className="flex items-center justify-between gap-3 px-2 py-1">
-                  <span className="min-w-0 truncate text-sm font-medium text-slate-800">
-                    {u.name}
-                    <span className="ml-1.5 text-xs font-normal text-slate-400">{u.username}</span>
-                  </span>
-                  <select
-                    value={value}
-                    onChange={(e) => setSessionByUser((prev) => ({ ...prev, [u.id]: e.target.value }))}
-                    disabled={scopedSessions.length === 0}
-                    className="h-9 w-52 shrink-0 rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-700 focus:border-indigo-400 focus:outline-none disabled:bg-slate-50 disabled:text-slate-400"
-                    aria-label={`${u.name} 분과 선택`}
-                  >
-                    <option value="">{chips2EmptyLabel}</option>
-                    {groups.map((g) => (
-                      <optgroup key={g} label={g}>
-                        {scopedSessions
-                          .filter((s) => (s.group ?? '기타') === g)
-                          .map((s) => (
-                            <option key={s.id} value={s.id}>
-                              {s.label}
-                            </option>
-                          ))}
-                      </optgroup>
-                    ))}
-                  </select>
-                </div>
-              )
-            })}
-          </div>
-          {scopedSessions.length === 0 && (
-            <p className="mt-1.5 text-xs text-slate-400">위에서 사업을 먼저 체크하면 그 사업의 분과를 고를 수 있습니다.</p>
-          )}
-        </div>
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-slate-500">분과</span>
+          <span className="relative block">
+            <select
+              value={sessionId}
+              onChange={(e) => setSessionId(e.target.value)}
+              disabled={!projectId || scopedSessions.length === 0}
+              aria-label="일괄 배정 분과"
+              className={selectCls}
+            >
+              <option value="">{projectId ? (scopedSessions.length ? '분과 선택 (선택 사항)' : '이 사업에 분과 없음') : '사업을 먼저 선택'}</option>
+              {scopedSessions.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <span aria-hidden className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-xs text-slate-400">▾</span>
+          </span>
+        </label>
 
         {error && <p className="text-sm font-medium text-rose-600">{error}</p>}
 
@@ -712,10 +906,10 @@ function BulkAssignModal({
           <button
             type="button"
             onClick={save}
-            disabled={pending}
+            disabled={pending || !projectId}
             className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
           >
-            {pending ? '저장 중…' : '저장'}
+            {pending ? '저장 중…' : '일괄 적용'}
           </button>
         </div>
       </div>
@@ -1069,6 +1263,7 @@ const EditUserForm = forwardRef<
 
   const canAssign = !!(sessionOptions && setSessionsAction)
   const canSetProjects = !!(projectOptions && setProjectsAction)
+
   const [checkedSessions, setCheckedSessions] = useState<Set<string>>(new Set(user.assignedSessionIds ?? []))
   const [checkedProjects, setCheckedProjects] = useState<Set<string>>(new Set(user.assignedProjectIds ?? []))
 
@@ -1282,74 +1477,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 // 칩 목록 셀. 비어 있고 onSet이 있으면 밑줄 텍스트 '설정'을 보여 배정 모달을 연다.
 // 이미 배정(칩)이 있으면 '설정'은 숨기고 칩만 표시(수정은 '정보 변경'에서).
 // '설정'은 stopPropagation으로 행 체크박스 토글을 막는다.
-// 행 끝 수정·삭제 아이콘 — 행 클릭(선택)으로 번지지 않게 전파 차단
-function RowActionsCell({
-  rowSpan,
-  onEdit,
-  onDelete,
-  borderCls = 'border-b border-slate-100',
-}: {
-  rowSpan: number
-  onEdit: () => void
-  onDelete: () => void
-  borderCls?: string
-}) {
-  return (
-    <td rowSpan={rowSpan} className={`${borderCls} px-4 py-2.5`}>
-      <span className="flex items-center justify-center gap-2">
-        <button
-          type="button"
-          aria-label="수정"
-          title="수정"
-          onClick={(e) => {
-            e.stopPropagation()
-            onEdit()
-          }}
-          className="text-slate-400 transition hover:text-indigo-600"
-        >
-          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
-            <path d="M13.5 3.5 16.5 6.5 7 16H4v-3z" />
-            <path d="m11.8 5.2 3 3" />
-          </svg>
-        </button>
-        <button
-          type="button"
-          aria-label="삭제"
-          title="삭제"
-          onClick={(e) => {
-            e.stopPropagation()
-            onDelete()
-          }}
-          className="text-slate-400 transition hover:text-rose-600"
-        >
-          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3.5 5.5h13" />
-            <path d="M8 5.5V4h4v1.5" />
-            <path d="M5.5 5.5 6.3 16h7.4l.8-10.5" />
-            <path d="M8.5 8.5v5M11.5 8.5v5" />
-          </svg>
-        </button>
-      </span>
-    </td>
-  )
-}
-
-// 셀 안 '설정' 진입 링크 — 행 클릭(선택)으로 번지지 않게 전파 차단
-function SetLink({ label, onClick }: { label: string; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={(e) => {
-        e.stopPropagation()
-        onClick()
-      }}
-      className="text-xs font-medium text-indigo-600 underline underline-offset-2 transition hover:text-indigo-700"
-    >
-      {label}
-    </button>
-  )
-}
-
 function ChipCell({
   chips,
   emptyLabel,

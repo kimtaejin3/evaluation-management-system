@@ -62,7 +62,7 @@ export async function getSessionProgress(sessionId: string): Promise<ProgressDat
     prisma.evaluationSession.findUnique({ where: { id: sessionId }, select: { chairId: true } }),
     prisma.subject.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } }),
     scoringUnitsForScope(criteriaWhere),
-    prisma.assignment.findMany({ where: { sessionId, status: 'APPROVED' }, include: { user: true } }),
+    prisma.assignment.findMany({ where: { sessionId, status: { not: 'REJECTED' } }, include: { user: true } }),
     prisma.score.findMany({
       where: { sessionId },
       select: { evaluatorId: true, subjectId: true, criterionId: true, subitemId: true, value: true },
@@ -169,7 +169,7 @@ export async function getProgressVersion(sessionId: string): Promise<string> {
   const criteriaWhere = await criteriaScopeForSession(sessionId)
   const [scoreAgg, assignCount, subjCount, critCount, lumpCount, editAgg] = await Promise.all([
     prisma.score.aggregate({ where: { sessionId }, _count: { _all: true }, _max: { updatedAt: true } }),
-    prisma.assignment.count({ where: { sessionId, status: 'APPROVED' } }),
+    prisma.assignment.count({ where: { sessionId, status: { not: 'REJECTED' } } }),
     prisma.subject.count({ where: { sessionId } }),
     prisma.criterion.count({ where: criteriaWhere }),
     // 통합 배점(퉁) 세부항목 수 — 배점 방식 전환도 구조 변경으로 감지
@@ -203,7 +203,7 @@ export async function getSessionInsights(sessionId: string): Promise<SessionInsi
   const [subjects, units, assignments, allScores, approvedSubs] = await Promise.all([
     prisma.subject.findMany({ where: { sessionId }, orderBy: { order: 'asc' }, select: { id: true, name: true } }),
     scoringUnitsForScope(criteriaWhere),
-    prisma.assignment.findMany({ where: { sessionId, status: 'APPROVED' }, select: { userId: true } }),
+    prisma.assignment.findMany({ where: { sessionId, status: { not: 'REJECTED' } }, select: { userId: true } }),
     prisma.score.findMany({
       where: { sessionId },
       select: { evaluatorId: true, subjectId: true, criterionId: true, subitemId: true, value: true },

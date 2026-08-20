@@ -67,7 +67,8 @@ export default function SessionSecretaryCell({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-medium whitespace-nowrap text-rose-700 transition hover:bg-rose-100"
+          title="클릭해서 담당자 배정"
+          className="border-b border-dashed border-rose-300 text-xs font-medium whitespace-nowrap text-rose-600 transition hover:border-rose-500 hover:text-rose-700"
         >
           미배정
         </button>
