@@ -248,7 +248,13 @@ async function Content({ id }: { id: string }) {
                       )}
                     </td>
                     <td className="px-5 py-3">
-                      <ResultsReviewCell sessionId={s.id} submitted={submitted} closed={closed} isMaster={isMaster} />
+                      <ResultsReviewCell
+                        sessionId={s.id}
+                        submitted={submitted}
+                        closed={closed}
+                        isMaster={isMaster}
+                        opinionApproved={s.opinionStatus === "APPROVED"}
+                      />
                     </td>
                     <td className="px-5 py-3">
                       {/* 분과 상세의 집계 결과 페이지로 이동 */}
