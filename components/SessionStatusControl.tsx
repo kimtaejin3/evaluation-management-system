@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { setSessionStatus } from '@/app/admin/sessions/actions'
 import { canCloseSession } from '@/lib/session-rules'
 
@@ -35,6 +36,7 @@ export default function SessionStatusControl({
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState<Status>(status)
   const [pending, startTransition] = useTransition()
+  const router = useRouter()
   const ev = eventDate ? new Date(eventDate) : null
   const closable = canCloseSession(ev)
 
@@ -52,6 +54,16 @@ export default function SessionStatusControl({
   }, [])
 
   const badge = MAP[status]
+
+  const change = (next: Status) => {
+    startTransition(async () => {
+      await setSessionStatus(sessionId, next)
+      setOpen(false)
+      // 변경 즉시 화면 반영(서버 컴포넌트 재조회)
+      router.refresh()
+    })
+  }
+
 
   if (readOnly) {
     return (
@@ -74,12 +86,6 @@ export default function SessionStatusControl({
     )
   }
 
-  const change = (next: Status) => {
-    startTransition(async () => {
-      await setSessionStatus(sessionId, next)
-      setOpen(false)
-    })
-  }
 
   return (
     <>
