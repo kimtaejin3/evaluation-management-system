@@ -357,10 +357,7 @@ export default function UserManagerTable({
                     className={`px-4 py-1.5 text-center ${pi === pairs.length - 1 ? 'border-b border-slate-100' : 'border-b border-slate-50'}`}
                   >
                     {pair.project ? (
-                      <span className="inline-flex items-center gap-1.5">
-                        <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{pair.project}</span>
-                        {pi === 0 && canSetProjects && <SetLink label="설정" onClick={() => setProjectUser(u)} />}
-                      </span>
+                      <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{pair.project}</span>
                     ) : canSetProjects && pi === 0 ? (
                       <SetLink label="사업 설정" onClick={() => setProjectUser(u)} />
                     ) : (
@@ -372,10 +369,7 @@ export default function UserManagerTable({
                       className={`px-4 py-1.5 text-center ${pi === pairs.length - 1 ? 'border-b border-slate-100' : 'border-b border-slate-50'}`}
                     >
                       {pair.session ? (
-                        <span className="inline-flex items-center gap-1.5">
-                          <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{pair.session}</span>
-                          {pi === 0 && canAssign && <SetLink label="설정" onClick={() => setSessionUser(u)} />}
-                        </span>
+                        <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{pair.session}</span>
                       ) : canAssign && pi === 0 ? (
                         <SetLink label="분과 설정" onClick={() => setSessionUser(u)} />
                       ) : (

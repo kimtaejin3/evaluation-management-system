@@ -51,11 +51,13 @@ async function Content({ id }: { id: string }) {
       status: true,
       chairId: true,
       submittedForReviewAt: true,
+      opinionStatus: true,
       secretary: { select: { name: true } },
     },
   });
 
-  // 분과 집계 결과와 동일 계산: 승인(APPROVED)된 (위원×대상) 제출 점수로
+  // 분과 집계 결과와 동일 계산·동일 게이트: 담당자가 평가 의견서 검토를 완료
+  // (opinionStatus=SUBMITTED/APPROVED)한 분과의 제출(SUBMITTED/APPROVED) 점수만
   // computeFinalScores(항목별 위원 평균 합산) 후 rankSubjects.
   const sessionIds = sessions.map((s) => s.id);
   const [units, allScores, approvedSubs, subjects, assignments, opinions] = await Promise.all([
@@ -65,7 +67,7 @@ async function Content({ id }: { id: string }) {
       select: { sessionId: true, evaluatorId: true, subjectId: true, criterionId: true, subitemId: true, value: true },
     }),
     prisma.submission.findMany({
-      where: { sessionId: { in: sessionIds }, status: "APPROVED" },
+      where: { sessionId: { in: sessionIds }, status: { in: ["SUBMITTED", "APPROVED"] } },
       select: { sessionId: true, evaluatorId: true, subjectId: true },
     }),
     prisma.subject.findMany({
@@ -82,7 +84,13 @@ async function Content({ id }: { id: string }) {
       select: { evaluatorId: true, subjectId: true, text: true },
     }),
   ]);
-  const approved = new Set(approvedSubs.map((s) => `${s.evaluatorId}:${s.subjectId}`));
+  // 의견서 검토가 끝난 분과의 제출만 집계에 반영(분과 집계 결과의 reviewDone 게이트와 동일)
+  const reviewDoneSessions = new Set(
+    sessions.filter((s) => s.opinionStatus === "SUBMITTED" || s.opinionStatus === "APPROVED").map((s) => s.id),
+  );
+  const approved = new Set(
+    approvedSubs.filter((s) => reviewDoneSessions.has(s.sessionId)).map((s) => `${s.evaluatorId}:${s.subjectId}`),
+  );
   const weights = units.map((u) => ({ id: u.unitId, weight: u.weight }));
 
   // 분과별 최종 점수(대상별) — subjectId는 전역 유일이므로 flat 맵으로 관리

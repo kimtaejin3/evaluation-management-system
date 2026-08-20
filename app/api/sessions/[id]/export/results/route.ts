@@ -7,7 +7,9 @@ import { canTokenAccessSession } from '@/lib/authz'
 import { computeFinalScores, rankSubjects, overallGrade } from '@/lib/scoring'
 import { TOTAL_SCORE } from '@/lib/criteria'
 
-// 집계 결과 → xlsx 다운로드(순위 / 기업명 / 최종점수 / 등급 / 선정). 집계는 승인(APPROVED)된 점수만.
+// 집계 결과 → xlsx 다운로드(순위 / 기업명 / 최종점수 / 등급 / 선정).
+// 집계 게이트는 화면(집계 결과)과 동일 — 의견서 검토 완료(opinionStatus=SUBMITTED/APPROVED) 시
+// 제출(SUBMITTED/APPROVED)된 점수만 반영.
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const token = await getCurrentToken()
   if (!token) return new Response('Unauthorized', { status: 401 })
@@ -16,17 +18,21 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (!(await canTokenAccessSession(token, id))) return new Response('Unauthorized', { status: 401 })
 
   const [session, subjects, units, scores, approvedSubs] = await Promise.all([
-    prisma.evaluationSession.findUnique({ where: { id }, select: { maxScore: true } }),
+    prisma.evaluationSession.findUnique({ where: { id }, select: { maxScore: true, opinionStatus: true } }),
     prisma.subject.findMany({ where: { sessionId: id }, orderBy: { order: 'asc' } }),
     scoringUnitsForScope(await criteriaScopeForSession(id)),
     prisma.score.findMany({
       where: { sessionId: id },
       select: { evaluatorId: true, subjectId: true, criterionId: true, subitemId: true, value: true },
     }),
-    prisma.submission.findMany({ where: { sessionId: id, status: 'APPROVED' }, select: { evaluatorId: true, subjectId: true } }),
+    prisma.submission.findMany({
+      where: { sessionId: id, status: { in: ['SUBMITTED', 'APPROVED'] } },
+      select: { evaluatorId: true, subjectId: true },
+    }),
   ])
 
-  const approved = new Set(approvedSubs.map((s) => `${s.evaluatorId}:${s.subjectId}`))
+  const reviewDone = session?.opinionStatus === 'SUBMITTED' || session?.opinionStatus === 'APPROVED'
+  const approved = new Set(reviewDone ? approvedSubs.map((s) => `${s.evaluatorId}:${s.subjectId}`) : [])
   const approvedScores = scores.filter((s) => approved.has(`${s.evaluatorId}:${s.subjectId}`))
   const finalScores = computeFinalScores(
     approvedScores.map((s) => ({ evaluatorId: s.evaluatorId, subjectId: s.subjectId, criterionId: scoreUnitId(s), value: s.value })),
