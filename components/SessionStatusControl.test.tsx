@@ -3,6 +3,8 @@ import { render, screen, cleanup } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import SessionStatusControl from './SessionStatusControl'
 
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }))
+
 const setSessionStatus = vi.fn()
 vi.mock('@/app/admin/sessions/actions', () => ({
   setSessionStatus: (...args: unknown[]) => setSessionStatus(...args),
