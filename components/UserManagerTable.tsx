@@ -403,21 +403,48 @@ export default function UserManagerTable({
     })
   }
 
-  const changePairProject = (u: ManagedUser, oldId: string | null | undefined, newId: string) => {
+  const changePairProject = (
+    u: ManagedUser,
+    pair: { projectId?: string | null; sessionId?: string | null },
+    newId: string,
+  ) => {
     if (!setProjectsAction) return
-    const nextIds = replaceId(u.assignedProjectIds, oldId, newId)
-    const prevSessions = u.assignedSessionIds ?? []
-    applyOverride(u, nextIds, prevSessions) // 낙관 반영 — 행 순서·정렬은 그대로
+    const sessions0 = u.assignedSessionIds ?? []
+    let nextSessions = sessions0
+    let nextProjects: string[]
+    if (!newId) {
+      // '참여 없음' = 이 짝 행 제거. 분과가 배정돼 있으면 사업 표시가 분과의 소속
+      // 사업에서 다시 유도되므로, 행의 분과 배정을 함께 해제해야 실제로 사라진다.
+      nextSessions = pair.sessionId ? sessions0.filter((id) => id !== pair.sessionId) : sessions0
+      // 같은 사업의 다른 분과가 남아 있으면 사업 참여는 유지(그 행들이 살아있으므로)
+      const sessById = new Map((sessionOptions ?? []).map((o) => [o.id, o]))
+      const stillHasProject = pair.projectId
+        ? nextSessions.some((id) => sessById.get(id)?.projectId === pair.projectId)
+        : false
+      nextProjects = stillHasProject
+        ? (u.assignedProjectIds ?? [])
+        : replaceId(u.assignedProjectIds, pair.projectId, '')
+    } else {
+      nextProjects = replaceId(u.assignedProjectIds, pair.projectId, newId)
+    }
+    applyOverride(u, nextProjects, nextSessions) // 낙관 반영 — 행 순서·정렬은 그대로
     setAssignError('')
     startAssignTx(async () => {
-      const res = await setProjectsAction(u.id, nextIds)
-      if (!res.ok) {
+      const res = await setProjectsAction(u.id, nextProjects)
+      let ok = res.ok
+      let err = res.error
+      if (ok && nextSessions !== sessions0 && setSessionsAction) {
+        const res2 = await setSessionsAction(u.id, nextSessions)
+        ok = res2.ok
+        err = res2.error
+      }
+      if (!ok) {
         setAssignOverrides((prev) => {
           const next = { ...prev }
           delete next[u.id]
           return next
         })
-        setAssignError(`${u.name}: ${res.error ?? '사업 설정에 실패했습니다.'}`)
+        setAssignError(`${u.name}: ${err ?? '사업 설정에 실패했습니다.'}`)
       }
       router.refresh()
     })
@@ -713,7 +740,7 @@ export default function UserManagerTable({
                         disabled={assignPending}
                         ariaLabel={`${u.name} 사업 선택`}
                         options={projectOptions!.map((p) => ({ id: p.id, label: p.label }))}
-                        onChange={(v) => changePairProject(u, pair.projectId, v)}
+                        onChange={(v) => changePairProject(u, pair, v)}
                       />
                     ) : pair.project ? (
                       <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{pair.project}</span>

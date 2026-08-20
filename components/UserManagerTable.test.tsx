@@ -390,3 +390,68 @@ describe('낙관적 업데이트 — 설정 시 순서 불변·즉시 반영', (
     expect((screen.getByLabelText('이평가 분과 선택') as HTMLSelectElement).value).toBe('s1')
   })
 })
+
+describe("사업 '참여 없음' 선택 — 짝 행 제거", () => {
+  afterEach(() => cleanup())
+
+  it('분과가 배정된 행에서 참여 없음을 고르면 분과 배정도 함께 해제되고 행이 즉시 사라진다', async () => {
+    const user = userEvent.setup()
+    const setProjectsAction = vi.fn().mockResolvedValue({ ok: true })
+    const setSessionsAction = vi.fn().mockResolvedValue({ ok: true })
+    renderTable({
+      pairMode: true,
+      chips2Header: '배정 분과',
+      users: [
+        {
+          ...USERS[0],
+          assignedProjectIds: ['p1'],
+          assignedSessionIds: ['s1'],
+          pairs: [{ project: '신규사업1', projectId: 'p1', session: 'A유형', sessionId: 's1' }],
+        },
+      ],
+      projectOptions: [{ id: 'p1', label: '신규사업1' }],
+      setProjectsAction,
+      sessionOptions: [{ id: 's1', label: 'A유형', group: '신규사업1', projectId: 'p1' }],
+      setSessionsAction,
+    })
+    await user.selectOptions(screen.getByLabelText('이평가 사업 선택'), '')
+    // 사업 참여 + 그 행의 분과 배정 모두 해제
+    expect(setProjectsAction).toHaveBeenCalledWith('u1', [])
+    expect(setSessionsAction).toHaveBeenCalledWith('u1', [])
+    // 낙관 반영: 행이 빈 상태(참여 없음 placeholder)로 즉시 전환
+    expect((screen.getByLabelText('이평가 사업 선택') as HTMLSelectElement).value).toBe('')
+  })
+
+  it('같은 사업의 다른 분과가 남아 있으면 사업 참여는 유지된다', async () => {
+    const user = userEvent.setup()
+    const setProjectsAction = vi.fn().mockResolvedValue({ ok: true })
+    const setSessionsAction = vi.fn().mockResolvedValue({ ok: true })
+    renderTable({
+      pairMode: true,
+      chips2Header: '배정 분과',
+      users: [
+        {
+          ...USERS[0],
+          assignedProjectIds: ['p1'],
+          assignedSessionIds: ['s1', 's2'],
+          pairs: [
+            { project: '신규사업1', projectId: 'p1', session: 'A유형', sessionId: 's1' },
+            { project: '신규사업1', projectId: 'p1', session: 'B유형', sessionId: 's2' },
+          ],
+        },
+      ],
+      projectOptions: [{ id: 'p1', label: '신규사업1' }],
+      setProjectsAction,
+      sessionOptions: [
+        { id: 's1', label: 'A유형', group: '신규사업1', projectId: 'p1' },
+        { id: 's2', label: 'B유형', group: '신규사업1', projectId: 'p1' },
+      ],
+      setSessionsAction,
+    })
+    const firstProjectSel = (screen.getAllByLabelText('이평가 사업 선택') as HTMLSelectElement[])[0]
+    await user.selectOptions(firstProjectSel, '')
+    // A유형 배정만 해제, 사업 참여(p1)는 B유형이 남아 있어 유지
+    expect(setProjectsAction).toHaveBeenCalledWith('u1', ['p1'])
+    expect(setSessionsAction).toHaveBeenCalledWith('u1', ['s2'])
+  })
+})
