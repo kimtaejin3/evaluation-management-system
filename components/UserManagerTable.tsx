@@ -69,7 +69,7 @@ function InlineTd({
   return (
     <td rowSpan={rowSpan} className="border-b border-slate-100 px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
       <span className="relative block">
-        {/* 편집 가능함이 보이도록: 항상 점선 밑줄, 호버 시 실선+연필, 포커스 시 입력창 스타일 */}
+        {/* 평소엔 일반 텍스트처럼 보이고, 호버 시 밑줄+연필, 포커스 시 입력창 스타일로 편집 가능함을 드러낸다 */}
         <input
           value={value}
           aria-label={ariaLabel}
@@ -80,7 +80,7 @@ function InlineTd({
           onKeyDown={(e) => {
             if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
           }}
-          className={`peer w-full rounded-md border border-transparent border-b-slate-300 bg-transparent px-2 py-1 text-sm transition [border-bottom-style:dashed] placeholder:text-slate-300 hover:border-b-slate-400 focus:rounded-md focus:border-indigo-400 focus:bg-white focus:outline-none focus:[border-bottom-style:solid] ${
+          className={`peer w-full rounded-md border border-transparent bg-transparent px-2 py-1 text-sm transition placeholder:text-slate-300 hover:border-b-slate-300 focus:border-indigo-400 focus:bg-white focus:outline-none ${
             bold ? 'font-medium text-slate-800' : 'text-slate-600'
           } ${mono ? 'font-mono tabular-nums' : ''} ${state === 'error' ? 'border-rose-300' : ''}`}
         />
@@ -621,7 +621,7 @@ export default function UserManagerTable({
               )}
               <th className="px-4 py-2.5 font-medium">{chipsHeader}</th>
               {chips2Header && <th className="px-4 py-2.5 font-medium">{chips2Header}</th>}
-              {pairMode && <th className="px-4 py-2.5 font-medium">평가 진행 상황</th>}
+              {pairMode && <th className="px-4 py-2.5 font-medium">진행 상황</th>}
             </tr>
           </thead>
           <tbody>
