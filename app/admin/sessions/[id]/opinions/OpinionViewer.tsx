@@ -12,7 +12,8 @@ type OpinionItem = {
 
 const TRUNCATE_LENGTH = 200;
 
-// 평가위원장이 지원기업별로 작성한 종합의견을 표시(평가위원장 / 종합의견 2컬럼).
+// 평가위원장이 지원기업별로 작성한 종합의견을 표시(지원기업 / 평가위원장 / 종합의견).
+// 어떤 기업에 대한 의견인지 행마다 드러나도록 지원기업을 첫 열에 둔다.
 // 긴 텍스트는 잘라서 보여주고 "더보기" 클릭 시 모달로 전체 텍스트를 표시.
 export default function OpinionViewer({ items }: { items: OpinionItem[] }) {
   const [modalItem, setModalItem] = useState<OpinionItem | null>(null);
@@ -39,6 +40,7 @@ export default function OpinionViewer({ items }: { items: OpinionItem[] }) {
           <table className="table-grid w-full text-sm">
             <thead className="text-left text-slate-500">
               <tr className="border-b border-slate-100">
+                <th className="w-48 px-5 py-3 font-medium">지원기업</th>
                 <th className="w-40 px-5 py-3 font-medium">평가위원장</th>
                 <th className="px-5 py-3 font-medium">종합의견</th>
               </tr>
@@ -49,7 +51,8 @@ export default function OpinionViewer({ items }: { items: OpinionItem[] }) {
                 const preview = isLong ? `${item.text.slice(0, TRUNCATE_LENGTH)}…` : item.text;
                 return (
                   <tr key={`${item.evaluatorId}:${item.subjectId}`} className="border-b border-slate-50 align-top last:border-0">
-                    <td className="px-5 py-3 font-medium text-slate-700">{item.evaluatorName}</td>
+                    <td className="px-5 py-3 font-medium text-slate-800">{item.subjectName}</td>
+                    <td className="px-5 py-3 text-slate-600">{item.evaluatorName}</td>
                     <td className="px-5 py-3 text-slate-600">
                       <p className="line-clamp-3 whitespace-pre-wrap leading-relaxed">{preview}</p>
                       {isLong && (
