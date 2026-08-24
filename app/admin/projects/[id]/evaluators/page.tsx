@@ -26,7 +26,7 @@ export default async function ProjectEvaluatorsPage({
         <Content id={id} />
       </Suspense>
       <p className="text-left text-xs text-slate-400">
-        분과별 위원 배정 현황입니다. ‘+ 위원 추가’로 배정하고 ✕로 해제합니다. 위원장 지정은 담당자가 분과 페이지에서 합니다.
+        분과별 위원 배정 현황입니다. 마지막 열의 +로 배정하고 ✕로 해제합니다. 위원장 지정은 담당자가 분과 페이지에서 합니다.
       </p>
     </div>
   );

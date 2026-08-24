@@ -57,16 +57,18 @@ export default function ProjectManagerTable({ projects }: { projects: ManagedPro
     })
   }
 
+  // 사업 개요 전체 보기(표에서는 한 줄로 잘라 보여준다)
+  const [descOf, setDescOf] = useState<ManagedProject | null>(null)
   // 헤더 클릭 정렬 — 상태는 라벨 가나다순, 기간은 시작일 기준
   const { sortKey, sortDir, toggleSort, sortRows } = useClientSort<
-    'name' | 'status' | 'period' | 'sessions' | 'secretaries'
+    'name' | 'description' | 'status' | 'period' | 'secretaries'
   >()
   const sorted = sortRows(projects, (p, k) => {
     switch (k) {
       case 'name': return p.name
+      case 'description': return p.description ?? ''
       case 'status': return STATUS[p.status].label
       case 'period': return p.startDate
-      case 'sessions': return p.sessionCount
       case 'secretaries': return p.secretaryNames.join(', ')
     }
   })
@@ -88,25 +90,28 @@ export default function ProjectManagerTable({ projects }: { projects: ManagedPro
                   </button>
                 </th>
                 <SortTh label="사업명" field="name" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                <SortTh label="상태" field="status" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortTh label="사업 개요" field="description" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <SortTh label="사업 기간" field="period" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                <SortTh label="분과" field="sessions" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <SortTh label="담당자" field="secretaries" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortTh label="상태" field="status" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               </tr>
             </thead>
             <tbody>
               {sorted.map((p) => {
                 const st = STATUS[p.status]
                 return (
+                  // 행 클릭 = 상세(분과 설정)로 이동, 선택은 체크박스 클릭으로만
                   <tr
                     key={p.id}
-                    onClick={() => toggle(p.id)}
+                    onClick={() => router.push(`/admin/projects/${p.id}`)}
                     className={`cursor-pointer border-b border-slate-50 last:border-0 ${
                       selected.has(p.id) ? 'bg-indigo-50' : 'hover:bg-slate-50/60'
                     }`}
                   >
-                    <td className="px-5 py-3">
-                      <PrettyCheck checked={selected.has(p.id)} />
+                    <td className="px-5 py-3" onClick={(e) => e.stopPropagation()}>
+                      <button type="button" onClick={() => toggle(p.id)} aria-label={`${p.name} 선택`} className="block">
+                        <PrettyCheck checked={selected.has(p.id)} />
+                      </button>
                     </td>
                     <td className="px-5 py-3">
                       <Link
@@ -116,23 +121,34 @@ export default function ProjectManagerTable({ projects }: { projects: ManagedPro
                       >
                         {p.name}
                       </Link>
-                      {p.description && (
-                        <p className="mt-0.5 line-clamp-1 text-xs text-slate-400">{p.description}</p>
+                    </td>
+                    <td className="max-w-xs px-5 py-3">
+                      {p.description ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setDescOf(p)
+                          }}
+                          title="클릭해서 전체 보기"
+                          className="block w-full truncate text-left text-slate-600 hover:text-indigo-700"
+                        >
+                          {p.description}
+                        </button>
+                      ) : (
+                        <span className="text-xs text-slate-300">—</span>
                       )}
                     </td>
-                    <td className="px-5 py-3">
-                      <span className={`text-xs font-medium whitespace-nowrap ${st.cls}`}>{st.label}</span>
-                    </td>
-                    <td className="px-5 py-3 text-slate-600">{p.periodLabel}</td>
-                    <td className="px-5 py-3 text-slate-600">
-                      {p.sessionCount}개{p.inProgressCount > 0 ? ` · 진행중 ${p.inProgressCount}` : ''}
-                    </td>
+                    <td className="px-5 py-3 whitespace-nowrap text-slate-600">{p.periodLabel}</td>
                     <td className="px-5 py-3 text-slate-600">
                       {p.secretaryNames.length === 0 ? (
                         <span className="text-xs text-slate-400">미배정</span>
                       ) : (
                         p.secretaryNames.join(', ')
                       )}
+                    </td>
+                    <td className="px-5 py-3">
+                      <span className={`text-xs font-medium whitespace-nowrap ${st.cls}`}>{st.label}</span>
                     </td>
                   </tr>
                 )
@@ -141,6 +157,29 @@ export default function ProjectManagerTable({ projects }: { projects: ManagedPro
           </table>
         )}
       </div>
+
+      {/* 사업 개요 전체 보기 */}
+      {descOf && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setDescOf(null)}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"
+          >
+            <div className="mb-3 flex items-start justify-between gap-4">
+              <h3 className="text-base font-semibold text-slate-900">{descOf.name}</h3>
+              <button
+                type="button"
+                onClick={() => setDescOf(null)}
+                className="shrink-0 rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-500 hover:bg-slate-50"
+              >
+                닫기
+              </button>
+            </div>
+            <p className="text-xs font-medium text-slate-400">사업 개요</p>
+            <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{descOf.description}</p>
+          </div>
+        </div>
+      )}
 
       {projects.length > 0 && (
         <div className="space-y-2">

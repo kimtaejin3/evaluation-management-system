@@ -29,10 +29,19 @@ describe('SubjectsTable', () => {
     expect(screen.getByText('시연기업 A')).toBeInTheDocument()
   })
 
+  it('행(기업명) 클릭으로는 선택되지 않고 체크박스 클릭으로만 선택된다', async () => {
+    const user = userEvent.setup()
+    renderTable()
+    await user.click(screen.getByText('시연기업 A'))
+    expect(screen.queryByText('1개 선택됨')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '시연기업 A 선택' }))
+    expect(screen.getByText('1개 선택됨')).toBeInTheDocument()
+  })
+
   it('1개 선택 후 정보 변경 → 수정 폼(지역·연구책임자)과 삭제 버튼이 뜬다', async () => {
     const user = userEvent.setup()
     renderTable(true)
-    await user.click(screen.getByText('시연기업 A'))
+    await user.click(screen.getByRole('button', { name: '시연기업 A 선택' }))
     expect(screen.getByText('1개 선택됨')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '평가 대상 정보 변경' }))
     expect(screen.getByDisplayValue('서울')).toBeInTheDocument()
@@ -44,8 +53,8 @@ describe('SubjectsTable', () => {
   it('2개 선택 후 정보 변경 → 삭제만(수정 폼 없음)', async () => {
     const user = userEvent.setup()
     renderTable(true)
-    await user.click(screen.getByText('시연기업 A'))
-    await user.click(screen.getByText('시연기업 B'))
+    await user.click(screen.getByRole('button', { name: '시연기업 A 선택' }))
+    await user.click(screen.getByRole('button', { name: '시연기업 B 선택' }))
     await user.click(screen.getByRole('button', { name: '평가 대상 정보 변경' }))
     expect(screen.getByText(/삭제만 가능합니다/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '정보 저장' })).not.toBeInTheDocument()
@@ -56,7 +65,7 @@ describe('SubjectsTable', () => {
     renderTable(false)
     expect(screen.queryByRole('button', { name: '평가 대상 정보 변경' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '전체 선택' })).not.toBeInTheDocument()
-    // 서류 열은 '보기 (n)' 버튼으로 남는다(행마다 하나)
-    expect(screen.getAllByRole('button', { name: /보기/ }).length).toBe(ROWS.length)
+    // 서류 열은 '제출 서류 (n)' 버튼으로 남는다(행마다 하나)
+    expect(screen.getAllByRole('button', { name: /제출 서류/ }).length).toBe(ROWS.length)
   })
 })

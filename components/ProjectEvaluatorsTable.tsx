@@ -22,8 +22,8 @@ export type EvaluatorSessionGroup = {
 }
 
 // 평가위원 선정현황 표 — 분과별 묶음(rowSpan) + 분과 중심 배정 편집.
-// 각 분과 그룹 끝의 '+ 위원 추가' 드롭다운으로 전역 풀에서 골라 배정하고,
-// 행 끝 ✕ 로 배정 해제한다(한 명씩 미세 조정용 — 일괄 배정은 평가위원 관리에서).
+// 마지막 열('추가 및 삭제')에서 행 끝 ✕ 로 배정 해제하고, 분과 그룹 끝의 + 로 위원을 추가한다
+// (한 명씩 미세 조정용 — 일괄 배정은 평가위원 관리에서).
 export default function ProjectEvaluatorsTable({
   sessions,
   pool,
@@ -35,6 +35,8 @@ export default function ProjectEvaluatorsTable({
   const [pending, startTx] = useTransition()
   // 배정 해제 확인 대상 — { sessionId, userId } (인라인 confirm 모달)
   const [removeTarget, setRemoveTarget] = useState<{ sessionId: string; userId: string } | null>(null)
+  // 위원 추가 대상 분과 — + 클릭 시 후보 목록 모달
+  const [addTarget, setAddTarget] = useState<string | null>(null)
 
   const assign = (sessionId: string, userId: string) => {
     if (!userId) return
@@ -54,11 +56,23 @@ export default function ProjectEvaluatorsTable({
     })
   }
 
-  // 이 사업 안에서 하나라도 배정된 위원 — 드롭다운 그룹 구분용
+  // 이 사업 안에서 하나라도 배정된 위원 — 후보 목록 그룹 구분용
   const assignedAnywhere = new Set(sessions.flatMap((s) => s.assignments.map((a) => a.userId)))
+  // 분과별 추가 후보(아직 그 분과에 배정되지 않은 위원) — 미배정 위원을 먼저 보여준다
+  const candidatesOf = (s: EvaluatorSessionGroup) => {
+    const assignedIds = new Set(s.assignments.map((a) => a.userId))
+    const candidates = pool.filter((p) => !assignedIds.has(p.id))
+    return {
+      all: candidates,
+      unassigned: candidates.filter((p) => !assignedAnywhere.has(p.id)),
+      elsewhere: candidates.filter((p) => assignedAnywhere.has(p.id)),
+    }
+  }
 
   const removeSession = sessions.find((s) => s.id === removeTarget?.sessionId)
   const removeUser = removeSession?.assignments.find((a) => a.userId === removeTarget?.userId)
+  const addSession = sessions.find((s) => s.id === addTarget)
+  const addCandidates = addSession ? candidatesOf(addSession) : null
 
   return (
     <div className="space-y-2">
@@ -81,18 +95,13 @@ export default function ProjectEvaluatorsTable({
                 <th className="px-5 py-3 font-medium">아이디</th>
                 <th className="px-5 py-3 font-medium">비밀번호</th>
                 <th className="px-5 py-3 font-medium">연락처</th>
-                <th className="w-14 px-5 py-3" aria-label="배정 해제" />
+                <th className="w-28 px-3 py-3 text-center font-medium whitespace-nowrap">추가 및 삭제</th>
               </tr>
             </thead>
             <tbody>
               {sessions.map((s) => {
-                // 이 분과에 아직 배정되지 않은 위원만 추가 후보로.
-                // 어느 분과에도 배정 안 된 위원을 먼저(그룹 구분) 보여준다.
-                const assignedIds = new Set(s.assignments.map((a) => a.userId))
-                const candidates = pool.filter((p) => !assignedIds.has(p.id))
-                const unassigned = candidates.filter((p) => !assignedAnywhere.has(p.id))
-                const elsewhere = candidates.filter((p) => assignedAnywhere.has(p.id))
-                // 위원 행들 + (마감 아니면) 마지막 '+ 위원 추가' 행
+                const { all: candidates } = candidatesOf(s)
+                // 위원 행들 + (마감 아니면) 마지막 '+' 행
                 const rows = s.assignments.length + (s.closed ? 0 : 1) || 1
                 const head = (
                   <td rowSpan={rows} className="border-r border-slate-100 px-5 py-3 align-top">
@@ -115,6 +124,12 @@ export default function ProjectEvaluatorsTable({
                     >
                       {i === 0 && head}
                       <td className={`px-5 py-3 ${isChair ? 'font-semibold text-slate-900' : 'text-slate-800'}`}>
+                        {/* 위원장은 배경색에 더해 이름 앞 뱃지로도 표시 */}
+                        {isChair && (
+                          <span className="mr-1.5 rounded bg-indigo-100 px-1.5 py-0.5 text-[11px] font-medium text-indigo-700">
+                            위원장
+                          </span>
+                        )}
                         {a.name}
                       </td>
                       <td className="px-5 py-3 text-slate-600">{a.username}</td>
@@ -122,7 +137,7 @@ export default function ProjectEvaluatorsTable({
                         <PasswordCell value={a.tempPassword} />
                       </td>
                       <td className="px-5 py-3 text-slate-600">{a.phone ?? '—'}</td>
-                      <td className="px-5 py-3 text-center">
+                      <td className="px-3 py-3 text-center">
                         {!s.closed && (
                           <button
                             type="button"
@@ -139,42 +154,24 @@ export default function ProjectEvaluatorsTable({
                     </tr>
                   )
                 })
-                const addRow = !s.closed ? (
+                // 그룹 끝 행 — 마지막 열에 + (위원 추가). 마감 분과는 + 없이 빈 안내만.
+                const tailRow = !s.closed ? (
                   <tr key={`${s.id}-add`} className="border-b border-slate-50 last:border-0">
                     {s.assignments.length === 0 && head}
-                    <td colSpan={5} className="px-5 py-2.5">
-                      <span className="relative inline-block">
-                        <select
-                          value=""
-                          disabled={pending || candidates.length === 0}
-                          aria-label={`${s.name} 위원 추가`}
-                          onChange={(e) => assign(s.id, e.target.value)}
-                          className="h-8 appearance-none rounded-lg border border-dashed border-slate-300 bg-white py-0 pr-7 pl-2.5 text-xs text-slate-500 transition hover:border-slate-400 focus:border-indigo-400 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          <option value="">{candidates.length === 0 ? '추가할 위원 없음' : '+ 위원 추가'}</option>
-                          {unassigned.length > 0 && (
-                            <optgroup label="미배정 위원">
-                              {unassigned.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                  {p.name} · {p.username}
-                                </option>
-                              ))}
-                            </optgroup>
-                          )}
-                          {elsewhere.length > 0 && (
-                            <optgroup label="다른 분과 배정됨">
-                              {elsewhere.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                  {p.name} · {p.username}
-                                </option>
-                              ))}
-                            </optgroup>
-                          )}
-                        </select>
-                        <span aria-hidden className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-[10px] text-slate-400">
-                          ▾
-                        </span>
-                      </span>
+                    <td colSpan={4} className="px-5 py-2 text-xs text-slate-400">
+                      {s.assignments.length === 0 ? '배정된 위원 없음' : ''}
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      <button
+                        type="button"
+                        aria-label={`${s.name} 위원 추가`}
+                        title={candidates.length === 0 ? '추가할 위원 없음' : '위원 추가'}
+                        disabled={pending || candidates.length === 0}
+                        onClick={() => setAddTarget(s.id)}
+                        className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-slate-300 text-sm leading-none text-slate-500 transition hover:border-indigo-400 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        +
+                      </button>
                     </td>
                   </tr>
                 ) : s.assignments.length === 0 ? (
@@ -185,12 +182,71 @@ export default function ProjectEvaluatorsTable({
                     </td>
                   </tr>
                 ) : null
-                return [...memberRows, addRow]
+                return [...memberRows, tailRow]
               })}
             </tbody>
           </table>
         )}
       </div>
+
+      {/* 위원 추가 모달 — 후보를 누르면 바로 배정. 여러 명을 이어서 추가할 수 있게 열어 둔다. */}
+      {addSession && addCandidates && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setAddTarget(null)}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="flex max-h-[80vh] w-full max-w-md flex-col rounded-2xl bg-white shadow-xl"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+              <h3 className="text-base font-semibold text-slate-900">
+                위원 추가 <span className="ml-1 text-sm font-normal text-slate-500">· {addSession.name}</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setAddTarget(null)}
+                className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-500 hover:bg-slate-50"
+              >
+                닫기
+              </button>
+            </div>
+            <div className="overflow-y-auto px-2 py-2">
+              {addCandidates.all.length === 0 ? (
+                <p className="px-3 py-6 text-center text-sm text-slate-400">추가할 위원이 없습니다.</p>
+              ) : (
+                (
+                  [
+                    ['미배정 위원', addCandidates.unassigned],
+                    ['다른 분과 배정됨', addCandidates.elsewhere],
+                  ] as const
+                ).map(([label, list]) =>
+                  list.length === 0 ? null : (
+                    <div key={label} className="mb-1">
+                      <p className="px-3 pt-2 pb-1 text-xs font-medium text-slate-400">{label}</p>
+                      <ul>
+                        {list.map((p) => (
+                          <li key={p.id}>
+                            <button
+                              type="button"
+                              disabled={pending}
+                              onClick={() => assign(addSession.id, p.id)}
+                              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition hover:bg-indigo-50 disabled:opacity-50"
+                            >
+                              <span>
+                                <span className="font-medium text-slate-800">{p.name}</span>
+                                <span className="ml-2 text-xs text-slate-400">{p.username}</span>
+                              </span>
+                              <span className="text-xs font-medium text-indigo-600">{pending ? '처리 중…' : '+ 추가'}</span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ),
+                )
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 배정 해제 확인 모달 */}
       {removeTarget && removeUser && removeSession && (

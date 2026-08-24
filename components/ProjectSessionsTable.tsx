@@ -104,15 +104,18 @@ export default function ProjectSessionsTable({
             </thead>
             <tbody>
               {sorted.map((s) => (
+                // 행 클릭 = 분과 상세로 이동, 선택은 체크박스 클릭으로만
                 <tr
                   key={s.id}
-                  onClick={() => toggle(s.id)}
+                  onClick={() => router.push(`/admin/sessions/${s.id}`)}
                   className={`cursor-pointer border-b border-slate-50 last:border-0 ${
                     selected.has(s.id) ? 'bg-indigo-50' : 'hover:bg-slate-50/60'
                   }`}
                 >
-                  <td className="px-5 py-3">
-                    <PrettyCheck checked={selected.has(s.id)} />
+                  <td className="px-5 py-3" onClick={(e) => e.stopPropagation()}>
+                    <button type="button" onClick={() => toggle(s.id)} aria-label={`${s.name} 선택`} className="block">
+                      <PrettyCheck checked={selected.has(s.id)} />
+                    </button>
                   </td>
                   <td className="px-5 py-3">
                     <Link
@@ -128,8 +131,13 @@ export default function ProjectSessionsTable({
                     {secretaryCells[s.id]}
                   </td>
                   <td className="px-5 py-3 text-slate-600">{s.periodLabel}</td>
-                  <td className="px-5 py-3 text-slate-600">{s.subjectCount}</td>
-                  <td className="px-5 py-3 text-slate-600">{s.assignmentCount}</td>
+                  {/* 0은 숫자 대신 '미지정'/'미배정'으로 — 아직 준비 안 됐음을 바로 알 수 있게 */}
+                  <td className="px-5 py-3 text-slate-600">
+                    {s.subjectCount > 0 ? s.subjectCount : <span className="text-xs text-slate-400">미지정</span>}
+                  </td>
+                  <td className="px-5 py-3 text-slate-600">
+                    {s.assignmentCount > 0 ? s.assignmentCount : <span className="text-xs text-slate-400">미배정</span>}
+                  </td>
                   <td className="px-5 py-3">
                     <StatusBadge status={s.status} />
                   </td>

@@ -103,16 +103,18 @@ export default function SubjectsTable({
             </thead>
             <tbody>
               {sorted.map((s, i) => (
+                // 선택은 체크박스 클릭으로만(행 클릭으로 체크되지 않음) — 다른 관리 표와 동일
                 <tr
                   key={s.id}
-                  onClick={canEdit ? () => toggle(s.id) : undefined}
                   className={`border-b border-slate-50 last:border-0 ${
-                    canEdit ? `cursor-pointer ${selected.has(s.id) ? "bg-indigo-50" : "hover:bg-slate-50/60"}` : "hover:bg-slate-50/60"
+                    selected.has(s.id) ? "bg-indigo-50" : "hover:bg-slate-50/60"
                   }`}
                 >
                   {canEdit && (
                     <td className="px-5 py-2.5">
-                      <PrettyCheck checked={selected.has(s.id)} />
+                      <button type="button" onClick={() => toggle(s.id)} aria-label={`${s.name} 선택`} className="block">
+                        <PrettyCheck checked={selected.has(s.id)} />
+                      </button>
                     </td>
                   )}
                   <td className="px-5 py-2.5 tabular-nums text-slate-500">{i + 1}</td>
@@ -135,7 +137,7 @@ export default function SubjectsTable({
                       }}
                       className="text-xs font-medium whitespace-nowrap text-slate-600 transition hover:text-indigo-700 hover:underline"
                     >
-                      {canManageDocs ? "관리" : "보기"} ({s.documents.length})
+                      제출 서류 ({s.documents.length})
                     </button>
                   </td>
                 </tr>

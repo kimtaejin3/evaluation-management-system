@@ -80,7 +80,7 @@ function InlineTd({
           onKeyDown={(e) => {
             if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
           }}
-          className={`peer w-full rounded-md border border-transparent bg-transparent px-2 py-1 text-sm transition placeholder:text-slate-300 hover:border-b-slate-300 focus:border-indigo-400 focus:bg-white focus:outline-none ${
+          className={`peer w-full rounded-md border border-transparent bg-transparent px-2 py-1 text-center text-sm transition placeholder:text-slate-300 hover:border-b-slate-300 focus:border-indigo-400 focus:bg-white focus:outline-none ${
             bold ? 'font-medium text-slate-800' : 'text-slate-600'
           } ${mono ? 'font-mono tabular-nums' : ''} ${state === 'error' ? 'border-rose-300' : ''}`}
         />
@@ -602,7 +602,8 @@ export default function UserManagerTable({
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <table className="table-grid w-full text-sm">
-          <thead className="text-left text-slate-500">
+          {/* 셀 내용(입력창 텍스트·드롭다운·상태)이 모두 가운데 정렬이므로 헤더도 가운데 */}
+          <thead className="text-center text-slate-500">
             <tr className="border-b border-slate-100 bg-slate-50/60">
               <th className="w-12 px-4 py-2.5">
                 <button type="button" onClick={toggleAll} aria-label="전체 선택">
